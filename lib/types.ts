@@ -130,3 +130,47 @@ export const STATUS_META: Record<SolutionStatus, { label: string; symbol: string
   paused: { label: "暂停", symbol: "○" },
   done: { label: "已完成", symbol: "✓" },
 }
+
+// ---- 系统设置 / 快捷键 ----
+
+// 可自定义的全局快捷键动作
+export type ShortcutAction = "newCategory" | "goCalendar" | "search"
+
+// 一个组合键绑定：modifier=true 表示配合 Ctrl/Cmd 使用
+export interface ShortcutBinding {
+  modifier: boolean // Ctrl / Cmd
+  key: string // 单字符，如 "n" / "b" / "k"
+}
+
+export interface ShortcutMeta {
+  action: ShortcutAction
+  label: string
+  description: string
+  defaults: ShortcutBinding
+}
+
+export const SHORTCUT_META: ShortcutMeta[] = [
+  { action: "newCategory", label: "新建分类", description: "打开“添加分类”弹窗", defaults: { modifier: true, key: "n" } },
+  { action: "goCalendar", label: "打开日历", description: "切换到日历视图", defaults: { modifier: true, key: "b" } },
+  { action: "search", label: "全局搜索", description: "打开全局搜索", defaults: { modifier: true, key: "k" } },
+]
+
+// 可持久化的系统设置
+export type ThemePreference = "light" | "dark" | "system"
+export type DefaultView = "workspace" | "calendar"
+
+export interface Settings {
+  theme: ThemePreference
+  defaultView: DefaultView
+  shortcuts: Record<ShortcutAction, ShortcutBinding>
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  theme: "system",
+  defaultView: "workspace",
+  shortcuts: Object.fromEntries(SHORTCUT_META.map((m) => [m.action, { ...m.defaults }])) as Record<
+    ShortcutAction,
+    ShortcutBinding
+  >,
+}
+

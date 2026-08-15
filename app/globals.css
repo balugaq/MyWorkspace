@@ -54,6 +54,14 @@
 }
 
 :root {
+    /* 系统字体栈（离线可用，替代 next/font/google；中文优先中文字体） */
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+        "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
+        "Helvetica Neue", Arial, sans-serif;
+    --font-serif: ui-serif, Georgia, Cambria, "Songti SC", "SimSun",
+        "Noto Serif CJK SC", "Times New Roman", serif;
+    --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Monaco,
+        Consolas, "Cascadia Code", "Courier New", monospace;
     --background: oklch(0.985 0.004 260);
     --foreground: oklch(0.22 0.02 275);
     --card: oklch(1 0 0);

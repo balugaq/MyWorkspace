@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { getIcon } from "@/lib/icons"
-import type { Category } from "@/lib/types"
+import { TEMPLATES, type Category, type TemplateType } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -43,7 +43,8 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
   const categories = useWorkspace((s) => s.categories)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const view = useWorkspace((s) => s.view)
-  const [addOpen, setAddOpen] = useState(false)
+  const addOpen = useWorkspace((s) => s.addCategoryOpen)
+  const setAddOpen = useWorkspace((s) => s.setAddCategoryOpen)
 
   return (
     <aside className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
@@ -74,7 +75,10 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
 
       <ScrollArea className="mt-3 flex-1 px-2">
         <nav className="flex flex-col gap-1 pb-6">
-          <SectionLabel>我的分类</SectionLabel>
+          <SectionLabel>内置模板</SectionLabel>
+          <TemplateQuickAdd />
+
+          <SectionLabel className="mt-3">我的分类</SectionLabel>
           {categories.map((cat) => (
             <CategoryItem key={cat.id} category={cat} active={view === "workspace" && activeCategoryId === cat.id} />
           ))}
@@ -99,6 +103,49 @@ function SectionLabel({ children, className }: { children: React.ReactNode; clas
     <p className={cn("px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground", className)}>
       {children}
     </p>
+  )
+}
+
+// 内置模板快捷创建：点击任意模板即以合理默认值新建一个分类并立即激活。
+function TemplateQuickAdd() {
+  const addCategory = useWorkspace((s) => s.addCategory)
+
+  const labelOf = (t: TemplateType) => TEMPLATES.find((x) => x.type === t)?.label ?? t
+  const defaultName = (t: TemplateType) => `新${labelOf(t)}`
+
+  function create(t: TemplateType) {
+    let id: string
+    if (t === "relation") {
+      id = addCategory(defaultName(t), "relation", {}, 0)
+    } else if (t === "novel") {
+      id = addCategory(defaultName(t), "novel", { namingRule: "第%章", autoNumber: true, itemLabel: "章节" }, 5)
+    } else {
+      // study / work / life / custom：空白条目分类
+      id = addCategory(defaultName(t), t, {}, 0)
+    }
+    // addCategory 内部已把新增分类设为当前激活项；此处仅提示
+    void id
+    toast.success(`已创建「${defaultName(t)}」，可右键重命名`)
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5 px-1">
+      {TEMPLATES.filter((t) => t.type !== "custom").map((t) => {
+        const Icon = getIcon(t.icon)
+        return (
+          <button
+            key={t.type}
+            type="button"
+            onClick={() => create(t.type)}
+            title={t.description}
+            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          >
+            <Icon className="size-3.5 shrink-0 text-muted-foreground/70" />
+            <span className="truncate">{t.label}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -167,15 +214,17 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
         </CollapsibleTrigger>
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100"
-            >
-              <MoreHorizontal className="size-3.5" />
-              <span className="sr-only">分类操作</span>
-            </Button>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6 opacity-0 transition-opacity group-hover:opacity-100 data-popup-open:opacity-100"
+              />
+            }
+          >
+            <MoreHorizontal className="size-3.5" />
+            <span className="sr-only">分类操作</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuGroup>

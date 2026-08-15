@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "next build",
+    "serve": "node scripts/serve-static.mjs",
+    "deploy:local": "next build && node scripts/serve-static.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

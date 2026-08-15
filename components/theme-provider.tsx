@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
+import { useWorkspace } from "@/lib/store"
 
 function ThemeProvider({
   children,
@@ -16,9 +17,23 @@ function ThemeProvider({
       {...props}
     >
       <ThemeHotkey />
+      <ThemeFromStore />
       {children}
     </NextThemesProvider>
   )
+}
+
+// 将 store.settings.theme 作为主题的唯一来源，同步到 next-themes
+function ThemeFromStore() {
+  const theme = useWorkspace((s) => s.settings.theme)
+  const hydrated = useWorkspace((s) => s.hydrated)
+  const { setTheme } = useTheme()
+
+  React.useEffect(() => {
+    if (hydrated) setTheme(theme)
+  }, [theme, hydrated, setTheme])
+
+  return null
 }
 
 function isTypingTarget(target: EventTarget | null) {

@@ -13,7 +13,12 @@ import type {
   SolutionStatus,
   TemplateType,
   CategoryConfig,
+  Settings,
+  DefaultView,
+  ShortcutAction,
+  ShortcutBinding,
 } from "./types"
+import { DEFAULT_SETTINGS } from "./types"
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -133,6 +138,12 @@ interface WorkspaceState {
   selectedDate: string
   hydrated: boolean
 
+  // 系统设置
+  settings: Settings
+  // UI 弹窗状态（跨组件触发，例如全局快捷键 Ctrl+N）
+  addCategoryOpen: boolean
+  settingsOpen: boolean
+
   // 分类
   addCategory: (name: string, template: TemplateType, config: CategoryConfig, count?: number) => string
   removeCategory: (id: string) => void
@@ -140,6 +151,16 @@ interface WorkspaceState {
   setActiveCategory: (id: string) => void
   setActiveItem: (id: string | null) => void
   goCalendar: () => void
+
+  // 系统设置 / UI
+  updateSettings: (patch: Partial<Settings>) => void
+  setShortcut: (action: ShortcutAction, binding: ShortcutBinding) => void
+  setAddCategoryOpen: (v: boolean) => void
+  setSettingsOpen: (v: boolean) => void
+
+  // 数据备份
+  exportData: () => string | null
+  importData: (json: string) => boolean
 
   // 小说 / 通用条目
   addChapter: (catId: string) => void
@@ -175,6 +196,49 @@ export const useWorkspace = create<WorkspaceState>()(
       view: "workspace",
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       hydrated: false,
+      settings: DEFAULT_SETTINGS,
+      addCategoryOpen: false,
+      settingsOpen: false,
+
+      updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
+
+      setShortcut: (action, binding) =>
+        set((s) => ({
+          settings: { ...s.settings, shortcuts: { ...s.settings.shortcuts, [action]: binding } },
+        })),
+
+      setAddCategoryOpen: (v) => set({ addCategoryOpen: v }),
+      setSettingsOpen: (v) => set({ settingsOpen: v }),
+
+      exportData: () => {
+        const s = get()
+        try {
+          return JSON.stringify(
+            { version: 1, exportedAt: new Date().toISOString(), categories: s.categories, calendar: s.calendar, settings: s.settings },
+            null,
+            2,
+          )
+        } catch {
+          return null
+        }
+      },
+
+      importData: (json) => {
+        try {
+          const data = JSON.parse(json)
+          if (!data || !Array.isArray(data.categories) || typeof data.calendar !== "object") return false
+          set({
+            categories: data.categories as Category[],
+            calendar: data.calendar as CalendarData,
+            activeCategoryId: data.categories[0]?.id ?? null,
+            activeItemId: null,
+            view: "workspace",
+          })
+          return true
+        } catch {
+          return false
+        }
+      },
 
       addCategory: (name, template, config, count = 0) => {
         const id = uid()
@@ -445,11 +509,32 @@ export const useWorkspace = create<WorkspaceState>()(
     {
       name: "my-omni-workspace",
       onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true
+        if (state) {
+          state.hydrated = true
+          // 应用用户设置的默认视图（仅当尚未处于某个明确视图时属于启动行为）
+          applyDefaultView(state)
+        }
+      },
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<WorkspaceState>
+        // 若历史数据没有 settings，则并入当前默认设置
+        return {
+          ...current,
+          ...p,
+          settings: { ...DEFAULT_SETTINGS, ...(p.settings ?? {}) },
+        }
       },
     },
   ),
 )
+
+function applyDefaultView(state: WorkspaceState) {
+  const dv: DefaultView = state.settings?.defaultView ?? "workspace"
+  if (dv === "calendar" && state.view !== "calendar") {
+    state.view = "calendar"
+    state.activeCategoryId = null
+  }
+}
 
 function iconForTemplate(t: TemplateType): string {
   switch (t) {
@@ -490,7 +575,7 @@ export function toChineseNumber(n: number): string {
   }
   // 100-999
   let result = ""
-  let str = String(n)
+  const str = String(n)
   for (let i = 0; i < str.length; i++) {
     const d = Number(str[i])
     const unit = units[str.length - 1 - i]

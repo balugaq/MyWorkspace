@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react"
 import { useWorkspace } from "@/lib/store"
+import { useGlobalShortcuts } from "@/hooks/use-shortcuts"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Topbar } from "@/components/topbar"
 import { NovelWorkspace } from "@/components/novel-workspace"
 import { MindmapWorkspace } from "@/components/mindmap-workspace"
 import { CalendarWorkspace } from "@/components/calendar-workspace"
 import { GlobalSearch } from "@/components/global-search"
+import { SettingsDialog } from "@/components/settings-dialog"
+import { StatusBar } from "@/components/status-bar"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
@@ -21,15 +24,13 @@ export default function Page() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
 
+  // 统一的全局快捷键（Ctrl+N 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
+  useGlobalShortcuts()
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault()
-        setSearchOpen((v) => !v)
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    const onOpenSearch = () => setSearchOpen(true)
+    window.addEventListener("dsh:open-search", onOpenSearch)
+    return () => window.removeEventListener("dsh:open-search", onOpenSearch)
   }, [])
 
   // close mobile drawer whenever the active view changes
@@ -99,9 +100,12 @@ export default function Page() {
             </div>
           )}
         </main>
+
+        <StatusBar />
       </div>
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      <SettingsDialog />
     </div>
   )
 }

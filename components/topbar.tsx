@@ -1,17 +1,21 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Moon, Sun, Command } from "lucide-react"
+import { Search, Moon, Sun, Command, Settings as SettingsIcon } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { useWorkspace } from "@/lib/store"
+import type { ThemePreference } from "@/lib/types"
 
 export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
-  const { resolvedTheme, setTheme } = useTheme()
+  const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const view = useWorkspace((s) => s.view)
   const categories = useWorkspace((s) => s.categories)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
+  const settings = useWorkspace((s) => s.settings)
+  const updateSettings = useWorkspace((s) => s.updateSettings)
+  const setSettingsOpen = useWorkspace((s) => s.setSettingsOpen)
 
   useEffect(() => setMounted(true), [])
 
@@ -25,6 +29,11 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
         : activeCategory
           ? "条目工作区"
           : ""
+
+  function toggleTheme() {
+    const next: ThemePreference = settings.theme === "dark" ? "light" : "dark"
+    updateSettings({ theme: next })
+  }
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background/80 px-3 backdrop-blur md:px-4">
@@ -43,7 +52,9 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
         <Search className="size-4" />
         <span className="hidden text-left sm:inline">搜索全部内容…</span>
         <kbd className="hidden items-center gap-0.5 rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground sm:flex">
-          <Command className="size-2.5" />K
+          <Command className="size-2.5" />
+          {settings.shortcuts.search.modifier ? "⌘" : ""}
+          {settings.shortcuts.search.key.toUpperCase()}
         </kbd>
       </button>
 
@@ -51,7 +62,17 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
         variant="ghost"
         size="icon"
         className="size-9"
-        onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+        onClick={() => setSettingsOpen(true)}
+      >
+        <SettingsIcon className="size-4" />
+        <span className="sr-only">设置</span>
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-9"
+        onClick={toggleTheme}
       >
         {mounted && resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
         <span className="sr-only">切换主题</span>

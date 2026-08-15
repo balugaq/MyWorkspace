@@ -7,6 +7,7 @@ import { useWorkspace } from "@/lib/store"
 import type { Category, Chapter } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -63,14 +64,28 @@ function ChapterOverview({ category, chapters }: { category: Category; chapters:
                 className="flex w-full flex-col gap-2 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/50 hover:bg-accent/40"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-medium">{ch.title || "未命名"}</span>
-                  {ch.tags.length > 0 && (
-                    <Badge variant="secondary" className="shrink-0 text-[10px]">
-                      {ch.tags[0]}
-                    </Badge>
-                  )}
+                  <span className={cn("truncate font-medium", ch.done && "text-muted-foreground line-through")}>
+                    {ch.title || "未命名"}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {ch.done && (
+                      <Badge variant="secondary" className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                        ✓ 已完成
+                      </Badge>
+                    )}
+                    {ch.tags.length > 0 && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {ch.tags[0]}
+                      </Badge>
+                    )}
+                  </span>
                 </div>
-                <p className="line-clamp-2 min-h-8 whitespace-pre-wrap text-xs text-muted-foreground">
+                <p
+                  className={cn(
+                    "line-clamp-2 min-h-8 whitespace-pre-wrap text-xs text-muted-foreground",
+                    ch.done && "opacity-60",
+                  )}
+                >
                   {ch.content || "（空白）"}
                 </p>
               </button>
@@ -121,6 +136,14 @@ function ChapterEditor({
           {category.name}
         </Button>
         <div className="flex-1" />
+        <label className="flex cursor-pointer select-none items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted">
+          <Checkbox
+            checked={!!chapter.done}
+            onCheckedChange={(v) => updateChapter(category.id, chapter.id, { done: !!v })}
+            id={`done-${chapter.id}`}
+          />
+          完成
+        </label>
         <Button
           variant="ghost"
           size="icon"
