@@ -1,0 +1,80 @@
+"use client"
+
+import { memo } from "react"
+import { Handle, Position, type NodeProps } from "@xyflow/react"
+import { Pin, Lightbulb, ArrowRight, CornerDownRight, Target } from "lucide-react"
+import type { MindNode, SolutionStatus } from "@/lib/types"
+import { STATUS_META } from "@/lib/types"
+import { cn } from "@/lib/utils"
+
+const STATUS_STYLE: Record<SolutionStatus, string> = {
+  doing: "bg-solution text-solution-foreground",
+  paused: "bg-warning text-warning-foreground",
+  done: "bg-muted text-muted-foreground",
+}
+
+export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
+  const node = (data as { node: MindNode }).node
+  return (
+    <div
+      className={cn(
+        "w-56 rounded-xl border-2 bg-card shadow-sm transition-colors",
+        selected ? "border-primary ring-2 ring-primary/30" : "border-border",
+      )}
+    >
+      <Handle type="target" position={Position.Top} className="!size-2 !border-2 !border-primary !bg-background" />
+      <div className="flex items-center gap-1.5 border-b bg-primary/5 px-3 py-2">
+        <Pin className="size-3.5 shrink-0 text-primary" />
+        <span className="truncate text-sm font-semibold">{node.title}</span>
+      </div>
+      <div className="flex flex-col gap-1 px-3 py-2 text-[11px] text-muted-foreground">
+        {node.cause && (
+          <span className="flex items-start gap-1">
+            <CornerDownRight className="mt-0.5 size-3 shrink-0" />
+            <span className="line-clamp-1">原因：{node.cause}</span>
+          </span>
+        )}
+        {node.leadTo && (
+          <span className="flex items-start gap-1">
+            <ArrowRight className="mt-0.5 size-3 shrink-0" />
+            <span className="line-clamp-1">导向：{node.leadTo}</span>
+          </span>
+        )}
+        {node.result && (
+          <span className="flex items-start gap-1">
+            <Target className="mt-0.5 size-3 shrink-0" />
+            <span className="line-clamp-1">结果：{node.result}</span>
+          </span>
+        )}
+        {!node.cause && !node.leadTo && !node.result && node.content && (
+          <span className="line-clamp-2">{node.content}</span>
+        )}
+      </div>
+      <Handle type="source" position={Position.Bottom} className="!size-2 !border-2 !border-primary !bg-background" />
+    </div>
+  )
+})
+
+export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
+  const node = (data as { node: MindNode }).node
+  const sol = node.solution!
+  const meta = STATUS_META[sol.status]
+  return (
+    <div className="w-48 rounded-xl border-2 border-solution bg-solution/10 px-3 py-2.5 shadow-sm">
+      <Handle type="target" position={Position.Top} className="!size-2 !border-2 !border-solution !bg-background" />
+      <div className="mb-1 flex items-center gap-1.5">
+        <Lightbulb className="size-3.5 text-solution" />
+        <span className="text-[11px] font-semibold text-solution">解决方案</span>
+      </div>
+      <p className="mb-2 line-clamp-3 text-xs text-foreground">{sol.content}</p>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
+          STATUS_STYLE[sol.status],
+        )}
+      >
+        {meta.symbol} {meta.label}
+      </span>
+    </div>
+  )
+})
