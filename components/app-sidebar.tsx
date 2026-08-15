@@ -156,16 +156,14 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
           active ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60",
         )}
       >
-        <CollapsibleTrigger asChild>
-          <button className="flex flex-1 items-center gap-2 py-2 pl-2 text-left text-sm">
-            <ChevronRight
-              className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
-            />
-            <Icon className="size-4 shrink-0 text-primary" />
-            <span className="truncate font-medium" title={category.name}>
-              {category.name}
-            </span>
-          </button>
+        <CollapsibleTrigger className="flex flex-1 items-center gap-2 py-2 pl-2 text-left text-sm">
+          <ChevronRight
+            className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+          />
+          <Icon className="size-4 shrink-0 text-primary" />
+          <span className="truncate font-medium" title={category.name}>
+            {category.name}
+          </span>
         </CollapsibleTrigger>
 
         <DropdownMenu>
