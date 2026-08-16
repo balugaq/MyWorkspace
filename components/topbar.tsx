@@ -10,6 +10,7 @@ import type { ThemePreference } from "@/lib/types"
 export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [isMac, setIsMac] = useState(false)
   const view = useWorkspace((s) => s.view)
   const categories = useWorkspace((s) => s.categories)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
@@ -17,7 +18,10 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setSettingsOpen = useWorkspace((s) => s.setSettingsOpen)
 
-  useEffect(() => setMounted(true), [])
+  useEffect(() => {
+    setMounted(true)
+    setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent))
+  }, [])
 
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
   const title = view === "calendar" ? "日历" : (activeCategory?.name ?? "工作台")
@@ -52,8 +56,8 @@ export function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
         <Search className="size-4" />
         <span className="hidden text-left sm:inline">搜索全部内容…</span>
         <kbd className="hidden items-center gap-0.5 rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground sm:flex">
-          <Command className="size-2.5" />
-          {settings.shortcuts.search.modifier ? "⌘" : ""}
+          {settings.shortcuts.search.modifier &&
+            (isMac ? <Command className="size-2.5" /> : <span className="text-[10px] font-medium">Ctrl</span>)}
           {settings.shortcuts.search.key.toUpperCase()}
         </kbd>
       </button>

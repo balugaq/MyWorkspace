@@ -28,6 +28,26 @@ export function useGlobalShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return
+
+      // 在文本输入框中：Ctrl/Cmd 组合键应优先作用于文本本身
+      if ((e.ctrlKey || e.metaKey) && isTextTarget(e.target)) {
+        const k = e.key.toLowerCase()
+        // Ctrl+A：全选当前输入框内的文字
+        if (k === "a") {
+          e.preventDefault()
+          const el = e.target as HTMLInputElement | HTMLTextAreaElement
+          el.select()
+          return
+        }
+        // Ctrl+S：保存（val 已通过 onChange 写入 store，这里仅失焦提交）
+        if (k === "s") {
+          e.preventDefault()
+          const el = e.target as HTMLElement
+          el.blur()
+          return
+        }
+      }
+
       const shortcuts = settings.shortcuts
       const hit = (action: ShortcutAction) => matchShortcut(e, shortcuts[action])
 
@@ -48,4 +68,13 @@ export function useGlobalShortcuts() {
   }, [settings.shortcuts])
 
   return settings.shortcuts
+}
+
+function isTextTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return (
+    target.isContentEditable ||
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA"
+  )
 }

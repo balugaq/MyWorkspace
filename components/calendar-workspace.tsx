@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   format,
   parse,
@@ -20,6 +20,8 @@ import { zhCN } from "date-fns/locale"
 import { ChevronLeft, ChevronRight, Plus, Trash2, StickyNote, Clock } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
+import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
+import { emitRenderDate, type DateMarkerApi, type CalendarDisplayType } from "@/lib/calendar-events"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -34,8 +36,12 @@ export function CalendarWorkspace() {
   const selectedDate = useWorkspace((s) => s.selectedDate)
   const setSelectedDate = useWorkspace((s) => s.setSelectedDate)
   const calendar = useWorkspace((s) => s.calendar)
+  const categories = useWorkspace((s) => s.categories)
   const [view, setView] = useState<CalView>("month")
+  const gridRef = useRef<HTMLDivElement>(null)
 
+  // 关系分类中绑定了截止日期的 Todo 节点，按日期分组
+  const dueMap = useMemo(() => collectDueNodes(categories), [categories])
   const current = useMemo(() => parse(selectedDate, "yyyy-MM-dd", new Date()), [selectedDate])
 
   const days = useMemo(() => {
@@ -44,6 +50,26 @@ export function CalendarWorkspace() {
     const end = view === "month" ? endOfWeek(endOfMonth(current)) : endOfWeek(current)
     return eachDayOfInterval({ start, end })
   }, [current, view])
+
+  // 单元格渲染后，对每个日期块触发 RenderDateEvent（供日历标记脚本订阅）
+  useEffect(() => {
+    if (view === "day") return // day 视图无网格单元格
+    const container = gridRef.current
+    if (!container) return
+    const displayType: CalendarDisplayType = view === "month" ? "month" : "week"
+    // 等一帧确保 DOM 已提交
+    const raf = requestAnimationFrame(() => {
+      const cells = container.querySelectorAll<HTMLElement>("[data-date]")
+      for (const cell of cells) {
+        const date = cell.getAttribute("data-date")
+        if (!date) continue
+        // 每次渲染重建标记容器，避免重复累积
+        cell.querySelector("[data-markers]")?.remove()
+        emitRenderDate({ displayType, date, element: cell, api: makeMarkerApi(cell) })
+      }
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [days, view])
 
   function shift(dir: 1 | -1) {
     const fn = view === "month" ? addMonths : view === "week" ? addWeeks : addDays
@@ -112,6 +138,7 @@ export function CalendarWorkspace() {
               ))}
             </div>
             <div
+              ref={gridRef}
               className={cn(
                 "grid flex-1 grid-cols-7 gap-1",
                 view === "month" ? "auto-rows-fr" : "",
@@ -120,6 +147,7 @@ export function CalendarWorkspace() {
               {days.map((day) => {
                 const key = format(day, "yyyy-MM-dd")
                 const data = calendar[key]
+                const dueNodes = dueMap[key] ?? []
                 const hasContent =
                   !!data && (data.note.trim() !== "" || data.todos.length > 0 || data.events.length > 0)
                 const selected = isSameDay(day, current)
@@ -129,6 +157,7 @@ export function CalendarWorkspace() {
                   <button
                     key={key}
                     type="button"
+                    data-date={key}
                     onClick={() => setSelectedDate(key)}
                     className={cn(
                       "flex min-h-16 flex-col items-start gap-1 rounded-lg border p-1.5 text-left transition-colors",
@@ -147,21 +176,28 @@ export function CalendarWorkspace() {
                     >
                       {format(day, "d")}
                     </span>
-                    {hasContent && (
-                      <div className="flex flex-wrap items-center gap-1">
-                        {data!.note.trim() && <span className="size-1.5 rounded-full bg-primary" />}
-                        {data!.todos.length > 0 && (
-                          <span className="rounded bg-solution/15 px-1 text-[9px] text-solution">
-                            {doneCount}/{data!.todos.length}
-                          </span>
-                        )}
-                        {data!.events.length > 0 && (
-                          <span className="rounded bg-chart-3/15 px-1 text-[9px] text-chart-3">
-                            {data!.events.length} 事件
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap items-center gap-1">
+                      {hasContent && (
+                        <>
+                          {data!.note.trim() && <span className="size-1.5 rounded-full bg-primary" />}
+                          {data!.todos.length > 0 && (
+                            <span className="rounded bg-solution/15 px-1 text-[9px] text-solution">
+                              {doneCount}/{data!.todos.length}
+                            </span>
+                          )}
+                          {data!.events.length > 0 && (
+                            <span className="rounded bg-chart-3/15 px-1 text-[9px] text-chart-3">
+                              {data!.events.length} 事件
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {dueNodes.length > 0 && (
+                        <span className="rounded bg-primary/15 px-1 text-[9px] font-medium text-foreground">
+                          {dueNodes.length} 待办截止
+                        </span>
+                      )}
+                    </div>
                   </button>
                 )
               })}
@@ -170,12 +206,12 @@ export function CalendarWorkspace() {
         )}
       </div>
 
-      <DayDetail dateKey={format(current, "yyyy-MM-dd")} />
+      <DayDetail dateKey={format(current, "yyyy-MM-dd")} dueNodes={dueMap[format(current, "yyyy-MM-dd")] ?? []} />
     </div>
   )
 }
 
-function DayDetail({ dateKey }: { dateKey: string }) {
+function DayDetail({ dateKey, dueNodes }: { dateKey: string; dueNodes: DueEntry[] }) {
   const calendar = useWorkspace((s) => s.calendar)
   const setDayNote = useWorkspace((s) => s.setDayNote)
   const addCalendarTodo = useWorkspace((s) => s.addCalendarTodo)
@@ -183,6 +219,8 @@ function DayDetail({ dateKey }: { dateKey: string }) {
   const removeCalendarTodo = useWorkspace((s) => s.removeCalendarTodo)
   const addCalendarEvent = useWorkspace((s) => s.addCalendarEvent)
   const removeCalendarEvent = useWorkspace((s) => s.removeCalendarEvent)
+  const setActiveCategory = useWorkspace((s) => s.setActiveCategory)
+  const setActiveItem = useWorkspace((s) => s.setActiveItem)
 
   const day = calendar[dateKey] ?? { note: "", todos: [], events: [] }
   const [todoInput, setTodoInput] = useState("")
@@ -212,6 +250,33 @@ function DayDetail({ dateKey }: { dateKey: string }) {
               className="min-h-24 w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             />
           </section>
+
+          <Separator />
+
+          {dueNodes.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h3 className="text-xs font-medium text-muted-foreground">截止任务（思维图）</h3>
+              <ul className="flex flex-col gap-1">
+                {dueNodes.map((d) => (
+                  <li key={`${d.categoryId}-${d.nodeId}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory(d.categoryId)
+                        setActiveItem(d.nodeId)
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-left text-xs"
+                    >
+                      <span className="truncate font-medium">{d.title}</span>
+                      <span className="ml-auto shrink-0 truncate text-muted-foreground">
+                        {d.categoryName}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <Separator />
 
@@ -336,4 +401,40 @@ function DayDetail({ dateKey }: { dateKey: string }) {
       </ScrollArea>
     </aside>
   )
+}
+
+/** 为签名事件构造标记 API：把标记节点追加到日期块（不依赖 React 状态，脚本可直接改 DOM 装饰） */
+function makeMarkerApi(cell: HTMLElement): DateMarkerApi {
+  function container(): HTMLElement {
+    let box = cell.querySelector<HTMLElement>("[data-markers]")
+    if (!box) {
+      box = document.createElement("span")
+      box.dataset.markers = "1"
+      box.className = "flex flex-wrap items-center gap-1"
+      cell.appendChild(box)
+    }
+    return box
+  }
+  return {
+    addMarker(kind?: string, text?: string) {
+      const el = document.createElement("span")
+      el.className =
+        "rounded bg-primary/20 px-1 text-[9px] font-medium leading-none text-foreground"
+      el.textContent = text ?? kind ?? "●"
+      container().appendChild(el)
+      return el
+    },
+    addBulk(kinds) {
+      container().innerHTML = ""
+      for (const k of kinds) this.addMarker(k)
+      void container()
+    },
+    addText(text) {
+      const el = document.createElement("span")
+      el.className = "block truncate text-[9px] leading-tight text-foreground"
+      el.textContent = text
+      container().appendChild(el)
+      return el
+    },
+  }
 }

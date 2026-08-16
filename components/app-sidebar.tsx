@@ -10,6 +10,7 @@ import {
   Trash2,
   PanelLeftClose,
   Sparkles,
+  GripVertical,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
@@ -45,6 +46,7 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
   const view = useWorkspace((s) => s.view)
   const addOpen = useWorkspace((s) => s.addCategoryOpen)
   const setAddOpen = useWorkspace((s) => s.setAddCategoryOpen)
+  const moveCategory = useWorkspace((s) => s.moveCategory)
 
   return (
     <aside className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
@@ -73,14 +75,36 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
         </Button>
       </div>
 
-      <ScrollArea className="mt-3 flex-1 px-2">
+      <ScrollArea className="mt-3 min-h-0 flex-1 overflow-hidden px-2">
         <nav className="flex flex-col gap-1 pb-6">
           <SectionLabel>内置模板</SectionLabel>
           <TemplateQuickAdd />
 
           <SectionLabel className="mt-3">我的分类</SectionLabel>
-          {categories.map((cat) => (
-            <CategoryItem key={cat.id} category={cat} active={view === "workspace" && activeCategoryId === cat.id} />
+          {categories.map((cat, i) => (
+            <div
+              key={cat.id}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", cat.id)
+                e.dataTransfer.effectAllowed = "move"
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                const id = e.dataTransfer.getData("text/plain")
+                if (!id) return
+                const from = categories.findIndex((c) => c.id === id)
+                if (from === -1) return
+                const rect = e.currentTarget.getBoundingClientRect()
+                const before = e.clientY < rect.top + rect.height / 2
+                const to = before ? i : i + 1
+                if (to !== from) moveCategory(from, to)
+              }}
+              className="rounded-md"
+            >
+              <CategoryItem category={cat} active={view === "workspace" && activeCategoryId === cat.id} />
+            </div>
           ))}
           {categories.length === 0 && (
             <p className="px-3 py-6 text-center text-xs text-muted-foreground">
@@ -176,6 +200,7 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
   const removeCategory = useWorkspace((s) => s.removeCategory)
   const renameCategory = useWorkspace((s) => s.renameCategory)
   const addChapter = useWorkspace((s) => s.addChapter)
+  const moveChapter = useWorkspace((s) => s.moveChapter)
   const activeItemId = useWorkspace((s) => s.activeItemId)
 
   const [open, setOpen] = useState(active)
@@ -262,21 +287,40 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
         </button>
 
         {isNovelLike &&
-          items.map((ch) => (
+          items.map((ch, i) => (
             <button
               key={ch.id}
               type="button"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("text/plain", ch.id)
+                e.dataTransfer.effectAllowed = "move"
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                const id = e.dataTransfer.getData("text/plain")
+                if (!id) return
+                const from = items.findIndex((x) => x.id === id)
+                if (from === -1) return
+                // 按落点在该行位置的上半/下半决定插入到前面还是后面
+                const rect = e.currentTarget.getBoundingClientRect()
+                const before = e.clientY < rect.top + rect.height / 2
+                const to = before ? i : i + 1
+                if (from !== i && (to !== from)) moveChapter(category.id, from, to)
+              }}
               onClick={() => {
                 setActiveCategory(category.id)
                 setActiveItem(ch.id)
               }}
               className={cn(
-                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
+                "flex w-full cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors active:cursor-grabbing",
                 active && activeItemId === ch.id
                   ? "bg-sidebar-primary/10 text-primary font-medium"
                   : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
               )}
             >
+              <GripVertical className="size-3 shrink-0 text-muted-foreground/40" />
               <span className="truncate">{ch.title || "未命名"}</span>
             </button>
           ))}

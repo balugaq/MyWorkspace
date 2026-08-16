@@ -38,6 +38,10 @@ export interface MindNode {
   sub: string[] // 子任务节点 id 列表
   solution: Solution | null
   position: { x: number; y: number }
+  solutionPosition?: { x: number; y: number } // 解决方案节点的独立位置（可拖拽后记忆）
+  tags?: string[] // 与章节共用的标签体系
+  dueDate?: string | null // 截止日期 yyyy-MM-dd；null / 缺省 = 长期任务
+  longTerm?: boolean // 是否为长期任务（true 时不显示在日历）
 }
 
 // 节点之间的连线
@@ -47,6 +51,9 @@ export interface MindEdge {
   target: string
   kind: "flow" | "sub" | "solution"
 }
+
+// connectNodes 的结果
+export type ConnectResult = "created" | "exists" | "invalid"
 
 export interface RelationContent {
   nodes: MindNode[]
@@ -116,8 +123,7 @@ export interface TemplateMeta {
   description: string
 }
 
-export const TEMPLATES: TemplateMeta[] = [
-  { type: "novel", label: "小说类", icon: "BookOpen", description: "自动生成章节目录，适合诗集、小说、连载" },
+export const TEMPLATES: TemplateMeta[] = [  { type: "novel", label: "小说类", icon: "BookOpen", description: "自动生成章节目录，适合诗集、小说、连载" },
   { type: "study", label: "学习类", icon: "GraduationCap", description: "知识笔记与学习条目管理" },
   { type: "work", label: "工作类", icon: "Briefcase", description: "工作文档与任务清单" },
   { type: "life", label: "生活类", icon: "Home", description: "生活记录与随手笔记" },
@@ -159,10 +165,19 @@ export const SHORTCUT_META: ShortcutMeta[] = [
 export type ThemePreference = "light" | "dark" | "system"
 export type DefaultView = "workspace" | "calendar"
 
+/** 一条日历标记脚本 */
+export interface CalendarScript {
+  id: string
+  name: string
+  enabled: boolean
+  code: string
+}
+
 export interface Settings {
   theme: ThemePreference
   defaultView: DefaultView
   shortcuts: Record<ShortcutAction, ShortcutBinding>
+  fontSize: number // 全局基础字号 rem，例如 16（对应 --font-size-base）
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -172,5 +187,6 @@ export const DEFAULT_SETTINGS: Settings = {
     ShortcutAction,
     ShortcutBinding
   >,
+  fontSize: 16,
 }
 

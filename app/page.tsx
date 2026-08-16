@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useWorkspace } from "@/lib/store"
 import { useGlobalShortcuts } from "@/hooks/use-shortcuts"
+import { useCalendarScripts } from "@/hooks/use-calendar-scripts"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Topbar } from "@/components/topbar"
 import { NovelWorkspace } from "@/components/novel-workspace"
@@ -10,6 +11,8 @@ import { MindmapWorkspace } from "@/components/mindmap-workspace"
 import { CalendarWorkspace } from "@/components/calendar-workspace"
 import { GlobalSearch } from "@/components/global-search"
 import { SettingsDialog } from "@/components/settings-dialog"
+import { CalendarScriptsDialog } from "@/components/calendar-scripts-dialog"
+import { ConfigEditorDialog } from "@/components/config-editor-dialog"
 import { StatusBar } from "@/components/status-bar"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
@@ -21,11 +24,18 @@ export default function Page() {
   const view = useWorkspace((s) => s.view)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const categories = useWorkspace((s) => s.categories)
+  const scriptsOpen = useWorkspace((s) => s.scriptsOpen)
+  const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen)
+  const configEditorOpen = useWorkspace((s) => s.configEditorOpen)
+  const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
 
   // 统一的全局快捷键（Ctrl+N 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
   useGlobalShortcuts()
+
+  // 载入启用的日历标记脚本
+  useCalendarScripts()
 
   useEffect(() => {
     const onOpenSearch = () => setSearchOpen(true)
@@ -106,6 +116,8 @@ export default function Page() {
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <SettingsDialog />
+      <CalendarScriptsDialog open={scriptsOpen} onOpenChange={setScriptsOpen} />
+      <ConfigEditorDialog open={configEditorOpen} onOpenChange={setConfigEditorOpen} />
     </div>
   )
 }

@@ -18,9 +18,23 @@ function ThemeProvider({
     >
       <ThemeHotkey />
       <ThemeFromStore />
+      <FontSizeSetter />
       {children}
     </NextThemesProvider>
   )
+}
+
+// 将全局基础字号（settings.fontSize）应用到 html 根元素
+function FontSizeSetter() {
+  const fontSize = useWorkspace((s) => s.settings.fontSize)
+  const hydrated = useWorkspace((s) => s.hydrated)
+
+  React.useEffect(() => {
+    if (!hydrated) return
+    document.documentElement.style.fontSize = `${Math.min(24, Math.max(12, fontSize))}px`
+  }, [fontSize, hydrated])
+
+  return null
 }
 
 // 将 store.settings.theme 作为主题的唯一来源，同步到 next-themes

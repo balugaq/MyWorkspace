@@ -13,30 +13,30 @@
 
 ## 1. 项目身份与边界
 
-| 维度 | 事实 |
-| --- | --- |
-| 定位 | 纯前端个人工作台，集思维导图式 Todo、分类笔记（小说/学习/工作/生活）、日历日程于一体；数据存于浏览器 localStorage |
-| 技术栈 | Next.js 16.2.6（App Router + **static export**）、React 19、TypeScript 严格模式、Tailwind CSS v4、shadcn/ui（底层 `@base-ui/react`）、Zustand、`@xyflow/react`（React Flow）、`date-fns` |
-| 入口 | `app/page.tsx`（主布局：桌面/移动侧边栏 + 主工作区分发）；`app/layout.tsx`（字体/主题/Toaster） |
-| 状态 | `lib/store.ts` —— `useWorkspace`（Zustand + persist），含分类/章节/思维导图节点与连线/日历/系统设置 |
-| 部署 | 纯静态站点（`output: "export"`），`next build` 产出 `out/`，`scripts/serve-static.mjs` 零依赖本地托管 |
-| AI 职责范围 | 功能开发、Bug 修复、组件/状态重构、构建/脚本维护、文档维护 |
-| AI 不负责 | 发布到公网、推送远程仓库（推送动作由开发者执行） |
+| 维度        | 事实                                                                                                                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 定位        | 纯前端个人工作台，集思维导图式 Todo、分类笔记（小说/学习/工作/生活）、日历日程于一体；数据存于浏览器 localStorage                                                                        |
+| 技术栈      | Next.js 16.2.6（App Router + **static export**）、React 19、TypeScript 严格模式、Tailwind CSS v4、shadcn/ui（底层 `@base-ui/react`）、Zustand、`@xyflow/react`（React Flow）、`date-fns` |
+| 入口        | `app/page.tsx`（主布局：桌面/移动侧边栏 + 主工作区分发）；`app/layout.tsx`（字体/主题/Toaster）                                                                                          |
+| 状态        | `lib/store.ts` —— `useWorkspace`（Zustand + persist），含分类/章节/思维导图节点与连线/日历/系统设置                                                                                      |
+| 部署        | 纯静态站点（`output: "export"`），`next build` 产出 `out/`，`scripts/serve-static.mjs` 零依赖本地托管                                                                                    |
+| AI 职责范围 | 功能开发、Bug 修复、组件/状态重构、构建/脚本维护、文档维护                                                                                                                               |
+| AI 不负责   | 发布到公网、推送远程仓库（推送动作由开发者执行）                                                                                                                                         |
 
 ### 1.1 关键目录地图（改代码前先定位）
 
-| 路径 | 职责 |
-| --- | --- |
-| `app/page.tsx` | 一级路由页面：顶栏、侧边栏（桌面/移动）、主工作区分发（calendar / relation / novel / 空态）、状态栏、全局搜索与设置弹窗 |
-| `app/layout.tsx` | 根布局：Google 字体（Noto Sans/Serif SC）、`ThemeProvider`、`Toaster` |
-| `app/globals.css` | Tailwind 入口 + 主题 token（含自定义 `--solution` / `--warning` / `--chart-*`） |
-| `components/` | 工作区与业务组件：`app-sidebar`、`topbar`、`novel-workspace`、`mindmap-workspace`、`calendar-workspace`、`global-search`、`settings-dialog`、`add-category-dialog`、`status-bar`、`theme-provider` |
-| `components/mindmap/` | 思维导图子组件：`nodes.tsx`（Todo/解决方案节点卡片）、`node-inspector.tsx`（节点详情编辑） |
-| `components/ui/` | shadcn 基础组件（Button、Dialog、Sheet、Select、Badge…在此可复用） |
-| `hooks/` | 自定义 hooks（如 `use-global-shortcuts.ts` 全局快捷键） |
-| `lib/` | 纯逻辑层：`store.ts`（状态）、`types.ts`（全部数据模型 + 模板/快捷键/状态元信息）、`search.ts`（搜索）、`icons.tsx`（图标映射）、`utils.ts` |
-| `scripts/` | 本地部署脚本（`serve-static.mjs`） |
-| `docs/CODING_PLAN.md` | 功能规划与推进记录（规格书对齐、P0–P4 优先级） |
+| 路径                  | 职责                                                                                                                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/page.tsx`        | 一级路由页面：顶栏、侧边栏（桌面/移动）、主工作区分发（calendar / relation / novel / 空态）、状态栏、全局搜索与设置弹窗                                                                            |
+| `app/layout.tsx`      | 根布局：Google 字体（Noto Sans/Serif SC）、`ThemeProvider`、`Toaster`                                                                                                                              |
+| `app/globals.css`     | Tailwind 入口 + 主题 token（含自定义 `--solution` / `--warning` / `--chart-*`）                                                                                                                    |
+| `components/`         | 工作区与业务组件：`app-sidebar`、`topbar`、`novel-workspace`、`mindmap-workspace`、`calendar-workspace`、`global-search`、`settings-dialog`、`add-category-dialog`、`status-bar`、`theme-provider` |
+| `components/mindmap/` | 思维导图子组件：`nodes.tsx`（Todo/解决方案节点卡片）、`node-inspector.tsx`（节点详情编辑）                                                                                                         |
+| `components/ui/`      | shadcn 基础组件（Button、Dialog、Sheet、Select、Badge…在此可复用）                                                                                                                                 |
+| `hooks/`              | 自定义 hooks（如 `use-global-shortcuts.ts` 全局快捷键）                                                                                                                                            |
+| `lib/`                | 纯逻辑层：`store.ts`（状态）、`types.ts`（全部数据模型 + 模板/快捷键/状态元信息）、`search.ts`（搜索）、`icons.tsx`（图标映射）、`utils.ts`                                                        |
+| `scripts/`            | 本地部署脚本（`serve-static.mjs`）                                                                                                                                                                 |
+| `docs/CODING_PLAN.md` | 功能规划与推进记录（规格书对齐、P0–P4 优先级）                                                                                                                                                     |
 
 ---
 
@@ -125,16 +125,16 @@
 
 ## 6. 常用命令速查表
 
-| 场景 | 命令 |
-| --- | --- |
-| 开发服务器 | `npm run dev` |
-| 生产静态构建 | `npm run deploy`（= `next build`，产出 `out/`） |
-| 本地静态托管 | `npm run serve`（默认 `http://127.0.0.1:3000`，可用 `npm run serve -- 8080` 改端口） |
-| 构建并托管（一键本地部署） | `npm run deploy:local` |
-| 类型检查（必须 0 错误） | `npm run typecheck`（=`tsc --noEmit`） |
-| 代码检查（必须 0 错误） | `npm run lint`（=`eslint`） |
-| 代码格式化 | `npm run format`（=`prettier --write`） |
-| 进仓库验收三件套 | `npm run typecheck && npm run lint`（开发机再加 `npm run build`） |
+| 场景                       | 命令                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------ |
+| 开发服务器                 | `npm run dev`                                                                        |
+| 生产静态构建               | `npm run deploy`（= `next build`，产出 `out/`）                                      |
+| 本地静态托管               | `npm run serve`（默认 `http://127.0.0.1:3000`，可用 `npm run serve -- 8080` 改端口） |
+| 构建并托管（一键本地部署） | `npm run deploy:local`                                                               |
+| 类型检查（必须 0 错误）    | `npm run typecheck`（=`tsc --noEmit`）                                               |
+| 代码检查（必须 0 错误）    | `npm run lint`（=`eslint`）                                                          |
+| 代码格式化                 | `npm run format`（=`prettier --write`）                                              |
+| 进仓库验收三件套           | `npm run typecheck && npm run lint`（开发机再加 `npm run build`）                    |
 
 ---
 
@@ -161,17 +161,17 @@
 
 ### 8.1 `lib/types.ts` — 数据模型（只读常量与类型）
 
-| 项 | 说明 |
-| --- | --- |
-| `TemplateType` | `"novel" \| "study" \| "work" \| "life" \| "relation" \| "calendar" \| "custom"` |
-| `Category` / `CategoryConfig` | 一个分类；`relation` 模板携带 `relation`，其余携带 `chapters` |
-| `Chapter` | 小说/通用条目：`{ id, index, title, content, tags, done? }` |
-| `MindNode` / `MindEdge` | 思维导图节点（cause/leadTo/result/sub/solution/position）与连线 |
-| `RelationContent` | `{ nodes, edges, view: "mindmap"\|"list" }` |
-| `CalendarData` | `Record<"yyyy-MM-dd", CalendarDay>` |
-| `Settings` / `ShortcutBinding` / `SHORTCUT_META` | 系统设置 / 快捷键绑定与元信息 |
-| `TEMPLATES` / `STATUS_META` | 模板列表 / 解决方案状态展示文案 |
-| Contract | 以上为**类型与常量**；常量（`TEMPLATES`、`STATUS_META`、`DEFAULT_SETTINGS`）只读，禁止运行时修改 |
+| 项                                               | 说明                                                                                             |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `TemplateType`                                   | `"novel" \| "study" \| "work" \| "life" \| "relation" \| "calendar" \| "custom"`                 |
+| `Category` / `CategoryConfig`                    | 一个分类；`relation` 模板携带 `relation`，其余携带 `chapters`                                    |
+| `Chapter`                                        | 小说/通用条目：`{ id, index, title, content, tags, done? }`                                      |
+| `MindNode` / `MindEdge`                          | 思维导图节点（cause/leadTo/result/sub/solution/position）与连线                                  |
+| `RelationContent`                                | `{ nodes, edges, view: "mindmap"\|"list" }`                                                      |
+| `CalendarData`                                   | `Record<"yyyy-MM-dd", CalendarDay>`                                                              |
+| `Settings` / `ShortcutBinding` / `SHORTCUT_META` | 系统设置 / 快捷键绑定与元信息                                                                    |
+| `TEMPLATES` / `STATUS_META`                      | 模板列表 / 解决方案状态展示文案                                                                  |
+| Contract                                         | 以上为**类型与常量**；常量（`TEMPLATES`、`STATUS_META`、`DEFAULT_SETTINGS`）只读，禁止运行时修改 |
 
 ### 8.2 `lib/store.ts` — `useWorkspace`（Zustand + persist）
 
@@ -179,10 +179,10 @@
 - 常用 action：
   - 分类：`addCategory(name, template, config, count?)`（关系类建画布，novel 建 `count` 个编号篇目，返回新 id）、`removeCategory`、`renameCategory`、`setActiveCategory`、`setActiveItem`、`goCalendar`、`setSelectedDate`。
   - 章节：`addChapter` / `updateChapter` / `removeChapter`。
-  - 思维导图：`addNode`（返回新 id）、`updateNode`、`removeNode`、`setNodeSolution`、`connectNodes`、`removeEdge`、`setRelationView`。
+  - 思维导图：`addNode`（返回新 id）、`updateNode`、`removeNode`、`setNodeSolution`、`connectNodes`、`removeEdge`、`removeSub`、`setRelationView`。`connectNodes(…, "sub")` 会同步把 target 写入 source 的 `sub` 数组；`removeEdge` / `removeNode` / `removeSub` 均会清理相关 `sub` 引用。
   - 日历：`setDayNote`、`addCalendarTodo`、`toggleCalendarTodo`、`removeCalendarTodo`、`addCalendarEvent`、`removeCalendarEvent`。
-  - 设置/备份：`updateSettings`、`setShortcut`、`setAddCategoryOpen`、`setSettingsOpen`、`exportData`、`importData`。
-- Contract：**所有 action 走不可变更新**；`addCategory` / `addNode` 返回新建 id（调用方可据此设激活）。不要在组件里 `set()` store 之外再手动 reset 同级状态。
+  - 设置/备份：`updateSettings`、`setShortcut`、`setAddCategoryOpen`、`setSettingsOpen`、`exportData`、`importData`（会一并恢复 `settings`）。
+- Contract：**所有 action 走不可变更新**；`addCategory` / `addNode` 返回新建 id（调用方可据此设激活）。不要在组件里 `set()` store 之外再手动 reset 同级状态。节点折叠/展开是纯视图态，用组件内 `useState`，不入 store。
 
 ### 8.3 `components/ui/*` 使用注意（base-ui）
 

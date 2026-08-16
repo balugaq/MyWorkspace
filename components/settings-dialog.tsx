@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, Wand2, FileCog } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import {
   SHORTCUT_META,
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Select,
   SelectContent,
@@ -44,6 +45,8 @@ export function SettingsDialog() {
   const settings = useWorkspace((s) => s.settings)
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setShortcut = useWorkspace((s) => s.setShortcut)
+  const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen)
+  const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const exportData = useWorkspace((s) => s.exportData)
   const importData = useWorkspace((s) => s.importData)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -87,7 +90,9 @@ export function SettingsDialog() {
           <DialogDescription>调整默认启动视图、主题、全局快捷键，以及数据备份。</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-6 py-2">
+        <div className="flex h-full flex-col gap-6 py-2">
+          <ScrollArea className="max-h-[60vh] min-h-0 flex-1 overflow-hidden pr-2">
+            <div className="flex flex-col gap-6">
           <section className="flex flex-col gap-2">
             <Label className="text-xs font-medium text-muted-foreground">默认视图</Label>
             <Select
@@ -132,6 +137,23 @@ export function SettingsDialog() {
           </section>
 
           <section className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium text-muted-foreground">字体大小</Label>
+              <span className="text-xs text-muted-foreground">{settings.fontSize}px</span>
+            </div>
+            <input
+              type="range"
+              min={12}
+              max={24}
+              step={1}
+              value={settings.fontSize}
+              onChange={(e) => updateSettings({ fontSize: Number(e.target.value) })}
+              className="w-full accent-primary"
+            />
+            <p className="text-xs text-muted-foreground">调整全局基础字号（12–24px），实时应用到整个界面。</p>
+          </section>
+
+          <section className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
               <Keyboard className="size-3.5 text-muted-foreground" />
               <Label className="text-xs font-medium text-muted-foreground">快捷键</Label>
@@ -149,6 +171,28 @@ export function SettingsDialog() {
                 />
               ))}
             </div>
+          </section>
+
+          <section className="flex flex-col gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">日历标记</Label>
+            <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setScriptsOpen(true)}>
+              <Wand2 className="size-4" />
+              管理日历标记脚本
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              编写脚本订阅 RenderDateEvent，用 JSON/YAML/XML 为单个日期块绘制标记。
+            </p>
+          </section>
+
+          <section className="flex flex-col gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">配置文件</Label>
+            <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setConfigEditorOpen(true)}>
+              <FileCog className="size-4" />
+              编辑器打开配置文件（源文本）
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              直接查看/编辑持久化 JSON（分类/日历/设置/脚本）。高风险，仅供高级用户。
+            </p>
           </section>
 
           <section className="flex flex-col gap-2">
@@ -179,6 +223,8 @@ export function SettingsDialog() {
             </div>
             <p className="text-xs text-muted-foreground">导入会覆盖当前全部数据，请先导出备份。</p>
           </section>
+            </div>
+          </ScrollArea>
         </div>
       </DialogContent>
     </Dialog>

@@ -17,6 +17,8 @@ import type {
   DefaultView,
   ShortcutAction,
   ShortcutBinding,
+  ConnectResult,
+  CalendarScript,
 } from "./types"
 import { DEFAULT_SETTINGS } from "./types"
 
@@ -70,7 +72,10 @@ function seedCategories(): Category[] {
     leadTo: "开发阶段",
     result: "确定架构方案",
     sub: [],
-    solution: { content: "对比 React Flow 与 vis-network 后选定 React Flow", status: "done" },
+    solution: {
+      content: "对比 React Flow 与 vis-network 后选定 React Flow",
+      status: "done",
+    },
     position: { x: 340, y: 240 },
   }
   const nTeam: MindNode = {
@@ -140,14 +145,25 @@ interface WorkspaceState {
 
   // 系统设置
   settings: Settings
+  // 日历标记脚本
+  calendarScripts: CalendarScript[]
   // UI 弹窗状态（跨组件触发，例如全局快捷键 Ctrl+N）
   addCategoryOpen: boolean
   settingsOpen: boolean
+  scriptsOpen: boolean
+  configEditorOpen: boolean
 
   // 分类
-  addCategory: (name: string, template: TemplateType, config: CategoryConfig, count?: number) => string
+  addCategory: (
+    name: string,
+    template: TemplateType,
+    config: CategoryConfig,
+    count?: number
+  ) => string
   removeCategory: (id: string) => void
   renameCategory: (id: string, name: string) => void
+  moveCategory: (fromIndex: number, toIndex: number) => void
+  moveChapter: (catId: string, fromIndex: number, toIndex: number) => void
   setActiveCategory: (id: string) => void
   setActiveItem: (id: string | null) => void
   goCalendar: () => void
@@ -157,6 +173,13 @@ interface WorkspaceState {
   setShortcut: (action: ShortcutAction, binding: ShortcutBinding) => void
   setAddCategoryOpen: (v: boolean) => void
   setSettingsOpen: (v: boolean) => void
+  setScriptsOpen: (v: boolean) => void
+  setConfigEditorOpen: (v: boolean) => void
+
+  // 日历标记脚本
+  upsertCalendarScript: (script: CalendarScript) => void
+  removeCalendarScript: (id: string) => void
+  toggleCalendarScript: (id: string, enabled: boolean) => void
 
   // 数据备份
   exportData: () => string | null
@@ -164,16 +187,31 @@ interface WorkspaceState {
 
   // 小说 / 通用条目
   addChapter: (catId: string) => void
-  updateChapter: (catId: string, chapterId: string, patch: Partial<Chapter>) => void
+  updateChapter: (
+    catId: string,
+    chapterId: string,
+    patch: Partial<Chapter>
+  ) => void
   removeChapter: (catId: string, chapterId: string) => void
 
   // 思维导图
   addNode: (catId: string, position?: { x: number; y: number }) => string
   updateNode: (catId: string, nodeId: string, patch: Partial<MindNode>) => void
   removeNode: (catId: string, nodeId: string) => void
-  setNodeSolution: (catId: string, nodeId: string, content: string, status: SolutionStatus) => void
-  connectNodes: (catId: string, source: string, target: string, kind: "flow" | "sub") => void
+  setNodeSolution: (
+    catId: string,
+    nodeId: string,
+    content: string,
+    status: SolutionStatus
+  ) => void
+  connectNodes: (
+    catId: string,
+    source: string,
+    target: string,
+    kind: "flow" | "sub"
+  ) => ConnectResult
   removeEdge: (catId: string, edgeId: string) => void
+  removeSub: (catId: string, nodeId: string, subId: string) => void
   setRelationView: (catId: string, view: "mindmap" | "list") => void
 
   // 日历
@@ -197,26 +235,67 @@ export const useWorkspace = create<WorkspaceState>()(
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       hydrated: false,
       settings: DEFAULT_SETTINGS,
+      calendarScripts: [],
       addCategoryOpen: false,
       settingsOpen: false,
+      scriptsOpen: false,
+      configEditorOpen: false,
 
-      updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
+      updateSettings: (patch) =>
+        set((s) => ({ settings: { ...s.settings, ...patch } })),
 
       setShortcut: (action, binding) =>
         set((s) => ({
-          settings: { ...s.settings, shortcuts: { ...s.settings.shortcuts, [action]: binding } },
+          settings: {
+            ...s.settings,
+            shortcuts: { ...s.settings.shortcuts, [action]: binding },
+          },
         })),
 
       setAddCategoryOpen: (v) => set({ addCategoryOpen: v }),
       setSettingsOpen: (v) => set({ settingsOpen: v }),
+      setScriptsOpen: (v) => set({ scriptsOpen: v }),
+      setConfigEditorOpen: (v) => set({ configEditorOpen: v }),
+
+      upsertCalendarScript: (script) =>
+        set((s) => {
+          const exists = s.calendarScripts.some((x) => x.id === script.id)
+          if (exists) {
+            return {
+              calendarScripts: s.calendarScripts.map((x) =>
+                x.id === script.id ? script : x,
+              ),
+            }
+          }
+          return { calendarScripts: [...s.calendarScripts, script] }
+        }),
+
+      removeCalendarScript: (id) =>
+        set((s) => ({
+          calendarScripts: s.calendarScripts.filter((x) => x.id !== id),
+        })),
+
+      toggleCalendarScript: (id, enabled) =>
+        set((s) => ({
+          calendarScripts: s.calendarScripts.map((x) =>
+            x.id === id ? { ...x, enabled } : x,
+          ),
+        })),
 
       exportData: () => {
         const s = get()
         try {
           return JSON.stringify(
-            { version: 1, exportedAt: new Date().toISOString(), categories: s.categories, calendar: s.calendar, settings: s.settings },
+            {
+              version: 1,
+              exportedAt: new Date().toISOString(),
+              categories: s.categories,
+              calendar: s.calendar,
+              settings: s.settings,
+              calendarScripts: s.calendarScripts,
+            },
             null,
-            2,
+            2
           )
         } catch {
           return null
@@ -226,10 +305,22 @@ export const useWorkspace = create<WorkspaceState>()(
       importData: (json) => {
         try {
           const data = JSON.parse(json)
-          if (!data || !Array.isArray(data.categories) || typeof data.calendar !== "object") return false
+          if (
+            !data ||
+            !Array.isArray(data.categories) ||
+            typeof data.calendar !== "object"
+          )
+            return false
           set({
             categories: data.categories as Category[],
             calendar: data.calendar as CalendarData,
+            settings: {
+              ...DEFAULT_SETTINGS,
+              ...(data.settings ?? {}),
+            } as Settings,
+            calendarScripts: Array.isArray(data.calendarScripts)
+              ? (data.calendarScripts as CalendarScript[])
+              : [],
             activeCategoryId: data.categories[0]?.id ?? null,
             activeItemId: null,
             view: "workspace",
@@ -280,16 +371,52 @@ export const useWorkspace = create<WorkspaceState>()(
         set((s) => {
           const categories = s.categories.filter((c) => c.id !== id)
           const activeCategoryId =
-            s.activeCategoryId === id ? (categories[0]?.id ?? null) : s.activeCategoryId
+            s.activeCategoryId === id
+              ? (categories[0]?.id ?? null)
+              : s.activeCategoryId
           return { categories, activeCategoryId, activeItemId: null }
         }),
 
       renameCategory: (id, name) =>
         set((s) => ({
-          categories: s.categories.map((c) => (c.id === id ? { ...c, name } : c)),
+          categories: s.categories.map((c) =>
+            c.id === id ? { ...c, name } : c
+          ),
         })),
 
-      setActiveCategory: (id) => set({ activeCategoryId: id, activeItemId: null, view: "workspace" }),
+      // 把 fromIndex 处元素移动到 toIndex（数组内前移/后移）
+      moveCategory: (fromIndex, toIndex) =>
+        set((s) => {
+          const arr = [...s.categories]
+          if (fromIndex < 0 || fromIndex >= arr.length || toIndex < 0 || toIndex >= arr.length) return s
+          if (fromIndex === toIndex) return s
+          const [item] = arr.splice(fromIndex, 1)
+          arr.splice(toIndex, 0, item)
+          return { categories: arr }
+        }),
+
+      moveChapter: (catId, fromIndex, toIndex) =>
+        set((s) => ({
+          categories: s.categories.map((c) => {
+            if (c.id !== catId || !c.chapters) return c
+            const arr = [...c.chapters]
+            if (fromIndex < 0 || fromIndex >= arr.length || toIndex < 0 || toIndex >= arr.length) return c
+            if (fromIndex === toIndex) return c
+            const [item] = arr.splice(fromIndex, 1)
+            arr.splice(toIndex, 0, item)
+            // 重排后重算序号；仅当标题仍等于默认命名时才跟随新序号更新标题，避免覆盖用户自定义标题
+            const next = arr.map((ch, i) => {
+              if (ch.title === buildTitle(c.config, i + 1)) {
+                return { ...ch, index: i + 1, title: buildTitle(c.config, i + 1) }
+              }
+              return { ...ch, index: i + 1 }
+            })
+            return { ...c, chapters: next }
+          }),
+        })),
+
+      setActiveCategory: (id) =>
+        set({ activeCategoryId: id, activeItemId: null, view: "workspace" }),
       setActiveItem: (id) => set({ activeItemId: id, view: "workspace" }),
       goCalendar: () => set({ view: "calendar", activeCategoryId: null }),
 
@@ -297,7 +424,8 @@ export const useWorkspace = create<WorkspaceState>()(
         set((s) => ({
           categories: s.categories.map((c) => {
             if (c.id !== catId || !c.chapters) return c
-            const index = c.chapters.length + 1
+            const index =
+              c.chapters.reduce((m, ch) => Math.max(m, ch.index), 0) + 1
             const chapter: Chapter = {
               id: uid(),
               index,
@@ -315,9 +443,11 @@ export const useWorkspace = create<WorkspaceState>()(
             c.id === catId && c.chapters
               ? {
                   ...c,
-                  chapters: c.chapters.map((ch) => (ch.id === chapterId ? { ...ch, ...patch } : ch)),
+                  chapters: c.chapters.map((ch) =>
+                    ch.id === chapterId ? { ...ch, ...patch } : ch
+                  ),
                 }
-              : c,
+              : c
           ),
         })),
 
@@ -325,8 +455,11 @@ export const useWorkspace = create<WorkspaceState>()(
         set((s) => ({
           categories: s.categories.map((c) =>
             c.id === catId && c.chapters
-              ? { ...c, chapters: c.chapters.filter((ch) => ch.id !== chapterId) }
-              : c,
+              ? {
+                  ...c,
+                  chapters: c.chapters.filter((ch) => ch.id !== chapterId),
+                }
+              : c
           ),
           activeItemId: s.activeItemId === chapterId ? null : s.activeItemId,
         })),
@@ -345,9 +478,15 @@ export const useWorkspace = create<WorkspaceState>()(
               result: "",
               sub: [],
               solution: null,
-              position: position ?? { x: 200 + Math.random() * 200, y: 120 + Math.random() * 160 },
+              position: position ?? {
+                x: 200 + Math.random() * 200,
+                y: 120 + Math.random() * 160,
+              },
             }
-            return { ...c, relation: { ...c.relation, nodes: [...c.relation.nodes, node] } }
+            return {
+              ...c,
+              relation: { ...c.relation, nodes: [...c.relation.nodes, node] },
+            }
           }),
           activeItemId: id,
         }))
@@ -362,10 +501,12 @@ export const useWorkspace = create<WorkspaceState>()(
                   ...c,
                   relation: {
                     ...c.relation,
-                    nodes: c.relation.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
+                    nodes: c.relation.nodes.map((n) =>
+                      n.id === nodeId ? { ...n, ...patch } : n
+                    ),
                   },
                 }
-              : c,
+              : c
           ),
         })),
 
@@ -377,11 +518,19 @@ export const useWorkspace = create<WorkspaceState>()(
                   ...c,
                   relation: {
                     ...c.relation,
-                    nodes: c.relation.nodes.filter((n) => n.id !== nodeId),
-                    edges: c.relation.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+                    nodes: c.relation.nodes
+                      .filter((n) => n.id !== nodeId)
+                      .map((n) =>
+                        n.sub.includes(nodeId)
+                          ? { ...n, sub: n.sub.filter((x) => x !== nodeId) }
+                          : n
+                      ),
+                    edges: c.relation.edges.filter(
+                      (e) => e.source !== nodeId && e.target !== nodeId
+                    ),
                   },
                 }
-              : c,
+              : c
           ),
           activeItemId: s.activeItemId === nodeId ? null : s.activeItemId,
         })),
@@ -396,48 +545,121 @@ export const useWorkspace = create<WorkspaceState>()(
                     ...c.relation,
                     nodes: c.relation.nodes.map((n) =>
                       n.id === nodeId
-                        ? { ...n, solution: content.trim() ? { content, status } : null }
-                        : n,
+                        ? {
+                            ...n,
+                            solution: content.trim()
+                              ? { content, status }
+                              : null,
+                          }
+                        : n
                     ),
                   },
                 }
-              : c,
+              : c
           ),
         })),
 
-      connectNodes: (catId, source, target, kind) =>
+      connectNodes: (catId, source, target, kind) => {
+        let result: ConnectResult = "invalid"
+        set((s) => {
+          const cat = s.categories.find((c) => c.id === catId)
+          if (!cat || !cat.relation) return s
+          if (source === target) {
+            result = "invalid"
+            return s
+          }
+          const exists = cat.relation.edges.some(
+            (e) => e.source === source && e.target === target
+          )
+          if (exists) {
+            result = "exists"
+            return s
+          }
+          const edge: MindEdge = { id: uid(), source, target, kind }
+          let nodes = cat.relation.nodes
+          if (kind === "sub") {
+            nodes = nodes.map((n) =>
+              n.id === source && !n.sub.includes(target)
+                ? { ...n, sub: [...n.sub, target] }
+                : n
+            )
+          }
+          result = "created"
+          return {
+            categories: s.categories.map((c) =>
+              c.id === catId && c.relation
+                ? {
+                    ...c,
+                    relation: {
+                      ...c.relation,
+                      edges: [...c.relation.edges, edge],
+                      nodes,
+                    },
+                  }
+                : c
+            ),
+          }
+        })
+        return result
+      },
+
+      removeEdge: (catId, edgeId) =>
         set((s) => ({
           categories: s.categories.map((c) => {
             if (c.id !== catId || !c.relation) return c
-            const exists = c.relation.edges.some((e) => e.source === source && e.target === target)
-            if (exists || source === target) return c
-            const edge: MindEdge = { id: uid(), source, target, kind }
-            let nodes = c.relation.nodes
-            if (kind === "sub") {
-              nodes = nodes.map((n) =>
-                n.id === source && !n.sub.includes(target) ? { ...n, sub: [...n.sub, target] } : n,
-              )
+            const edge = c.relation.edges.find((e) => e.id === edgeId)
+            const nodes =
+              edge && edge.kind === "sub"
+                ? c.relation.nodes.map((n) =>
+                    n.id === edge.source
+                      ? { ...n, sub: n.sub.filter((x) => x !== edge.target) }
+                      : n
+                  )
+                : c.relation.nodes
+            return {
+              ...c,
+              relation: {
+                ...c.relation,
+                edges: c.relation.edges.filter((e) => e.id !== edgeId),
+                nodes,
+              },
             }
-            return { ...c, relation: { ...c.relation, edges: [...c.relation.edges, edge], nodes } }
           }),
         })),
 
-      removeEdge: (catId, edgeId) =>
+      removeSub: (catId, nodeId, subId) =>
         set((s) => ({
           categories: s.categories.map((c) =>
             c.id === catId && c.relation
               ? {
                   ...c,
-                  relation: { ...c.relation, edges: c.relation.edges.filter((e) => e.id !== edgeId) },
+                  relation: {
+                    ...c.relation,
+                    nodes: c.relation.nodes.map((n) =>
+                      n.id === nodeId
+                        ? { ...n, sub: n.sub.filter((x) => x !== subId) }
+                        : n
+                    ),
+                    edges: c.relation.edges.filter(
+                      (e) =>
+                        !(
+                          e.kind === "sub" &&
+                          e.source === nodeId &&
+                          e.target === subId
+                        )
+                    ),
+                  },
                 }
-              : c,
+              : c
           ),
         })),
 
       setRelationView: (catId, view) =>
         set((s) => ({
           categories: s.categories.map((c) =>
-            c.id === catId && c.relation ? { ...c, relation: { ...c.relation, view } } : c,
+            c.id === catId && c.relation
+              ? { ...c, relation: { ...c.relation, view } }
+              : c
           ),
         })),
 
@@ -445,7 +667,10 @@ export const useWorkspace = create<WorkspaceState>()(
 
       setDayNote: (date, note) =>
         set((s) => ({
-          calendar: { ...s.calendar, [date]: { ...(s.calendar[date] ?? emptyDay()), note } },
+          calendar: {
+            ...s.calendar,
+            [date]: { ...(s.calendar[date] ?? emptyDay()), note },
+          },
         })),
 
       addCalendarTodo: (date, content) =>
@@ -454,7 +679,10 @@ export const useWorkspace = create<WorkspaceState>()(
           return {
             calendar: {
               ...s.calendar,
-              [date]: { ...day, todos: [...day.todos, { id: uid(), content, done: false }] },
+              [date]: {
+                ...day,
+                todos: [...day.todos, { id: uid(), content, done: false }],
+              },
             },
           }
         }),
@@ -467,7 +695,9 @@ export const useWorkspace = create<WorkspaceState>()(
               ...s.calendar,
               [date]: {
                 ...day,
-                todos: day.todos.map((t) => (t.id === todoId ? { ...t, done: !t.done } : t)),
+                todos: day.todos.map((t) =>
+                  t.id === todoId ? { ...t, done: !t.done } : t
+                ),
               },
             },
           }
@@ -479,7 +709,10 @@ export const useWorkspace = create<WorkspaceState>()(
           return {
             calendar: {
               ...s.calendar,
-              [date]: { ...day, todos: day.todos.filter((t) => t.id !== todoId) },
+              [date]: {
+                ...day,
+                todos: day.todos.filter((t) => t.id !== todoId),
+              },
             },
           }
         }),
@@ -490,7 +723,10 @@ export const useWorkspace = create<WorkspaceState>()(
           return {
             calendar: {
               ...s.calendar,
-              [date]: { ...day, events: [...day.events, { id: uid(), time, content }] },
+              [date]: {
+                ...day,
+                events: [...day.events, { id: uid(), time, content }],
+              },
             },
           }
         }),
@@ -501,7 +737,10 @@ export const useWorkspace = create<WorkspaceState>()(
           return {
             calendar: {
               ...s.calendar,
-              [date]: { ...day, events: day.events.filter((e) => e.id !== eventId) },
+              [date]: {
+                ...day,
+                events: day.events.filter((e) => e.id !== eventId),
+              },
             },
           }
         }),
@@ -524,8 +763,8 @@ export const useWorkspace = create<WorkspaceState>()(
           settings: { ...DEFAULT_SETTINGS, ...(p.settings ?? {}) },
         }
       },
-    },
-  ),
+    }
+  )
 )
 
 function applyDefaultView(state: WorkspaceState) {
@@ -556,7 +795,8 @@ function iconForTemplate(t: TemplateType): string {
 // 依据命名规则生成标题，如 "第%首" + 序号 => "第一首"
 export function buildTitle(config: CategoryConfig, index: number): string {
   const rule = config.namingRule || "第%"
-  const num = config.autoNumber !== false ? toChineseNumber(index) : String(index)
+  const num =
+    config.autoNumber !== false ? toChineseNumber(index) : String(index)
   if (rule.includes("%")) return rule.replace("%", num)
   return `${rule} ${num}`
 }
