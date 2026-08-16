@@ -102,7 +102,10 @@ export function SettingsDialog() {
               }}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="选择默认视图" />
+                <SelectValue>
+                  {DEFAULT_VIEWS.find((v) => v.value === settings.defaultView)?.label ??
+                    "选择默认视图"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {DEFAULT_VIEWS.map((v) => (
@@ -124,7 +127,9 @@ export function SettingsDialog() {
               }}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="选择主题" />
+                <SelectValue>
+                  {THEMES.find((t) => t.value === settings.theme)?.label ?? "选择主题"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {THEMES.map((t) => (

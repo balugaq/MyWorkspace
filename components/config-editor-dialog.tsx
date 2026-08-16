@@ -12,7 +12,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 /**
  * 配置文件源文本编辑器：直接查看/编辑持久化配置 JSON（categories / calendar / settings / calendarScripts）。
@@ -67,14 +66,12 @@ export function ConfigEditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-72 rounded-lg border bg-muted/40">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            spellCheck={false}
-            className="size-full min-h-72 resize-none bg-transparent p-3 font-mono text-xs leading-relaxed outline-none"
-          />
-        </ScrollArea>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          spellCheck={false}
+          className="h-72 w-full resize-y overflow-auto rounded-lg border bg-muted/40 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        />
 
         <div className="flex justify-between gap-2">
           <Button variant="outline" className="gap-2" onClick={reload}>
