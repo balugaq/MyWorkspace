@@ -46,7 +46,6 @@ function FloatNode() {
 export function MindmapWorkspace({ category }: { category: Category }) {
   const view = category.relation?.view ?? "mindmap"
   const setRelationView = useWorkspace((s) => s.setRelationView)
-  const addNode = useWorkspace((s) => s.addNode)
 
   return (
     <div className="flex h-full flex-col">
@@ -69,16 +68,6 @@ export function MindmapWorkspace({ category }: { category: Category }) {
           </ViewBtn>
         </div>
         <div className="flex-1" />
-        <Button
-          size="sm"
-          onClick={() => {
-            addNode(category.id)
-            toast.success("已添加节点，右侧编辑详情")
-          }}
-        >
-          <Plus className="size-4" />
-          添加节点
-        </Button>
       </div>
 
       <div className="min-h-0 flex-1">
@@ -129,6 +118,23 @@ function Canvas({ category }: { category: Category }) {
   const removeEdge = useWorkspace((s) => s.removeEdge)
   const removeNode = useWorkspace((s) => s.removeNode)
   const { screenToFlowPosition } = useReactFlow()
+  const canvasWrapRef = useRef<HTMLDivElement>(null)
+
+  // 在画面中心新建节点
+  const addAtCenter = useCallback(() => {
+    const el = canvasWrapRef.current
+    if (el) {
+      const r = el.getBoundingClientRect()
+      const center = screenToFlowPosition({
+        x: r.left + r.width / 2,
+        y: r.top + r.height / 2,
+      })
+      addNode(category.id, center)
+    } else {
+      addNode(category.id)
+    }
+    toast.success("已添加节点，右侧编辑详情")
+  }, [screenToFlowPosition, addNode, category.id])
 
   // 是否正在从节点手柄拖拽连线（拖拽中不播放连线动画，松手后再播放）
   const [isConnecting, setIsConnecting] = useState(false)
@@ -412,7 +418,13 @@ function Canvas({ category }: { category: Category }) {
 
   return (
     <div className="flex h-full">
-      <div className="relative min-w-0 flex-1">
+      <div ref={canvasWrapRef} className="relative min-w-0 flex-1">
+        <div className="pointer-events-none absolute right-3 top-3 z-10">
+          <Button size="sm" className="pointer-events-auto gap-1.5" onClick={addAtCenter}>
+            <Plus className="size-4" />
+            添加节点
+          </Button>
+        </div>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -499,10 +511,23 @@ function ListView({ category }: { category: Category }) {
   const nodes = category.relation!.nodes
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const setRelationView = useWorkspace((s) => s.setRelationView)
+  const addNode = useWorkspace((s) => s.addNode)
 
   return (
     <ScrollArea className="h-full">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 px-6 py-6">
+        <div className="flex items-center justify-end">
+          <Button
+            size="sm"
+            onClick={() => {
+              addNode(category.id)
+              toast.success("已添加节点，右侧编辑详情")
+            }}
+          >
+            <Plus className="size-4" />
+            添加节点
+          </Button>
+        </div>
         {nodes.length === 0 && (
           <p className="py-16 text-center text-sm text-muted-foreground">
             还没有节点。
