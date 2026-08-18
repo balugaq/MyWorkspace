@@ -14,11 +14,7 @@ import {
 import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { cn } from "@/lib/utils"
-
-/** 卡片预览：隐藏图片引用 token，避免撑破小卡片 */
-function maskImages(text: string): string {
-  return text.replace(/\{\{img:[^}]+\}\}|!\[[^\]]*\]\([^)]*\)/g, "[图片]").trim()
-}
+import { RichText } from "@/components/rich-text"
 
 const STATUS_STYLE: Record<SolutionStatus, string> = {
   doing: "bg-solution text-solution-foreground",
@@ -52,7 +48,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
         }
       }}
       className={cn(
-        "w-56 rounded-xl border-2 bg-card shadow-sm transition-colors",
+        "w-auto max-w-[50vw] min-w-56 rounded-xl border-2 bg-card shadow-sm transition-colors",
         selected ? "border-primary ring-2 ring-primary/30" : "border-border"
       )}
     >
@@ -83,7 +79,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
           </button>
         )}
       </div>
-      <div className="flex flex-col gap-1 px-3 py-2 text-[11px] text-muted-foreground">
+      <div className="flex min-w-56 flex-col gap-1 px-3 py-2 text-[11px] text-muted-foreground">
         {node.cause && (
           <span className="flex items-start gap-1">
             <CornerDownRight className="mt-0.5 size-3 shrink-0" />
@@ -103,7 +99,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
           </span>
         )}
         {!node.cause && !node.leadTo && !node.result && node.content && (
-          <span className="line-clamp-2">{maskImages(node.content)}</span>
+          <RichText text={node.content} className="text-[11px]" fullSize />
         )}
       </div>
       {(node.tags && node.tags.length > 0) || node.dueDate || node.longTerm ? (

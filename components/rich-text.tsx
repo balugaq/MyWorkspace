@@ -14,10 +14,13 @@ export function RichText({
   text,
   className,
   maxImages = 8,
+  fullSize = false,
 }: {
   text: string
   className?: string
   maxImages?: number
+  /** true = 图片按原尺寸展示（可撑破容器，容器自适应） */
+  fullSize?: boolean
 }) {
   const segments = useMemo(() => splitSegments(text), [text])
   let imgCount = 0
@@ -28,12 +31,12 @@ export function RichText({
         if (seg.type === "stored") {
           imgCount++
           if (imgCount > maxImages) return null
-          return <StoredImg key={i} imgId={seg.id} />
+          return <StoredImg key={i} imgId={seg.id} fullSize={fullSize} />
         }
         if (seg.type === "url") {
           imgCount++
           if (imgCount > maxImages) return null
-          return <MarkdownImg key={i} url={seg.url} />
+          return <MarkdownImg key={i} url={seg.url} fullSize={fullSize} />
         }
         return <span key={i}>{seg.text}</span>
       })}
@@ -65,7 +68,10 @@ export function splitSegments(text: string): Segment[] {
   return out
 }
 
-function StoredImg({ imgId }: { imgId: string }) {
+const IMG_FIT = "my-1 block rounded-md border border-border object-contain"
+const IMG_FULL = "my-1 block h-auto w-auto rounded-md border border-border"
+
+function StoredImg({ imgId, fullSize }: { imgId: string; fullSize?: boolean }) {
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
     let active = true
@@ -84,19 +90,19 @@ function StoredImg({ imgId }: { imgId: string }) {
     <img
       src={url}
       alt=""
-      className="my-1 block max-h-56 max-w-full rounded-md border border-border object-contain"
+      className={fullSize ? IMG_FULL : cn(IMG_FIT, "max-h-56 max-w-full")}
     />
   )
 }
 
-function MarkdownImg({ url }: { url: string }) {
+function MarkdownImg({ url, fullSize }: { url: string; fullSize?: boolean }) {
   if (!url) return null
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 图片为任意远程 URL，无法走 next/image
     <img
       src={url}
       alt=""
-      className="my-1 block max-h-56 max-w-full rounded-md border border-border object-contain"
+      className={fullSize ? IMG_FULL : cn(IMG_FIT, "max-h-56 max-w-full")}
     />
   )
 }
