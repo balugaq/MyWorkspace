@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload, Wand2, FileCog } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, Wand2, FileCog, Image as ImageIcon } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
+import { exportBackup, importBackup } from "@/lib/backup"
 import {
   SHORTCUT_META,
   type ShortcutBinding,
@@ -47,12 +48,11 @@ export function SettingsDialog() {
   const setShortcut = useWorkspace((s) => s.setShortcut)
   const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen)
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
-  const exportData = useWorkspace((s) => s.exportData)
-  const importData = useWorkspace((s) => s.importData)
+  const setImagesOpen = useWorkspace((s) => s.setImagesOpen)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  function onExport() {
-    const json = exportData()
+  async function onExport() {
+    const json = await exportBackup()
     if (!json) {
       toast.error("导出失败")
       return
@@ -64,18 +64,22 @@ export function SettingsDialog() {
     a.download = `workplace-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success("已导出备份 JSON")
+    toast.success("已导出备份（含图片）")
   }
 
-  function onImportFile(file: File | undefined) {
+  async function onImportFile(file: File | undefined) {
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => {
-      const ok = importData(String(reader.result ?? ""))
-      if (ok) {
-        toast.success("导入成功，数据已恢复")
-        setOpen(false)
-      } else {
+    reader.onload = async () => {
+      try {
+        const res = await importBackup(String(reader.result ?? ""))
+        if (res.ok) {
+          toast.success(`导入成功，已恢复数据与 ${res.images} 张图片`)
+          setOpen(false)
+        } else {
+          toast.error("导入失败：文件格式不正确")
+        }
+      } catch {
         toast.error("导入失败：文件格式不正确")
       }
     }
@@ -201,11 +205,11 @@ export function SettingsDialog() {
           </section>
 
           <section className="flex flex-col gap-2">
-            <Label className="text-xs font-medium text-muted-foreground">数据备份</Label>
+            <Label className="text-xs font-medium text-muted-foreground">数据备份（含图片）</Label>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1 gap-2" onClick={onExport}>
                 <Download className="size-4" />
-                导出 JSON
+                导出备份
               </Button>
               <Button
                 variant="outline"
@@ -213,7 +217,7 @@ export function SettingsDialog() {
                 onClick={() => fileRef.current?.click()}
               >
                 <Upload className="size-4" />
-                导入 JSON
+                导入备份
               </Button>
               <input
                 ref={fileRef}
@@ -227,6 +231,14 @@ export function SettingsDialog() {
               />
             </div>
             <p className="text-xs text-muted-foreground">导入会覆盖当前全部数据，请先导出备份。</p>
+          </section>
+
+          <section className="flex flex-col gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">图片缓存</Label>
+            <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setImagesOpen(true)}>
+              <ImageIcon className="size-4" />
+              查看并管理图片缓存 / 暂存区
+            </Button>
           </section>
             </div>
           </ScrollArea>

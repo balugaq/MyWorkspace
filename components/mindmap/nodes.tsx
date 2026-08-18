@@ -15,6 +15,11 @@ import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
+/** 卡片预览：隐藏图片引用 token，避免撑破小卡片 */
+function maskImages(text: string): string {
+  return text.replace(/\{\{img:[^}]+\}\}|!\[[^\]]*\]\([^)]*\)/g, "[图片]").trim()
+}
+
 const STATUS_STYLE: Record<SolutionStatus, string> = {
   doing: "bg-solution text-solution-foreground",
   paused: "bg-warning text-warning-foreground",
@@ -98,7 +103,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
           </span>
         )}
         {!node.cause && !node.leadTo && !node.result && node.content && (
-          <span className="line-clamp-2">{node.content}</span>
+          <span className="line-clamp-2">{maskImages(node.content)}</span>
         )}
       </div>
       {(node.tags && node.tags.length > 0) || node.dueDate || node.longTerm ? (

@@ -13,6 +13,7 @@ import { GlobalSearch } from "@/components/global-search"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { CalendarScriptsDialog } from "@/components/calendar-scripts-dialog"
 import { ConfigEditorDialog } from "@/components/config-editor-dialog"
+import { ImageCacheDialog } from "@/components/image-cache-dialog"
 import { StatusBar } from "@/components/status-bar"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
@@ -28,6 +29,8 @@ export default function Page() {
   const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen)
   const configEditorOpen = useWorkspace((s) => s.configEditorOpen)
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
+  const imagesOpen = useWorkspace((s) => s.imagesOpen)
+  const setImagesOpen = useWorkspace((s) => s.setImagesOpen)
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
 
@@ -118,6 +121,7 @@ export default function Page() {
       <SettingsDialog />
       <CalendarScriptsDialog open={scriptsOpen} onOpenChange={setScriptsOpen} />
       <ConfigEditorDialog open={configEditorOpen} onOpenChange={setConfigEditorOpen} />
+      <ImageCacheDialog open={imagesOpen} onOpenChange={setImagesOpen} />
     </div>
   )
 }

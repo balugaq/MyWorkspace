@@ -152,6 +152,7 @@ interface WorkspaceState {
   settingsOpen: boolean
   scriptsOpen: boolean
   configEditorOpen: boolean
+  imagesOpen: boolean
 
   // 分类
   addCategory: (
@@ -175,6 +176,7 @@ interface WorkspaceState {
   setSettingsOpen: (v: boolean) => void
   setScriptsOpen: (v: boolean) => void
   setConfigEditorOpen: (v: boolean) => void
+  setImagesOpen: (v: boolean) => void
 
   // 日历标记脚本
   upsertCalendarScript: (script: CalendarScript) => void
@@ -240,6 +242,7 @@ export const useWorkspace = create<WorkspaceState>()(
       settingsOpen: false,
       scriptsOpen: false,
       configEditorOpen: false,
+      imagesOpen: false,
 
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -256,6 +259,7 @@ export const useWorkspace = create<WorkspaceState>()(
       setSettingsOpen: (v) => set({ settingsOpen: v }),
       setScriptsOpen: (v) => set({ scriptsOpen: v }),
       setConfigEditorOpen: (v) => set({ configEditorOpen: v }),
+      setImagesOpen: (v) => set({ imagesOpen: v }),
 
       upsertCalendarScript: (script) =>
         set((s) => {

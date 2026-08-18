@@ -12,7 +12,13 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { TagPicker } from "@/components/tag-picker"
+import { ImageRichInput } from "@/components/image-rich-input"
 import { cn } from "@/lib/utils"
+
+/** 隐藏图片引用 token，仅留文本（用于列表卡片预览） */
+function stripImageTokens(text: string): string {
+  return text.replace(/\{\{img:[^}]+\}\}|!\[[^\]]*\]\([^)]*\)/g, "").replace(/\n{2,}/g, "\n")
+}
 
 export function NovelWorkspace({ category }: { category: Category }) {
   const activeItemId = useWorkspace((s) => s.activeItemId)
@@ -137,7 +143,7 @@ function ChapterOverview({
                         ch.done && "opacity-60",
                       )}
                     >
-                      {ch.content || "（空白）"}
+                      {ch.content ? stripImageTokens(ch.content) || "（含图片）" : "（空白）"}
                     </p>
                   </button>
                 </li>
@@ -217,15 +223,13 @@ function ChapterEditor({
 
       <Separator className="my-4" />
 
-      <ScrollArea className="flex-1">
-        <textarea
+      <ScrollArea className="min-h-0 flex-1">
+        <ImageRichInput
           value={chapter.content}
-          onChange={(e) => updateChapter(category.id, chapter.id, { content: e.target.value })}
-          placeholder="在此书写内容…"
-          className={cn(
-            "min-h-[45vh] w-full resize-none bg-transparent leading-relaxed outline-none placeholder:text-muted-foreground/60",
-            isNovel ? "font-serif text-lg" : "text-base",
-          )}
+          onChange={(v) => updateChapter(category.id, chapter.id, { content: v })}
+          placeholder="在此书写内容…（可 Ctrl+V 粘贴图片）"
+          minHeight="min-h-[45vh]"
+          className={cn(isNovel ? "font-serif text-lg" : "text-base")}
         />
       </ScrollArea>
 

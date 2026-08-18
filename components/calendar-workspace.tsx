@@ -22,6 +22,7 @@ import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
 import { emitRenderDate, type DateMarkerApi, type CalendarDisplayType } from "@/lib/calendar-events"
+import { ImageRichInput } from "@/components/image-rich-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -243,11 +244,11 @@ function DayDetail({ dateKey, dueNodes }: { dateKey: string; dueNodes: DueEntry[
               <StickyNote className="size-3.5" />
               今日笔记
             </h3>
-            <textarea
+            <ImageRichInput
               value={day.note}
-              onChange={(e) => setDayNote(dateKey, e.target.value)}
-              placeholder="记录今天的想法、总结…"
-              className="min-h-24 w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              onChange={(v) => setDayNote(dateKey, v)}
+              placeholder="记录今天的想法、总结…（可 Ctrl+V 粘贴图片）"
+              minHeight="min-h-24"
             />
           </section>
 

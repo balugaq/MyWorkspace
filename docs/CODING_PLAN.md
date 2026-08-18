@@ -313,3 +313,29 @@ hooks/           （占位）
 - 第 1 项根因：base-ui `ScrollArea` 的 viewport 是 `size-full`（高度 100%），父级只有 `max-h` 而无显式高度时无法收卷，故改用固定高度。
 - 第 2 项给设置弹窗加了内滚动区，长设置项不再把弹窗撑爆。
 - 两份文档与 README 相互补充：README 偏“启动/概览”，product-docs 偏“逐功能上手”，calendar-script-docs 专管脚本接入。
+
+---
+
+## 十三、Select 中文化 + 设置滑条 + 图片系统（IndexedDB/粘贴/渲染/暂存/含图备份） ✅ 已完成
+
+> `npm run typecheck` + `npm run lint` 均 0 错误。图片采用用户方案：存 IndexedDB、正文用引用 token、无引用进暂存区、备份含图片。
+
+| # | 需求 | 实现要点 | 涉及文件 |
+| --- | --- | --- | --- |
+| 1 | 默认视图/主题 Select 外面显英文 | base-ui `SelectValue` 渲染的是原始 value；给两个 SelectValue 显式填中文 label（由 value 反查） | `components/settings-dialog.tsx` |
+| 2 | 配置编辑器滑条作用对象错误 | 改掉「ScrollArea 包 textarea」的错误结构，直接把 textarea 设为带本地滚动/可拖拽高度（`h-72 resize-y overflow-auto`） | `components/config-editor-dialog.tsx` |
+| 3 | 图片显示协议 + 复制粘贴图片 | 见下「图片系统」 | 多文件 |
+
+**图片系统设计（方案 3：IndexedDB）**
+- **存储层** `lib/image-store.ts`：IndexedDB `workspace-images`，提供 add/getImageURL/getImageBlob/delete/list/setStaged/exportImages/importImages、剪贴板取图。
+- **引用协议**：正文写 `{{img:<id>}}` 引用图片；也支持 Markdown `![](url)` 远程图片。
+- **渲染** `components/rich-text.tsx`：解析 token/`![](url)` 为 `<img>`（IndexedDB 走 objectURL）。
+- **富文本输入** `components/image-rich-input.tsx`：textarea 支持 **Ctrl+V 粘贴图片**（转 blob→IndexedDB→光标处插 `{{img:id}}`）、「插图」选文件、编辑/预览切换。接入小说章节正文、日历笔记；思维图节点内容在 node-inspector 的 `DebouncedTextarea` 增加同样的粘贴逻辑。
+- **引用扫描/暂存区** `lib/image-refs.ts`（收集全库被引用的 id）+ `lib/backup.ts` 的 `getImageInventory`；无引用图片在「设置 → 图片缓存/暂存区」查看并决定删除（用到的图不可删）。
+- **导出/导入含图** `lib/backup.ts`：`exportBackup()` 把 store 快照 + 被引用的图片（base64）打成单个 JSON；`importBackup()` 先恢复 store 再幂等写回 IndexedDB。设置里「数据备份（含图片）」与「图片缓存」入口已接 async。
+
+**备注 / 风险点**
+- IndexedDB 容量远大于 localStorage，适合长期存图；图片不随文本 JSON 写入 localStorage（正文只存 token）。
+- 导出 JSON 会内嵌图片 base64，文件可能变大——这是「含图备份」的预期代价。
+- 原生 `<img>`（objectURL / 任意远程 URL）不使用 next/image 优化，均以 eslint-disable 说明理由。
+- 粘贴在「编辑」态生效；「预览」态显示成图。

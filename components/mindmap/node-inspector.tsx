@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Trash2, X, Lightbulb, ListTree, Tag, CalendarClock } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
+import { addImage, imageBlobFromClipboard } from "@/lib/image-store"
 import type { Category, MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -331,6 +332,7 @@ function DebouncedTextarea({
   onCommit: (v: string) => void
 }) {
   const [local, setLocal] = useState(value)
+  const ref = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
     setLocal(value)
   }, [value])
@@ -342,12 +344,27 @@ function DebouncedTextarea({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [local])
 
+  async function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const blob = imageBlobFromClipboard(e.clipboardData)
+    if (!blob) return
+    e.preventDefault()
+    const id = await addImage(blob, blob.type)
+    const el = ref.current
+    const st = el?.selectionStart ?? local.length
+    const en = el?.selectionEnd ?? local.length
+    const token = `{{img:${id}}}`
+    setLocal(local.slice(0, st) + token + local.slice(en))
+    onCommit(local.slice(0, st) + token + local.slice(en))
+  }
+
   return (
     <textarea
+      ref={ref}
       value={local}
       onChange={(e) => setLocal(e.target.value)}
+      onPaste={onPaste}
       onBlur={() => onCommit(local)}
-      placeholder="补充说明…"
+      placeholder="补充说明…（可 Ctrl+V 粘贴图片）"
       className="min-h-16 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
     />
   )
