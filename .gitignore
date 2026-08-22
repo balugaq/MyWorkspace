@@ -36,3 +36,6 @@ pnpm-debug.log*
 next-env.d.ts
 
 .npm-cache
+
+public/custom_festivals.yml
+public/address_book.yml
