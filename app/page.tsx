@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { useWorkspace } from "@/lib/store"
 import { useGlobalShortcuts } from "@/hooks/use-shortcuts"
-import { useCalendarScripts } from "@/hooks/use-calendar-scripts"
+// 日历标记脚本已弃用停用：不再引入 useCalendarScripts
+// import { useCalendarScripts } from "@/hooks/use-calendar-scripts"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Topbar } from "@/components/topbar"
 import { NovelWorkspace } from "@/components/novel-workspace"
@@ -11,7 +12,8 @@ import { MindmapWorkspace } from "@/components/mindmap-workspace"
 import { CalendarWorkspace } from "@/components/calendar-workspace"
 import { GlobalSearch } from "@/components/global-search"
 import { SettingsDialog } from "@/components/settings-dialog"
-import { CalendarScriptsDialog } from "@/components/calendar-scripts-dialog"
+// 日历标记脚本已弃用停用：不再引入 CalendarScriptsDialog
+// import { CalendarScriptsDialog } from "@/components/calendar-scripts-dialog"
 import { ConfigEditorDialog } from "@/components/config-editor-dialog"
 import { ImageCacheDialog } from "@/components/image-cache-dialog"
 import { StatusBar } from "@/components/status-bar"
@@ -25,8 +27,9 @@ export default function Page() {
   const view = useWorkspace((s) => s.view)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const categories = useWorkspace((s) => s.categories)
-  const scriptsOpen = useWorkspace((s) => s.scriptsOpen)
-  const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen)
+  // 日历标记脚本已弃用停用：不再订阅 scriptsOpen / setScriptsOpen
+  // const scriptsOpen = useWorkspace((s) => s.scriptsOpen)
+  // const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen)
   const configEditorOpen = useWorkspace((s) => s.configEditorOpen)
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const imagesOpen = useWorkspace((s) => s.imagesOpen)
@@ -37,8 +40,8 @@ export default function Page() {
   // 统一的全局快捷键（Ctrl+N 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
   useGlobalShortcuts()
 
-  // 载入启用的日历标记脚本
-  useCalendarScripts()
+  // 载入启用的日历标记脚本（已弃用停用：不再调用 useCalendarScripts）
+  // useCalendarScripts()
 
   useEffect(() => {
     const onOpenSearch = () => setSearchOpen(true)
@@ -119,7 +122,8 @@ export default function Page() {
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <SettingsDialog />
-      <CalendarScriptsDialog open={scriptsOpen} onOpenChange={setScriptsOpen} />
+      {/* 日历标记脚本已弃用停用：不再渲染 CalendarScriptsDialog */}
+      {/* <CalendarScriptsDialog open={scriptsOpen} onOpenChange={setScriptsOpen} /> */}
       <ConfigEditorDialog open={configEditorOpen} onOpenChange={setConfigEditorOpen} />
       <ImageCacheDialog open={imagesOpen} onOpenChange={setImagesOpen} />
     </div>

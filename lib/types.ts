@@ -42,6 +42,8 @@ export interface MindNode {
   tags?: string[] // 与章节共用的标签体系
   dueDate?: string | null // 截止日期 yyyy-MM-dd；null / 缺省 = 长期任务
   longTerm?: boolean // 是否为长期任务（true 时不显示在日历）
+  done?: boolean // 节点本身是否已完成
+  hidden?: boolean // 是否在图里隐藏（隐藏后仅列表显示）
 }
 
 // 节点之间的连线
@@ -165,13 +167,13 @@ export const SHORTCUT_META: ShortcutMeta[] = [
 export type ThemePreference = "light" | "dark" | "system"
 export type DefaultView = "workspace" | "calendar"
 
-/** 一条日历标记脚本 */
-export interface CalendarScript {
-  id: string
-  name: string
-  enabled: boolean
-  code: string
-}
+/** 一条日历标记脚本（已弃用 / 注释停用：日历标记脚本整体停用，类型保留注释以备恢复） */
+// export interface CalendarScript {
+//   id: string
+//   name: string
+//   enabled: boolean
+//   code: string
+// }
 
 export interface Settings {
   theme: ThemePreference

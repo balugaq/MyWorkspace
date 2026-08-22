@@ -63,7 +63,7 @@ export function ImageRichInput({
   }
 
   return (
-    <div className="flex w-full flex-col gap-1">
+    <div className="flex h-full min-h-0 w-full flex-col gap-1">
       <div className="flex items-center justify-end gap-1.5">
         <button
           type="button"
@@ -110,7 +110,7 @@ export function ImageRichInput({
           onPaste={onPaste}
           placeholder={placeholder}
           className={cn(
-            "w-full resize-none rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            "w-full min-h-0 flex-1 resize-none overflow-auto rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
             minHeight,
             className,
           )}

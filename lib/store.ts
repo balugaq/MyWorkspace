@@ -18,7 +18,7 @@ import type {
   ShortcutAction,
   ShortcutBinding,
   ConnectResult,
-  CalendarScript,
+  // CalendarScript, // 日历标记脚本已弃用停用：不再引入该类型
 } from "./types"
 import { DEFAULT_SETTINGS } from "./types"
 
@@ -145,12 +145,12 @@ interface WorkspaceState {
 
   // 系统设置
   settings: Settings
-  // 日历标记脚本
-  calendarScripts: CalendarScript[]
+  // 日历标记脚本（已弃用停用，字段与下方相关 action 一并注释；merge 中显式丢弃旧存档残留）
+  // calendarScripts: CalendarScript[]
   // UI 弹窗状态（跨组件触发，例如全局快捷键 Ctrl+N）
   addCategoryOpen: boolean
   settingsOpen: boolean
-  scriptsOpen: boolean
+  // scriptsOpen: boolean // 日历标记脚本管理弹窗（已弃用停用）
   configEditorOpen: boolean
   imagesOpen: boolean
 
@@ -174,14 +174,14 @@ interface WorkspaceState {
   setShortcut: (action: ShortcutAction, binding: ShortcutBinding) => void
   setAddCategoryOpen: (v: boolean) => void
   setSettingsOpen: (v: boolean) => void
-  setScriptsOpen: (v: boolean) => void
+  // setScriptsOpen: (v: boolean) => void // 日历标记脚本（已弃用停用）
   setConfigEditorOpen: (v: boolean) => void
   setImagesOpen: (v: boolean) => void
 
-  // 日历标记脚本
-  upsertCalendarScript: (script: CalendarScript) => void
-  removeCalendarScript: (id: string) => void
-  toggleCalendarScript: (id: string, enabled: boolean) => void
+  // 日历标记脚本（已弃用停用：以下三个 action 一并注释）
+  // upsertCalendarScript: (script: CalendarScript) => void
+  // removeCalendarScript: (id: string) => void
+  // toggleCalendarScript: (id: string, enabled: boolean) => void
 
   // 数据备份
   exportData: () => string | null
@@ -237,10 +237,10 @@ export const useWorkspace = create<WorkspaceState>()(
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       hydrated: false,
       settings: DEFAULT_SETTINGS,
-      calendarScripts: [],
+      // calendarScripts: [], // 日历标记脚本（已弃用停用）
       addCategoryOpen: false,
       settingsOpen: false,
-      scriptsOpen: false,
+      // scriptsOpen: false, // 日历标记脚本（已弃用停用）
       configEditorOpen: false,
       imagesOpen: false,
 
@@ -257,34 +257,35 @@ export const useWorkspace = create<WorkspaceState>()(
 
       setAddCategoryOpen: (v) => set({ addCategoryOpen: v }),
       setSettingsOpen: (v) => set({ settingsOpen: v }),
-      setScriptsOpen: (v) => set({ scriptsOpen: v }),
+      // setScriptsOpen: (v) => set({ scriptsOpen: v }), // 日历标记脚本（已弃用停用）
       setConfigEditorOpen: (v) => set({ configEditorOpen: v }),
       setImagesOpen: (v) => set({ imagesOpen: v }),
 
-      upsertCalendarScript: (script) =>
-        set((s) => {
-          const exists = s.calendarScripts.some((x) => x.id === script.id)
-          if (exists) {
-            return {
-              calendarScripts: s.calendarScripts.map((x) =>
-                x.id === script.id ? script : x,
-              ),
-            }
-          }
-          return { calendarScripts: [...s.calendarScripts, script] }
-        }),
-
-      removeCalendarScript: (id) =>
-        set((s) => ({
-          calendarScripts: s.calendarScripts.filter((x) => x.id !== id),
-        })),
-
-      toggleCalendarScript: (id, enabled) =>
-        set((s) => ({
-          calendarScripts: s.calendarScripts.map((x) =>
-            x.id === id ? { ...x, enabled } : x,
-          ),
-        })),
+      // 日历标记脚本（已弃用停用：以下三个 action 实现一并注释）
+      // upsertCalendarScript: (script) =>
+      //   set((s) => {
+      //     const exists = s.calendarScripts.some((x) => x.id === script.id)
+      //     if (exists) {
+      //       return {
+      //         calendarScripts: s.calendarScripts.map((x) =>
+      //           x.id === script.id ? script : x,
+      //         ),
+      //       }
+      //     }
+      //     return { calendarScripts: [...s.calendarScripts, script] }
+      //   }),
+      //
+      // removeCalendarScript: (id) =>
+      //   set((s) => ({
+      //     calendarScripts: s.calendarScripts.filter((x) => x.id !== id),
+      //   })),
+      //
+      // toggleCalendarScript: (id, enabled) =>
+      //   set((s) => ({
+      //     calendarScripts: s.calendarScripts.map((x) =>
+      //       x.id === id ? { ...x, enabled } : x,
+      //     ),
+      //   })),
 
       exportData: () => {
         const s = get()
@@ -296,7 +297,7 @@ export const useWorkspace = create<WorkspaceState>()(
               categories: s.categories,
               calendar: s.calendar,
               settings: s.settings,
-              calendarScripts: s.calendarScripts,
+              // calendarScripts: s.calendarScripts, // 日历标记脚本（已弃用停用）
             },
             null,
             2
@@ -322,9 +323,10 @@ export const useWorkspace = create<WorkspaceState>()(
               ...DEFAULT_SETTINGS,
               ...(data.settings ?? {}),
             } as Settings,
-            calendarScripts: Array.isArray(data.calendarScripts)
-              ? (data.calendarScripts as CalendarScript[])
-              : [],
+            // 日历标记脚本（已弃用停用）：不再恢复 calendarScripts 字段
+            // calendarScripts: Array.isArray(data.calendarScripts)
+            //   ? (data.calendarScripts as CalendarScript[])
+            //   : [],
             activeCategoryId: data.categories[0]?.id ?? null,
             activeItemId: null,
             view: "workspace",
@@ -759,12 +761,20 @@ export const useWorkspace = create<WorkspaceState>()(
         }
       },
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<WorkspaceState>
+        const p = { ...(persisted ?? {}) } as Partial<WorkspaceState> &
+          Record<string, unknown>
+        // 日历标记脚本已弃用停用：显式丢弃旧存档残留字段（红线 1 兼容，不破坏旧存档读取，
+        // 也不把僵尸字段写回 localStorage）。
+        delete p.calendarScripts
+        delete p.scriptsOpen
         // 若历史数据没有 settings，则并入当前默认设置
         return {
           ...current,
           ...p,
-          settings: { ...DEFAULT_SETTINGS, ...(p.settings ?? {}) },
+          settings: {
+            ...DEFAULT_SETTINGS,
+            ...(p.settings as Partial<Settings> | undefined),
+          },
         }
       },
     }

@@ -10,6 +10,7 @@ import {
   Target,
   ChevronDown,
   CalendarClock,
+  Check,
 } from "lucide-react"
 import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
@@ -26,7 +27,6 @@ interface TodoNodeData {
   node: MindNode
   collapsed?: boolean
   onToggleCollapse?: () => void
-  onRightDrag?: (clientX: number, clientY: number) => void
 }
 
 export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
@@ -34,19 +34,10 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
     node,
     collapsed = false,
     onToggleCollapse,
-    onRightDrag,
   } = data as unknown as TodoNodeData
   const subCount = node.sub.length
   return (
     <div
-      onContextMenu={(e) => e.preventDefault()}
-      onPointerDown={(e) => {
-        if (e.button === 2 && onRightDrag) {
-          e.preventDefault()
-          e.stopPropagation()
-          onRightDrag(e.clientX, e.clientY)
-        }
-      }}
       className={cn(
         "w-auto max-w-[50vw] min-w-56 rounded-xl border-2 bg-card shadow-sm transition-colors",
         selected ? "border-primary ring-2 ring-primary/30" : "border-border"
@@ -59,8 +50,16 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
       />
       <div className="flex items-center gap-1.5 border-b bg-primary/5 px-3 py-2">
         <Pin className="size-3.5 shrink-0 text-primary" />
-        <span className="truncate text-sm font-semibold">{node.title}</span>
-        {subCount > 0 && (
+        <span
+          className={cn(
+            "truncate text-sm font-semibold",
+            node.done && "text-muted-foreground line-through",
+          )}
+        >
+          {node.title}
+        </span>
+        {node.done && <Check className="ml-auto size-3.5 shrink-0 text-emerald-500" />}
+        {subCount > 0 && !node.done && (
           <button
             type="button"
             onClick={(e) => {
@@ -79,7 +78,12 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
           </button>
         )}
       </div>
-      <div className="flex min-w-56 flex-col gap-1 px-3 py-2 text-[11px] text-muted-foreground">
+      <div
+        className={cn(
+          "flex min-w-56 flex-col gap-1 px-3 py-2 text-[11px] text-muted-foreground",
+          node.done && "opacity-60",
+        )}
+      >
         {node.cause && (
           <span className="flex items-start gap-1">
             <CornerDownRight className="mt-0.5 size-3 shrink-0" />
@@ -98,9 +102,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
             <span className="line-clamp-1">结果：{node.result}</span>
           </span>
         )}
-        {!node.cause && !node.leadTo && !node.result && node.content && (
-          <RichText text={node.content} className="text-[11px]" fullSize />
-        )}
+        {node.content && <RichText text={node.content} className="text-[11px]" fullSize />}
       </div>
       {(node.tags && node.tags.length > 0) || node.dueDate || node.longTerm ? (
         <div className="flex flex-wrap items-center gap-1 border-t px-3 py-1.5">

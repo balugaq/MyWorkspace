@@ -223,7 +223,7 @@ function ChapterEditor({
 
       <Separator className="my-4" />
 
-      <ScrollArea className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <ImageRichInput
           value={chapter.content}
           onChange={(v) => updateChapter(category.id, chapter.id, { content: v })}
@@ -231,7 +231,7 @@ function ChapterEditor({
           minHeight="min-h-[45vh]"
           className={cn(isNovel ? "font-serif text-lg" : "text-base")}
         />
-      </ScrollArea>
+      </div>
 
       <div className="mt-4 flex items-center justify-between border-t pt-4">
         <Button

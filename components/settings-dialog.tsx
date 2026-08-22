@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload, Wand2, FileCog, Image as ImageIcon } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon } from "lucide-react"
+// import { Wand2 } from "lucide-react" // 日历标记脚本入口（已弃用停用）
 import { useWorkspace } from "@/lib/store"
 import { exportBackup, importBackup } from "@/lib/backup"
 import {
@@ -46,7 +47,7 @@ export function SettingsDialog() {
   const settings = useWorkspace((s) => s.settings)
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setShortcut = useWorkspace((s) => s.setShortcut)
-  const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen)
+  // const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen) // 日历标记脚本（已弃用停用）
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const setImagesOpen = useWorkspace((s) => s.setImagesOpen)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -182,6 +183,7 @@ export function SettingsDialog() {
             </div>
           </section>
 
+          {/* 日历标记脚本（已弃用停用：隐藏入口）
           <section className="flex flex-col gap-2">
             <Label className="text-xs font-medium text-muted-foreground">日历标记</Label>
             <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setScriptsOpen(true)}>
@@ -192,6 +194,7 @@ export function SettingsDialog() {
               编写脚本订阅 RenderDateEvent，用 JSON/YAML/XML 为单个日期块绘制标记。
             </p>
           </section>
+          */}
 
           <section className="flex flex-col gap-2">
             <Label className="text-xs font-medium text-muted-foreground">配置文件</Label>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Trash2, X, Lightbulb, ListTree, Tag, CalendarClock } from "lucide-react"
+import { Trash2, X, Lightbulb, Tag, CalendarClock } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { addImage, imageBlobFromClipboard } from "@/lib/image-store"
@@ -9,6 +9,7 @@ import type { Category, MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -44,8 +45,6 @@ export function NodeInspector({
   const updateNode = useWorkspace((s) => s.updateNode)
   const removeNode = useWorkspace((s) => s.removeNode)
   const setNodeSolution = useWorkspace((s) => s.setNodeSolution)
-  const connectNodes = useWorkspace((s) => s.connectNodes)
-  const removeSub = useWorkspace((s) => s.removeSub)
 
   const patch = (p: Partial<MindNode>) => updateNode(category.id, node.id, p)
   const solStatus = node.solution?.status ?? "doing"
@@ -53,21 +52,6 @@ export function NodeInspector({
 
   // 标签（由共享 TagPicker 编辑）
   const tags = node.tags ?? []
-
-  // 子任务：仅展示「确实存在于 sub 连线」的直接子级节点
-  const allNodes = category.relation?.nodes ?? []
-  const subEdges = new Set(
-    category.relation?.edges
-      .filter((e) => e.kind === "sub" && e.source === node.id)
-      .map((e) => e.target) ?? [],
-  )
-  const subs = node.sub
-    .filter((id) => subEdges.has(id)) // 只保留与当前节点有 sub 连线的目标
-    .map((id) => allNodes.find((n) => n.id === id))
-    .filter((n): n is MindNode => !!n)
-  const addable = allNodes.filter(
-    (n) => n.id !== node.id && !subEdges.has(n.id),
-  )
 
   return (
     <div className="flex h-full w-80 shrink-0 flex-col border-l bg-card">
@@ -169,62 +153,25 @@ export function NodeInspector({
 
           <Separator />
 
+          {/* 完成状态 / 隐藏（连线即子任务，详情里不再单独管理子任务） */}
           <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5">
-              <ListTree className="size-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">
-                子任务 (Sub)
-              </span>
-            </div>
-            {subs.length > 0 && (
-              <ul className="flex flex-col gap-1">
-                {subs.map((s) => (
-                  <li
-                    key={s.id}
-                    className="group flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-xs"
-                  >
-                    <span className="min-w-0 flex-1 truncate">
-                      {s.title || "未命名"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        removeSub(category.id, node.id, s.id)
-                        toast.success("已移除子任务")
-                      }}
-                      className="text-muted-foreground transition-colors hover:text-destructive"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {subs.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                暂无子任务，可从下方添加。
-              </p>
-            )}
-            {addable.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <p className="text-xs text-muted-foreground">可添加为子任务：</p>
-                {addable.map((n) => (
-                  <button
-                    key={n.id}
-                    type="button"
-                    onClick={() => {
-                      const res = connectNodes(category.id, node.id, n.id, "sub")
-                      if (res === "exists") toast.error("已经连接过此节点了！")
-                      else toast.success(`已将「${n.title || "未命名"}」设为子任务`)
-                    }}
-                    className="flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-left text-xs transition-colors hover:border-primary hover:bg-accent/40"
-                  >
-                    <span className="min-w-0 flex-1 truncate">{n.title || "未命名"}</span>
-                    <span className="shrink-0 text-primary">+ 添加</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <label className="flex cursor-pointer select-none items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
+              <Checkbox
+                checked={!!node.done}
+                onCheckedChange={(v) => patch({ done: !!v })}
+              />
+              已完成
+            </label>
+            <label className="flex cursor-pointer select-none items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
+              <Checkbox
+                checked={!!node.hidden}
+                onCheckedChange={(v) => patch({ hidden: !!v })}
+              />
+              {node.hidden ? "已隐藏（仅在列表显示）" : "在图里隐藏"}
+            </label>
+            <p className="text-xs text-muted-foreground">
+              隐藏后节点不再显示在思维导图画布上，仍可在列表视图中查看与恢复。
+            </p>
           </div>
 
           <Separator />

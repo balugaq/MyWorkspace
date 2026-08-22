@@ -36,12 +36,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 
-const nodeTypes = { todo: TodoNode, solution: SolutionNode, float: FloatNode }
-
-/** 隐形节点：仅作为右键拖拽临时连线的光标锚点，不渲染任何内容 */
-function FloatNode() {
-  return <div className="pointer-events-none size-0 opacity-0" />
-}
+const nodeTypes = { todo: TodoNode, solution: SolutionNode }
 
 export function MindmapWorkspace({ category }: { category: Category }) {
   const view = category.relation?.view ?? "mindmap"
@@ -166,53 +161,6 @@ function Canvas({ category }: { category: Category }) {
     return res
   }, [collapsed, relation.nodes])
 
-  // ---- 右键拖拽连线：按住节点右键拖到另一节点上松开，即建立 flow 连线 ----
-  const NODE_W = 224
-  const NODE_H = 120
-  const [dragLine, setDragLine] = useState<{ source: string; to: { x: number; y: number } } | null>(null)
-  const dragRef = useRef<{ source: string; to: { x: number; y: number } } | null>(null)
-
-  const startRightDrag = useCallback(
-    (nodeId: string, clientX: number, clientY: number) => {
-      const to = screenToFlowPosition({ x: clientX, y: clientY })
-      dragRef.current = { source: nodeId, to }
-      setDragLine({ ...dragRef.current })
-
-      const onMove = (e: PointerEvent) => {
-        if (!dragRef.current) return
-        dragRef.current.to = screenToFlowPosition({ x: e.clientX, y: e.clientY })
-        setDragLine({ ...dragRef.current })
-      }
-      const onUp = (e: PointerEvent) => {
-        window.removeEventListener("pointermove", onMove)
-        window.removeEventListener("pointerup", onUp)
-        const cur = dragRef.current
-        dragRef.current = null
-        setDragLine(null)
-        if (!cur) return
-        const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
-        // 命中测试：找包含该 flow 坐标的可见目标节点
-        const target = relation.nodes.find(
-          (n) =>
-            !hidden.has(n.id) &&
-            n.id !== cur.source &&
-            pos.x >= n.position.x &&
-            pos.x <= n.position.x + NODE_W &&
-            pos.y >= n.position.y &&
-            pos.y <= n.position.y + NODE_H,
-        )
-        if (target) {
-          const res = connectNodes(category.id, cur.source, target.id, "flow")
-          if (res === "exists") toast.error("已经连接过此节点了！")
-          else toast.success("已建立连线")
-        }
-      }
-      window.addEventListener("pointermove", onMove)
-      window.addEventListener("pointerup", onUp, { once: false })
-    },
-    [screenToFlowPosition, relation.nodes, hidden, connectNodes, category.id],
-  )
-
   const selectedNode = relation.nodes.find((n) => n.id === activeItemId) ?? null
 
   // 按 Delete / Backspace 请求删除当前选中的节点（弹出确认，避开文本输入框）
@@ -236,6 +184,7 @@ function Canvas({ category }: { category: Category }) {
     const list: Node[] = []
     for (const n of relation.nodes) {
       if (hidden.has(n.id)) continue
+      if (n.hidden) continue // 用户隐藏：不在画布显示
       list.push({
         id: n.id,
         type: "todo",
@@ -244,7 +193,6 @@ function Canvas({ category }: { category: Category }) {
           node: n,
           collapsed: collapsed.has(n.id),
           onToggleCollapse: () => toggleCollapse(n.id),
-          onRightDrag: (cx: number, cy: number) => startRightDrag(n.id, cx, cy),
         },
         selected: n.id === activeItemId,
       })
@@ -259,17 +207,6 @@ function Canvas({ category }: { category: Category }) {
         })
       }
     }
-    // 右键拖拽时的隐形光标节点（作为临时连线终点）
-    if (dragLine) {
-      list.push({
-        id: "drag-float",
-        type: "float",
-        position: dragLine.to,
-        draggable: false,
-        selectable: false,
-        data: {},
-      })
-    }
     return list
   }, [
     relation.nodes,
@@ -277,14 +214,15 @@ function Canvas({ category }: { category: Category }) {
     hidden,
     collapsed,
     toggleCollapse,
-    startRightDrag,
-    dragLine,
   ])
 
   const rfEdges: Edge[] = useMemo(() => {
     const list: Edge[] = []
+    // 用户隐藏的节点 id（用于过滤连线）
+    const hiddenIds = new Set(relation.nodes.filter((n) => n.hidden).map((n) => n.id))
     for (const e of relation.edges) {
       if (hidden.has(e.source) || hidden.has(e.target)) continue
+      if (hiddenIds.has(e.source) || hiddenIds.has(e.target)) continue
       list.push({
         id: e.id,
         source: e.source,
@@ -299,6 +237,7 @@ function Canvas({ category }: { category: Category }) {
     // 解决方案绿线
     for (const n of relation.nodes) {
       if (hidden.has(n.id)) continue
+      if (n.hidden) continue
       if (n.solution && n.solution.content.trim()) {
         list.push({
           id: `sol-edge-${n.id}`,
@@ -309,20 +248,8 @@ function Canvas({ category }: { category: Category }) {
         })
       }
     }
-    // 右键拖拽时的临时连线（直虚线，连接到光标处的隐形 float 节点）
-    if (dragLine) {
-      list.push({
-        id: "drag-line",
-        type: "straight",
-        source: dragLine.source,
-        target: "drag-float",
-        style: { stroke: "var(--primary)", strokeWidth: 2, strokeDasharray: "6 4" },
-        selectable: false,
-        interactionWidth: 0,
-      })
-    }
     return list
-  }, [relation.edges, relation.nodes, hidden, dragLine, isConnecting])
+  }, [relation.edges, relation.nodes, hidden, isConnecting])
 
   // ---- 本地画布态（React Flow 持有位置，避免拖拽时每帧写 store 导致卡顿/节点消失） ----
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes)
@@ -346,12 +273,12 @@ function Canvas({ category }: { category: Category }) {
         if (!next.some((n) => n.id === id)) next = [...next, s]
       }
       // 3) 移除已不存在的节点（排除拖拽临时线，它会由 dragLine 状态重新加入）
-      next = next.filter((n) => sn.has(n.id) || n.id === "drag-float")
+      next = next.filter((n) => sn.has(n.id))
       return next
     })
 
     setEdges((curr) => {
-      let next = curr.filter((e) => se.has(e.id) || e.id === "drag-line")
+      let next = curr.filter((e) => se.has(e.id))
       for (const [id, e] of se) {
         if (!next.some((x) => x.id === id)) next = [...next, e]
       }
@@ -362,7 +289,6 @@ function Canvas({ category }: { category: Category }) {
   // 拖拽结束：仅此时把最终位置写回 store（拖拽过程中不写 store，保证流畅）
   const onNodeDragStop = useCallback(
     (_: unknown, node: Node) => {
-      if (node.id === "drag-float") return
       if (node.id.startsWith("sol-")) {
         const parentId = node.id.slice("sol-".length)
         const parent = relation.nodes.find((n) => n.id === parentId)
@@ -386,6 +312,14 @@ function Canvas({ category }: { category: Category }) {
   )
 
   const onNodeDoubleClick = useCallback(
+    (_: React.MouseEvent, n: Node) => {
+      if (!n.id.startsWith("sol-")) setActiveItem(n.id)
+    },
+    [setActiveItem]
+  )
+
+  // 单击同样打开节点详情
+  const onNodeClick = useCallback(
     (_: React.MouseEvent, n: Node) => {
       if (!n.id.startsWith("sol-")) setActiveItem(n.id)
     },
@@ -435,12 +369,9 @@ function Canvas({ category }: { category: Category }) {
           onConnect={onConnect}
           onConnectStart={() => setIsConnecting(true)}
           onConnectEnd={() => setIsConnecting(false)}
-          onNodeClick={(_, n) =>
-            !n.id.startsWith("sol-") && setActiveItem(n.id)
-          }
           onNodeDoubleClick={onNodeDoubleClick}
+          onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
-          onNodeContextMenu={(e) => e.preventDefault()}
           onPaneContextMenu={(e) => e.preventDefault()}
           zoomOnDoubleClick={false}
           onEdgeClick={(_, e) => {
@@ -545,7 +476,17 @@ function ListView({ category }: { category: Category }) {
           >
             <div className="flex items-center gap-2">
               <Pin className="size-4 text-primary" />
-              <span className="font-medium">{n.title}</span>
+              <span className={cn("font-medium", n.done && "text-muted-foreground line-through")}>
+                {n.title}
+              </span>
+              {n.hidden && (
+                <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">已隐藏</span>
+              )}
+              {n.done && (
+                <span className="rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                  已完成
+                </span>
+              )}
               {n.solution?.content && (
                 <Badge
                   variant="secondary"

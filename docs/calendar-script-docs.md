@@ -1,5 +1,15 @@
 # 日历标记脚本指南（Calendar Scripts）
 
+> ## ⚠️ 已弃用（DEPRECATED）
+>
+> 本功能（日历标记脚本）已随代码注释整体**停用**：`lib/calendar-events.ts` 的运行时、
+> `hooks/use-calendar-scripts.ts` 的加载器、`calendar-workspace.tsx` 的触发点与标记 API、
+> store 的 `calendarScripts` 字段与 actions、管理弹窗与设置入口均已注释停用。
+> 本文档仅作历史存档，**不再代表当前可用的能力**。如需恢复，请按 `AGENTS.md` 相关入口点
+> 反注释并重新接线（`merge` 中已显式丢弃旧存档的 `calendarScripts` 残留字段）。
+>
+> 以下内容保留为历史参考。
+
 本指南面向希望在日历上做自定义标记（自动标注节日、纪念日、预算、习惯打卡等）的用户——通过编写一段**本地 JS 脚本**，订阅 `RenderDateEvent` 事件总线，为单个日期块追加标记节点。
 
 > ⚠️ 脚本是**信任的本地脚本**，直接在你的浏览器里执行，不受沙箱隔离。请只在存入你信任的代码。

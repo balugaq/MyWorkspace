@@ -21,7 +21,7 @@ export async function exportBackup(): Promise<string> {
       categories: s.categories,
       calendar: s.calendar,
       settings: s.settings,
-      calendarScripts: s.calendarScripts,
+      // calendarScripts: s.calendarScripts, // 日历标记脚本（已弃用停用）
       images,
     },
     null,
