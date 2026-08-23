@@ -182,11 +182,16 @@
 
 ### 8.6 日历（`components/calendar-workspace.tsx`）
 
+> 显示风格参考 `.ref/SimpleCalendar`（仅月视图 + 日期格装饰要素）。当前为**纯月视图**。
+
 | 功能 | 入口点 |
 | --- | --- |
-| 月/周/日视图 + 导航 | `CalendarWorkspace`（`view` 状态、`shift`、`days` 计算） |
-| 当日详情 | `DayDetail`（笔记 `ImageRichInput` → `setDayNote`；待办 `addCalendarTodo/toggleCalendarTodo/removeCalendarTodo`；事件 `addCalendarEvent/removeCalendarEvent`） |
+| 月视图 + 导航 | `CalendarWorkspace`（固定月视图、`shift`=addMonths、`days` 当月完整网格、回今天按钮（离开当月出现）） |
+| 日期格装饰 | 单元格内：日期数字分层配色（today/选中/周末红/生日绿/放假日红/上班日蓝）、右上角「假/班/🎂」角标、底部节日名或 `M/d` 小字、顶部笔记圆点、待办截止计数徽标 |
+| 切月动画 | 网格容器 `key={format(current,"yyyy-MM")}` 重建触发淡入；纯淡入（非 SimpleCalendar 的滑入滑出） |
+| 当日详情 | `DayDetail`（笔记 `ImageRichInput` → `setDayNote`；待办 `addCalendarTodo/toggleCalendarTodo/removeCalendarTodo`；事件 `addCalendarEvent/removeCalendarEvent`；生日列表 + 农历日期） |
 | 思维图截止任务显示 | `collectDueNodes`（`lib/deadlines.ts`）+ 日格徽标 + 详情跳转（`setActiveCategory`/`setActiveItem`） |
+| 节日/生日数据 | 只读加载 `public/custom_festivals.yml`、`public/address_book.yml`（见 `docs/custom-data-docs.md`） |
 | ~~渲染标记脚本触发~~ | ~~`emitRenderDate`（`lib/calendar-events.ts`）+ `makeMarkerApi`；单元格 `data-date`~~（已弃用停用） |
 
 ### 8.7 全局搜索

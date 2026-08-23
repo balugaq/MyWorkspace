@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 参考代码（用户放置的 SimpleCalendar 源码），不参与本仓库 lint
+    ".ref/**",
   ]),
 ]);
 

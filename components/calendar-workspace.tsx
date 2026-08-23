@@ -1,14 +1,10 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
-// 注：原 useEffect 仅用于日历标记脚本触发（已弃用停用），暂从 import 移除以保持 lint 0 错误。
-// 若恢复标记脚本功能，请把 useEffect 加回并在上方注释块中重新启用对应 effect。
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   format,
   parse,
   addMonths,
-  addWeeks,
-  addDays,
   startOfMonth,
   endOfMonth,
   startOfWeek,
@@ -25,6 +21,12 @@ import { useWorkspace } from "@/lib/store"
 import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
 // 日历标记脚本已弃用停用：不再引入 emitRenderDate / DateMarkerApi / CalendarDisplayType。
 // import { emitRenderDate, type DateMarkerApi, type CalendarDisplayType } from "@/lib/calendar-events"
+import { loadAddressBook, type Person } from "@/lib/address-book"
+import { loadPublicYaml } from "@/lib/fetch-data"
+import { festivalsForDate, type FestivalsFile } from "@/lib/festivals"
+import { birthdaysOn } from "@/lib/birthday"
+import { lunarTextForSolar } from "@/lib/lunar"
+import { dayShortHint } from "@/lib/day-hint"
 import { ImageRichInput } from "@/components/image-rich-input"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,7 +35,6 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
-type CalView = "month" | "week" | "day"
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"]
 
 export function CalendarWorkspace() {
@@ -41,19 +42,47 @@ export function CalendarWorkspace() {
   const setSelectedDate = useWorkspace((s) => s.setSelectedDate)
   const calendar = useWorkspace((s) => s.calendar)
   const categories = useWorkspace((s) => s.categories)
-  const [view, setView] = useState<CalView>("month")
   const gridRef = useRef<HTMLDivElement>(null)
+
+  // 自定义数据（节日 + 通讯录），只读加载自 public/*.yml
+  const [people, setPeople] = useState<Person[]>([])
+  const [festivalDefs, setFestivalDefs] = useState<FestivalsFile["festivals"]>([])
+  useEffect(() => {
+    let active = true
+    Promise.all([loadAddressBook(), loadPublicYaml<FestivalsFile>("custom_festivals.yml")])
+      .then(([p, f]) => {
+        if (!active) return
+        setPeople(p)
+        setFestivalDefs(f?.festivals ?? [])
+      })
+      .catch(() => {
+        // fetch-data 内部已触发表单失败事件；此处兜底
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  // 监听 public 数据加载失败 → 页面顶部 toast（失败可跳过，不阻塞日历）
+  useEffect(() => {
+    const onErr = (e: Event) => {
+      const detail = (e as CustomEvent<{ file?: string }>).detail
+      const file = detail?.file
+      toast.error(file ? `${file} 加载失败，已跳过` : "自定义数据加载失败，已跳过")
+    }
+    window.addEventListener("dsh:data-load-error", onErr)
+    return () => window.removeEventListener("dsh:data-load-error", onErr)
+  }, [])
 
   // 关系分类中绑定了截止日期的 Todo 节点，按日期分组
   const dueMap = useMemo(() => collectDueNodes(categories), [categories])
   const current = useMemo(() => parse(selectedDate, "yyyy-MM-dd", new Date()), [selectedDate])
 
   const days = useMemo(() => {
-    if (view === "day") return [current]
-    const start = view === "month" ? startOfWeek(startOfMonth(current)) : startOfWeek(current)
-    const end = view === "month" ? endOfWeek(endOfMonth(current)) : endOfWeek(current)
+    const start = startOfWeek(startOfMonth(current))
+    const end = endOfWeek(endOfMonth(current))
     return eachDayOfInterval({ start, end })
-  }, [current, view])
+  }, [current])
 
   // 单元格渲染后，对每个日期块触发 RenderDateEvent（供日历标记脚本订阅）
   // 日历标记脚本已弃用停用：以下 effect 整体注释，不再触发标记事件、不再构造标记 API。
@@ -77,20 +106,18 @@ export function CalendarWorkspace() {
   // }, [days, view])
 
   function shift(dir: 1 | -1) {
-    const fn = view === "month" ? addMonths : view === "week" ? addWeeks : addDays
-    setSelectedDate(format(fn(current, dir), "yyyy-MM-dd"))
+    setSelectedDate(format(addMonths(current, dir), "yyyy-MM-dd"))
   }
 
-  const title =
-    view === "day"
-      ? format(current, "yyyy 年 M 月 d 日", { locale: zhCN })
-      : format(current, "yyyy 年 M 月", { locale: zhCN })
+  const title = format(current, "yyyy 年 M 月", { locale: zhCN })
+
+  const isBackToToday = !isSameMonth(current, new Date())
 
   return (
     <div className="flex h-full flex-col lg:flex-row">
       <div className="flex min-w-0 flex-1 flex-col border-b lg:border-b-0 lg:border-r">
         <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
-          <h1 className="font-serif text-lg font-semibold">{title}</h1>
+          <h1 className="font-serif text-2xl font-semibold">{title}</h1>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="icon" className="size-8" onClick={() => shift(-1)}>
               <ChevronLeft className="size-4" />
@@ -107,116 +134,165 @@ export function CalendarWorkspace() {
             </Button>
           </div>
           <div className="flex-1" />
-          <div className="flex items-center rounded-lg border p-0.5">
-            {(["month", "week", "day"] as CalView[]).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  view === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {v === "month" ? "月" : v === "week" ? "周" : "日"}
-              </button>
-            ))}
-          </div>
+          {/* 回到今天按钮（离开当月时出现） */}
+          {isBackToToday && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
+            >
+              回到今天
+            </Button>
+          )}
         </div>
 
-        {view === "day" ? (
-          <div className="flex flex-1 items-center justify-center p-6">
-            <div className="text-center">
-              <p className="font-serif text-5xl font-semibold text-primary">{format(current, "d")}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {format(current, "EEEE", { locale: zhCN })}
-              </p>
-            </div>
+        <div className="flex min-h-0 flex-1 flex-col p-3">
+          <div className="grid grid-cols-7 pb-1">
+            {WEEKDAYS.map((d, i) => (
+              <div
+                key={d}
+                className={cn(
+                  "text-center text-[15px] font-semibold",
+                  i === 0 || i === 6 ? "text-red-500" : "text-muted-foreground"
+                )}
+              >
+                {d}
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className="flex flex-1 flex-col p-3">
-            <div className="grid grid-cols-7">
-              {WEEKDAYS.map((d) => (
-                <div key={d} className="pb-2 text-center text-xs font-medium text-muted-foreground">
-                  {d}
-                </div>
-              ))}
-            </div>
-            <div
-              ref={gridRef}
-              className={cn(
-                "grid flex-1 grid-cols-7 gap-1",
-                view === "month" ? "auto-rows-fr" : "",
-              )}
-            >
-              {days.map((day) => {
-                const key = format(day, "yyyy-MM-dd")
-                const data = calendar[key]
-                const dueNodes = dueMap[key] ?? []
-                const hasContent =
-                  !!data && (data.note.trim() !== "" || data.todos.length > 0 || data.events.length > 0)
-                const selected = isSameDay(day, current)
-                const outside = view === "month" && !isSameMonth(day, current)
-                const doneCount = data?.todos.filter((t) => t.done).length ?? 0
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    data-date={key}
-                    onClick={() => setSelectedDate(key)}
-                    className={cn(
-                      "flex min-h-16 flex-col items-start gap-1 rounded-lg border p-1.5 text-left transition-colors",
-                      selected
-                        ? "border-primary bg-accent"
-                        : "border-transparent hover:border-border hover:bg-muted/50",
-                      outside && "opacity-40",
-                    )}
+          <div
+            ref={gridRef}
+            key={format(current, "yyyy-MM")}
+            className="grid flex-1 auto-rows-fr grid-cols-7 gap-px border-y border-border bg-border/60"
+          >
+            {days.map((day) => {
+              const key = format(day, "yyyy-MM-dd")
+              const data = calendar[key]
+              const dueNodes = dueMap[key] ?? []
+              const selected = isSameDay(day, current)
+              const outside = !isSameMonth(day, current)
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6
+              const hasNote = !!data && data.note.trim() !== ""
+              // 节日 + 生日
+              const festivals = festivalsForDate(festivalDefs, day.getFullYear(), day.getMonth() + 1, day.getDate())
+              const bdays = birthdaysOn(people, day.getFullYear(), day.getMonth() + 1, day.getDate())
+              const hasHoliday = festivals.some((f) => f.holiday)
+              const hasWorkday = festivals.some((f) => f.workday)
+              const hasBirthday = bdays.length > 0
+              const shortHint = dayShortHint(day)
+              // 角标：假/班取一（不会同现）+ 生日蛋糕
+              const mwBadge: ReactNode =
+                hasHoliday ? (
+                  <span
+                    className="rounded px-0.5 text-center text-[10px] font-bold leading-3.5"
+                    style={{ backgroundColor: "#ff9800", color: "#e74c3c" }}
                   >
+                    假
+                  </span>
+                ) : hasWorkday ? (
+                  <span
+                    className="rounded px-0.5 text-center text-[10px] font-bold leading-3.5"
+                    style={{ backgroundColor: "#3498db", color: "#fff" }}
+                  >
+                    班
+                  </span>
+                ) : null
+              const cakeBadge: ReactNode = hasBirthday ? (
+                <span className="text-center text-[13px] leading-none">🎂</span>
+              ) : null
+              // 定位规则：单个→日期数字右上角；🎂+(假/班)两个→🎂左上、假/班右上
+              const corner = (() => {
+                // 偏移基于「日期数字锚点」；负值越大越外探。锚点已等比例放大以容纳更多外探空间。
+                const outer = "-right-2 -top-1.5 z-30"
+                const inner = "-left-2 -top-1.5 z-30"
+                if (mwBadge && cakeBadge) {
+                  return (
+                    <>
+                      <span className={cn("pointer-events-none absolute", inner)}>{cakeBadge}</span>
+                      <span className={cn("pointer-events-none absolute", outer)}>{mwBadge}</span>
+                    </>
+                  )
+                }
+                const single = mwBadge ?? cakeBadge
+                return single ? (
+                  <span className={cn("pointer-events-none absolute", outer)}>{single}</span>
+                ) : null
+              })()
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  data-date={key}
+                  onClick={() => setSelectedDate(key)}
+                  className={cn(
+                    "relative flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-1 text-center transition-colors",
+                    selected ? "bg-primary/15" : "hover:bg-muted/60",
+                    outside && "opacity-40"
+                  )}
+                >
+                  {/* 顶部中间：笔记圆点 */}
+                  {hasNote && <span className="absolute left-1/2 top-0.5 size-1 -translate-x-1/2 rounded-full bg-primary" />}
+                  {/* 日期数字容器：角标基于日期数字定位。锚点占位等比例放大，角标可在此范围内更外探，日期数字仍居中。 */}
+                  <span className="relative inline-flex items-center justify-center">
                     <span
                       className={cn(
-                        "flex size-6 items-center justify-center rounded-full text-xs",
-                        isToday(day) && "bg-primary font-semibold text-primary-foreground",
-                        selected && !isToday(day) && "font-semibold text-primary",
+                        "inline-flex h-7 w-8 items-center justify-center rounded-full text-base font-medium",
+                        isToday(day)
+                          ? "bg-primary text-primary-foreground font-bold"
+                          : selected && !isToday(day)
+                            ? "text-primary font-semibold"
+                            : hasBirthday
+                              ? "text-emerald-600"
+                              : hasHoliday
+                                ? "text-destructive"
+                                : hasWorkday
+                                  ? "text-blue-600"
+                                  : outside
+                                    ? "text-muted-foreground/50"
+                                    : isWeekend
+                                      ? "text-red-500"
+                                      : "text-foreground"
                       )}
                     >
                       {format(day, "d")}
                     </span>
-                    <div className="flex flex-wrap items-center gap-1">
-                      {hasContent && (
-                        <>
-                          {data!.note.trim() && <span className="size-1.5 rounded-full bg-primary" />}
-                          {data!.todos.length > 0 && (
-                            <span className="rounded bg-solution/15 px-1 text-[9px] text-solution">
-                              {doneCount}/{data!.todos.length}
-                            </span>
-                          )}
-                          {data!.events.length > 0 && (
-                            <span className="rounded bg-chart-3/15 px-1 text-[9px] text-chart-3">
-                              {data!.events.length} 事件
-                            </span>
-                          )}
-                        </>
-                      )}
-                      {dueNodes.length > 0 && (
-                        <span className="rounded bg-primary/15 px-1 text-[9px] font-medium text-foreground">
-                          {dueNodes.length} 待办截止
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+                    {corner}
+                  </span>
+                  {/* 日期外显短提示（未来可扩展；目前为农历日名，如「初五」） */}
+                  <span className="max-w-full text-center text-xs leading-3.5 text-muted-foreground/70">
+                    {shortHint || format(day, "M/d")}
+                  </span>
+                  {/* 待办截止小徽标（沿用原逻辑） */}
+                  {dueNodes.length > 0 && (
+                    <span className="absolute bottom-0 right-0 mr-0.5 mb-0.5 rounded bg-primary/20 px-0.5 text-center text-[10px] font-semibold text-primary">
+                      {dueNodes.length}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
-        )}
+        </div>
       </div>
 
-      <DayDetail dateKey={format(current, "yyyy-MM-dd")} dueNodes={dueMap[format(current, "yyyy-MM-dd")] ?? []} />
+      <DayDetail
+        dateKey={format(current, "yyyy-MM-dd")}
+        dueNodes={dueMap[format(current, "yyyy-MM-dd")] ?? []}
+        people={people}
+      />
     </div>
   )
 }
 
-function DayDetail({ dateKey, dueNodes }: { dateKey: string; dueNodes: DueEntry[] }) {
+function DayDetail({
+  dateKey,
+  dueNodes,
+  people,
+}: {
+  dateKey: string
+  dueNodes: DueEntry[]
+  people: Person[]
+}) {
   const calendar = useWorkspace((s) => s.calendar)
   const setDayNote = useWorkspace((s) => s.setDayNote)
   const addCalendarTodo = useWorkspace((s) => s.addCalendarTodo)
@@ -233,16 +309,39 @@ function DayDetail({ dateKey, dueNodes }: { dateKey: string; dueNodes: DueEntry[
   const [eventContent, setEventContent] = useState("")
 
   const dateObj = parse(dateKey, "yyyy-MM-dd", new Date())
+  // 当天过生日的人 + 农历日期文本
+  const bdays = birthdaysOn(people, dateObj.getFullYear(), dateObj.getMonth() + 1, dateObj.getDate())
+  const lunarText = lunarTextForSolar(dateObj)
 
   return (
     <aside className="flex w-full flex-col lg:w-96 lg:shrink-0">
       <div className="border-b px-4 py-3">
-        <p className="text-sm font-semibold">{format(dateObj, "M 月 d 日", { locale: zhCN })}</p>
-        <p className="text-xs text-muted-foreground">{format(dateObj, "EEEE", { locale: zhCN })}</p>
+        <p className="text-base font-semibold">{format(dateObj, "M 月 d 日", { locale: zhCN })}</p>
+        <p className="text-[14px] text-muted-foreground">{format(dateObj, "EEEE", { locale: zhCN })}</p>
+        <p className="mt-0.5 text-[14px] text-muted-foreground/70">{lunarText}</p>
       </div>
 
       <ScrollArea className="flex-1">
         <div className="flex flex-col gap-5 p-4">
+          {bdays.length > 0 && (
+            <>
+              <section className="flex flex-col gap-2">
+                <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  🎂 今日生日
+                </h3>
+                <ul className="flex flex-col gap-1">
+                  {bdays.map((p) => (
+                    <li key={p.name} className="rounded-md border bg-background px-2 py-1.5 text-[15px]">
+                      <span className="font-medium">{p.name}</span>
+                      {p.description ? <span className="text-[13px] text-muted-foreground"> · {p.description}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+              <Separator />
+            </>
+          )}
+
           <section className="flex flex-col gap-2">
             <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <StickyNote className="size-3.5" />
