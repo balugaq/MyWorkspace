@@ -139,7 +139,7 @@ interface WorkspaceState {
   calendar: CalendarData
   activeCategoryId: string | null // null 表示日历
   activeItemId: string | null // 章节 id 或节点 id
-  view: "workspace" | "calendar"
+  view: "workspace" | "calendar" | "contacts"
   selectedDate: string
   hydrated: boolean
 
@@ -168,6 +168,7 @@ interface WorkspaceState {
   setActiveCategory: (id: string) => void
   setActiveItem: (id: string | null) => void
   goCalendar: () => void
+  goContacts: () => void
 
   // 系统设置 / UI
   updateSettings: (patch: Partial<Settings>) => void
@@ -425,6 +426,7 @@ export const useWorkspace = create<WorkspaceState>()(
         set({ activeCategoryId: id, activeItemId: null, view: "workspace" }),
       setActiveItem: (id) => set({ activeItemId: id, view: "workspace" }),
       goCalendar: () => set({ view: "calendar", activeCategoryId: null }),
+      goContacts: () => set({ view: "contacts", activeCategoryId: null }),
 
       addChapter: (catId) =>
         set((s) => ({

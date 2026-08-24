@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
   Sparkles,
   GripVertical,
+  Users,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
@@ -114,6 +115,7 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
 
           <SectionLabel className="mt-3">工具</SectionLabel>
           <CalendarNavItem />
+          <ContactNavItem />
         </nav>
       </ScrollArea>
 
@@ -190,6 +192,27 @@ function CalendarNavItem() {
     >
       <CalendarDays className="size-4" />
       日历
+    </button>
+  )
+}
+
+function ContactNavItem() {
+  const view = useWorkspace((s) => s.view)
+  const goContacts = useWorkspace((s) => s.goContacts)
+  const active = view === "contacts"
+  return (
+    <button
+      type="button"
+      onClick={goContacts}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+        active
+          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+          : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      )}
+    >
+      <Users className="size-4" />
+      联系人
     </button>
   )
 }

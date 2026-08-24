@@ -94,7 +94,7 @@
 
 | 功能 | 入口点 |
 | --- | --- |
-| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`（`useCalendarScripts` 已弃用停用） |
+| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`（`useCalendarScripts` 已弃用停用） |
 | 根布局 / 主题 / 字号 / Toaster | `app/layout.tsx` 的 `RootLayout`；`components/theme-provider.tsx` 的 `ThemeProvider` / `ThemeFromStore` / `FontSizeSetter` |
 | 全局快捷键 | `hooks/use-shortcuts.ts`：`useGlobalShortcuts()`、`matchShortcut(e, binding)`；绑定在 `settings.shortcuts`（`SHORTCUT_META`） |
 | 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`（订阅 store 算统计） |
@@ -107,6 +107,7 @@
 | 内置模板快捷区 | `TemplateQuickAdd`（调用 store `addCategory`） |
 | 分类项（增删改、折叠、操作菜单） | `CategoryItem` |
 | 日历导航入口 | `CalendarNavItem`（调用 `goCalendar`） |
+| 联系人导航入口 | `ContactNavItem`（调用 `goContacts`） |
 | 新建分类弹窗 | `components/add-category-dialog.tsx` 的 `AddCategoryDialog` |
 | 分类/章节拖拽排序 | 分类 `moveCategory(from,to)`、章节 `moveChapter(catId,from,to)`（储存在 `lib/store.ts`） |
 
@@ -236,6 +237,18 @@
 | 类型 | `calendar-events.ts`：`RenderDateEvent`、`DateMarkerApi`、`CalendarDisplayType`、`CalendarLibs` |
 | 脚本加载 | `hooks/use-calendar-scripts.ts` 的 `useCalendarScripts`（同步 `store.calendarScripts` → 总线） |
 | 脚本管理 UI | `components/calendar-scripts-dialog.tsx` 的 `CalendarScriptsDialog` / `ScriptEditor` |
+
+### 8.11 联系人（`components/contacts-workspace.tsx`）
+
+> 只读通讯录：数据来自 `public/address_book.yml`，用户自行编辑该文件，界面不可增删改。
+
+| 功能 | 入口点 |
+| --- | --- |
+| 工作区分发 | `app/page.tsx` 按 `view === "contacts"` → `ContactsWorkspace` |
+| 视图 state / 切换 | store `view`（`"workspace" | "calendar" | "contacts"`）+ `goContacts`；侧边栏 `ContactNavItem` |
+| 列表 + 搜索 | `ContactsWorkspace`：`loadAddressBook()`（`lib/address-book.ts`）+ `query` 过滤（范围含 name/description/birthday/address/roles/contact，见 `filtered`） |
+| dropdown 展开 contact | `ContactsWorkspace` 内 `expanded` Set + `toggle(name)`；每个 contact 项含复制按钮（`navigator.clipboard.writeText` + toast） |
+| 数据模型 | `lib/address-book.ts`：`Person` / `ContactItem` / `AddressBookFile` / `loadAddressBook` / `parseBirthday` |
 
 ---
 
