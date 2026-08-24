@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
   format,
   parse,
   addMonths,
+  addDays,
   startOfMonth,
   endOfMonth,
   startOfWeek,
@@ -23,7 +24,7 @@ import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
 // import { emitRenderDate, type DateMarkerApi, type CalendarDisplayType } from "@/lib/calendar-events"
 import { loadAddressBook, type Person } from "@/lib/address-book"
 import { loadPublicYaml } from "@/lib/fetch-data"
-import { festivalsForDate, type FestivalsFile } from "@/lib/festivals"
+import { festivalsForDate, type Festival, type FestivalsFile } from "@/lib/festivals"
 import { birthdaysOn } from "@/lib/birthday"
 import { lunarTextForSolar } from "@/lib/lunar"
 import { dayShortHint } from "@/lib/day-hint"
@@ -37,12 +38,19 @@ import { cn } from "@/lib/utils"
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"]
 
+/** shortHint 节日名截断：≤4 字全显，>4 字取前 3 字 + 省略号 */
+function cutFestivalName(name: string): string {
+  return name.length > 4 ? name.slice(0, 3) + "…" : name
+}
+
 export function CalendarWorkspace() {
   const selectedDate = useWorkspace((s) => s.selectedDate)
   const setSelectedDate = useWorkspace((s) => s.setSelectedDate)
   const calendar = useWorkspace((s) => s.calendar)
   const categories = useWorkspace((s) => s.categories)
   const gridRef = useRef<HTMLDivElement>(null)
+  // 翻月方向：+1=下月(内容自右入)，-1=上月(内容自左入)。用于方向感知滑入动画。
+  const [direction, setDirection] = useState<1 | -1>(1)
 
   // 自定义数据（节日 + 通讯录），只读加载自 public/*.yml
   const [people, setPeople] = useState<Person[]>([])
@@ -106,15 +114,45 @@ export function CalendarWorkspace() {
   // }, [days, view])
 
   function shift(dir: 1 | -1) {
+    setDirection(dir)
     setSelectedDate(format(addMonths(current, dir), "yyyy-MM-dd"))
   }
+
+  // 方向键：←/→ 选中日期 ±1 天，↑/↓ ±7 天。避开输入框聚焦；长按(repeat)持续响应。
+  useEffect(() => {
+    function isEditable(el: EventTarget | null): boolean {
+      return (
+        el instanceof HTMLElement &&
+        (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)
+      )
+    }
+    function onKey(e: KeyboardEvent) {
+      // 仅处理纯方向键；带修饰键(如 Ctrl+↑)不劫持（留给其它快捷键/滚动）
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
+      if (isEditable(e.target)) return
+      const map: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }
+      const delta = map[e.key]
+      if (delta === undefined) return
+      e.preventDefault()
+      // 长按(repeat)时连续移动；跨月时由 minMonth key 重建触发动画一次，方向以最终为准
+      setSelectedDate(format(addDays(current, delta), "yyyy-MM-dd"))
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [current, setSelectedDate])
 
   const title = format(current, "yyyy 年 M 月", { locale: zhCN })
 
   const isBackToToday = !isSameMonth(current, new Date())
 
   return (
-    <div className="flex h-full flex-col lg:flex-row">
+    <div
+      className="cal-dark flex h-full flex-col lg:flex-row"
+      style={{
+        backgroundImage:
+          "linear-gradient(135deg, rgb(26,26,46) 0%, rgb(22,33,62) 50%, rgb(15,52,96) 100%)",
+      }}
+    >
       <div className="flex min-w-0 flex-1 flex-col border-b lg:border-b-0 lg:border-r">
         <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
           <h1 className="font-serif text-2xl font-semibold">{title}</h1>
@@ -153,7 +191,7 @@ export function CalendarWorkspace() {
                 key={d}
                 className={cn(
                   "text-center text-[15px] font-semibold",
-                  i === 0 || i === 6 ? "text-red-500" : "text-muted-foreground"
+                  i === 0 || i === 6 ? "text-red-400" : "text-muted-foreground"
                 )}
               >
                 {d}
@@ -163,7 +201,10 @@ export function CalendarWorkspace() {
           <div
             ref={gridRef}
             key={format(current, "yyyy-MM")}
-            className="grid flex-1 auto-rows-fr grid-cols-7 gap-px border-y border-border bg-border/60"
+            className={cn(
+              "grid flex-1 auto-rows-fr grid-cols-7 gap-px border-y border-border bg-border/40",
+              direction === 1 ? "cal-month-anim-right" : "cal-month-anim-left"
+            )}
           >
             {days.map((day) => {
               const key = format(day, "yyyy-MM-dd")
@@ -180,6 +221,65 @@ export function CalendarWorkspace() {
               const hasWorkday = festivals.some((f) => f.workday)
               const hasBirthday = bdays.length > 0
               const shortHint = dayShortHint(day)
+
+              // 日期数字颜色优先级：today > selected > hasBirthday > festival > hasHoliday > hasWorkday > outside > isWeekend
+              let dateNumClass = "text-foreground"
+              let dateNumStyle: CSSProperties | undefined
+              if (isToday(day)) {
+                dateNumStyle = { color: "#60a5fa" }
+              } else if (selected) {
+                dateNumClass = "text-primary"
+              } else if (hasBirthday) {
+                dateNumClass = "text-emerald-400"
+              } else if (festivals.length > 0) {
+                dateNumStyle = { color: festivals[0].color }
+              } else if (hasHoliday) {
+                dateNumClass = "text-destructive"
+              } else if (hasWorkday) {
+                dateNumClass = "text-blue-400"
+              } else if (outside) {
+                dateNumClass = "text-muted-foreground/50"
+              } else if (isWeekend) {
+                dateNumClass = "text-red-400"
+              } else {
+                dateNumClass = "text-foreground"
+              }
+
+              // shortHint 颜色/内容优先级：today > selected > festival > hasBirthday > hasHoliday > hasWorkday > outside > isWeekend
+              let shortHintClass = "text-muted-foreground/70"
+              let shortHintColor: string | undefined
+              let shortHintText: ReactNode = shortHint || format(day, "M/d")
+              if (isToday(day)) {
+                shortHintColor = "#60a5fa"
+              } else if (selected) {
+                shortHintClass = "text-primary"
+              } else if (festivals.length > 0) {
+                shortHintColor = festivals[0].color
+                shortHintText = (
+                  <span className="relative inline-block">
+                    <span className="font-semibold">{cutFestivalName(festivals[0].name)}</span>
+                    {festivals.length > 1 && (
+                      <span
+                        className="pointer-events-none absolute -right-2 -top-1.5 z-10 rounded-full text-[9px] font-bold leading-4"
+                        style={{ color: festivals[0].color }}
+                      >
+                        {festivals.length}
+                      </span>
+                    )}
+                  </span>
+                )
+              } else if (hasBirthday) {
+                shortHintClass = "text-emerald-400"
+              } else if (hasHoliday) {
+                shortHintClass = "text-destructive"
+              } else if (hasWorkday) {
+                shortHintClass = "text-blue-400"
+              } else if (outside) {
+                shortHintClass = "text-muted-foreground/50"
+              } else if (isWeekend) {
+                shortHintClass = "text-red-400"
+              }
+
               // 角标：假/班取一（不会同现）+ 生日蛋糕
               const mwBadge: ReactNode =
                 hasHoliday ? (
@@ -236,31 +336,28 @@ export function CalendarWorkspace() {
                   <span className="relative inline-flex items-center justify-center">
                     <span
                       className={cn(
-                        "inline-flex h-7 w-8 items-center justify-center rounded-full text-base font-medium",
+                        "inline-flex h-7 w-8 items-center justify-center rounded-full text-base",
                         isToday(day)
-                          ? "bg-primary text-primary-foreground font-bold"
-                          : selected && !isToday(day)
-                            ? "text-primary font-semibold"
-                            : hasBirthday
-                              ? "text-emerald-600"
-                              : hasHoliday
-                                ? "text-destructive"
-                                : hasWorkday
-                                  ? "text-blue-600"
-                                  : outside
-                                    ? "text-muted-foreground/50"
-                                    : isWeekend
-                                      ? "text-red-500"
-                                      : "text-foreground"
+                          ? "font-bold"
+                          : selected
+                            ? "font-semibold"
+                            : "font-medium",
+                        dateNumClass
                       )}
+                      style={dateNumStyle}
                     >
                       {format(day, "d")}
                     </span>
                     {corner}
                   </span>
-                  {/* 日期外显短提示（未来可扩展；目前为农历日名，如「初五」） */}
-                  <span className="max-w-full text-center text-xs leading-3.5 text-muted-foreground/70">
-                    {shortHint || format(day, "M/d")}
+                  {/* 日期外显短提示：按优先级 today > selected > festival > 生日 > 假日 > 班日 > 跨月 > 周末 着色（festival 显示首节日名+多节日数角标） */}
+                  <span className="relative max-w-full text-center text-xs leading-3.5">
+                    <span
+                      className={shortHintClass}
+                      style={shortHintColor ? { color: shortHintColor } : undefined}
+                    >
+                      {shortHintText}
+                    </span>
                   </span>
                   {/* 待办截止小徽标（沿用原逻辑） */}
                   {dueNodes.length > 0 && (
@@ -279,6 +376,7 @@ export function CalendarWorkspace() {
         dateKey={format(current, "yyyy-MM-dd")}
         dueNodes={dueMap[format(current, "yyyy-MM-dd")] ?? []}
         people={people}
+        festivals={festivalsForDate(festivalDefs, current.getFullYear(), current.getMonth() + 1, current.getDate())}
       />
     </div>
   )
@@ -288,10 +386,12 @@ function DayDetail({
   dateKey,
   dueNodes,
   people,
+  festivals,
 }: {
   dateKey: string
   dueNodes: DueEntry[]
   people: Person[]
+  festivals: Festival[]
 }) {
   const calendar = useWorkspace((s) => s.calendar)
   const setDayNote = useWorkspace((s) => s.setDayNote)
@@ -334,6 +434,36 @@ function DayDetail({
                     <li key={p.name} className="rounded-md border bg-background px-2 py-1.5 text-[15px]">
                       <span className="font-medium">{p.name}</span>
                       {p.description ? <span className="text-[13px] text-muted-foreground"> · {p.description}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+              <Separator />
+            </>
+          )}
+
+          {festivals.length > 0 && (
+            <>
+              <section className="flex flex-col gap-2">
+                <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  🎉 今日节日
+                </h3>
+                <ul className="flex flex-col gap-1">
+                  {festivals.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-[15px]">
+                      <span
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: f.color }}
+                      />
+                      <span className="min-w-0 flex-1 truncate font-medium">{f.name}</span>
+                      {f.holiday && (
+                        <span
+                          className="shrink-0 rounded px-1 text-[10px] font-bold leading-4"
+                          style={{ backgroundColor: "#ff9800", color: "#e74c3c" }}
+                        >
+                          假
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

@@ -149,3 +149,45 @@
     @apply font-sans;
     }
 }
+
+/* 日历工作区固定深色风格（背景渐变由组件内提供） */
+.cal-dark {
+  --color-background: oklch(1 0 0 / 5%);
+  --color-foreground: oklch(0.92 0.02 270);
+  --color-card: oklch(1 0 0 / 6%);
+  --color-card-foreground: oklch(0.92 0.02 270);
+  --color-popover: oklch(0.25 0.03 270);
+  --color-popover-foreground: oklch(0.92 0.02 270);
+  --color-muted: oklch(1 0 0 / 9%);
+  --color-muted-foreground: oklch(0.76 0.02 270);
+  --color-accent: oklch(1 0 0 / 11%);
+  --color-accent-foreground: oklch(0.92 0.02 270);
+  --color-secondary: oklch(1 0 0 / 10%);
+  --color-secondary-foreground: oklch(0.92 0.02 270);
+  --color-border: oklch(1 0 0 / 15%);
+  --color-input: oklch(1 0 0 / 20%);
+  --color-ring: oklch(0.7 0.16 275);
+  --color-primary: oklch(0.68 0.16 275);
+  --color-primary-foreground: oklch(0.18 0.02 275);
+  --color-destructive: oklch(0.78 0.16 22);
+  /* 深色下辅助徽标色（假/班/周末等） */
+  --cal-holiday: #ff9800;
+  --cal-holiday-fg: #e74c3c;
+  --cal-workday: #3498db;
+  --cal-workday-fg: #ffffff;
+  --cal-weekend: #f87171;
+  --cal-birthday: #4ade80;
+  --cal-today: #60a5fa;
+}
+
+/* 翻月动画：方向感知滑入。前进(+1/下月)内容自右入，后退(-1/上月)自左入 */
+@keyframes cal-month-enter-right {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes cal-month-enter-left {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.cal-month-anim-right { animation: cal-month-enter-right 0.25s cubic-bezier(0.2, 0.9, 0.4, 1) both; }
+.cal-month-anim-left  { animation: cal-month-enter-left  0.25s cubic-bezier(0.2, 0.9, 0.4, 1) both; }
