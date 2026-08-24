@@ -180,14 +180,14 @@
   --cal-today: #60a5fa;
 }
 
-/* 翻月动画：方向感知滑入。前进(+1/下月)内容自右入，后退(-1/上月)自左入 */
-@keyframes cal-month-enter-right {
-  from { opacity: 0; transform: translateX(32px); }
-  to   { opacity: 1; transform: translateX(0); }
+/* 翻月动画：方向感知滑入。前进(+1/下月)内容自下方入，后退(-1/上月)自上方入 */
+@keyframes cal-month-enter-down {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes cal-month-enter-left {
-  from { opacity: 0; transform: translateX(-32px); }
-  to   { opacity: 1; transform: translateX(0); }
+@keyframes cal-month-enter-up {
+  from { opacity: 0; transform: translateY(-32px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.cal-month-anim-right { animation: cal-month-enter-right 0.25s cubic-bezier(0.2, 0.9, 0.4, 1) both; }
-.cal-month-anim-left  { animation: cal-month-enter-left  0.25s cubic-bezier(0.2, 0.9, 0.4, 1) both; }
+.cal-month-anim-down { animation: cal-month-enter-down 0.25s cubic-bezier(0.2, 0.9, 0.4, 1) both; }
+.cal-month-anim-up   { animation: cal-month-enter-up   0.25s cubic-bezier(0.2, 0.9, 0.4, 1) both; }

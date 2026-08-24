@@ -49,7 +49,7 @@ export function CalendarWorkspace() {
   const calendar = useWorkspace((s) => s.calendar)
   const categories = useWorkspace((s) => s.categories)
   const gridRef = useRef<HTMLDivElement>(null)
-  // 翻月方向：+1=下月(内容自右入)，-1=上月(内容自左入)。用于方向感知滑入动画。
+  // 翻月方向：+1=下月(内容自下方入)，-1=上月(内容自上方入)。用于方向感知滑入动画。
   const [direction, setDirection] = useState<1 | -1>(1)
 
   // 自定义数据（节日 + 通讯录），只读加载自 public/*.yml
@@ -203,7 +203,7 @@ export function CalendarWorkspace() {
             key={format(current, "yyyy-MM")}
             className={cn(
               "grid flex-1 auto-rows-fr grid-cols-7 gap-px border-y border-border bg-border/40",
-              direction === 1 ? "cal-month-anim-right" : "cal-month-anim-left"
+              direction === 1 ? "cal-month-anim-down" : "cal-month-anim-up"
             )}
           >
             {days.map((day) => {
