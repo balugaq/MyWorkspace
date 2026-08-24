@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react"
 import {
   format,
   parse,
@@ -43,14 +43,44 @@ function cutFestivalName(name: string): string {
   return name.length > 4 ? name.slice(0, 3) + "…" : name
 }
 
+/** 监听媒体查询：用于判断是否处于桌面端（lg: 1024px+）row 布局，决定分隔条是否可拖拽 */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false)
+  useEffect(() => {
+    const m = window.matchMedia(query)
+    const handler = () => setMatches(m.matches)
+    handler()
+    m.addEventListener("change", handler)
+    return () => m.removeEventListener("change", handler)
+  }, [query])
+  return matches
+}
+
 export function CalendarWorkspace() {
   const selectedDate = useWorkspace((s) => s.selectedDate)
   const setSelectedDate = useWorkspace((s) => s.setSelectedDate)
   const calendar = useWorkspace((s) => s.calendar)
   const categories = useWorkspace((s) => s.categories)
+  const calendarDetailWidth = useWorkspace((s) => s.calendarDetailWidth)
+  const setCalendarDetailWidth = useWorkspace((s) => s.setCalendarDetailWidth)
   const gridRef = useRef<HTMLDivElement>(null)
   // 翻月方向：+1=下月(内容自下方入)，-1=上月(内容自上方入)。用于方向感知滑入动画。
   const [direction, setDirection] = useState<1 | -1>(1)
+
+  // 日历 / DayDetail 分隔可拖拽：右侧详情面板宽度（px），桌面端允许左右拖动分隔条调整。
+  // 实时宽度用本地 state（拖动流畅），松手时写入 store 持久化，刷新后从 store 恢复。
+  const [detailWidth, setDetailWidth] = useState<number>(calendarDetailWidth)
+  const latestWidthRef = useRef<number>(calendarDetailWidth)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const draggingRef = useRef(false)
+  const isDesktop = useMediaQuery("(min-width: 1024px)")
+
+  // store 持久值变化（如重新水合）时同步到本地，保证刷新后位置生效
+  useEffect(() => {
+    setDetailWidth(calendarDetailWidth)
+    latestWidthRef.current = calendarDetailWidth
+  }, [calendarDetailWidth])
+
 
   // 自定义数据（节日 + 通讯录），只读加载自 public/*.yml
   const [people, setPeople] = useState<Person[]>([])
@@ -118,6 +148,34 @@ export function CalendarWorkspace() {
     setSelectedDate(format(addMonths(current, dir), "yyyy-MM-dd"))
   }
 
+  // 拖动分隔条：根据鼠标 X 调整右侧详情面板宽度（左侧日历 flex-1 自适应），带最小宽度约束
+  function startResize(e: ReactMouseEvent) {
+    e.preventDefault()
+    draggingRef.current = true
+    const onMove = (ev: MouseEvent) => {
+      if (!draggingRef.current || !containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const leftW = ev.clientX - rect.left
+      const minLeft = 320
+      const minRight = 280
+      const w = Math.max(minLeft, Math.min(rect.width - minRight, leftW))
+      const next = rect.width - w
+      setDetailWidth(next)
+      latestWidthRef.current = next
+    }
+    const onUp = () => {
+      draggingRef.current = false
+      document.body.style.userSelect = ""
+      // 松手时把最终宽度持久化到 store（避免拖动过程中每帧写 localStorage）
+      setCalendarDetailWidth(latestWidthRef.current)
+      window.removeEventListener("mousemove", onMove)
+      window.removeEventListener("mouseup", onUp)
+    }
+    document.body.style.userSelect = "none"
+    window.addEventListener("mousemove", onMove)
+    window.addEventListener("mouseup", onUp)
+  }
+
   // 方向键：←/→ 选中日期 ±1 天，↑/↓ ±7 天。避开输入框聚焦；长按(repeat)持续响应。
   useEffect(() => {
     function isEditable(el: EventTarget | null): boolean {
@@ -147,13 +205,14 @@ export function CalendarWorkspace() {
 
   return (
     <div
+      ref={containerRef}
       className="cal-dark flex h-full flex-col lg:flex-row"
       style={{
         backgroundImage:
           "linear-gradient(135deg, rgb(26,26,46) 0%, rgb(22,33,62) 50%, rgb(15,52,96) 100%)",
       }}
     >
-      <div className="flex min-w-0 flex-1 flex-col border-b lg:border-b-0 lg:border-r">
+      <div className="flex min-w-0 flex-1 flex-col border-b lg:border-b-0">
         <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
           <h1 className="font-serif text-2xl font-semibold">{title}</h1>
           <div className="flex items-center gap-1">
@@ -372,11 +431,23 @@ export function CalendarWorkspace() {
         </div>
       </div>
 
+      {/* 可拖拽分隔条：桌面端左右拖动以调整日历 / 详情面板宽度 */}
+      <div
+        onMouseDown={startResize}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整日历与详情宽度"
+        className="hidden w-1.5 shrink-0 cursor-col-resize items-stretch bg-border/40 transition-colors hover:bg-primary/50 lg:flex"
+      >
+        <div className="mx-auto my-auto h-10 w-0.5 rounded-full bg-border" />
+      </div>
+
       <DayDetail
         dateKey={format(current, "yyyy-MM-dd")}
         dueNodes={dueMap[format(current, "yyyy-MM-dd")] ?? []}
         people={people}
         festivals={festivalsForDate(festivalDefs, current.getFullYear(), current.getMonth() + 1, current.getDate())}
+        style={isDesktop ? { width: detailWidth } : undefined}
       />
     </div>
   )
@@ -387,11 +458,13 @@ function DayDetail({
   dueNodes,
   people,
   festivals,
+  style,
 }: {
   dateKey: string
   dueNodes: DueEntry[]
   people: Person[]
   festivals: Festival[]
+  style?: CSSProperties
 }) {
   const calendar = useWorkspace((s) => s.calendar)
   const setDayNote = useWorkspace((s) => s.setDayNote)
@@ -414,7 +487,7 @@ function DayDetail({
   const lunarText = lunarTextForSolar(dateObj)
 
   return (
-    <aside className="flex w-full flex-col lg:w-96 lg:shrink-0">
+    <aside className="flex w-full flex-col lg:w-auto lg:shrink-0" style={style}>
       <div className="border-b px-4 py-3">
         <p className="text-base font-semibold">{format(dateObj, "M 月 d 日", { locale: zhCN })}</p>
         <p className="text-[14px] text-muted-foreground">{format(dateObj, "EEEE", { locale: zhCN })}</p>

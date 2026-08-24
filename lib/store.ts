@@ -46,6 +46,9 @@ interface WorkspaceState {
   configEditorOpen: boolean
   imagesOpen: boolean
 
+  // 日历 / DayDetail 分隔条宽度（px），持久化以便刷新后保留用户拖动结果
+  calendarDetailWidth: number
+
   // 分类
   addCategory: (
     name: string,
@@ -70,6 +73,9 @@ interface WorkspaceState {
   // setScriptsOpen: (v: boolean) => void // 日历标记脚本（已弃用停用）
   setConfigEditorOpen: (v: boolean) => void
   setImagesOpen: (v: boolean) => void
+
+  // 日历 / DayDetail 分隔条宽度（持久化）
+  setCalendarDetailWidth: (w: number) => void
 
   // 日历标记脚本（已弃用停用：以下三个 action 一并注释）
   // upsertCalendarScript: (script: CalendarScript) => void
@@ -137,6 +143,9 @@ export const useWorkspace = create<WorkspaceState>()(
       configEditorOpen: false,
       imagesOpen: false,
 
+      // 日历 / DayDetail 分隔条默认宽度（px），与原 w-96 一致
+      calendarDetailWidth: 384,
+
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
 
@@ -153,6 +162,8 @@ export const useWorkspace = create<WorkspaceState>()(
       // setScriptsOpen: (v) => set({ scriptsOpen: v }), // 日历标记脚本（已弃用停用）
       setConfigEditorOpen: (v) => set({ configEditorOpen: v }),
       setImagesOpen: (v) => set({ imagesOpen: v }),
+
+      setCalendarDetailWidth: (w) => set({ calendarDetailWidth: w }),
 
       // 日历标记脚本（已弃用停用：以下三个 action 实现一并注释）
       // upsertCalendarScript: (script) =>
