@@ -38,7 +38,11 @@ export function StatusBar() {
         </span>
       ))}
       <span className="ml-auto hidden truncate sm:inline">
-        {view === "calendar" ? "日历" : activeCategory?.name ?? "工作台"}
+        {view === "calendar"
+          ? "日历"
+          : view === "contacts"
+            ? "联系人"
+            : activeCategory?.name ?? "工作台"}
       </span>
     </footer>
   )
