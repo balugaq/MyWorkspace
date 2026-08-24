@@ -226,7 +226,7 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
   const moveChapter = useWorkspace((s) => s.moveChapter)
   const activeItemId = useWorkspace((s) => s.activeItemId)
 
-  const [open, setOpen] = useState(active)
+  const [open, setOpen] = useState(false) // 默认折叠，不随激活状态自动展开
   const [confirmDel, setConfirmDel] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(category.name)

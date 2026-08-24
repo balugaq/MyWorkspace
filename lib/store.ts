@@ -26,114 +26,6 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 
 const emptyDay = (): CalendarDay => ({ note: "", todos: [], events: [] })
 
-// ---- 种子数据 ----
-function seedCategories(): Category[] {
-  const poems: Array<[string, string, string]> = [
-    ["静夜思", "床前明月光\n疑是地上霜\n举头望明月\n低头思故乡", "唐诗"],
-    ["春晓", "春眠不觉晓\n处处闻啼鸟\n夜来风雨声\n花落知多少", "唐诗"],
-    ["登鹳雀楼", "白日依山尽\n黄河入海流\n欲穷千里目\n更上一层楼", "唐诗"],
-    ["相思", "红豆生南国\n春来发几枝\n愿君多采撷\n此物最相思", "唐诗"],
-  ]
-  const chapters: Chapter[] = poems.map(([title, content, tag], i) => ({
-    id: uid(),
-    index: i + 1,
-    title,
-    content,
-    tags: [tag],
-  }))
-
-  const nStart: MindNode = {
-    id: uid(),
-    title: "项目启动",
-    content: "确定整体目标与范围",
-    cause: "客户需求",
-    leadTo: "需求分析、技术选型、团队组建",
-    result: "进入开发阶段",
-    sub: [],
-    solution: null,
-    position: { x: 340, y: 40 },
-  }
-  const nReq: MindNode = {
-    id: uid(),
-    title: "需求分析",
-    content: "梳理功能清单与优先级",
-    cause: "项目启动",
-    leadTo: "开发阶段",
-    result: "输出需求文档",
-    sub: [],
-    solution: null,
-    position: { x: 60, y: 240 },
-  }
-  const nTech: MindNode = {
-    id: uid(),
-    title: "技术选型",
-    content: "确定前后端技术栈",
-    cause: "项目启动",
-    leadTo: "开发阶段",
-    result: "确定架构方案",
-    sub: [],
-    solution: {
-      content: "对比 React Flow 与 vis-network 后选定 React Flow",
-      status: "done",
-    },
-    position: { x: 340, y: 240 },
-  }
-  const nTeam: MindNode = {
-    id: uid(),
-    title: "团队组建",
-    content: "招募与分工",
-    cause: "项目启动",
-    leadTo: "开发阶段",
-    result: "团队就位",
-    sub: [],
-    solution: { content: "前端外包一部分工作", status: "paused" },
-    position: { x: 620, y: 240 },
-  }
-  const nDev: MindNode = {
-    id: uid(),
-    title: "开发阶段",
-    content: "按里程碑推进",
-    cause: "需求分析 / 技术选型 / 团队组建",
-    leadTo: "上线交付",
-    result: "完成核心功能",
-    sub: [],
-    solution: { content: "每天写两页代码，稳步推进", status: "doing" },
-    position: { x: 340, y: 440 },
-  }
-
-  const edges: MindEdge[] = [
-    { id: uid(), source: nStart.id, target: nReq.id, kind: "flow" },
-    { id: uid(), source: nStart.id, target: nTech.id, kind: "flow" },
-    { id: uid(), source: nStart.id, target: nTeam.id, kind: "flow" },
-    { id: uid(), source: nReq.id, target: nDev.id, kind: "flow" },
-    { id: uid(), source: nTech.id, target: nDev.id, kind: "flow" },
-    { id: uid(), source: nTeam.id, target: nDev.id, kind: "flow" },
-  ]
-
-  return [
-    {
-      id: "cat-poems",
-      name: "糖诗三百首收录",
-      template: "novel",
-      icon: "BookOpen",
-      config: { namingRule: "第%首", autoNumber: true, itemLabel: "首" },
-      chapters,
-    },
-    {
-      id: "cat-project",
-      name: "项目思维图",
-      template: "relation",
-      icon: "Workflow",
-      config: {},
-      relation: {
-        nodes: [nStart, nReq, nTech, nTeam, nDev],
-        edges,
-        view: "mindmap",
-      },
-    },
-  ]
-}
-
 interface WorkspaceState {
   categories: Category[]
   calendar: CalendarData
@@ -230,9 +122,9 @@ interface WorkspaceState {
 export const useWorkspace = create<WorkspaceState>()(
   persist(
     (set, get) => ({
-      categories: seedCategories(),
+      categories: [],
       calendar: {},
-      activeCategoryId: "cat-poems",
+      activeCategoryId: null,
       activeItemId: null,
       view: "workspace",
       selectedDate: format(new Date(), "yyyy-MM-dd"),
