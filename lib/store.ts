@@ -102,7 +102,7 @@ interface WorkspaceState {
   removeChapter: (catId: string, chapterId: string) => void
 
   // 思维导图
-  addNode: (catId: string, position?: { x: number; y: number }) => string
+  addNode: (catId: string, position?: { x: number; y: number }, title?: string) => string
   updateNode: (catId: string, nodeId: string, patch: Partial<MindNode>) => void
   removeNode: (catId: string, nodeId: string) => void
   setNodeSolution: (
@@ -395,14 +395,14 @@ export const useWorkspace = create<WorkspaceState>()(
           activeItemId: s.activeItemId === chapterId ? null : s.activeItemId,
         })),
 
-      addNode: (catId, position) => {
+      addNode: (catId, position, title) => {
         const id = uid()
         set((s) => ({
           categories: s.categories.map((c) => {
             if (c.id !== catId || !c.relation) return c
             const node: MindNode = {
               id,
-              title: "新节点",
+              title: title ?? "新节点",
               content: "",
               cause: "",
               leadTo: "",

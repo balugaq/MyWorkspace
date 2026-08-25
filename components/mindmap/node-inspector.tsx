@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Trash2, X, Lightbulb, Tag, CalendarClock } from "lucide-react"
+import { Trash2, X, Lightbulb, Tag, CalendarClock, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { addImage, imageBlobFromClipboard } from "@/lib/image-store"
@@ -45,10 +45,35 @@ export function NodeInspector({
   const updateNode = useWorkspace((s) => s.updateNode)
   const removeNode = useWorkspace((s) => s.removeNode)
   const setNodeSolution = useWorkspace((s) => s.setNodeSolution)
+  const addNode = useWorkspace((s) => s.addNode)
+  const connectNodes = useWorkspace((s) => s.connectNodes)
 
   const patch = (p: Partial<MindNode>) => updateNode(category.id, node.id, p)
   const solStatus = node.solution?.status ?? "doing"
   const [confirmDel, setConfirmDel] = useState(false)
+
+  // 添加子节点：以「当前节点名 + 空格 + 序号」命名，序号自动避开已存在标题；
+  // 新节点置于右侧并按已有子节点数向下错开，自动连线（flow），并打开其详情。
+  function handleAddChild() {
+    if (!category.relation) return
+    const base = node.title?.trim() || "新节点"
+    const existing = new Set(
+      category.relation.nodes.map((n) => (n.title ?? "").trim()),
+    )
+    let seq = 1
+    while (existing.has(`${base} ${seq}`)) seq++
+    const childTitle = `${base} ${seq}`
+
+    const childCount = category.relation.edges.filter(
+      (e) => e.source === node.id,
+    ).length
+    const pos = node.position ?? { x: 200, y: 120 }
+    const childPos = { x: pos.x + 300, y: pos.y + childCount * 90 }
+
+    const childId = addNode(category.id, childPos, childTitle)
+    connectNodes(category.id, node.id, childId, "flow")
+    // addNode 已将 activeItemId 设为新节点，节点详情面板会随之切换到新节点
+  }
 
   // 标签（由共享 TagPicker 编辑）
   const tags = node.tags ?? []
@@ -77,6 +102,17 @@ export function NodeInspector({
               placeholder="节点标题"
             />
           </Field>
+
+          <div className="flex flex-col gap-1.5">
+            <Button
+              type="button"
+              onClick={handleAddChild}
+              className="w-full gap-2 bg-solution text-solution-foreground hover:bg-solution/90"
+            >
+              <Plus className="size-4" />
+              添加子节点
+            </Button>
+          </div>
 
           <Field label="内容">
             <DebouncedTextarea value={node.content} onCommit={(v) => patch({ content: v })} />
