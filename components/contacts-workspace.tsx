@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { loadAddressBook, parseBirthday, type Person } from "@/lib/address-book"
+import { useWorkspace } from "@/lib/store"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -34,16 +35,21 @@ export function ContactsWorkspace() {
   const [people, setPeople] = useState<Person[]>([])
   const [query, setQuery] = useState("")
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const addKnownTags = useWorkspace((s) => s.addKnownTags)
 
   useEffect(() => {
     let active = true
     loadAddressBook().then((p) => {
-      if (active) setPeople(p)
+      if (!active) return
+      setPeople(p)
+      // 将联系人 roles 导入全局标签库（已存在则忽略，幂等）
+      const roles = Array.from(new Set(p.flatMap((person) => person.roles ?? [])))
+      if (roles.length > 0) addKnownTags(roles)
     })
     return () => {
       active = false
     }
-  }, [])
+  }, [addKnownTags])
 
   // 监听 public 数据加载失败 → 顶部 toast（失败可跳过，不阻塞）
   useEffect(() => {

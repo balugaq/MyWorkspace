@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { Plus, X, Search } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
-import { collectAllTags } from "@/lib/tags"
+import { collectAllTagsWithKnown } from "@/lib/tags"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -26,7 +26,11 @@ export function TagPicker({
   onChange: (tags: string[]) => void
 }) {
   const categories = useWorkspace((s) => s.categories)
-  const allTags = useMemo(() => collectAllTags(categories), [categories])
+  const knownTags = useWorkspace((s) => s.knownTags)
+  const allTags = useMemo(
+    () => collectAllTagsWithKnown(categories, knownTags),
+    [categories, knownTags],
+  )
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
 

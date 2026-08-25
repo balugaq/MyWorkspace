@@ -20,3 +20,15 @@ export function collectAllTags(categories: Category[]): string[] {
   }
   return [...set].sort((a, b) => a.localeCompare(b, "zh-CN"))
 }
+
+/**
+ * 在 collectAllTags 基础上，并入全局标签库 knownTags（如联系人 roles 导入），
+ * 返回去重并排序后的完整标签集合。供 TagPicker 作为可搜索标签库使用。
+ */
+export function collectAllTagsWithKnown(
+  categories: Category[],
+  knownTags: string[],
+): string[] {
+  const set = new Set<string>([...collectAllTags(categories), ...knownTags.map((t) => t.trim()).filter(Boolean)])
+  return [...set].sort((a, b) => a.localeCompare(b, "zh-CN"))
+}

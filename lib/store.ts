@@ -49,6 +49,9 @@ interface WorkspaceState {
   // 日历 / DayDetail 分隔条宽度（px），持久化以便刷新后保留用户拖动结果
   calendarDetailWidth: number
 
+  // 全局标签库：容纳从联系人 roles 等外部来源导入的标签，供 TagPicker 复用
+  knownTags: string[]
+
   // 分类
   addCategory: (
     name: string,
@@ -76,6 +79,9 @@ interface WorkspaceState {
 
   // 日历 / DayDetail 分隔条宽度（持久化）
   setCalendarDetailWidth: (w: number) => void
+
+  // 全局标签库（导入联系人 roles 等）：并入去重后的标签，已存在则忽略
+  addKnownTags: (tags: string[]) => void
 
   // 日历标记脚本（已弃用停用：以下三个 action 一并注释）
   // upsertCalendarScript: (script: CalendarScript) => void
@@ -146,6 +152,9 @@ export const useWorkspace = create<WorkspaceState>()(
       // 日历 / DayDetail 分隔条默认宽度（px），与原 w-96 一致
       calendarDetailWidth: 384,
 
+      // 全局标签库默认空（角色由联系人数据加载时导入）
+      knownTags: [],
+
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
 
@@ -164,6 +173,17 @@ export const useWorkspace = create<WorkspaceState>()(
       setImagesOpen: (v) => set({ imagesOpen: v }),
 
       setCalendarDetailWidth: (w) => set({ calendarDetailWidth: w }),
+
+      addKnownTags: (tags) =>
+        set((s) => {
+          // 已存在的标签（忽略大小写 + 首尾空格）直接跳过
+          const existing = new Set(s.knownTags.map((t) => t.trim().toLowerCase()))
+          const additions = tags
+            .map((t) => t.trim())
+            .filter((t) => t.length > 0 && !existing.has(t.toLowerCase()))
+          if (additions.length === 0) return {}
+          return { knownTags: [...s.knownTags, ...additions] }
+        }),
 
       // 日历标记脚本（已弃用停用：以下三个 action 实现一并注释）
       // upsertCalendarScript: (script) =>
