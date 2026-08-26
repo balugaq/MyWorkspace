@@ -69,3 +69,23 @@ export function solarMatchForLunarMD(
     return null
   }
 }
+
+/**
+ * 求「农历 lunarYear 年 lunarMonth 月 lunarDay 日」对应的公历日期。
+ * 与 solarMatchForLunarMD 的区别：lunarYear 是**明确的农历年**（非借用公历年推算），
+ * 结果唯一，用于精确农历日规则 `LYYYY-MM-DD`（如农历2026年八月十五只在该农历年命中一次）。
+ * 找不到时返回 null。闰月用正数表示，闰月标记不在本需求内。
+ */
+export function solarForLunarYMD(
+  lunarYear: number,
+  lunarMonth: number,
+  lunarDay: number
+): { year: number; month: number; day: number } | null {
+  try {
+    const lunar = Lunar.fromYmd(lunarYear, lunarMonth, lunarDay)
+    const s = lunar.getSolar()
+    return { year: s.getYear(), month: s.getMonth(), day: s.getDay() }
+  } catch {
+    return null
+  }
+}

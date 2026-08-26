@@ -1,7 +1,7 @@
 "use client"
 
 import { Lunar, HolidayUtil } from "lunar-javascript"
-import { solarMatchForLunarMD } from "./lunar"
+import { solarMatchForLunarMD, solarForLunarYMD } from "./lunar"
 
 /**
  * 节日数据模型与匹配。
@@ -9,7 +9,7 @@ import { solarMatchForLunarMD } from "./lunar"
  * public/custom_festivals.yml 的 schema：
  *   festivals:
  *     - name: "名称"
- *       festival_rule: "5-2-7" | "11-27" | "2026-07-09" | "L+月-日"(农历月日)
+ *       festival_rule: "5-2-7" | "11-27" | "2026-07-09" | "LMM-DD"(每年农历月日) | "LYYYY-MM-DD"(指定农历年某日)
  *       color: "#FF0000"        # 默认 slateblue
  *       holiday_override: true  # 是否节假日（日格标"假"）
  *       workday_override: false # 是否工作日（日格标"班"）
@@ -18,7 +18,8 @@ import { solarMatchForLunarMD } from "./lunar"
  *   - n1-n2：每年固定公历月-日  （如 11-27）
  *   - yyyy-mm-dd：仅该年该日（如 2026-07-09）
  *   - m-w-d：每年某月第 N 个星期几（如 5-2-7 = 5月第2个周日；第5个以每4周一档，超过取消）
- *   - Lm-d：农历月-日，每年换算成公历（如 L6-15 = 农历六月十五）
+ *   - LMM-DD：每年农历月-日，换算成当年公历（如 L6-15 = 农历六月十五，每年命中）
+ *   - LYYYY-MM-DD：指定农历年某日（如 L2026-08-15 = 农历2026年八月十五，仅该农历年命中一次）
  */
 
 /** 节日匹配规则类型 */
@@ -119,13 +120,25 @@ export function parseFestivalRule(rule: string | undefined): Omit<Festival, "nam
   const s = rule.trim()
   if (!s) return null
 
-  // 农历：L月-日
+  // 农历：L 开头
   if (s.startsWith("L")) {
-    const m = /^(\d{1,2})-(\d{1,2})$/.exec(s.slice(1))
+    const body = s.slice(1)
+    // LMM-DD：每年农历月-日（如 L8-15 = 农历八月十五，每年换算成公历都命中）
+    const m = /^(\d{1,2})-(\d{1,2})$/.exec(body)
     if (m) {
       const mm = Number(m[1])
       const dd = Number(m[2])
       if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 30) return { kind: "lunar", mm, dd }
+    }
+    // LYYYY-MM-DD：指定农历年某一天（如 L2026-08-15 = 农历2026年八月十五，仅该次命中）
+    const m4 = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(body)
+    if (m4) {
+      const y = Number(m4[1])
+      const mm = Number(m4[2])
+      const dd = Number(m4[3])
+      if (y >= 1900 && y <= 2100 && mm >= 1 && mm <= 12 && dd >= 1 && dd <= 30) {
+        return { kind: "lunar", year: y, mm, dd }
+      }
     }
     return null
   }
@@ -206,7 +219,14 @@ export function festivalsForDate(
       ...rule,
     }
     if (f.kind === "lunar") {
-      const solar = solarMatchForLunarMD(year, f.mm!, f.dd!)
+      let solar: { year: number; month: number; day: number } | null = null
+      if (f.year != null) {
+        // 指定农历年：LYYYY-MM-DD（仅该农历年对应的公历日命中一次）
+        solar = solarForLunarYMD(f.year, f.mm!, f.dd!)
+      } else {
+        // 每年农历月日：LMM-DD（沿用现有换算，农历年借用查询的公历年推算）
+        solar = solarMatchForLunarMD(year, f.mm!, f.dd!)
+      }
       if (solar && solar.year === year && solar.month === month && solar.day === day) {
         out.push(f)
       }
