@@ -201,8 +201,6 @@ export function CalendarWorkspace() {
 
   const title = format(current, "yyyy 年 M 月", { locale: zhCN })
 
-  const isBackToToday = !isSameMonth(current, new Date())
-
   return (
     <div
       ref={containerRef}
@@ -231,16 +229,6 @@ export function CalendarWorkspace() {
             </Button>
           </div>
           <div className="flex-1" />
-          {/* 回到今天按钮（离开当月时出现） */}
-          {isBackToToday && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
-            >
-              回到今天
-            </Button>
-          )}
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col p-3">
