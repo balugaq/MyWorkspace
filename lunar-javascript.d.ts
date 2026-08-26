@@ -22,6 +22,17 @@ declare module "lunar-javascript" {
     /** 中文日，如 "初一"、"十五" */
     getDayInChinese(): string
     getSolar(): Solar
+    /** 节气名：该日为二十四节气之一时返回名称（如"立春"），否则返回空串 */
+    getJieQi(): string
+  }
+
+  /** 中国法定节假日 / 调休（lunar-javascript 内置，覆盖约 2010–2026） */
+  export const HolidayUtil: {
+    getHoliday(
+      year: number,
+      month: number,
+      day: number
+    ): { _p: { day: string; name?: string; work: boolean; target: string } } | null
   }
 
   export class LunarMonth {

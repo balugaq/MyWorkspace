@@ -1,5 +1,6 @@
 "use client"
 
+import { Lunar, HolidayUtil } from "lunar-javascript"
 import { solarMatchForLunarMD } from "./lunar"
 
 /**
@@ -20,6 +21,15 @@ import { solarMatchForLunarMD } from "./lunar"
  *   - Lm-d：农历月-日，每年换算成公历（如 L6-15 = 农历六月十五）
  */
 
+/** 节日匹配规则类型 */
+export type FestivalKind =
+  | "monthDay"
+  | "date"
+  | "weekdayOfMonth"
+  | "lunar"
+  | "jieqi"
+  | "holiday"
+
 export interface Festival {
   name: string
   /** 节日的具体展示色 */
@@ -27,12 +37,68 @@ export interface Festival {
   holiday: boolean
   workday: boolean
   // 内部：匹配所需的规则解析结果
-  kind: "monthDay" | "date" | "weekdayOfMonth" | "lunar"
+  kind: FestivalKind
   mm?: number // monthDay / weekdayOfMonth / lunar
   dd?: number
   year?: number
   weekIndex?: number
   weekday?: number // 0=周日
+}
+
+/** 二十四节气配色（紫） */
+export const JIEQI_COLOR = "#c084fc"
+/** 法定放假日配色（红） */
+export const HOLIDAY_COLOR = "#ef4444"
+/** 调休补班工作日配色（蓝） */
+export const WORKDAY_COLOR = "#3b82f6"
+
+/**
+ * 内置中国日历要素（纯离线，来自 lunar-javascript），按优先级返回：
+ *   1) 法定节假日 / 调休：HolidayUtil.getHoliday() 命中时
+ *        work:false → 法定放假日（holiday:true），work:true → 调休补班（workday:true）
+ *   2) 二十四节气：Lunar.getJieQi() 返回非空即该日节气名
+ * 当节气名与法定假日名**完全相同**时，仅保留法定假日条目；
+ * 形如「清明」(节气) 与「清明节」(假日) 视为正常并存，不额外去重。
+ *
+ * ⚠️ 数据范围：HolidayUtil 仅覆盖约 2010–2026；2027+ 未来年及 2010 之前的年份
+ * 没有内置数据，需由 public/custom_festivals.yml 的 holiday_override / workday_override 手动补充。
+ */
+export function builtinChinaFestivals(
+  year: number,
+  month: number,
+  day: number
+): Festival[] {
+  const out: Festival[] = []
+  let jq = ""
+  try {
+    jq = Lunar.fromDate(new Date(year, month - 1, day)).getJieQi()
+  } catch {
+    jq = ""
+  }
+  let h: { _p: { day: string; name?: string; work: boolean; target: string } } | null = null
+  try {
+    h = HolidayUtil.getHoliday(year, month, day)
+  } catch {
+    h = null
+  }
+
+  // 法定节假日 / 调休 优先
+  if (h && h._p) {
+    const work = !!h._p.work
+    out.push({
+      name: h._p.name ?? (work ? "班" : "假"),
+      color: work ? WORKDAY_COLOR : HOLIDAY_COLOR,
+      holiday: !work,
+      workday: work,
+      kind: "holiday",
+    })
+  }
+  // 二十四节气：仅在该日节气名与法定假日名**完全相同**时才跳过（例如二者都是「清明」）。
+  // 形如「清明」(节气) 与「清明节」(假日名) 视为正常并存，不做额外压制。
+  if (jq && !(h && h._p && h._p.name === jq)) {
+    out.push({ name: jq, color: JIEQI_COLOR, holiday: false, workday: false, kind: "jieqi" })
+  }
+  return out
 }
 
 export interface FestivalDef {

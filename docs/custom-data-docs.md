@@ -34,6 +34,18 @@ festivals:
 - `holiday_override` / `workday_override`：日格**右上角**加「假」（橙底红字）/「班」（蓝底白字）角标。可多个并存。
 - 「假/班」仅为**视觉徽标**，不参与真正的调休/换位计算（本项目无调休系统）。
 
+### 1.4 内置中国日历要素（无需配置，来自 lunar-javascript）
+
+日历会自动叠加以下**内置**要素（与上面自定义节日合并展示，优先级：法定假日 > 节气 > 自定义节日）：
+
+- **二十四节气**：该日为节气时，在 shortHint 位置显示节气名（如「立春」），配色见源码常量。由 `Lunar.getJieQi()` 天文计算，**覆盖全部年份（1971–2099）**。
+- **法定节假日**：由 `HolidayUtil.getHoliday()` 提供，日格显示节日名 + 「假」角标。
+- **调休补班工作日**：同上来源，`work:true` 时显示「班」角标。
+
+⚠️ **数据范围限制**：`HolidayUtil` 仅内置约 **2010–2026** 的法定假日/调休数据。对 **2027 年及以后的未来年份**，以及 2010 年之前的年份，**没有自动数据**——届时需在此 `custom_festivals.yml` 手动补 `holiday_override` / `workday_override` 条目（写法见 1.2），或等待库作者更新后通过构建期自动更新拿到新数据。
+
+> 自动更新：本仓库在 `predev` / `prebuild` 钩子中运行 `scripts/update-dependencies.mjs`，每次 `npm run dev` / `build` / `deploy` 会尝试更新构建期依赖（当前含 `lunar-javascript`，离线/失败则跳过，使用已有版本）。设置环境变量 `SKIP_DEP_UPDATE=1` 可跳过该联网步骤。
+
 ---
 
 ## 2. 通讯录 + 生日提醒 `public/address_book.yml`

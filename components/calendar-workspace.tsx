@@ -24,7 +24,7 @@ import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
 // import { emitRenderDate, type DateMarkerApi, type CalendarDisplayType } from "@/lib/calendar-events"
 import { loadAddressBook, type Person } from "@/lib/address-book"
 import { loadPublicYaml } from "@/lib/fetch-data"
-import { festivalsForDate, type Festival, type FestivalsFile } from "@/lib/festivals"
+import { festivalsForDate, builtinChinaFestivals, type Festival, type FestivalsFile } from "@/lib/festivals"
 import { birthdaysOn } from "@/lib/birthday"
 import { lunarTextForSolar } from "@/lib/lunar"
 import { dayShortHint } from "@/lib/day-hint"
@@ -274,7 +274,11 @@ export function CalendarWorkspace() {
               const isWeekend = day.getDay() === 0 || day.getDay() === 6
               const hasNote = !!data && data.note.trim() !== ""
               // 节日 + 生日
-              const festivals = festivalsForDate(festivalDefs, day.getFullYear(), day.getMonth() + 1, day.getDate())
+              // 内置中国日历要素（二十四节气 / 法定假日 / 调休）与用户在 custom_festivals.yml 定义的节日合并；
+              // 内置在前，故 shortHint 优先取「法定假日 > 节气 > 用户节日」，且「假/班」角标由内置数据自动驱动。
+              const builtin = builtinChinaFestivals(day.getFullYear(), day.getMonth() + 1, day.getDate())
+              const userFests = festivalsForDate(festivalDefs, day.getFullYear(), day.getMonth() + 1, day.getDate())
+              const festivals = [...builtin, ...userFests]
               const bdays = birthdaysOn(people, day.getFullYear(), day.getMonth() + 1, day.getDate())
               const hasHoliday = festivals.some((f) => f.holiday)
               const hasWorkday = festivals.some((f) => f.workday)
@@ -440,7 +444,10 @@ export function CalendarWorkspace() {
         dateKey={format(current, "yyyy-MM-dd")}
         dueNodes={dueMap[format(current, "yyyy-MM-dd")] ?? []}
         people={people}
-        festivals={festivalsForDate(festivalDefs, current.getFullYear(), current.getMonth() + 1, current.getDate())}
+        festivals={[
+          ...builtinChinaFestivals(current.getFullYear(), current.getMonth() + 1, current.getDate()),
+          ...festivalsForDate(festivalDefs, current.getFullYear(), current.getMonth() + 1, current.getDate()),
+        ]}
         style={isDesktop ? { width: detailWidth } : undefined}
       />
     </div>
@@ -529,6 +536,14 @@ function DayDetail({
                           style={{ backgroundColor: "#ff9800", color: "#e74c3c" }}
                         >
                           假
+                        </span>
+                      )}
+                      {f.workday && !f.holiday && (
+                        <span
+                          className="shrink-0 rounded px-1 text-[10px] font-bold leading-4"
+                          style={{ backgroundColor: "#3498db", color: "#fff" }}
+                        >
+                          班
                         </span>
                       )}
                     </li>
