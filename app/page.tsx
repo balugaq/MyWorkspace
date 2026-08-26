@@ -40,7 +40,7 @@ export default function Page() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
 
-  // 统一的全局快捷键（Ctrl+N 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
+  // 统一的全局快捷键（Ctrl+M 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
   useGlobalShortcuts()
 
   // 载入启用的日历标记脚本（已弃用停用：不再调用 useCalendarScripts）

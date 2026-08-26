@@ -39,7 +39,7 @@ interface WorkspaceState {
   settings: Settings
   // 日历标记脚本（已弃用停用，字段与下方相关 action 一并注释；merge 中显式丢弃旧存档残留）
   // calendarScripts: CalendarScript[]
-  // UI 弹窗状态（跨组件触发，例如全局快捷键 Ctrl+N）
+  // UI 弹窗状态（跨组件触发，例如全局快捷键 Ctrl+M）
   addCategoryOpen: boolean
   settingsOpen: boolean
   // scriptsOpen: boolean // 日历标记脚本管理弹窗（已弃用停用）

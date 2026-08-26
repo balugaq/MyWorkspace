@@ -158,7 +158,7 @@ export interface ShortcutMeta {
 }
 
 export const SHORTCUT_META: ShortcutMeta[] = [
-  { action: "newCategory", label: "新建分类", description: "打开“添加分类”弹窗", defaults: { modifier: true, key: "n" } },
+  { action: "newCategory", label: "新建分类", description: "打开“添加分类”弹窗", defaults: { modifier: true, key: "m" } },
   { action: "goCalendar", label: "打开日历", description: "切换到日历视图", defaults: { modifier: true, key: "b" } },
   { action: "search", label: "全局搜索", description: "打开全局搜索", defaults: { modifier: true, key: "k" } },
 ]

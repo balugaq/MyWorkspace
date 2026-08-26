@@ -112,7 +112,7 @@ npm run serve          # 静态托管；改端口：npm run serve -- 8080
 | 动作 | 默认 | 说明 |
 | --- | --- | --- |
 | 打开全局搜索 | <kbd>Ctrl</kbd>+<kbd>K</kbd> | 搜索全部内容 |
-| 新建分类 | <kbd>Ctrl</kbd>+<kbd>N</kbd> | 打开「添加分类」弹窗 |
+| 新建分类 | <kbd>Ctrl</kbd>+<kbd>M</kbd> | 打开「添加分类」弹窗 |
 | 打开日历 | <kbd>Ctrl</kbd>+<kbd>B</kbd> | 切换到日历视图 |
 | 切换主题 | 按 <kbd>d</kbd>（无修饰键） | 浅色 / 深色切换 |
 
