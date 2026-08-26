@@ -53,7 +53,7 @@ export function NodeInspector({
   const [confirmDel, setConfirmDel] = useState(false)
 
   // 添加子节点：以「当前节点名 + 空格 + 序号」命名，序号自动避开已存在标题；
-  // 新节点置于右侧并按已有子节点数向下错开，自动连线（flow），并打开其详情。
+  // 新节点直接置于父节点右侧同一高度（不再按子节点数量向下错开），自动连线（flow），并打开其详情。
   function handleAddChild() {
     if (!category.relation) return
     const base = node.title?.trim() || "新节点"
@@ -64,11 +64,8 @@ export function NodeInspector({
     while (existing.has(`${base} ${seq}`)) seq++
     const childTitle = `${base} ${seq}`
 
-    const childCount = category.relation.edges.filter(
-      (e) => e.source === node.id,
-    ).length
     const pos = node.position ?? { x: 200, y: 120 }
-    const childPos = { x: pos.x + 300, y: pos.y + childCount * 90 }
+    const childPos = { x: pos.x + 300, y: pos.y }
 
     const childId = addNode(category.id, childPos, childTitle)
     connectNodes(category.id, node.id, childId, "flow")
