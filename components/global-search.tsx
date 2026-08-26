@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { useEscapeClose } from "@/hooks/use-escape-close"
 
 const SCOPES: { value: SearchScope; label: string }[] = [
   { value: "all", label: "全部" },
@@ -50,6 +51,10 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
 
   const [query, setQuery] = useState("")
   const [scope, setScope] = useState<SearchScope>("all")
+
+  // ESC 关闭弹窗（与其它弹窗行为一致）
+  useEscapeClose(open, () => onOpenChange(false))
+
 
   const results = useMemo(
     () => runSearch(categories, calendar, query, scope, activeCategoryId),

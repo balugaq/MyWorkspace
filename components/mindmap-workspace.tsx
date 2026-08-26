@@ -20,6 +20,7 @@ import { useWorkspace } from "@/lib/store"
 import type { Category, MindNode } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
+import { useEscapeClose } from "@/hooks/use-escape-close"
 import { TodoNode, SolutionNode } from "@/components/mindmap/nodes"
 import { NodeInspector } from "@/components/mindmap/node-inspector"
 import { Button } from "@/components/ui/button"
@@ -166,6 +167,9 @@ function Canvas({ category }: { category: Category }) {
 
   // 按 Delete / Backspace 请求删除当前选中的节点（弹出确认，避开文本输入框）
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  // 删除确认弹窗：ESC 视为取消关闭（与其它弹窗行为一致）
+  useEscapeClose(pendingDeleteId !== null, () => setPendingDeleteId(null))
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Delete" && e.key !== "Backspace") return

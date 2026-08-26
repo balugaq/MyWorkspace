@@ -18,6 +18,7 @@ import { useWorkspace } from "@/lib/store"
 import { TEMPLATES, type TemplateType } from "@/lib/types"
 import { getIcon } from "@/lib/icons"
 import { cn } from "@/lib/utils"
+import { useEscapeClose } from "@/hooks/use-escape-close"
 
 export function AddCategoryDialog({
   open,
@@ -32,6 +33,9 @@ export function AddCategoryDialog({
   const [namingRule, setNamingRule] = useState("第%首")
   const [autoNumber, setAutoNumber] = useState(true)
   const [count, setCount] = useState(3)
+
+  // ESC 关闭弹窗（与其它弹窗行为一致）
+  useEscapeClose(open, () => onOpenChange(false))
 
   function reset() {
     setName("")

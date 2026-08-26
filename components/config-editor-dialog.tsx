@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { FileJson, RotateCcw, Save } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
+import { useEscapeClose } from "@/hooks/use-escape-close"
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,9 @@ export function ConfigEditorDialog({
   const exportData = useWorkspace((s) => s.exportData)
   const importData = useWorkspace((s) => s.importData)
   const [text, setText] = useState("")
+
+  // ESC 关闭弹窗（与其它弹窗行为一致）
+  useEscapeClose(open, () => onOpenChange(false))
 
   // 打开时载入当前配置
   useEffect(() => {

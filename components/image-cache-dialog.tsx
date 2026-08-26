@@ -11,6 +11,7 @@ import {
 } from "@/lib/image-store"
 import { getImageInventory } from "@/lib/backup"
 import { useWorkspace } from "@/lib/store"
+import { useEscapeClose } from "@/hooks/use-escape-close"
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,9 @@ export function ImageCacheDialog({
   const [all, setAll] = useState<StoredImage[]>([])
   const [referenced, setReferenced] = useState<Set<string>>(new Set())
   const [tiles, setTiles] = useState<Record<string, string>>({})
+
+  // ESC 关闭弹窗（与其它弹窗行为一致）
+  useEscapeClose(open, () => onOpenChange(false))
 
   async function refresh() {
     const { all, referenced } = await getImageInventory()

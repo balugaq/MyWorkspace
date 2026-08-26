@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { useEscapeClose } from "@/hooks/use-escape-close"
 import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon } from "lucide-react"
 // import { Wand2 } from "lucide-react" // 日历标记脚本入口（已弃用停用）
 import { useWorkspace } from "@/lib/store"
@@ -51,6 +52,9 @@ export function SettingsDialog() {
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const setImagesOpen = useWorkspace((s) => s.setImagesOpen)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // ESC 关闭设置弹窗（与其它弹窗行为一致）
+  useEscapeClose(open, () => setOpen(false))
 
   async function onExport() {
     const json = await exportBackup()

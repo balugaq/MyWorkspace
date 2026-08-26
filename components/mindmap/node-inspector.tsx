@@ -8,6 +8,7 @@ import { addImage, imageBlobFromClipboard } from "@/lib/image-store"
 import type { Category, MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
+import { useEscapeClose } from "@/hooks/use-escape-close"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -52,6 +53,9 @@ export function NodeInspector({
   const patch = (p: Partial<MindNode>) => updateNode(category.id, node.id, p)
   const solStatus = node.solution?.status ?? "doing"
   const [confirmDel, setConfirmDel] = useState(false)
+
+  // 删除确认弹窗：ESC 视为取消关闭（与其它弹窗行为一致）
+  useEscapeClose(confirmDel, () => setConfirmDel(false))
 
   // 添加子节点：以「当前节点名 + 空格 + 序号」命名，序号自动避开已存在标题；
   // 新节点直接置于父节点右侧同一高度（不再按子节点数量向下错开），自动连线（flow），并打开其详情。
