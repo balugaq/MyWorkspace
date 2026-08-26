@@ -281,13 +281,12 @@ export function CalendarWorkspace() {
               const hasBirthday = bdays.length > 0
               const shortHint = dayShortHint(day)
 
-              // 日期数字颜色优先级：today > selected > hasBirthday > festival > hasHoliday > hasWorkday > outside > isWeekend
+              // 日期数字颜色优先级：today > hasBirthday > festival > hasHoliday > hasWorkday > outside > isWeekend
+              // selected 不影响文字/颜色，仅以背景 bg-primary/15 标识选中
               let dateNumClass = "text-foreground"
               let dateNumStyle: CSSProperties | undefined
               if (isToday(day)) {
                 dateNumStyle = { color: "#60a5fa" }
-              } else if (selected) {
-                dateNumClass = "text-primary"
               } else if (hasBirthday) {
                 dateNumClass = "text-emerald-400"
               } else if (festivals.length > 0) {
@@ -304,14 +303,13 @@ export function CalendarWorkspace() {
                 dateNumClass = "text-foreground"
               }
 
-              // shortHint 颜色/内容优先级：today > selected > festival > hasBirthday > hasHoliday > hasWorkday > outside > isWeekend
+              // shortHint 颜色/内容优先级：today > festival > hasBirthday > hasHoliday > hasWorkday > outside > isWeekend
+              // selected 不影响文字/颜色，仅以背景标识选中
               let shortHintClass = "text-muted-foreground/70"
               let shortHintColor: string | undefined
               let shortHintText: ReactNode = shortHint || format(day, "M/d")
               if (isToday(day)) {
                 shortHintColor = "#60a5fa"
-              } else if (selected) {
-                shortHintClass = "text-primary"
               } else if (festivals.length > 0) {
                 shortHintColor = festivals[0].color
                 shortHintText = (
@@ -384,7 +382,7 @@ export function CalendarWorkspace() {
                   data-date={key}
                   onClick={() => setSelectedDate(key)}
                   className={cn(
-                    "relative flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-1 text-center transition-colors",
+                    "relative flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-1 text-center transition-colors outline-none",
                     selected ? "bg-primary/15" : "hover:bg-muted/60",
                     outside && "opacity-40"
                   )}
@@ -396,11 +394,7 @@ export function CalendarWorkspace() {
                     <span
                       className={cn(
                         "inline-flex h-7 w-8 items-center justify-center rounded-full text-base",
-                        isToday(day)
-                          ? "font-bold"
-                          : selected
-                            ? "font-semibold"
-                            : "font-medium",
+                        isToday(day) ? "font-bold" : "font-medium",
                         dateNumClass
                       )}
                       style={dateNumStyle}
@@ -409,7 +403,7 @@ export function CalendarWorkspace() {
                     </span>
                     {corner}
                   </span>
-                  {/* 日期外显短提示：按优先级 today > selected > festival > 生日 > 假日 > 班日 > 跨月 > 周末 着色（festival 显示首节日名+多节日数角标） */}
+                  {/* 日期外显短提示：按优先级 today > festival > 生日 > 假日 > 班日 > 跨月 > 周末 着色（festival 显示首节日名+多节日数角标）；selected 仅以背景标识 */}
                   <span className="relative max-w-full text-center text-xs leading-3.5">
                     <span
                       className={shortHintClass}
