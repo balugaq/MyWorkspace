@@ -288,7 +288,7 @@ export function CalendarWorkspace() {
               if (isToday(day)) {
                 dateNumStyle = { color: "#60a5fa" }
               } else if (hasBirthday) {
-                dateNumClass = "text-emerald-400"
+                dateNumStyle = { color: "#4ade80" }
               } else if (festivals.length > 0) {
                 dateNumStyle = { color: festivals[0].color }
               } else if (hasHoliday) {
@@ -326,7 +326,7 @@ export function CalendarWorkspace() {
                   </span>
                 )
               } else if (hasBirthday) {
-                shortHintClass = "text-emerald-400"
+                shortHintColor = "#4ade80"
               } else if (hasHoliday) {
                 shortHintClass = "text-destructive"
               } else if (hasWorkday) {
