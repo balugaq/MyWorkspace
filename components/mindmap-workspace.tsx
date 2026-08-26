@@ -19,6 +19,7 @@ import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import type { Category, MindNode } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
+import { isPristineNode } from "@/lib/mindmap"
 import { TodoNode, SolutionNode } from "@/components/mindmap/nodes"
 import { NodeInspector } from "@/components/mindmap/node-inspector"
 import { Button } from "@/components/ui/button"
@@ -172,8 +173,15 @@ function Canvas({ category }: { category: Category }) {
       const t = e.target
       if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return
       if (!activeItemId) return
-      if (!relation.nodes.some((n) => n.id === activeItemId)) return
+      const keyNode = relation.nodes.find((n) => n.id === activeItemId)
+      if (!keyNode) return
+      // 完全新的节点（仅 title、其它内容为空、无子节点）直接删除，跳过确认弹窗
       e.preventDefault()
+      if (isPristineNode(keyNode, relation.edges)) {
+        removeNode(category.id, keyNode.id)
+        toast.success("已删除节点")
+        return
+      }
       setPendingDeleteId(activeItemId)
     }
     window.addEventListener("keydown", onKey)

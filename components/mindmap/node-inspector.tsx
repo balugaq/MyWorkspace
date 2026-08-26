@@ -7,6 +7,7 @@ import { useWorkspace } from "@/lib/store"
 import { addImage, imageBlobFromClipboard } from "@/lib/image-store"
 import type { Category, MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
+import { isPristineNode } from "@/lib/mindmap"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -74,6 +75,11 @@ export function NodeInspector({
 
   // 标签（由共享 TagPicker 编辑）
   const tags = node.tags ?? []
+
+  // 是否为「完全新的节点」：仅含 title、其它内容为空且无子节点时，删除无需二次确认。
+  // 逻辑见 lib/mindmap.ts 的 isPristineNode（删除按钮与键盘删除共用）。
+  const isPristine = isPristineNode(node, category.relation?.edges ?? [])
+
 
   return (
     <div className="flex h-full w-80 shrink-0 flex-col border-l bg-card">
@@ -255,7 +261,15 @@ export function NodeInspector({
         <Button
           variant="outline"
           className="w-full gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => setConfirmDel(true)}
+          onClick={() => {
+            if (isPristine) {
+              removeNode(category.id, node.id)
+              toast.success("已删除节点")
+              onClose()
+            } else {
+              setConfirmDel(true)
+            }
+          }}
         >
           <Trash2 className="size-4" />
           删除节点
