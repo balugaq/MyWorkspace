@@ -387,10 +387,10 @@ export function CalendarWorkspace() {
                     outside && "opacity-40"
                   )}
                 >
-                  {/* 顶部中间：笔记圆点 */}
-                  {hasNote && <span className="absolute left-1/2 top-0.5 size-1 -translate-x-1/2 rounded-full bg-primary" />}
                   {/* 日期数字容器：角标基于日期数字定位。锚点占位等比例放大，角标可在此范围内更外探，日期数字仍居中。 */}
                   <span className="relative inline-flex items-center justify-center">
+                    {/* 笔记圆点：基于日期数字定位到其上方 */}
+                    {hasNote && <span className="absolute -top-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-primary" />}
                     <span
                       className={cn(
                         "inline-flex h-7 w-8 items-center justify-center rounded-full text-base",
