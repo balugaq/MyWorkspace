@@ -26,7 +26,7 @@ export function RichText({
   let imgCount = 0
 
   return (
-    <div className={cn("whitespace-pre-wrap", className)}>
+    <div className={cn("whitespace-pre-wrap break-words [overflow-wrap:anywhere]", className)}>
       {segments.map((seg, i) => {
         if (seg.type === "stored") {
           imgCount++
@@ -69,7 +69,7 @@ export function splitSegments(text: string): Segment[] {
 }
 
 const IMG_FIT = "my-1 block rounded-md border border-border object-contain"
-const IMG_FULL = "my-1 block h-auto w-auto rounded-md border border-border"
+const IMG_FULL = "my-1 block h-auto max-w-full rounded-md border border-border"
 
 function StoredImg({ imgId, fullSize }: { imgId: string; fullSize?: boolean }) {
   const [url, setUrl] = useState<string | null>(null)

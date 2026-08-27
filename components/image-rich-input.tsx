@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import { ImagePlus, Eye, PencilLine } from "lucide-react"
-import { addImage, imageBlobFromClipboard } from "@/lib/image-store"
+import { addImage, imageBlobsFromClipboard } from "@/lib/image-store"
 import { RichText } from "@/components/rich-text"
 import { cn } from "@/lib/utils"
 
@@ -31,35 +31,37 @@ export function ImageRichInput({
   const fileRef = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<"edit" | "preview">("edit")
 
-  async function insertImage(blob: Blob) {
-    const id = await addImage(blob, blob.type)
+  async function insertImages(blobs: Blob[]) {
+    if (blobs.length === 0) return
+    const ids = await Promise.all(blobs.map((b) => addImage(b, b.type)))
+    const tokens = ids.map((id) => `{{img:${id}}}`).join("")
     const el = ref.current
     if (el) {
       const st = el.selectionStart ?? value.length
       const en = el.selectionEnd ?? value.length
-      const next = value.slice(0, st) + `{{img:${id}}}` + value.slice(en)
+      const next = value.slice(0, st) + tokens + value.slice(en)
       onChange(next)
-      // 提交后光标置于 token 之后
+      // 提交后光标置于所有 token 之后
       requestAnimationFrame(() => {
         el.focus()
-        const pos = st + `{{img:${id}}}`.length
+        const pos = st + tokens.length
         el.setSelectionRange(pos, pos)
       })
     } else {
-      onChange(value + `{{img:${id}}}`)
+      onChange(value + tokens)
     }
   }
 
   async function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const blob = imageBlobFromClipboard(e.clipboardData)
-    if (!blob) return
+    const blobs = imageBlobsFromClipboard(e.clipboardData)
+    if (blobs.length === 0) return
     e.preventDefault()
-    await insertImage(blob)
+    await insertImages(blobs)
   }
 
-  async function onFile(file: File | undefined | null) {
-    if (!file) return
-    await insertImage(file)
+  async function onFiles(files: FileList | null) {
+    if (!files || files.length === 0) return
+    await insertImages(Array.from(files))
   }
 
   return (
@@ -85,9 +87,10 @@ export function ImageRichInput({
           ref={fileRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={(e) => {
-            onFile(e.target.files?.[0])
+            onFiles(e.target.files)
             e.target.value = ""
           }}
         />
@@ -96,7 +99,7 @@ export function ImageRichInput({
       {mode === "preview" ? (
         <div
           className={cn(
-            "w-full rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none",
+            "w-full min-h-0 flex-1 overflow-auto rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none",
             previewClassName,
           )}
         >

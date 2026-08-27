@@ -221,7 +221,7 @@
 
 | 功能 | 入口点 |
 | --- | --- |
-| IndexedDB 存储 | `lib/image-store.ts`：`addImage`、`getImageURL`、`getImageBlob`、`deleteImage`、`listImages`、`setStaged`、`exportImages`、`importImages`、`imageBlobFromClipboard` |
+| IndexedDB 存储 | `lib/image-store.ts`：`addImage`、`getImageURL`、`getImageBlob`、`deleteImage`、`listImages`、`setStaged`、`exportImages`、`importImages`、`imageBlobsFromClipboard`（一次粘贴/多选可返回多张图片 blob） |
 | 引用扫描 | `lib/image-refs.ts`：`imageIdsInText`、`collectReferencedImageIds` |
 | 含图备份 | `lib/backup.ts`：`exportBackup`、`importBackup`、`getImageInventory` |
 | 富文本渲染 | `components/rich-text.tsx`：`RichText`、`splitSegments`（`{{img:id}}` / `![](url)`） |

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Trash2, X, Lightbulb, Tag, CalendarClock, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
-import { addImage, imageBlobFromClipboard } from "@/lib/image-store"
+import { addImage, imageBlobsFromClipboard } from "@/lib/image-store"
 import type { Category, MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
@@ -343,16 +343,16 @@ function DebouncedTextarea({
   }, [local])
 
   async function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const blob = imageBlobFromClipboard(e.clipboardData)
-    if (!blob) return
+    const blobs = imageBlobsFromClipboard(e.clipboardData)
+    if (blobs.length === 0) return
     e.preventDefault()
-    const id = await addImage(blob, blob.type)
+    const ids = await Promise.all(blobs.map((b) => addImage(b, b.type)))
+    const tokens = ids.map((id) => `{{img:${id}}}`).join("")
     const el = ref.current
     const st = el?.selectionStart ?? local.length
     const en = el?.selectionEnd ?? local.length
-    const token = `{{img:${id}}}`
-    setLocal(local.slice(0, st) + token + local.slice(en))
-    onCommit(local.slice(0, st) + token + local.slice(en))
+    setLocal(local.slice(0, st) + tokens + local.slice(en))
+    onCommit(local.slice(0, st) + tokens + local.slice(en))
   }
 
   return (
