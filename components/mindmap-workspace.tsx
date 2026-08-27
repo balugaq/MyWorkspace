@@ -14,7 +14,7 @@ import {
   ReactFlowProvider,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
-import { Plus, Workflow, List, Pin, Lightbulb } from "lucide-react"
+import { Plus, Workflow, List, Pin, Lightbulb, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import type { Category, MindNode } from "@/lib/types"
@@ -114,8 +114,14 @@ function Canvas({ category }: { category: Category }) {
   const connectNodes = useWorkspace((s) => s.connectNodes)
   const removeEdge = useWorkspace((s) => s.removeEdge)
   const removeNode = useWorkspace((s) => s.removeNode)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView } = useReactFlow()
   const canvasWrapRef = useRef<HTMLDivElement>(null)
+
+  // 鸟瞰模式：允许无限缩小（默认 minZoom=0.5 限制缩小），并禁用拖拽/连线避免缩很小误触
+  const [birdView, setBirdView] = useState(false)
+  useEffect(() => {
+    fitView({ padding: 0.2, duration: 300 })
+  }, [birdView, fitView])
 
   // 在画面中心新建节点
   const addAtCenter = useCallback(() => {
@@ -365,10 +371,20 @@ function Canvas({ category }: { category: Category }) {
   return (
     <div className="flex h-full">
       <div ref={canvasWrapRef} className="relative min-w-0 flex-1">
-        <div className="pointer-events-none absolute right-3 top-3 z-10">
+        <div className="pointer-events-none absolute right-3 top-3 z-10 flex flex-col items-end gap-2">
           <Button size="sm" className="pointer-events-auto gap-1.5" onClick={addAtCenter}>
             <Plus className="size-4" />
             添加节点
+          </Button>
+          <Button
+            size="sm"
+            variant={birdView ? "default" : "secondary"}
+            className="pointer-events-auto gap-1.5"
+            onClick={() => setBirdView((b) => !b)}
+            title={birdView ? "退出鸟瞰（恢复正常缩放）" : "鸟瞰模式（允许无限缩小查看全局）"}
+          >
+            {birdView ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            鸟瞰
           </Button>
         </div>
         <ReactFlow
@@ -386,6 +402,9 @@ function Canvas({ category }: { category: Category }) {
           onPaneClick={onPaneClick}
           onPaneContextMenu={(e) => e.preventDefault()}
           zoomOnDoubleClick={false}
+          minZoom={birdView ? 0.02 : 0.5}
+          nodesDraggable={!birdView}
+          nodesConnectable={!birdView}
           onEdgeClick={(_, e) => {
             if (!e.id.startsWith("sol-edge-")) {
               removeEdge(category.id, e.id)
