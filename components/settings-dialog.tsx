@@ -6,7 +6,13 @@ import { useEscapeClose } from "@/hooks/use-escape-close"
 import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon } from "lucide-react"
 // import { Wand2 } from "lucide-react" // 日历标记脚本入口（已弃用停用）
 import { useWorkspace } from "@/lib/store"
-import { exportBackup, importBackup } from "@/lib/backup"
+import {
+  exportBackupZip,
+  importBackup,
+  parseBackupFile,
+  importBackupZip,
+  type ImportMode,
+} from "@/lib/backup"
 import {
   SHORTCUT_META,
   type ShortcutBinding,
@@ -52,46 +58,71 @@ export function SettingsDialog() {
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const setImagesOpen = useWorkspace((s) => s.setImagesOpen)
   const fileRef = useRef<HTMLInputElement>(null)
+  // 待导入的已解包 ZIP 文件映射（选中 zip 后、弹出替换/合并选择前暂存）
+  const [pendingFiles, setPendingFiles] = useState<Record<string, Uint8Array> | null>(null)
 
   // ESC 关闭设置弹窗（与其它弹窗行为一致）
   useEscapeClose(open, () => setOpen(false))
 
   async function onExport() {
-    const json = await exportBackup()
-    if (!json) {
+    try {
+      const blob = await exportBackupZip()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `workplace-backup-${new Date().toISOString().slice(0, 10)}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("已导出备份（ZIP：含分类/日历/设置与全部图片）")
+    } catch {
       toast.error("导出失败")
-      return
     }
-    const blob = new Blob([json], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `workplace-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success("已导出备份（含图片）")
   }
 
   async function onImportFile(file: File | undefined) {
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = async () => {
-      try {
-        const res = await importBackup(String(reader.result ?? ""))
+    try {
+      const parsed = await parseBackupFile(file)
+      if (parsed.kind === "zip") {
+        if (!parsed.files["workspace.json"]) {
+          toast.error("不是有效的备份文件（缺少 workspace.json）")
+          return
+        }
+        setPendingFiles(parsed.files)
+      } else {
+        // 旧版纯 JSON 备份：按替换方式导入
+        const res = await importBackup(parsed.json)
         if (res.ok) {
           toast.success(`导入成功，已恢复数据与 ${res.images} 张图片`)
           setOpen(false)
         } else {
           toast.error("导入失败：文件格式不正确")
         }
-      } catch {
-        toast.error("导入失败：文件格式不正确")
       }
+    } catch {
+      toast.error("导入失败：无法读取文件")
     }
-    reader.readAsText(file)
+  }
+
+  async function doImport(mode: ImportMode) {
+    if (!pendingFiles) return
+    const files = pendingFiles
+    setPendingFiles(null)
+    try {
+      const res = await importBackupZip(files, mode)
+      if (res.ok) {
+        toast.success(`已${mode === "replace" ? "替换" : "合并"}导入，恢复 ${res.images} 张图片`)
+        setOpen(false)
+      } else {
+        toast.error(`导入失败：${res.reason ?? "数据解析失败"}`)
+      }
+    } catch {
+      toast.error("导入失败：文件格式不正确")
+    }
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -229,7 +260,7 @@ export function SettingsDialog() {
               <input
                 ref={fileRef}
                 type="file"
-                accept="application/json,.json"
+                accept=".zip,application/zip,application/json,.json"
                 className="hidden"
                 onChange={(e) => {
                   onImportFile(e.target.files?.[0])
@@ -237,7 +268,9 @@ export function SettingsDialog() {
                 }}
               />
             </div>
-            <p className="text-xs text-muted-foreground">导入会覆盖当前全部数据，请先导出备份。</p>
+            <p className="text-xs text-muted-foreground">
+              导出为 ZIP（含分类/日历/设置与全部图片）。导入时可选「替换」或「合并」。
+            </p>
           </section>
 
           <section className="flex flex-col gap-2">
@@ -252,6 +285,28 @@ export function SettingsDialog() {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* 导入模式选择：替换 / 合并 */}
+    <Dialog open={!!pendingFiles} onOpenChange={(v) => { if (!v) setPendingFiles(null) }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>选择导入方式</DialogTitle>
+          <DialogDescription>
+            备份包含分类、日历、设置与图片。替换会覆盖当前全部数据；合并则按 id / 日期合并、保留现有数据。
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2">
+          <Button onClick={() => doImport("replace")}>替换导入（覆盖当前数据）</Button>
+          <Button variant="outline" onClick={() => doImport("merge")}>
+            合并导入（保留现有，按 id / 日期合并）
+          </Button>
+          <Button variant="ghost" onClick={() => setPendingFiles(null)}>
+            取消
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }
 

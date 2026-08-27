@@ -26,6 +26,23 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 
 const emptyDay = (): CalendarDay => ({ note: "", todos: [], events: [] })
 
+/** 按 id 合并两个数组：备份项覆盖同 id 项，新 id 追加 */
+function mergeById<T extends { id: string }>(a: T[], b: T[]): T[] {
+  const m = new Map<string, T>()
+  for (const x of a) m.set(x.id, x)
+  for (const x of b) m.set(x.id, x)
+  return [...m.values()]
+}
+
+/** 合并某天的日历数据：笔记取备份非空值，待办/事件按 id 合并 */
+function mergeCalendarDay(a: CalendarDay, b: CalendarDay): CalendarDay {
+  return {
+    note: b.note || a.note || "",
+    todos: mergeById(a.todos ?? [], b.todos ?? []),
+    events: mergeById(a.events ?? [], b.events ?? []),
+  }
+}
+
 interface WorkspaceState {
   categories: Category[]
   calendar: CalendarData
@@ -91,6 +108,7 @@ interface WorkspaceState {
   // 数据备份
   exportData: () => string | null
   importData: (json: string) => boolean
+  mergeData: (json: string) => boolean
 
   // 小说 / 通用条目
   addChapter: (catId: string) => void
@@ -255,6 +273,37 @@ export const useWorkspace = create<WorkspaceState>()(
             activeItemId: null,
             view: "workspace",
           })
+          return true
+        } catch {
+          return false
+        }
+      },
+
+      // 合并导入：分类按 id、日历按日期合并，保留当前 settings 与视图状态。
+      mergeData: (json) => {
+        try {
+          const data = JSON.parse(json)
+          if (
+            !data ||
+            !Array.isArray(data.categories) ||
+            typeof data.calendar !== "object"
+          )
+            return false
+          const cur = get()
+          // 分类：按 id 合并（备份覆盖同 id，新 id 追加）
+          const catMap = new Map<string, Category>()
+          for (const c of cur.categories) catMap.set(c.id, c)
+          for (const c of data.categories as Category[]) catMap.set(c.id, c)
+          const categories = [...catMap.values()]
+          // 日历：按日期合并
+          const calendar: CalendarData = { ...cur.calendar }
+          const bCal = data.calendar as CalendarData
+          for (const date of Object.keys(bCal)) {
+            const bDay = bCal[date]
+            const cDay = calendar[date]
+            calendar[date] = cDay ? mergeCalendarDay(cDay, bDay) : bDay
+          }
+          set({ categories, calendar })
           return true
         } catch {
           return false

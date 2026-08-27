@@ -148,6 +148,31 @@ export async function importImages(map: Record<string, string>): Promise<number>
   return count
 }
 
+/** 导入：把 {id: Blob} 批量写回 IndexedDB（已存在则跳过，幂等）。供 ZIP 备份恢复使用。 */
+export async function importImageBlobs(map: Record<string, Blob>): Promise<number> {
+  let count = 0
+  for (const id of Object.keys(map)) {
+    const existing = await getImageBlob(id)
+    if (existing) continue // 已存在则跳过（幂等）
+    const blob = map[id]
+    const db = await openDB()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite")
+      tx.objectStore(STORE).put({
+        id,
+        blob,
+        kind: blob.type || "image/png",
+        createdAt: Date.now(),
+        staged: false,
+      })
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    count++
+  }
+  return count
+}
+
 export function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const fr = new FileReader()
@@ -178,17 +203,20 @@ export function dataURLToBlob(data: string): Blob | null {
   return new Blob([bytes], { type: mime })
 }
 
-/** 从 ctrl-v 的 DataTransfer 里取第一张图片 blob */
-export function imageBlobFromClipboard(dt: DataTransfer): Blob | null {
+/** 从 ctrl-v 的 DataTransfer 里取出全部图片 blob（支持一次粘贴多张） */
+export function imageBlobsFromClipboard(dt: DataTransfer): Blob[] {
+  const blobs: Blob[] = []
   for (const item of dt.items) {
     if (item.kind === "file" && item.type.startsWith("image/")) {
       const f = item.getAsFile()
-      if (f) return f
+      if (f) blobs.push(f)
     }
   }
   // 兜底：直接看 dt.files
-  for (const f of Array.from(dt.files)) {
-    if (f.type.startsWith("image/")) return f
+  if (blobs.length === 0) {
+    for (const f of Array.from(dt.files)) {
+      if (f.type.startsWith("image/")) blobs.push(f)
+    }
   }
-  return null
+  return blobs
 }
