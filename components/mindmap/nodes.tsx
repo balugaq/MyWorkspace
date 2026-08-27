@@ -87,19 +87,19 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
         {node.cause && (
           <span className="flex items-start gap-1">
             <CornerDownRight className="mt-0.5 size-3 shrink-0" />
-            <span className="line-clamp-1">原因：{node.cause}</span>
+            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">原因：{node.cause}</span>
           </span>
         )}
         {node.leadTo && (
           <span className="flex items-start gap-1">
             <ArrowRight className="mt-0.5 size-3 shrink-0" />
-            <span className="line-clamp-1">导向：{node.leadTo}</span>
+            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">导向：{node.leadTo}</span>
           </span>
         )}
         {node.result && (
           <span className="flex items-start gap-1">
             <Target className="mt-0.5 size-3 shrink-0" />
-            <span className="line-clamp-1">结果：{node.result}</span>
+            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">结果：{node.result}</span>
           </span>
         )}
         {node.content && <RichText text={node.content} className="text-[11px]" fullSize />}
@@ -153,7 +153,7 @@ export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
           解决方案
         </span>
       </div>
-      <p className="mb-2 line-clamp-3 text-xs text-foreground">{sol.content}</p>
+      <p className="mb-2 line-clamp-3 break-words [overflow-wrap:anywhere] text-xs text-foreground">{sol.content}</p>
       <span
         className={cn(
           "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
