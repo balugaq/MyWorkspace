@@ -316,6 +316,7 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
               type="button"
               draggable
               onDragStart={(e) => {
+                e.stopPropagation()
                 e.dataTransfer.setData("text/plain", ch.id)
                 e.dataTransfer.effectAllowed = "move"
               }}
