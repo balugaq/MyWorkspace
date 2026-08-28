@@ -42,6 +42,11 @@ export function RichTextEditor({
     onChangeRef.current = onChange
   }, [onChange])
 
+  // 程序化升级（把裸链接换成预览卡）会改动文档并触发 onUpdate，
+  // 若此时回写 getMarkdown()，tiptap-markdown 的序列化会规范化空白，
+  // 把用户原文里的空行/空格改掉。用此标志让升级期间不回写 onChange，保护原文。
+  const suppressRef = useRef(false)
+
   const [mode, setMode] = useState<"visual" | "source">("source")
 
   const editor = useEditor(
@@ -98,10 +103,13 @@ export function RichTextEditor({
         },
       },
       onUpdate: ({ editor }) => {
+        if (suppressRef.current) return
         onChangeRef.current(getEditorMarkdown(editor))
       },
       onCreate: ({ editor }) => {
+        suppressRef.current = true
         upgradeLinkCards(editor)
+        suppressRef.current = false
       },
     },
     [],
@@ -127,8 +135,10 @@ export function RichTextEditor({
       setMode("source")
     } else {
       // 切回可视化：用最新 value 同步编辑器（源码编辑已通过 onChange 回流到 value）
+      suppressRef.current = true
       editor.commands.setContent(normalizeLegacyImg(value || ""), { emitUpdate: false })
       upgradeLinkCards(editor)
+      suppressRef.current = false
       setMode("visual")
     }
   }
