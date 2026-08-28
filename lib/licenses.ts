@@ -190,4 +190,62 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     license: "MIT",
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
+  {
+    name: "@tiptap/core",
+    author: "tiptap.dev（Philipp Kühn）",
+    description:
+      "富文本编辑器内核（ProseMirror 封装）。本项目用它接管正文编辑/渲染，作为 QQ 式「消息链」元素模型底座；仅用其核心 + 扩展，不接任何云端服务。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "@tiptap/react",
+    author: "tiptap.dev（Philipp Kühn）",
+    description: "TipTap 的 React 绑定（useEditor / EditorContent / BubbleMenu）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "@tiptap/starter-kit",
+    author: "tiptap.dev（Philipp Kühn）",
+    description: "TipTap 常用扩展集合（段落/标题/列表/引用/代码块/hr/链接/撤销等）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "@tiptap/extension-image",
+    author: "tiptap.dev（Philipp Kühn）",
+    description: "图片节点扩展；本项目在其上派生自定义图片节点以支持 IndexedDB 内文图（imgref scheme）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "@tiptap/extension-task-list",
+    author: "tiptap.dev（Philipp Kühn）",
+    description: "任务列表（checkbox 列表）节点扩展。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "@tiptap/extension-task-item",
+    author: "tiptap.dev（Philipp Kühn）",
+    description: "任务列表项节点扩展。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "tiptap-markdown",
+    author: "Agontuk",
+    description:
+      "让 TipTap 以 Markdown 字符串作为内容序列化格式（getMarkdown/setMarkdown）。本项目正文仍存 Markdown 字符串，靠本扩展让 TipTap 直接读写，避免数据格式迁移。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "ProseMirror",
+    author: "Marijn Haverbeke",
+    description: "TipTap 底层的文档模型/状态/视图引擎（prosemirror-model/state/view 等，经 @tiptap/pm 引入）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
 ]
