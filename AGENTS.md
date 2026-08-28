@@ -8,7 +8,7 @@
 
 1. 本仓库是 **Next.js 16（App Router）+ React 19 + TypeScript 严格模式** 的个人工作台（思维导图 Todo / 分类笔记 / 日历日程），所有改动必须通过 `npm run typecheck` 与 `npm run lint` **均 0 错误**后才能视为完成。
 2. 状态集中在 `lib/store.ts` 的 Zustand store（localStorage 持久化）；**禁止**到处散落本地 state 承载应属于 store 的数据。新增功能优先复用 `app/` 与 `components/` 既有模块。
-3. 本机直接在当前分支开发（个人仓库），提交信息遵循 Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `chore:`）。
+3. 本机直接在当前分支开发（个人仓库），提交信息遵循 Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `chore:`）。**严禁 AI 执行 `git commit`（提交仅由宿主执行），已有提交保留不撤回**（详见第 5 节红线第 8 条与第 6 节）。
 
 ---
 
@@ -24,7 +24,7 @@
 | 加密 | 密码保险库用 Web Crypto（PBKDF2 + AES-256-GCM），加密 blob 存 IndexedDB（`lib/vault-store.ts`），密钥驻留 `VaultProvider` 内存 |
 | 部署 | `output: "export"`，`next build` 产出 `out/`，`scripts/serve-static.mjs` 本地托管 |
 | AI 职责范围 | 功能开发、Bug 修复、组件/状态重构、构建/脚本维护、文档维护 |
-| AI 不负责 | 发布公网、推送远程（由开发者执行） |
+| AI 不负责 | 提交 git（`git commit`）、发布公网、推送远程（由宿主/开发者执行） |
 
 ---
 
@@ -71,14 +71,16 @@
 5. 禁止 Server Component 引用浏览器 API；交互组件必须 `"use client"`。
 6. 禁止叠加 base-ui 的 Radix 旧语法（`asChild` / `data-[state=open]`）。
 7. 禁止手写 ZIP 读写：备份用 `fflate`（`zipSync`/`unzipSync`），见 `lib/backup.ts`。
+8. 禁止 AI 提交 git：`git commit` 仅能由宿主（开发者）执行，AI 不得执行任何提交动作（`git add` 暂存亦须经宿主确认）。**已有的提交一律保留，不得撤回 / reset / rebase 改写历史**；AI 只负责让工作区处于可通过 `typecheck` + `lint` 的改动状态，并把建议的提交信息告知宿主。
 
 ---
 
 ## 6. Git 工作流
 
-- 本机当前分支直接开发；发布/推送远程由开发者执行。
+- 本机当前分支直接开发；**提交、发布、推送远程均由宿主（开发者）执行**（见第 5 节红线第 8 条：AI 禁止提交 git）。
 - Conventional Commits：`feat:`/`fix:`/`docs:`/`refactor:`/`chore:`（例 `feat(calendar): 新增月视图已完成统计`）。
-- 提交前：`npm run typecheck` + `npm run lint` 0 错误、未触碰第 5 节红线、只提交相关文件（不含 `node_modules/` `.next/` `out/` `.npm-cache/` `*.tsbuildinfo`）。
+- AI 交付方式：把改动留在工作区，跑通 `npm run typecheck` + `npm run lint`（0 错误），并**在回答里给出建议的提交信息（含 Conventional Commits 前缀与主题化拆分建议）**，由宿主自行 `git add` / `git commit`。
+- 提交前（宿主侧）：`npm run typecheck` + `npm run lint` 0 错误、未触碰第 5 节红线、只提交相关文件（不含 `node_modules/` `.next/` `out/` `.npm-cache/` `*.tsbuildinfo`）。
 
 ---
 
@@ -115,4 +117,4 @@
 1. **冲突即提示**：本文与代码不一致时（Next 版本、目录、校验命令、部署方式），必须主动指出并说明以代码为准还是改本文。
 2. **惯例沉淀**：产生新的可复用约定/入口点时，提议补进 [`docs/entry-points.md`](./docs/entry-points.md)（先提议，经确认后改）。
 3. **保持精简**：每条规则须能被「是否遵守」直接检查。
-4. **变更记录**：改本文后提交用 `docs(agents): ...` 并一句话概括。
+4. **变更记录**：改本文后**由宿主提交**（AI 不提交，见第 5 节红线第 8 条），提交信息用 `docs(agents): ...` 并一句话概括。
