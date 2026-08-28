@@ -12,6 +12,7 @@ import {
   Sparkles,
   GripVertical,
   Users,
+  KeyRound,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
@@ -116,6 +117,7 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
           <SectionLabel className="mt-3">工具</SectionLabel>
           <CalendarNavItem />
           <ContactNavItem />
+          <VaultNavItem />
         </nav>
       </ScrollArea>
 
@@ -213,6 +215,27 @@ function ContactNavItem() {
     >
       <Users className="size-4" />
       联系人
+    </button>
+  )
+}
+
+function VaultNavItem() {
+  const view = useWorkspace((s) => s.view)
+  const goVault = useWorkspace((s) => s.goVault)
+  const active = view === "vault"
+  return (
+    <button
+      type="button"
+      onClick={goVault}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+        active
+          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+          : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      )}
+    >
+      <KeyRound className="size-4" />
+      密码保险库
     </button>
   )
 }

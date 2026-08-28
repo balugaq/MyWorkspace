@@ -95,10 +95,10 @@
 
 | 功能 | 入口点 |
 | --- | --- |
-| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`（`useCalendarScripts` 已弃用停用） |
+| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`/`VaultWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`（`useCalendarScripts` 已弃用停用）；`VaultProvider` 在 `app/layout.tsx` 包裹 `children`（保险库会话状态/密钥驻留内存） |
 | 根布局 / 主题 / 字号 / Toaster | `app/layout.tsx` 的 `RootLayout`；`components/theme-provider.tsx` 的 `ThemeProvider` / `ThemeFromStore` / `FontSizeSetter` |
 | 全局快捷键 | `hooks/use-shortcuts.ts`：`useGlobalShortcuts()`、`matchShortcut(e, binding)`；绑定在 `settings.shortcuts`（`SHORTCUT_META`） |
-| 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`（订阅 store 算统计） |
+| 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`（订阅 store 算统计）；右下角视图名取自 `lib/types.ts` 的 `VIEW_LABEL`（新增视图须在此补一项，否则状态栏会显示成「工作台」） |
 
 ### 8.2 侧边栏（`components/app-sidebar.tsx`）
 
@@ -215,7 +215,7 @@
 | ~~日历标记脚本~~ | ~~入口 `setScriptsOpen` → `CalendarScriptsDialog`~~（已弃用停用） |
 | 配置源文本编辑 | 入口 `setConfigEditorOpen` → `ConfigEditorDialog`（`exportData`/`importData`） |
 | 图片缓存/暂存 | 入口 `setImagesOpen` → `ImageCacheDialog`（`getImageInventory`） |
-| 备份（含图） | `exportBackup()` / `importBackup()`（`lib/backup.ts`） |
+| 备份（含图 + 保险库） | `exportBackupZip()` / `importBackupZip()`（`lib/backup.ts`）；ZIP 内含 `vault.json`（AES-256 加密 blob，替换模式下恢复） |
 
 ### 8.9 图片系统
 
@@ -226,6 +226,18 @@
 | 含图备份 | `lib/backup.ts`：`exportBackup`、`importBackup`、`getImageInventory` |
 | 富文本渲染 | `components/rich-text.tsx`：`RichText`、`splitSegments`（`{{img:id}}` / `![](url)`） |
 | 富文本输入 | `components/image-rich-input.tsx`：`ImageRichInput`（粘贴/插图/预览切换） |
+
+### 8.12 密码保险库（Vault）
+
+> `name : value` 自由键值对（名称/值均由用户填写，不预设账号/密码字段）；AES-256-GCM 加密后存入 IndexedDB，主密码经 PBKDF2 派生，密钥仅驻留内存。
+
+| 功能 | 入口点 |
+| --- | --- |
+| 导航 | 侧边栏 `VaultNavItem`（`goVault`）→ `app/page.tsx` 切 `VaultWorkspace` |
+| 视图外壳 | `components/vault/vault-workspace.tsx`：`VaultWorkspace`（按 `status` 切 `CreateVault`/`UnlockVault`/`VaultHome`） |
+| 会话状态 / 加解密 | `components/vault/vault-provider.tsx`：`VaultProvider`/`useVault`（`create`/`unlock`/`lock`/`addEntry`/`updateEntry`/`removeEntry`/`changePassword`/`destroy`）；密钥存 `keyRef`/`saltRef`，操作均重加密落盘 |
+| 加密原语 | `lib/crypto.ts`：`deriveKey`（PBKDF2 150k + AES-256-GCM）、`encryptText`/`decryptText`、`generateSalt`/`generateIv` |
+| 加密数据存取 | `lib/vault-store.ts`：`loadVaultBlob`/`saveVaultBlob`/`hasVault`/`clearVault`、`exportVault`/`importVault`（base64 序列化，供备份搬运） |
 
 ### 8.10 ~~日历标记脚本~~ —— 已弃用停用
 

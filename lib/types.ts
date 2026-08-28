@@ -163,6 +163,15 @@ export const SHORTCUT_META: ShortcutMeta[] = [
   { action: "search", label: "全局搜索", description: "打开全局搜索", defaults: { modifier: true, key: "k" } },
 ]
 
+// 底部状态栏 / 导航等处使用的「视图显示名」。新增视图时只需在此补一项，
+// 避免像此前「密码保险库」那样漏改状态栏导致显示成「工作台」。
+// （workspace 视图的显示名是动态的——当前分类名或「工作台」，故不在此列出。）
+export const VIEW_LABEL: Record<"calendar" | "contacts" | "vault", string> = {
+  calendar: "日历",
+  contacts: "联系人",
+  vault: "密码保险库",
+}
+
 // 可持久化的系统设置
 export type ThemePreference = "light" | "dark" | "system"
 export type DefaultView = "workspace" | "calendar"

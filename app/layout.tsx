@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { VaultProvider } from "@/components/vault/vault-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils"
 
@@ -20,7 +21,9 @@ export default function RootLayout({
       {/* suppressHydrationWarning：屏蔽浏览器翻译/划词扩展向 <body> 注入 ai-translate-* 等属性导致的
           服务端/客户端不匹配告警（此类扩展会修改服务端 HTML，与本应用逻辑无关）。 */}
       <body suppressHydrationWarning>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <VaultProvider>{children}</VaultProvider>
+        </ThemeProvider>
         <Toaster position="top-center" />
       </body>
     </html>

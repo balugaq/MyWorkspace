@@ -6,6 +6,7 @@ import {
   blobToDataURL,
   listImages,
 } from "./image-store"
+import { exportVault, importVault } from "./vault-store"
 import { collectReferencedImageIds } from "./image-refs"
 
 /**
@@ -15,6 +16,7 @@ import { collectReferencedImageIds } from "./image-refs"
  *   workplace-backup-YYYY-MM-DD.zip
  *   ├── manifest.json      # 元信息（app / version / exportedAt）
  *   ├── workspace.json     # store 快照（分类/日历/设置，等同 localStorage 持久化数据）
+ *   ├── vault.json         # 保险库加密数据（salt/iv/ciphertext 的 base64，主密码无关，可直接搬运）
  *   └── images/<id>.<ext>  # 全部用户图片（含暂存区；已是压缩格式，level 0 直存）
  *
  * 导入：`parseBackupFile` 识别 ZIP / 旧版纯 JSON；ZIP 经 `importBackupZip`
@@ -78,6 +80,11 @@ export async function exportBackupZip(): Promise<Blob> {
     const bytes = new Uint8Array(await img.blob.arrayBuffer())
     files[`images/${img.id}.${mimeToExt(img.kind)}`] = [bytes, { level: 0 }]
   }
+  // 保险库：加密数据整体打包（base64）；不存在则跳过
+  const vault = await exportVault()
+  if (vault) {
+    files["vault.json"] = new TextEncoder().encode(JSON.stringify(vault, null, 2))
+  }
   const zip = zipSync(files)
   return new Blob([asBlobPart(zip)], { type: "application/zip" })
 }
@@ -125,6 +132,20 @@ export async function importBackupZip(
     map[id] = new Blob([asBlobPart(files[path])], { type: extToMime(ext) })
   }
   const images = await importImageBlobs(map)
+
+  // 保险库：仅在「替换」模式下整体恢复加密 blob（合并模式下加密数据无法无密码合并，保持现有库不变）
+  if (mode === "replace" && files["vault.json"]) {
+    try {
+      const vault = JSON.parse(new TextDecoder().decode(files["vault.json"])) as Parameters<
+        typeof importVault
+      >[0]
+      await importVault(vault)
+    } catch {
+      // 保险库恢复失败不应阻断其余数据导入；此处静默忽略，仅日志记录
+      console.warn("vault.json 解析或写入失败，已跳过保险库恢复")
+    }
+  }
+
   return { ok: true, images }
 }
 

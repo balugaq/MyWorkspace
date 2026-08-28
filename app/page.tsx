@@ -12,6 +12,7 @@ import { NovelWorkspace } from "@/components/novel-workspace"
 import { MindmapWorkspace } from "@/components/mindmap-workspace"
 import { CalendarWorkspace } from "@/components/calendar-workspace"
 import { ContactsWorkspace } from "@/components/contacts-workspace"
+import { VaultWorkspace } from "@/components/vault/vault-workspace"
 import { GlobalSearch } from "@/components/global-search"
 import { SettingsDialog } from "@/components/settings-dialog"
 // 日历标记脚本已弃用停用：不再引入 CalendarScriptsDialog
@@ -116,6 +117,8 @@ export default function Page() {
             <CalendarWorkspace />
           ) : view === "contacts" ? (
             <ContactsWorkspace />
+          ) : view === "vault" ? (
+            <VaultWorkspace />
           ) : activeCategory ? (
             activeCategory.template === "relation" ? (
               <MindmapWorkspace key={activeCategory.id} category={activeCategory} />

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { useWorkspace } from "@/lib/store"
-import { STATUS_META, type RelationContent } from "@/lib/types"
+import { STATUS_META, VIEW_LABEL, type RelationContent } from "@/lib/types"
 import { parse, format } from "date-fns"
 
 /**
@@ -38,11 +38,7 @@ export function StatusBar() {
         </span>
       ))}
       <span className="ml-auto hidden truncate sm:inline">
-        {view === "calendar"
-          ? "日历"
-          : view === "contacts"
-            ? "联系人"
-            : activeCategory?.name ?? "工作台"}
+        {view === "workspace" ? (activeCategory?.name ?? "工作台") : VIEW_LABEL[view]}
       </span>
     </footer>
   )
