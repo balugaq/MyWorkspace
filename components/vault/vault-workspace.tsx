@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   KeyRound,
   Plus,
@@ -21,6 +21,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import {
+  scheduleVaultClipboardClear,
+  cancelVaultClipboardClear,
+} from "@/lib/vault-clipboard"
 import {
   Dialog,
   DialogContent,
@@ -185,6 +189,21 @@ function VaultHome() {
     )
   }, [entries, query])
 
+  // 监听「用户在保险库内选中文本并 Ctrl+C / 右键复制」：若复制源自保险库值，安排 30s 后清剪贴板；
+  // 若复制发生在保险库之外，则取消待清计划，避免误清非保险库内容。
+  useEffect(() => {
+    const onCopy = (e: ClipboardEvent) => {
+      const t = e.target as Element | null
+      if (t && "closest" in t && t.closest("[data-vault-value]")) {
+        scheduleVaultClipboardClear()
+      } else {
+        cancelVaultClipboardClear()
+      }
+    }
+    window.addEventListener("copy", onCopy)
+    return () => window.removeEventListener("copy", onCopy)
+  }, [])
+
   async function submitAdd() {
     if (!name.trim()) {
       toast.error("请填写名称")
@@ -319,7 +338,8 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
   async function copy() {
     try {
       await navigator.clipboard.writeText(entry.value)
-      toast.success("已复制值")
+      scheduleVaultClipboardClear()
+      toast.success("已复制值（30 秒后自动清除剪贴板）")
     } catch {
       toast.error("复制失败")
     }
@@ -363,6 +383,7 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{entry.name}</p>
           <p
+            data-vault-value
             className={cn(
               "mt-0.5 break-words whitespace-pre-wrap text-sm text-muted-foreground",
               !revealed && "tracking-widest text-foreground/70",
