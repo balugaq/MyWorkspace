@@ -245,6 +245,22 @@ export function SettingsDialog() {
           </section>
 
           <section className="flex flex-col gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">GitHub 集成</Label>
+            <input
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={settings.githubToken}
+              placeholder="ghp_…（GitHub 个人访问令牌，可选）"
+              onChange={(e) => updateSettings({ githubToken: e.target.value })}
+              className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            />
+            <p className="text-xs text-muted-foreground">
+              GitHub 预览卡的 API 限额令牌（仅本机明文存储于 localStorage，请勿在共享环境使用）。留空则匿名访问（60 次/小时/IP）。
+            </p>
+          </section>
+
+          <section className="flex flex-col gap-2">
             <Label className="text-xs font-medium text-muted-foreground">数据备份（含图片）</Label>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1 gap-2" onClick={onExport}>

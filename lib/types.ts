@@ -189,6 +189,7 @@ export interface Settings {
   defaultView: DefaultView
   shortcuts: Record<ShortcutAction, ShortcutBinding>
   fontSize: number // 全局基础字号 rem，例如 16（对应 --font-size-base）
+  githubToken: string // GitHub 个人访问令牌（PAT），用于提升 GitHub 预览卡的 API 限额；留空则匿名（60 次/小时/IP）
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -199,5 +200,6 @@ export const DEFAULT_SETTINGS: Settings = {
     ShortcutBinding
   >,
   fontSize: 16,
+  githubToken: "",
 }
 
