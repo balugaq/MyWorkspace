@@ -150,6 +150,38 @@
     }
 }
 
+/* 富文本只读/可视化内容的默认排版样式
+ * Tailwind Preflight 会把 h1-h6、ul/ol、blockquote 等归一化成普通文本，
+ * 导致节点卡片里看起来「解析没生效」。这里显式恢复层级与间距，使用 em
+ * 单位让 heading 随父级字号缩放，兼顾 mindmap 小卡片与章节大正文。 */
+.rich-text-content > *:first-child { margin-top: 0; }
+.rich-text-content > *:last-child { margin-bottom: 0; }
+
+.rich-text-content h1 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0 0.25em; line-height: 1.25; }
+.rich-text-content h2 { font-size: 1.3em; font-weight: 600; margin: 0.45em 0 0.2em; line-height: 1.25; }
+.rich-text-content h3 { font-size: 1.15em; font-weight: 600; margin: 0.4em 0 0.15em; line-height: 1.25; }
+.rich-text-content h4 { font-size: 1.05em; font-weight: 600; margin: 0.35em 0 0.15em; line-height: 1.25; }
+.rich-text-content h5 { font-size: 1em; font-weight: 600; margin: 0.3em 0 0.1em; line-height: 1.25; }
+.rich-text-content h6 { font-size: 0.95em; font-weight: 600; color: var(--color-muted-foreground); margin: 0.3em 0 0.1em; line-height: 1.25; }
+
+.rich-text-content p { margin: 0.2em 0; }
+.rich-text-content ul { list-style-type: disc; padding-left: 1.25em; }
+.rich-text-content ol { list-style-type: decimal; padding-left: 1.25em; }
+.rich-text-content li { margin: 0.1em 0; }
+.rich-text-content ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.rich-text-content ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.35em; }
+.rich-text-content ul[data-type="taskList"] li > label { flex-shrink: 0; line-height: inherit; }
+.rich-text-content ul[data-type="taskList"] li > div { flex: 1; }
+
+.rich-text-content blockquote { border-left: 2px solid var(--color-border); padding-left: 0.6em; margin: 0.35em 0; color: var(--color-muted-foreground); font-style: italic; }
+.rich-text-content pre { background: var(--color-muted); padding: 0.4em 0.5em; border-radius: var(--radius-sm); overflow-x: auto; font-family: var(--font-mono); font-size: 0.85em; }
+.rich-text-content code { background: var(--color-muted); padding: 0.05em 0.25em; border-radius: calc(var(--radius-sm) * 0.6); font-family: var(--font-mono); font-size: 0.85em; }
+.rich-text-content pre code { background: transparent; padding: 0; }
+
+.rich-text-content hr { border: 0; border-top: 1px solid var(--color-border); margin: 0.6em 0; }
+.rich-text-content u { text-decoration: underline; text-underline-offset: 2px; }
+.rich-text-content a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
+
 /* 日历工作区固定深色风格（背景渐变由组件内提供） */
 .cal-dark {
   --color-background: oklch(1 0 0 / 5%);

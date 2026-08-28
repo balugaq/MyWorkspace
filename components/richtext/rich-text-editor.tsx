@@ -60,7 +60,7 @@ export function RichTextEditor({
       editorProps: {
         attributes: {
           class: cn(
-            "w-full min-h-0 flex-1 overflow-auto rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            "rich-text-content w-full min-h-0 flex-1 overflow-auto rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
             minHeight,
             className,
           ),
@@ -159,7 +159,7 @@ export function RichTextEditor({
           </button>
         )}
       </div>
-      {forceSource || mode === "visual" ? (
+      {!forceSource && mode === "visual" ? (
         <>
           <EditorContent editor={editor} className="w-full min-h-0 flex-1" />
           <SelectionToolbar editor={editor} />

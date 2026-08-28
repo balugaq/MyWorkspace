@@ -153,7 +153,9 @@ export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
           解决方案
         </span>
       </div>
-      <p className="mb-2 line-clamp-3 break-words [overflow-wrap:anywhere] text-xs text-foreground">{sol.content}</p>
+      <div className="mb-2 max-h-24 overflow-hidden text-xs text-foreground">
+        <RichTextView content={sol.content} className="text-xs" />
+      </div>
       <span
         className={cn(
           "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",

@@ -97,8 +97,8 @@ function GitHubCardView({ node }: NodeViewProps) {
             ))}
           </div>
           <p className="line-clamp-2 text-sm font-medium leading-snug">{data.title || url}</p>
-          {/* 保留原始链接文字，可点击跳转 */}
-          <p className="truncate text-xs text-muted-foreground">{url} ↗</p>
+          {/* 卡片为「额外」展示：原始链接文字仍清晰可见、不被卡片取代 */}
+          <p className="break-all text-xs text-primary">{url} ↗</p>
         </div>
       </a>
     </NodeViewWrapper>

@@ -26,7 +26,7 @@ export function RichTextView({
       immediatelyRender: false,
       editorProps: {
         attributes: {
-          class: cn("text-sm leading-relaxed [overflow-wrap:anywhere]", className),
+          class: cn("rich-text-content text-sm leading-relaxed [overflow-wrap:anywhere]", className),
         },
       },
     },
