@@ -122,7 +122,12 @@ export function NodeInspector({
           </div>
 
           <Field label="内容">
-            <RichTextEditor value={node.content} onChange={(v) => patch({ content: v })} />
+            <RichTextEditor
+              value={node.content}
+              onChange={(v) => patch({ content: v })}
+              forceSource
+              minHeight="min-h-48"
+            />
           </Field>
 
           <Separator />

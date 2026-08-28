@@ -31,11 +31,14 @@ export function RichTextEditor({
   onChange,
   className,
   minHeight = "min-h-24",
+  forceSource = false,
 }: {
   value: string
   onChange: (v: string) => void
   className?: string
   minHeight?: string
+  /** 仅源码编辑：隐藏「源码/可视化」切换按钮，始终渲染源码 textarea */
+  forceSource?: boolean
 }) {
   const onChangeRef = useRef(onChange)
   useEffect(() => {
@@ -146,15 +149,17 @@ export function RichTextEditor({
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-1">
       <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={toggleMode}
-          className="rounded border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          {mode === "visual" ? "源码" : "可视化"}
-        </button>
+        {!forceSource && (
+          <button
+            type="button"
+            onClick={toggleMode}
+            className="rounded border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {mode === "visual" ? "源码" : "可视化"}
+          </button>
+        )}
       </div>
-      {mode === "visual" ? (
+      {forceSource || mode === "visual" ? (
         <>
           <EditorContent editor={editor} className="w-full min-h-0 flex-1" />
           <SelectionToolbar editor={editor} />
