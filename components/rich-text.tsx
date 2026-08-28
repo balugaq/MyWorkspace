@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { getImageURL } from "@/lib/image-store"
 import { cn } from "@/lib/utils"
+import { isImgref, imgrefId } from "./richtext/normalize"
 
 /**
  * 图片渲染组件（供 Markdown 预览 `MarkdownView` 复用）。
@@ -37,6 +38,8 @@ export function StoredImg({ imgId, fullSize }: { imgId: string; fullSize?: boole
 
 export function MarkdownImg({ url, fullSize }: { url: string; fullSize?: boolean }) {
   if (!url) return null
+  // 支持 imgref:<id> 协议（本项目重构后的内文图），走 IndexedDB
+  if (isImgref(url)) return <StoredImg imgId={imgrefId(url)} fullSize={fullSize} />
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 图片为任意远程 URL，无法走 next/image
     <img src={url} alt="" className={fullSize ? IMG_FULL : cn(IMG_FIT, "max-h-56 max-w-full")} />

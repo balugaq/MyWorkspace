@@ -1,13 +1,13 @@
 import type { Category, CalendarData } from "./types"
 
-/** 从一段文本中提取所有 `{{img:<id>}}` 引用 id */
+/** 从一段文本中提取所有图片引用 id（兼容旧 `{{img:<id>}}` 与新 `![alt](imgref:<id>)` 协议） */
 export function imageIdsInText(text?: string): Set<string> {
   const set = new Set<string>()
   if (!text) return set
-  const re = /\{\{img:([^}]+)\}\}/g
+  const re = /\{\{img:([^}]+)\}\}|\(imgref:([^)\s]+)\)/g
   let m: RegExpExecArray | null
   while ((m = re.exec(text))) {
-    const id = m[1].trim()
+    const id = (m[1] ?? m[2] ?? "").trim()
     if (id) set.add(id)
   }
   return set
