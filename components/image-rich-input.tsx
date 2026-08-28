@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { ImagePlus, Eye, PencilLine } from "lucide-react"
 import { addImage, imageBlobsFromClipboard } from "@/lib/image-store"
-import { RichText } from "@/components/rich-text"
+import { MarkdownView } from "@/components/markdown-view"
 import { cn } from "@/lib/utils"
 
 /**
@@ -103,7 +103,7 @@ export function ImageRichInput({
             previewClassName,
           )}
         >
-          {value.trim() ? <RichText text={value} /> : <span className="text-muted-foreground">（空白）</span>}
+          {value.trim() ? <MarkdownView text={value} /> : <span className="text-muted-foreground">（空白）</span>}
         </div>
       ) : (
         <textarea

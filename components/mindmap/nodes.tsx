@@ -15,7 +15,7 @@ import {
 import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { RichText } from "@/components/rich-text"
+import { MarkdownView } from "@/components/markdown-view"
 
 const STATUS_STYLE: Record<SolutionStatus, string> = {
   doing: "bg-solution text-solution-foreground",
@@ -102,7 +102,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
             <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">结果：{node.result}</span>
           </span>
         )}
-        {node.content && <RichText text={node.content} className="text-[11px]" fullSize />}
+        {node.content && <MarkdownView text={node.content} className="text-[11px]" fullSize />}
       </div>
       {(node.tags && node.tags.length > 0) || node.dueDate || node.longTerm ? (
         <div className="flex flex-wrap items-center gap-1 border-t px-3 py-1.5">
