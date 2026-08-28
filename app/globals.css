@@ -182,6 +182,89 @@
 .rich-text-content u { text-decoration: underline; text-underline-offset: 2px; }
 .rich-text-content a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
 
+/* 代码块语法高亮配色：基于 GitHub 浅/深两套调色板，用 CSS 变量随主题切换。
+ * CodeBlockLowlight 会把 token 包成 .hljs-* 的 <span>，这里只负责上色。 */
+:root {
+  --hl-comment: #6e7781;
+  --hl-keyword: #cf222e;
+  --hl-func: #8250df;
+  --hl-attr: #0550ae;
+  --hl-string: #0a3069;
+  --hl-builtin: #953800;
+  --hl-name: #116329;
+  --hl-section: #0550ae;
+  --hl-base: #24292e;
+  --hl-add-bg: #ddf4e4;
+  --hl-add-fg: #116329;
+  --hl-del-bg: #ffebe9;
+  --hl-del-fg: #82071e;
+}
+.dark {
+  --hl-comment: #8b949e;
+  --hl-keyword: #ff7b72;
+  --hl-func: #d2a8ff;
+  --hl-attr: #79c0ff;
+  --hl-string: #a5d6ff;
+  --hl-builtin: #ffa657;
+  --hl-name: #7ee787;
+  --hl-section: #79c0ff;
+  --hl-base: #c9d1d9;
+  --hl-add-bg: #033a16;
+  --hl-add-fg: #aff5b4;
+  --hl-del-bg: #67060c;
+  --hl-del-fg: #ffdcd7;
+}
+
+.rich-text-content .hljs-comment,
+.rich-text-content .hljs-quote,
+.rich-text-content .hljs-code,
+.rich-text-content .hljs-formula { color: var(--hl-comment); font-style: italic; }
+
+.rich-text-content .hljs-doctag,
+.rich-text-content .hljs-keyword,
+.rich-text-content .hljs-template-tag,
+.rich-text-content .hljs-template-variable,
+.rich-text-content .hljs-type,
+.rich-text-content .hljs-variable.language_ { color: var(--hl-keyword); }
+
+.rich-text-content .hljs-title,
+.rich-text-content .hljs-title.class_,
+.rich-text-content .hljs-title.class_.inherited__,
+.rich-text-content .hljs-title.function_ { color: var(--hl-func); }
+
+.rich-text-content .hljs-attr,
+.rich-text-content .hljs-attribute,
+.rich-text-content .hljs-literal,
+.rich-text-content .hljs-meta,
+.rich-text-content .hljs-number,
+.rich-text-content .hljs-operator,
+.rich-text-content .hljs-variable,
+.rich-text-content .hljs-selector-attr,
+.rich-text-content .hljs-selector-class,
+.rich-text-content .hljs-selector-id,
+.rich-text-content .hljs-params,
+.rich-text-content .hljs-property { color: var(--hl-attr); }
+
+.rich-text-content .hljs-regexp,
+.rich-text-content .hljs-string,
+.rich-text-content .hljs-meta .hljs-string,
+.rich-text-content .hljs-link { color: var(--hl-string); }
+
+.rich-text-content .hljs-built_in,
+.rich-text-content .hljs-symbol { color: var(--hl-builtin); }
+
+.rich-text-content .hljs-name,
+.rich-text-content .hljs-selector-tag,
+.rich-text-content .hljs-selector-pseudo,
+.rich-text-content .hljs-bullet { color: var(--hl-name); }
+
+.rich-text-content .hljs-section { color: var(--hl-section); font-weight: 700; }
+.rich-text-content .hljs-addition { color: var(--hl-add-fg); background-color: var(--hl-add-bg); }
+.rich-text-content .hljs-deletion { color: var(--hl-del-fg); background-color: var(--hl-del-bg); }
+.rich-text-content .hljs-emphasis { font-style: italic; }
+.rich-text-content .hljs-strong { font-weight: 700; }
+.rich-text-content .hljs-subst { color: var(--hl-base); }
+
 /* 日历工作区固定深色风格（背景渐变由组件内提供） */
 .cal-dark {
   --color-background: oklch(1 0 0 / 5%);

@@ -3,10 +3,15 @@
 import StarterKit from "@tiptap/starter-kit"
 import TaskList from "@tiptap/extension-task-list"
 import TaskItem from "@tiptap/extension-task-item"
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight"
+import { createLowlight, common } from "lowlight"
 import { Markdown } from "tiptap-markdown"
 import { StoredImage } from "./stored-image"
 import { GitHubCard } from "./github-card"
 import { BilibiliCard } from "./bilibili-card"
+
+// 语法高亮引擎：lowlight（基于 highlight.js），common 含约 37 种常用语言。
+const lowlight = createLowlight(common)
 
 /**
  * 富文本编辑/渲染共享的扩展集（编辑态与只读态共用，保证交互与渲染一致）。
@@ -21,11 +26,13 @@ import { BilibiliCard } from "./bilibili-card"
  */
 export const richTextExtensions = [
   StarterKit.configure({
-    // 保留默认，链接已内置
+    // 关闭内置 codeBlock，改用带语法高亮的 CodeBlockLowlight
+    codeBlock: false,
   }),
   StoredImage,
   TaskList,
   TaskItem.configure({ nested: true }),
+  CodeBlockLowlight.configure({ lowlight }),
   GitHubCard,
   BilibiliCard,
   Markdown.configure({

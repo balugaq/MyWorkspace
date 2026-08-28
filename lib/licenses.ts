@@ -234,6 +234,27 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
   {
+    name: "@tiptap/extension-code-block-lowlight",
+    author: "tiptap.dev（Philipp Kühn）",
+    description: "带语法高亮的代码块扩展，把 highlight.js（经 lowlight）的 token 着色接入代码块节点视图。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "lowlight",
+    author: "Titus Wormer",
+    description: "基于 highlight.js 的语法高亮引擎，被 @tiptap/extension-code-block-lowlight 用来做代码着色（common 含约 37 种常用语言）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "highlight.js",
+    author: "highlight.js core team",
+    description: "底层语法定义与 tokenizer，被 lowlight 依赖用于识别各语言 token。",
+    license: "BSD-3-Clause",
+    licenseUrl: "https://opensource.org/licenses/BSD-3-Clause",
+  },
+  {
     name: "tiptap-markdown",
     author: "Agontuk",
     description:
