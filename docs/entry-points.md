@@ -31,7 +31,7 @@
 | --- | --- |
 | 工作区分发（概览 / 编辑） | `NovelWorkspace`（按 `activeItemId` 切 `ChapterOverview` / `ChapterEditor`） |
 | 概览网格 + 滚动位置记忆 | `ChapterOverview`（用 `scrollRef` 经 viewport 恢复/保存 `scrollTop`） |
-| 章节编辑器 | `ChapterEditor`（标题、正文 `ImageRichInput`、标签 `TagPicker`、完成 `Checkbox`、上/下篇 `updateChapter`/`removeChapter`） |
+| 章节编辑器 | `ChapterEditor`（标题、正文 `RichTextEditor`、标签 `TagPicker`、完成 `Checkbox`、上/下篇 `updateChapter`/`removeChapter`） |
 | 列表卡片预览隐藏图片 token | `stripImageTokens`（novel-workspace 内） |
 
 ## 8.4 思维导图（`components/mindmap-workspace.tsx` + `components/mindmap/*`）— 细到小功能
@@ -67,7 +67,7 @@
 | 功能 | 入口点 |
 | --- | --- |
 | 标题 / 原因 cause / 导向 leadTo / 结果 result | `patch({ title | cause | leadTo | result })`（`updateNode`） |
-| 内容（防抖 + 粘贴图片） | `DebouncedTextarea`（含 `addImage` + `{{img:<id>}}` 插入；粘贴可一次插入多张，`imageBlobsFromClipboard` 返回 `Blob[]`） |
+| 内容（富文本 + 粘贴图片 + GitHub 卡） | `RichTextEditor`（TipTap v3；粘贴图片经 `lib/image-store.ts` 落库并插入 `imgref:<id>` 节点；粘贴 GitHub Issue/PR 链接自动升级为 `githubCard` 节点；详见 §8.13） |
 | 标签（共用） | `TagPicker`（`patch({ tags })`） |
 | 完成 | `patch({ done })`（`Checkbox`「已完成」） |
 | 在图里隐藏 | `patch({ hidden })`（`Checkbox`「在图里隐藏」；隐藏后仅列表显示） |
@@ -108,7 +108,7 @@
 | 月视图 + 导航 | `CalendarWorkspace`（固定月视图、`shift`=addMonths、`days` 当月完整网格、回今天按钮（离开当月出现）） |
 | 日期格装饰 | 单元格内：日期数字分层配色（today/选中/周末红/生日绿/放假日红/上班日蓝/节气紫）、右上角「假/班/🎂」角标、底部节日名或 `M/d` 小字、顶部笔记圆点、待办截止计数徽标；内置要素（节气/法定假日/调休）来自 `lib/festivals.ts` 的 `builtinChinaFestivals()` |
 | 切月动画 | 网格容器 `key={format(current,"yyyy-MM")}` 重建触发淡入；纯淡入（非 SimpleCalendar 的滑入滑出） |
-| 当日详情 | `DayDetail`（笔记 `ImageRichInput` → `setDayNote`；待办 `addCalendarTodo/toggleCalendarTodo/removeCalendarTodo`；事件 `addCalendarEvent/removeCalendarEvent`；生日列表 + 农历日期） |
+| 当日详情 | `DayDetail`（笔记 `RichTextEditor` → `setDayNote`；待办 `addCalendarTodo/toggleCalendarTodo/removeCalendarTodo`；事件 `addCalendarEvent/removeCalendarEvent`；生日列表 + 农历日期） |
 | 思维图截止任务显示 | `collectDueNodes`（`lib/deadlines.ts`）+ 日格徽标 + 详情跳转（`setActiveCategory`/`setActiveItem`） |
 | 内置中国日历要素 | `lib/festivals.ts` 的 `builtinChinaFestivals(year,month,day)`：返回二十四节气(`kind:"jieqi"`)与法定假日/调休(`kind:"holiday"`)，与 `custom_festivals.yml` 用户节日在 `calendar-workspace.tsx` 按 `[...builtin, ...userFests]` 合并（内置优先，shortHint 取首项）；`HolidayUtil` 仅覆盖约 2010–2026，空窗由 YAML 的 `holiday_override`/`workday_override` 兜底（见 `docs/custom-data-docs.md` 1.4） |
 | 节日/生日数据 | 只读加载 `public/custom_festivals.yml`、`public/address_book.yml`（见 `docs/custom-data-docs.md`） |
@@ -141,11 +141,29 @@
 | 功能 | 入口点 |
 | --- | --- |
 | IndexedDB 存储 | `lib/image-store.ts`：`addImage`（**内容寻址**：id = blob 的 SHA-256，相同字节复用同一 id 并解除暂存）、`getImageURL`、`getImageBlob`、`deleteImage`、`listImages`、`setStaged`、`exportImages`、`importImages`、`imageBlobsFromClipboard`（一次粘贴/多选可返回多张图片 blob） |
-| 引用扫描 | `lib/image-refs.ts`：`imageIdsInText`、`collectReferencedImageIds` |
+| 引用扫描 | `lib/image-refs.ts`：`imageIdsInText`、`collectReferencedImageIds`（正则同时匹配旧 `{{img:id}}` 与新 `imgref:id` 两种协议） |
 | 含图备份 | `lib/backup.ts`：`exportBackup`、`importBackup`、`getImageInventory` |
-| 图片渲染组件 | `components/rich-text.tsx`：`StoredImg`（`{{img:id}}` → IndexedDB blob URL）、`MarkdownImg`（`![](url)` 远程图）。两者被 `MarkdownView` 复用 |
-| Markdown 预览渲染 | `components/markdown-view.tsx`：`MarkdownView`。**只用 `marked` 的 `lexer` 做解析，不接外部呈现库**，token 树全部由本组件手工渲染成 React 元素；`{{img:}}` 在 text token 内由 `splitImg` 拆分后走 `StoredImg`。支持标题/段落/粗斜体/删除线/行内码/代码块/引用/有序无序列表/任务列表/分割线/链接/图片；`html` token 一律不渲染，`safeHref` 只放行 http(s)/mailto/tel/锚点/相对路径/`data:image/`。另有 `clamp` 模式（`renderClamped`）：忽略块级结构、把标题/列表/引用/代码块的文本压平成一段连贯文字，供列表卡片两行截断预览用 |
-| 富文本输入 | `components/image-rich-input.tsx`：`ImageRichInput`（粘贴/插图/预览切换）；预览容器须 `min-h-0 flex-1 overflow-auto` 才能在 flex 列中滚动多图，否则被祖先 `overflow-hidden` 裁切 |
+| 图片渲染组件 | `components/rich-text.tsx`：`StoredImg`（`imgref:id` → IndexedDB blob URL）、`MarkdownImg`（`![](url)` 远程图，识别 `isImgref` 时回退 `StoredImg`） |
+| 旧协议兼容 | `components/richtext/normalize.ts`：`normalizeLegacyImg(md)` 把遗留 `{{img:<id>}}` 在读取时归一为 `![图片](imgref:<id>)`；导出 `IMGREF_PREFIX` / `isImgref` / `imgrefId` |
+
+## 8.13 富文本 / 思维导图节点卡片（TipTap v3）
+
+> 正文（章节 / 思维图节点 / 日历笔记）统一为 **Markdown 字符串** 存储，编辑与预览共用 TipTap v3 + `tiptap-markdown` 扩展，往返保持 Markdown 串（无需数据迁移）。旧 `{{img:<id>}}` 在读取时由 `normalizeLegacyImg` 归一为新协议。
+
+| 功能 | 入口点 |
+| --- | --- |
+| 共享扩展集 | `components/richtext/extensions.ts`：`richTextExtensions` = `StarterKit` + `StoredImage`（重写 image 节点，渲染 `imgref:`，NodeView 走 IndexedDB）+ `TaskList` + `TaskItem` + `GitHubCard`（atom 节点）+ `Markdown`（`html:false`/`breaks:true`/`transformPastedText`） |
+| 编辑器（受控） | `components/richtext/rich-text-editor.tsx`：`RichTextEditor`（`value`=Markdown 串、`onChange`→`getEditorMarkdown(editor)`）；`immediatelyRender:false`，`onCreate`/`useEffect` 运行 `upgradeGithubUrls`；`handlePaste` 拦截 GitHub 链接（插入卡片）与图片 blob（落库插入 `imgref:` 节点）；外部 `value` 变化经 `setContent(..., {emitUpdate:false})` 同步 |
+| 只读预览 | `components/richtext/rich-text-view.tsx`：`RichTextView`（`editable:false`，同一扩展集），用于节点卡片/概览 |
+| 选区气泡工具条 | `components/richtext/selection-toolbar.tsx`：`SelectionToolbar`（`BubbleMenu`，复制纯文本 / X 复制富文本 HTML / 全选 / 引用；`shouldShow` 对 image/githubCard 选区隐藏） |
+| 存储图片节点 | `components/richtext/stored-image.tsx`：`StoredImage` = `Image.extend({name:"image"})` + `ReactNodeViewRenderer`，`isImgref(src)` 时渲染 `StoredImg`，否则 `MarkdownImg` |
+| GitHub 预览卡（数据层） | `lib/gh-card.ts`：`parseGithubUrl` / `isGithubIssueUrl` / `getOgImageSrc(ogUrl)`（OG 直链 + IndexedDB blob 缓存，零 API、无 CORS）/ `fetchGithubCard(url, token)`（REST `api.github.com` + `Authorization: Bearer <token>`，IndexedDB 缓存 `CACHE_MS=6h`，降级友好）；独立库 `workspace-gh`（stores `cards`/`imgs`） |
+| GitHub 预览卡（节点） | `components/richtext/github-card.tsx`：`GitHubCard`（atom 节点，attrs `url`）；NodeView 拉卡片数据 + OG 图，渲染缩略图 + 标题 + 状态徽标 + 标签 + GitHub 链接；`addStorage().markdown.serialize` 输出裸 URL（重加载经 `upgradeGithubUrls` 再次成卡） |
+| GitHub 链接升级 | `components/richtext/upgrade.ts`：`upgradeGithubUrls(editor)` 扫描文档裸 `github.com/.../(issues|pull)/\d+` 文本，替换为 `githubCard` 节点（带 guard 上限，防死循环；本环境 prosemirror `Node` 推断异常，回调形参桥接为 `any`） |
+| 图片协议重构 | 旧 `{{img:<id>}}` → 标准 Markdown `![alt](imgref:<id>)`（`imgref` scheme 指向 IndexedDB）；读取时 `normalizeLegacyImg` 兼容，无需批量迁移 |
+| 设置项 | `components/settings-dialog.tsx` 新增「GitHub 集成」区：`settings.githubToken`（明文存 localStorage，仅本地预览用途，已注明风险）；`lib/types.ts` 的 `Settings.githubToken` / `DEFAULT_SETTINGS.githubToken` |
+
+> 注：`components/markdown-view.tsx`（`MarkdownView`，基于 `marked` lexer 的手工渲染）仍保留，被 `components/mindmap/nodes.tsx` 的 `RichText` 复用渲染节点卡片（避免大量编辑器实例）；未来可逐步迁移到 `RichTextView`。`components/image-rich-input.tsx`、`components/rich-text.tsx` 中 `DebouncedTextarea` 已删除，富文本入口统一为 `RichTextEditor`。
 
 ## 8.10 密码保险库（Vault）
 

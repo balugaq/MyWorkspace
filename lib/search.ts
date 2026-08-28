@@ -1,10 +1,15 @@
 import type { Category, CalendarData, SearchResult, SearchScope } from "./types"
 
 function makeSnippet(text: string, query: string, len = 60): string {
-  const idx = text.toLowerCase().indexOf(query.toLowerCase())
-  if (idx === -1) return text.slice(0, len)
+  // 去掉图片 token（{{img:}} 与 ![alt](url)/imgref:），避免搜索摘要露出乱码
+  const clean = text
+    .replace(/\{\{img:[^}]+\}\}/g, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\s{2,}/g, " ")
+  const idx = clean.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return clean.slice(0, len)
   const start = Math.max(0, idx - 20)
-  return (start > 0 ? "…" : "") + text.slice(start, start + len)
+  return (start > 0 ? "…" : "") + clean.slice(start, start + len)
 }
 
 export function runSearch(

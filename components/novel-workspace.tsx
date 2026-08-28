@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { TagPicker } from "@/components/tag-picker"
-import { ImageRichInput } from "@/components/image-rich-input"
+import { RichTextEditor } from "@/components/richtext/rich-text-editor"
 import { MarkdownView } from "@/components/markdown-view"
 import { cn } from "@/lib/utils"
 
@@ -229,11 +229,9 @@ function ChapterEditor({
       <Separator className="my-4" />
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        <ImageRichInput
+        <RichTextEditor
           value={chapter.content}
           onChange={(v) => updateChapter(category.id, chapter.id, { content: v })}
-          placeholder="在此书写内容…（可 Ctrl+V 粘贴图片）"
-          minHeight="min-h-[45vh]"
           className={cn(isNovel ? "font-serif text-lg" : "text-base")}
         />
       </div>

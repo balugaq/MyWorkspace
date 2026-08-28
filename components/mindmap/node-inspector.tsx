@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { Trash2, X, Lightbulb, Tag, CalendarClock, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
-import { addImage, imageBlobsFromClipboard } from "@/lib/image-store"
+import { RichTextEditor } from "@/components/richtext/rich-text-editor"
 import type { Category, MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
@@ -122,7 +122,7 @@ export function NodeInspector({
           </div>
 
           <Field label="内容">
-            <DebouncedTextarea value={node.content} onCommit={(v) => patch({ content: v })} />
+            <RichTextEditor value={node.content} onChange={(v) => patch({ content: v })} />
           </Field>
 
           <Separator />
@@ -322,48 +322,3 @@ function Field({
 }
 
 /** 本地受控 + 短防抖的文本域：避免每次按键触发 store 更新导致画布整体重渲染卡顿 */
-function DebouncedTextarea({
-  value,
-  onCommit,
-}: {
-  value: string
-  onCommit: (v: string) => void
-}) {
-  const [local, setLocal] = useState(value)
-  const ref = useRef<HTMLTextAreaElement>(null)
-  useEffect(() => {
-    setLocal(value)
-  }, [value])
-
-  useEffect(() => {
-    if (local === value) return
-    const t = setTimeout(() => onCommit(local), 400)
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [local])
-
-  async function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const blobs = imageBlobsFromClipboard(e.clipboardData)
-    if (blobs.length === 0) return
-    e.preventDefault()
-    const ids = await Promise.all(blobs.map((b) => addImage(b, b.type)))
-    const tokens = ids.map((id) => `{{img:${id}}}`).join("")
-    const el = ref.current
-    const st = el?.selectionStart ?? local.length
-    const en = el?.selectionEnd ?? local.length
-    setLocal(local.slice(0, st) + tokens + local.slice(en))
-    onCommit(local.slice(0, st) + tokens + local.slice(en))
-  }
-
-  return (
-    <textarea
-      ref={ref}
-      value={local}
-      onChange={(e) => setLocal(e.target.value)}
-      onPaste={onPaste}
-      onBlur={() => onCommit(local)}
-      placeholder="补充说明…（可 Ctrl+V 粘贴图片）"
-      className="min-h-16 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-    />
-  )
-}

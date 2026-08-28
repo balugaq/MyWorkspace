@@ -28,7 +28,7 @@ import { festivalsForDate, builtinChinaFestivals, type Festival, type FestivalsF
 import { birthdaysOn } from "@/lib/birthday"
 import { lunarTextForSolar } from "@/lib/lunar"
 import { dayShortHint } from "@/lib/day-hint"
-import { ImageRichInput } from "@/components/image-rich-input"
+import { RichTextEditor } from "@/components/richtext/rich-text-editor"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -547,10 +547,9 @@ function DayDetail({
               <StickyNote className="size-3.5" />
               今日笔记
             </h3>
-            <ImageRichInput
+            <RichTextEditor
               value={day.note}
               onChange={(v) => setDayNote(dateKey, v)}
-              placeholder="记录今天的想法、总结…（可 Ctrl+V 粘贴图片）"
               minHeight="min-h-24"
             />
           </section>
