@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from "@tiptap/react"
 import { useEffect } from "react"
 import { richTextExtensions } from "./extensions"
 import { normalizeLegacyImg } from "./normalize"
-import { upgradeGithubUrls } from "./upgrade"
+import { upgradeLinkCards } from "./upgrade"
 import { cn } from "@/lib/utils"
 
 /**
@@ -36,7 +36,7 @@ export function RichTextView({
   useEffect(() => {
     if (!editor) return
     editor.commands.setContent(normalizeLegacyImg(content || ""), { emitUpdate: false })
-    upgradeGithubUrls(editor)
+    upgradeLinkCards(editor)
   }, [content, editor])
 
   if (!editor) return null

@@ -6,6 +6,7 @@ import TaskItem from "@tiptap/extension-task-item"
 import { Markdown } from "tiptap-markdown"
 import { StoredImage } from "./stored-image"
 import { GitHubCard } from "./github-card"
+import { BilibiliCard } from "./bilibili-card"
 
 /**
  * 富文本编辑/渲染共享的扩展集（编辑态与只读态共用，保证交互与渲染一致）。
@@ -15,6 +16,7 @@ import { GitHubCard } from "./github-card"
  *  - StoredImage：自研图片节点，支持 imgref:<id>（IndexedDB 内文图）与远程图。
  *  - TaskList / TaskItem：任务列表（checkbox）。
  *  - GitHubCard：GitHub Issue/PR 预览卡节点。
+ *  - BilibiliCard：B 站视频预览卡节点（iframe 预览 + 链接）。
  *  - Markdown：让正文以 markdown 字符串序列化（getMarkdown/setMarkdown），正文仍是 markdown，无需数据格式迁移。
  */
 export const richTextExtensions = [
@@ -25,6 +27,7 @@ export const richTextExtensions = [
   TaskList,
   TaskItem.configure({ nested: true }),
   GitHubCard,
+  BilibiliCard,
   Markdown.configure({
     html: false, // 不解析原始 HTML（XSS 防护，沿用原 safeHref 思路）
     tightLists: true,

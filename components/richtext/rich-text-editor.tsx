@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react"
 import { richTextExtensions } from "./extensions"
 import { normalizeLegacyImg } from "./normalize"
 import { SelectionToolbar } from "./selection-toolbar"
-import { upgradeGithubUrls } from "./upgrade"
+import { upgradeLinkCards } from "./upgrade"
 import { isGithubIssueUrl } from "@/lib/gh-card"
+import { isBilibiliUrl } from "@/lib/bilibili"
 import { addImage } from "@/lib/image-store"
 import { cn } from "@/lib/utils"
 
@@ -41,7 +42,7 @@ export function RichTextEditor({
     onChangeRef.current = onChange
   }, [onChange])
 
-  const [mode, setMode] = useState<"visual" | "source">("visual")
+  const [mode, setMode] = useState<"visual" | "source">("source")
 
   const editor = useEditor(
     {
@@ -60,6 +61,11 @@ export function RichTextEditor({
           const text = event.clipboardData?.getData("text/plain")?.trim()
           if (text && isGithubIssueUrl(text)) {
             const card = view.state.schema.nodes.githubCard.create({ url: text })
+            view.dispatch(view.state.tr.replaceSelectionWith(card))
+            return true
+          }
+          if (text && isBilibiliUrl(text)) {
+            const card = view.state.schema.nodes.bilibiliCard.create({ url: text })
             view.dispatch(view.state.tr.replaceSelectionWith(card))
             return true
           }
@@ -95,21 +101,24 @@ export function RichTextEditor({
         onChangeRef.current(getEditorMarkdown(editor))
       },
       onCreate: ({ editor }) => {
-        upgradeGithubUrls(editor)
+        upgradeLinkCards(editor)
       },
     },
     [],
   )
 
-  // 外部 value 变化（切换章节/合并导入等）同步进编辑器，避免受控回环
+  // 外部 value 变化（切换章节/合并导入等）同步进编辑器，避免受控回环。
+  // 源码模式下编辑器被隐藏且以 textarea 为唯一事实源，跳过此同步——
+  // 否则 upgradeLinkCards 会改动隐藏编辑器并触发 onChange，把用户刚输入的
+  // 回车/空格等被 markdown 序列化规范掉的空白「回写」掉，导致无法输入。
   useEffect(() => {
-    if (!editor) return
+    if (!editor || mode === "source") return
     const current = getEditorMarkdown(editor)
     if (value !== current) {
       editor.commands.setContent(normalizeLegacyImg(value || ""), { emitUpdate: false })
-      upgradeGithubUrls(editor)
+      upgradeLinkCards(editor)
     }
-  }, [value, editor])
+  }, [value, editor, mode])
 
   if (!editor) return null
 
@@ -119,7 +128,7 @@ export function RichTextEditor({
     } else {
       // 切回可视化：用最新 value 同步编辑器（源码编辑已通过 onChange 回流到 value）
       editor.commands.setContent(normalizeLegacyImg(value || ""), { emitUpdate: false })
-      upgradeGithubUrls(editor)
+      upgradeLinkCards(editor)
       setMode("visual")
     }
   }

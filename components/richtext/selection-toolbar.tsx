@@ -51,7 +51,12 @@ export function SelectionToolbar({ editor }: { editor: Editor }) {
       editor={editor}
       shouldShow={({ editor: ed, state }) => {
         const { from, to } = state.selection
-        return from !== to && !ed.isActive("image") && !ed.isActive("githubCard")
+        return (
+          from !== to &&
+          !ed.isActive("image") &&
+          !ed.isActive("githubCard") &&
+          !ed.isActive("bilibiliCard")
+        )
       }}
     >
       <div className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 shadow-md">
