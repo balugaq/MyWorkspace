@@ -1,0 +1,66 @@
+"use client"
+
+import type { Editor } from "@tiptap/react"
+
+const GH_RE = /https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/\d+/i
+
+/**
+ * 把正文里「裸的 GitHub Issue/PR 链接文本」升级为 githubCard 节点。
+ *
+ * 因为 githubCard 在 markdown 里序列化为裸 URL 文本（见 github-card.tsx），
+ * 重新加载/粘贴含链接的内容时需要这一步才能再次呈现预览卡。
+ * 文本节点被替换成卡片后不再含裸 URL，因此不会死循环；加 guard 上限防意外。
+ *
+ * 注：本环境下 prosemirror 的 Node 类型被推断为 never（@tiptap/pm 类型解析问题），
+ * 因此 descendants 回调形参在此处桥接为 any（仅此一处），原始 text/size 直接以基础字段捕获。
+ */
+export function upgradeGithubUrls(editor: Editor): void {
+  const cardType = (
+    editor.schema.nodes as Record<string, { create: (attrs: Record<string, unknown>) => unknown }>
+  ).githubCard
+  if (!cardType) return
+  let guard = 0
+  while (guard++ < 200) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let found: any = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(editor.state.doc as any).descendants((node: any, pos: number) => {
+      if (found) return false
+      if (node.isText) {
+        const txt: string = node.textContent
+        const m = txt.match(GH_RE)
+        if (m && m.index !== undefined) {
+          found = {
+            pos,
+            text: txt,
+            size: node.nodeSize,
+            start: m.index,
+            end: m.index + m[0].length,
+            url: m[0],
+          }
+        }
+      }
+      return true
+    })
+    if (!found) break
+    const { pos, text, size, start, end, url } = found as {
+      pos: number
+      text: string
+      size: number
+      start: number
+      end: number
+      url: string
+    }
+    const before = text.slice(0, start)
+    const after = text.slice(end)
+    const nodes: unknown[] = []
+    if (before) nodes.push(editor.schema.text(before))
+    nodes.push(cardType.create({ url }))
+    if (after) nodes.push(editor.schema.text(after))
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: pos, to: pos + size }, nodes as never)
+      .run()
+  }
+}
