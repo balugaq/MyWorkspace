@@ -152,18 +152,19 @@
 
 | 功能 | 入口点 |
 | --- | --- |
-| 共享扩展集 | `components/richtext/extensions.ts`：`richTextExtensions` = `StarterKit` + `StoredImage`（重写 image 节点，渲染 `imgref:`，NodeView 走 IndexedDB）+ `TaskList` + `TaskItem` + `GitHubCard`（atom 节点）+ `Markdown`（`html:false`/`breaks:true`/`transformPastedText`） |
-| 编辑器（受控） | `components/richtext/rich-text-editor.tsx`：`RichTextEditor`（`value`=Markdown 串、`onChange`→`getEditorMarkdown(editor)`）；`immediatelyRender:false`，`onCreate`/`useEffect` 运行 `upgradeGithubUrls`；`handlePaste` 拦截 GitHub 链接（插入卡片）与图片 blob（落库插入 `imgref:` 节点）；外部 `value` 变化经 `setContent(..., {emitUpdate:false})` 同步 |
+| 共享扩展集 | `components/richtext/extensions.ts`：`richTextExtensions` = `StarterKit` + `StoredImage`（重写 image 节点，渲染 `imgref:`，NodeView 走 IndexedDB）+ `TaskList` + `TaskItem` + `GitHubCard`（atom 节点）+ `BilibiliCard`（atom 节点）+ `Markdown`（`html:false`/`breaks:true`/`transformPastedText`） |
+| 编辑器（受控） | `components/richtext/rich-text-editor.tsx`：`RichTextEditor`（`value`=Markdown 串、`onChange`→`getEditorMarkdown(editor)`）；**默认源码模式**（可编辑处一律显示原始 Markdown），右上角「源码/可视化」切换；`immediatelyRender:false`，`onCreate`/`useEffect` 运行 `upgradeLinkCards`；`handlePaste` 拦截 GitHub/B 站链接（插入卡片）与图片 blob（落库插入 `imgref:` 节点）；**外部 `value` 同步在源码模式下跳过**（否则升级卡会经 `onChange` 回写，把刚输入的回车/空格等被 markdown 规范掉的空白抹掉） |
 | 只读预览 | `components/richtext/rich-text-view.tsx`：`RichTextView`（`editable:false`，同一扩展集），用于节点卡片/概览 |
-| 选区气泡工具条 | `components/richtext/selection-toolbar.tsx`：`SelectionToolbar`（`BubbleMenu`，复制纯文本 / X 复制富文本 HTML / 全选 / 引用；`shouldShow` 对 image/githubCard 选区隐藏） |
+| 选区气泡工具条 | `components/richtext/selection-toolbar.tsx`：`SelectionToolbar`（`BubbleMenu`，复制纯文本 / X 复制富文本 HTML / 全选 / 引用；`shouldShow` 对 image/githubCard/bilibiliCard 选区隐藏） |
 | 存储图片节点 | `components/richtext/stored-image.tsx`：`StoredImage` = `Image.extend({name:"image"})` + `ReactNodeViewRenderer`，`isImgref(src)` 时渲染 `StoredImg`，否则 `MarkdownImg` |
 | GitHub 预览卡（数据层） | `lib/gh-card.ts`：`parseGithubUrl` / `isGithubIssueUrl` / `getOgImageSrc(ogUrl)`（OG 直链 + IndexedDB blob 缓存，零 API、无 CORS）/ `fetchGithubCard(url, token)`（REST `api.github.com` + `Authorization: Bearer <token>`，IndexedDB 缓存 `CACHE_MS=6h`，降级友好）；独立库 `workspace-gh`（stores `cards`/`imgs`） |
-| GitHub 预览卡（节点） | `components/richtext/github-card.tsx`：`GitHubCard`（atom 节点，attrs `url`）；NodeView 拉卡片数据 + OG 图，渲染缩略图 + 标题 + 状态徽标 + 标签 + GitHub 链接；`addStorage().markdown.serialize` 输出裸 URL（重加载经 `upgradeGithubUrls` 再次成卡） |
-| GitHub 链接升级 | `components/richtext/upgrade.ts`：`upgradeGithubUrls(editor)` 扫描文档裸 `github.com/.../(issues|pull)/\d+` 文本，替换为 `githubCard` 节点（带 guard 上限，防死循环；本环境 prosemirror `Node` 推断异常，回调形参桥接为 `any`） |
+| GitHub 预览卡（节点） | `components/richtext/github-card.tsx`：`GitHubCard`（atom 节点，attrs `url`）；**opengraph 风格**：顶部 OG 图 banner + 标题 + 状态徽标 + 标签 + **底部保留可点击的原始链接文字**；`addStorage().markdown.serialize` 输出裸 URL（重加载经 `upgradeLinkCards` 再次成卡） |
+| B 站预览卡 | `lib/bilibili.ts`：`parseBilibiliUrl`（提取 BV 号；`b23.tv/xxx` 短链无法解析 BV 则降级）/ `isBilibiliUrl` / `bilibiliEmbedSrc`（官方嵌入播放器 `player.bilibili.com`，`autoplay=0&danmaku=0`）；`components/richtext/bilibili-card.tsx`：`BilibiliCard`（atom 节点，attrs `url`），渲染 iframe 预览 + 原始链接文字。注：B 站无浏览器可直接取的 OG 缩略图（跨域），故用嵌入播放器作视觉预览而非静态图 |
+| 链接升级 | `components/richtext/upgrade.ts`：`upgradeLinkCards(editor)` 扫描文档裸 `github.com/.../(issues|pull)/\d+` 与 `bilibili.com/video/BV…`、`b23.tv/…` 文本，替换为 `githubCard` / `bilibiliCard` 节点（带 guard 上限，防死循环；本环境 prosemirror `Node` 推断异常，回调形参桥接为 `any`；替换内容须用 `JSONContent[]` 而非 Node 实例） |
 | 图片协议重构 | 旧 `{{img:<id>}}` → 标准 Markdown `![alt](imgref:<id>)`（`imgref` scheme 指向 IndexedDB）；读取时 `normalizeLegacyImg` 兼容，无需批量迁移 |
 | 设置项 | `components/settings-dialog.tsx` 新增「GitHub 集成」区：`settings.githubToken`（明文存 localStorage，仅本地预览用途，已注明风险）；`lib/types.ts` 的 `Settings.githubToken` / `DEFAULT_SETTINGS.githubToken` |
 
-> 注：`components/markdown-view.tsx`（`MarkdownView`，基于 `marked` lexer 的手工渲染）仍保留，被 `components/mindmap/nodes.tsx` 的 `RichText` 复用渲染节点卡片（避免大量编辑器实例）；未来可逐步迁移到 `RichTextView`。`components/image-rich-input.tsx`、`components/rich-text.tsx` 中 `DebouncedTextarea` 已删除，富文本入口统一为 `RichTextEditor`。
+> 注：`components/markdown-view.tsx`（`MarkdownView`，基于 `marked` lexer 的手工渲染）仍保留，供列表卡片 `clamp` 两行截断预览使用；思维图节点卡片 `components/mindmap/nodes.tsx` 已改用 `RichTextView`，以便节点卡片也能呈现 GitHub/B 站预览卡（代价是每个可见节点一个只读编辑器实例，节点极多时留意性能）。`components/image-rich-input.tsx`、`components/rich-text.tsx` 中 `DebouncedTextarea` 已删除，富文本入口统一为 `RichTextEditor`。
 
 ## 8.10 密码保险库（Vault）
 
