@@ -198,18 +198,66 @@ export function MarkdownView({
   text,
   className,
   fullSize = false,
+  clamp = false,
 }: {
   text: string
   className?: string
   fullSize?: boolean
+  /** true = 紧凑单行化预览（列表卡片用）：块级标记渲染为行内，整体最多两行截断 */
+  clamp?: boolean
 }) {
-  const tokens = useMemo(
-    () => marked.lexer(text) as unknown as MdToken[],
-    [text],
-  )
+  const tokens = useMemo(() => marked.lexer(text) as unknown as MdToken[], [text])
+  if (clamp) {
+    return (
+      <div className={cn("line-clamp-2 text-sm leading-relaxed [overflow-wrap:anywhere]", className)}>
+        {renderClamped(tokens, "c")}
+      </div>
+    )
+  }
   return (
-    <div className={cn("text-sm leading-relaxed", className)}>
+    <div className={cn("text-sm leading-relaxed [overflow-wrap:anywhere]", className)}>
       {renderBlock(tokens, "b", fullSize)}
     </div>
   )
+}
+
+/**
+ * 紧凑预览渲染：忽略块级结构（标题/列表/引用/代码块），
+ * 只把其中的纯文本拼成一个连贯段落，避免卡片预览被标题撑得杂乱。
+ */
+function renderClamped(tokens: MdToken[], keyPrefix: string): ReactNode {
+  const parts: ReactNode[] = []
+  let k = 0
+  const walk = (nodes: MdToken[], prefix: string) => {
+    for (const t of nodes) {
+      const key = `${prefix}-${k++}`
+      if (!t.type) continue
+      if (t.type === "text" || t.type === "escape") {
+        // 已由 stripImageTokens 去除图片 token，这里按纯文本输出
+        const s = (t.text ?? "").replace(/\s+/g, " ").trim()
+        if (s) parts.push(<span key={key}>{s} </span>)
+      } else if (t.type === "codespan") {
+        parts.push(
+          <code key={key} className={cn(INLINE_CODE_CLS, "text-[0.9em]")}>
+            {t.text}
+          </code>,
+        )
+      } else if (t.type === "strong") {
+        parts.push(<strong key={key}>{t.text ? t.text : null}</strong>)
+      } else if (t.type === "em") {
+        parts.push(<em key={key}>{t.text ? t.text : null}</em>)
+      } else if (t.type === "del") {
+        parts.push(<del key={key}>{t.text ? t.text : null}</del>)
+      } else if (t.tokens && t.tokens.length) {
+        walk(t.tokens, key)
+      } else if (t.items && t.items.length) {
+        for (const it of t.items) walk(it.tokens ?? [], key)
+      } else if (t.text) {
+        const s = t.text.replace(/\s+/g, " ").trim()
+        if (s) parts.push(<span key={key}>{s} </span>)
+      }
+    }
+  }
+  walk(tokens, keyPrefix)
+  return parts
 }

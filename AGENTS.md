@@ -57,6 +57,7 @@
 - **新增全局快捷键**：改 `lib/types.ts` 的 `SHORTCUT_META`，在 `hooks/use-shortcuts.ts` 的 `useGlobalShortcuts` 接线。
 - **新增视图（如 vault）**：改 `lib/store.ts` 的 `view` 联合类型 + `goXxx` action；在 `app/page.tsx` 分发渲染；在 `app-sidebar.tsx` 加 `XxxNavItem`；并在 `lib/types.ts` 的 `VIEW_LABEL` 补显示名（状态栏右下角对齐）。
 - **新增设置项**：在 `Settings` 类型 + `components/settings-dialog.tsx` 的弹窗分区；持久化项走 store。
+- **新增第三方依赖**：`npm install` 后必须在 `lib/licenses.ts` 的 `THIRD_PARTY_LICENSES` 补一条声明（名称 / 作者 / 本项目用途描述 / 许可证 / 许可证链接），否则不会出现在「设置 → 开源许可证」页面。
 - ~~**新增脚本能力**：改 `lib/calendar-events.ts`（事件/注入 API），文档同步 `docs/calendar-script-docs.md`。~~（日历标记脚本已弃用停用）
 
 ---

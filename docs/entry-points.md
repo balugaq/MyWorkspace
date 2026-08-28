@@ -144,7 +144,7 @@
 | 引用扫描 | `lib/image-refs.ts`：`imageIdsInText`、`collectReferencedImageIds` |
 | 含图备份 | `lib/backup.ts`：`exportBackup`、`importBackup`、`getImageInventory` |
 | 图片渲染组件 | `components/rich-text.tsx`：`StoredImg`（`{{img:id}}` → IndexedDB blob URL）、`MarkdownImg`（`![](url)` 远程图）。两者被 `MarkdownView` 复用 |
-| Markdown 预览渲染 | `components/markdown-view.tsx`：`MarkdownView`。**只用 `marked` 的 `lexer` 做解析，不接外部呈现库**，token 树全部由本组件手工渲染成 React 元素；`{{img:}}` 在 text token 内由 `splitImg` 拆分后走 `StoredImg`。支持标题/段落/粗斜体/删除线/行内码/代码块/引用/有序无序列表/任务列表/分割线/链接/图片；`html` token 一律不渲染，`safeHref` 只放行 http(s)/mailto/tel/锚点/相对路径/`data:image/` |
+| Markdown 预览渲染 | `components/markdown-view.tsx`：`MarkdownView`。**只用 `marked` 的 `lexer` 做解析，不接外部呈现库**，token 树全部由本组件手工渲染成 React 元素；`{{img:}}` 在 text token 内由 `splitImg` 拆分后走 `StoredImg`。支持标题/段落/粗斜体/删除线/行内码/代码块/引用/有序无序列表/任务列表/分割线/链接/图片；`html` token 一律不渲染，`safeHref` 只放行 http(s)/mailto/tel/锚点/相对路径/`data:image/`。另有 `clamp` 模式（`renderClamped`）：忽略块级结构、把标题/列表/引用/代码块的文本压平成一段连贯文字，供列表卡片两行截断预览用 |
 | 富文本输入 | `components/image-rich-input.tsx`：`ImageRichInput`（粘贴/插图/预览切换）；预览容器须 `min-h-0 flex-1 overflow-auto` 才能在 flex 列中滚动多图，否则被祖先 `overflow-hidden` 裁切 |
 
 ## 8.10 密码保险库（Vault）

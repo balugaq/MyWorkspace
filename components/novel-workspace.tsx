@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { TagPicker } from "@/components/tag-picker"
 import { ImageRichInput } from "@/components/image-rich-input"
+import { MarkdownView } from "@/components/markdown-view"
 import { cn } from "@/lib/utils"
 
 /** 隐藏图片引用 token，仅留文本（用于列表卡片预览） */
@@ -137,14 +138,18 @@ function ChapterOverview({
                         )}
                       </span>
                     </div>
-                    <p
+                    <div
                       className={cn(
-                        "line-clamp-2 min-h-8 whitespace-pre-wrap text-xs text-muted-foreground",
+                        "min-h-8 overflow-hidden text-xs text-muted-foreground",
                         ch.done && "opacity-60",
                       )}
                     >
-                      {ch.content ? stripImageTokens(ch.content) || "（含图片）" : "（空白）"}
-                    </p>
+                      {ch.content ? (
+                        <MarkdownView text={stripImageTokens(ch.content) || "（含图片）"} clamp />
+                      ) : (
+                        "（空白）"
+                      )}
+                    </div>
                   </button>
                 </li>
               ))}

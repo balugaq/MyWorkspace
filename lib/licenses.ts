@@ -127,6 +127,14 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
   {
+    name: "marked",
+    author: "Christopher Jeffrey（markedjs）",
+    description:
+      "Markdown 解析库，预览渲染用它把文本解析成 token 树（仅用 lexer 解析，渲染由本项目自行实现，不接外部呈现库）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
     name: "lunar-javascript",
     author: "6tail",
     description: "农历/节气/节假日计算（日历要素）。",
