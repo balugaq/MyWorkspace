@@ -31,14 +31,39 @@ function openDB(): Promise<IDBDatabase> {
   })
 }
 
-/** 新增一张图片，返回其 id */
+/**
+ * 计算 blob 的 SHA-256 摘要，作为「内容寻址」id。
+ * 这样字节完全相同的图片永远得到同一个 id，避免重复占用存储。
+ * 非安全上下文（无 crypto.subtle）下降级为随机 id，仅保证可用、不去重。
+ */
+async function contentHash(blob: Blob): Promise<string> {
+  if (globalThis.crypto?.subtle) {
+    const buf = new Uint8Array(await blob.arrayBuffer())
+    const ab = await globalThis.crypto.subtle.digest("SHA-256", buf)
+    const digest = new Uint8Array(ab)
+    return Array.from(digest)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+  }
+  return Math.random().toString(36).slice(2, 10)
+}
+
+/** 新增一张图片：按内容去重（相同字节复用同一 id），返回其 id */
 export async function addImage(blob: Blob, kind = "image/png"): Promise<string> {
+  const id = await contentHash(blob)
   const db = await openDB()
   return new Promise((resolve, reject) => {
-    const id = Math.random().toString(36).slice(2, 10)
-    const rec: StoredImage = { id, blob, kind, createdAt: Date.now(), staged: false }
     const tx = db.transaction(STORE, "readwrite")
-    tx.objectStore(STORE).put(rec)
+    const store = tx.objectStore(STORE)
+    const getReq = store.get(id)
+    getReq.onsuccess = () => {
+      const rec = getReq.result as StoredImage | undefined
+      // 已存在 => 直接复用，并解除暂存（说明现在有了文本引用）；否则新建
+      const next: StoredImage = rec
+        ? { ...rec, staged: false }
+        : { id, blob, kind, createdAt: Date.now(), staged: false }
+      store.put(next)
+    }
     tx.oncomplete = () => resolve(id)
     tx.onerror = () => reject(tx.error)
   })
