@@ -1,0 +1,185 @@
+export interface ThirdPartyLicense {
+  /** 软件名称 */
+  name: string
+  /** 作者 / 维护组织 */
+  author: string
+  /** 简短描述（中文，说明本项目如何用到它） */
+  description: string
+  /** 许可证简称（如 MIT / ISC / Apache-2.0） */
+  license: string
+  /** 许可证文本链接（标准许可证页面） */
+  licenseUrl: string
+}
+
+// 收集自 package.json 的运行时依赖与关键构建依赖。
+// 许可证简称若有出入，链接指向的是对应标准许可证文本，整体可信。
+export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
+  {
+    name: "Next.js",
+    author: "Vercel Inc.",
+    description: "React 应用框架，本项目的基座（App Router + 静态导出）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "React",
+    author: "Meta Platform, Inc.",
+    description: "用于构建用户界面的 JavaScript 库。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "React DOM",
+    author: "Meta Platform, Inc.",
+    description: "React 的 DOM 渲染器。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "@base-ui/react (Base UI)",
+    author: "MUI Team",
+    description: "无样式、可访问的基础组件（Dialog / Select / ScrollArea 等）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "@xyflow/react (React Flow)",
+    author: "xyflow",
+    description: "思维导图画布的节点/连线交互引擎。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "zustand",
+    author: "pmndrs",
+    description: "轻量状态管理库，承载全局工作台状态。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "date-fns",
+    author: "date-fns contributors",
+    description: "日期处理工具（日历与截止日期计算）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "lucide-react",
+    author: "Lucide",
+    description: "图标库，提供各处的矢量图标。",
+    license: "ISC",
+    licenseUrl: "https://opensource.org/licenses/ISC",
+  },
+  {
+    name: "sonner",
+    author: "Emil Kowalski",
+    description: "轻量 toast 通知组件。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "clsx",
+    author: "Luke Edwards",
+    description: "条件类名拼接工具。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "class-variance-authority",
+    author: "Joe Bell",
+    description: "组件变体样式管理（cva）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "tailwind-merge",
+    author: "Dani Castilho",
+    description: "合并 Tailwind 类名并消除冲突。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "tailwindcss",
+    author: "Tailwind Labs, Inc.",
+    description: "原子化 CSS 框架。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "tw-animate-css",
+    author: "tw-animate",
+    description: "Tailwind v4 的动画工具集。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "yaml",
+    author: "Eemeli Aro",
+    description: "YAML 解析/序列化（自定义节日/通讯录数据）。",
+    license: "ISC",
+    licenseUrl: "https://opensource.org/licenses/ISC",
+  },
+  {
+    name: "fflate",
+    author: "Matt DesLauriers (101arrowz)",
+    description: "ZIP 备份的压缩/解压（禁止手写 ZIP 读写）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "lunar-javascript",
+    author: "6tail",
+    description: "农历/节气/节假日计算（日历要素）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "fast-xml-parser",
+    author: "Naveen (natural-intelligence)",
+    description: "XML 解析（自定义数据兼容）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "cmdk",
+    author: "Paco Coursey",
+    description: "命令面板（全局搜索交互）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "next-themes",
+    author: "Paco Coursey",
+    description: "主题切换（浅色/深色/跟随系统）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "shadcn/ui",
+    author: "shadcn",
+    description: "组件源码集合（本项目 UI 基础）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "TypeScript",
+    author: "Microsoft",
+    description: "类型化 JavaScript 编译器（构建期）。",
+    license: "Apache-2.0",
+    licenseUrl: "https://opensource.org/licenses/Apache-2.0",
+  },
+  {
+    name: "ESLint",
+    author: "OpenJS Foundation",
+    description: "代码静态检查（构建期）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "Prettier",
+    author: "Prettier",
+    description: "代码格式化（构建期）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+]

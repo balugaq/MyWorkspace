@@ -134,6 +134,7 @@
 | 图片缓存/暂存 | 入口 `setImagesOpen` → `ImageCacheDialog`（`getImageInventory`） |
 | 备份（含图 + 保险库） | `exportBackupZip()` / `importBackupZip()`（`lib/backup.ts`）；ZIP 内含 `vault.json`（AES-256 加密 blob，替换模式下恢复） |
 | 备份 ZIP 实现 | `lib/backup.ts` 使用 `fflate`（`zipSync`/`unzipSync`），**禁止手写 ZIP 读写**；`exportBackupZip` 产出含 `workspace.json` / `images/*` / `vault.json` 的 Blob，导入按「替换 / 合并」两种模式 |
+| 开源许可证页面 | 底部入口按钮（`Scale` 图标）→ `LicenseDialog`（`components/license-dialog.tsx`）；数据在 `lib/licenses.ts` 的 `THIRD_PARTY_LICENSES`（名称/作者/描述/许可证链接），按 `--------<名称> / 作者: / 描述: / 许可证:` 格式渲染 |
 
 ## 8.9 图片系统
 

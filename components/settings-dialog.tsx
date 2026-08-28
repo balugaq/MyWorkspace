@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useEscapeClose } from "@/hooks/use-escape-close"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale } from "lucide-react"
 // import { Wand2 } from "lucide-react" // 日历标记脚本入口（已弃用停用）
 import { useWorkspace } from "@/lib/store"
 import {
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { LicenseDialog } from "@/components/license-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Select,
@@ -60,6 +61,7 @@ export function SettingsDialog() {
   const fileRef = useRef<HTMLInputElement>(null)
   // 待导入的已解包 ZIP 文件映射（选中 zip 后、弹出替换/合并选择前暂存）
   const [pendingFiles, setPendingFiles] = useState<Record<string, Uint8Array> | null>(null)
+  const [licenseOpen, setLicenseOpen] = useState(false)
 
   // ESC 关闭设置弹窗（与其它弹窗行为一致）
   useEscapeClose(open, () => setOpen(false))
@@ -280,6 +282,14 @@ export function SettingsDialog() {
               查看并管理图片缓存 / 暂存区
             </Button>
           </section>
+
+          <section className="flex flex-col gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">开源许可证</Label>
+            <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setLicenseOpen(true)}>
+              <Scale className="size-4" />
+              查看开源软件许可证
+            </Button>
+          </section>
             </div>
           </ScrollArea>
         </div>
@@ -306,6 +316,8 @@ export function SettingsDialog() {
         </div>
       </DialogContent>
     </Dialog>
+
+    <LicenseDialog open={licenseOpen} onOpenChange={setLicenseOpen} />
     </>
   )
 }
