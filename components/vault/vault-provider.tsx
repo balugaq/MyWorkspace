@@ -151,6 +151,33 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     setStatus("locked")
   }, [])
 
+  // 空闲自动锁定：解锁后 3 分钟无操作自动 lock()
+  const IDLE_MS = 3 * 60 * 1000
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resetIdle = useCallback(() => {
+    if (idleTimer.current) clearTimeout(idleTimer.current)
+    idleTimer.current = setTimeout(() => lock(), IDLE_MS)
+  }, [lock])
+
+  useEffect(() => {
+    if (status !== "unlocked") return
+    const events = [
+      "mousemove",
+      "mousedown",
+      "keydown",
+      "click",
+      "scroll",
+      "touchstart",
+      "wheel",
+    ] as const
+    events.forEach((e) => window.addEventListener(e, resetIdle, { passive: true }))
+    resetIdle()
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetIdle))
+      if (idleTimer.current) clearTimeout(idleTimer.current)
+    }
+  }, [status, resetIdle])
+
   const addEntry = useCallback(async (name: string, value: string) => {
     setBusy(true)
     setError(null)
