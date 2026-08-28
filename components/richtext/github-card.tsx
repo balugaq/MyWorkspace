@@ -11,7 +11,7 @@ import { fetchGithubCard, getOgImageSrc, type GithubCardData } from "@/lib/gh-ca
  * - 块级 atom 节点，承载一个 GitHub Issue/PR 链接。
  * - 渲染：左/上 OG 缩略图 + 标题 + 状态徽标 + 标签 + 「在 GitHub 打开」。
  * - 数据：fetchGithubCard 负责 REST 元数据 + OG 直链图，并缓存到 IndexedDB（见 lib/gh-card.ts）。
- * - 序列化：markdown 输出为裸 URL 文本（getMarkdown），由 upgradeGithubUrls 在加载/粘贴时再升级回卡片，
+ * - 序列化：markdown 输出为裸 URL 文本（getMarkdown），由 upgradeLinkCards 在加载/粘贴时再升级回卡片，
  *   保证存量与新增内容都能呈现预览。
  */
 function GitHubCardView({ node }: NodeViewProps) {
@@ -77,35 +77,28 @@ function GitHubCardView({ node }: NodeViewProps) {
         rel="noreferrer noopener"
         className="block overflow-hidden rounded-lg border bg-background transition-colors hover:bg-muted/40"
       >
-        <div className="flex gap-3 p-3">
-          {imgSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element -- OG 图来自 GitHub CDN 热链，无法走 next/image
-            <img
-              src={imgSrc}
-              alt=""
-              className="h-20 w-20 shrink-0 rounded-md border object-cover"
-            />
-          ) : (
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md border bg-muted text-2xl">
-              🐙
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${stateCls}`}>{stateLabel}</span>
-              {data.labels.slice(0, 3).map((l) => (
-                <span
-                  key={l.name}
-                  className="rounded px-1.5 py-0.5 text-[11px] font-medium"
-                  style={{ backgroundColor: `#${l.color}22`, color: `#${l.color}` }}
-                >
-                  {l.name}
-                </span>
-              ))}
-            </div>
-            <p className="mt-1 line-clamp-2 text-sm font-medium leading-snug">{data.title || url}</p>
-            <p className="mt-1 truncate text-xs text-muted-foreground">在 GitHub 打开 ↗</p>
+        {imgSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element -- OG 图来自 GitHub CDN 热链，无法走 next/image
+          <img src={imgSrc} alt="" className="h-32 w-full bg-muted object-cover" />
+        ) : (
+          <div className="flex h-32 w-full items-center justify-center bg-muted text-4xl">🐙</div>
+        )}
+        <div className="space-y-1.5 p-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${stateCls}`}>{stateLabel}</span>
+            {data.labels.slice(0, 3).map((l) => (
+              <span
+                key={l.name}
+                className="rounded px-1.5 py-0.5 text-[11px] font-medium"
+                style={{ backgroundColor: `#${l.color}22`, color: `#${l.color}` }}
+              >
+                {l.name}
+              </span>
+            ))}
           </div>
+          <p className="line-clamp-2 text-sm font-medium leading-snug">{data.title || url}</p>
+          {/* 保留原始链接文字，可点击跳转 */}
+          <p className="truncate text-xs text-muted-foreground">{url} ↗</p>
         </div>
       </a>
     </NodeViewWrapper>
