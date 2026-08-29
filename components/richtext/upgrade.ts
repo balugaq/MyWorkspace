@@ -76,3 +76,29 @@ export function upgradeLinkCards(editor: Editor): void {
     editor.chain().insertContentAt({ from: pos, to: pos + size }, nodes).run()
   }
 }
+
+/**
+ * 延后执行 upgradeLinkCards，避免 flushSync 报错。
+ *
+ * upgradeLinkCards 内部会调用 editor.chain().insertContentAt().run()，
+ * 若在 React 提交阶段（useEffect / onCreate 等生命周期内）同步执行，
+ * 会触发 TipTap 的 flushSync 而报错（"called from inside a lifecycle method"）。
+ * 按错误提示移出生命周期，延后到下一个 macrotask，并加 isDestroyed 守卫。
+ *
+ * @param suppressRef 可选：升级期间置为 true，阻止 onUpdate 把规范化后的
+ *                    markdown 回写 onChange（保护用户原文空白）。该标志在升级
+ *                    完成（或编辑器已销毁）后恢复 false。
+ * @returns 取消函数（用于 effect 清理）。
+ */
+export function scheduleUpgradeLinkCards(
+  editor: Editor,
+  opts?: { suppressRef?: { current: boolean } },
+): () => void {
+  const id = window.setTimeout(() => {
+    if (editor.isDestroyed) return
+    if (opts?.suppressRef) opts.suppressRef.current = true
+    upgradeLinkCards(editor)
+    if (opts?.suppressRef) opts.suppressRef.current = false
+  }, 0)
+  return () => window.clearTimeout(id)
+}
