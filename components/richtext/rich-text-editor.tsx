@@ -1,11 +1,11 @@
 "use client"
 
 import { useEditor, EditorContent, type Editor } from "@tiptap/react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ClipboardEvent as ReactClipboardEvent } from "react"
 import { richTextExtensions } from "./extensions"
 import { normalizeLegacyImg } from "./normalize"
 import { SelectionToolbar } from "./selection-toolbar"
-import { upgradeLinkCards } from "./upgrade"
+import { scheduleUpgradeLinkCards } from "./upgrade"
 import { isGithubIssueUrl } from "@/lib/gh-card"
 import { isBilibiliUrl } from "@/lib/bilibili"
 import { addImage } from "@/lib/image-store"
@@ -110,9 +110,7 @@ export function RichTextEditor({
         onChangeRef.current(getEditorMarkdown(editor))
       },
       onCreate: ({ editor }) => {
-        suppressRef.current = true
-        upgradeLinkCards(editor)
-        suppressRef.current = false
+        scheduleUpgradeLinkCards(editor, { suppressRef })
       },
     },
     [],
@@ -127,21 +125,50 @@ export function RichTextEditor({
     const current = getEditorMarkdown(editor)
     if (value !== current) {
       editor.commands.setContent(normalizeLegacyImg(value || ""), { emitUpdate: false })
-      upgradeLinkCards(editor)
+      return scheduleUpgradeLinkCards(editor)
     }
   }, [value, editor, mode])
 
   if (!editor) return null
+
+  // 源码模式（textarea）下的图片粘贴：剪贴板含图片时，写入 IndexedDB
+  // 并在光标处插入 ![...](imgref:<id>)，切到可视化后会被解析为图片节点。
+  // 可视化模式的图片粘贴由 editorProps.handlePaste 处理，此处只补源码态的缺口。
+  const handleSourcePaste = async (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    const blobs: Blob[] = []
+    for (const it of items) {
+      if (it.kind === "file" && it.type.startsWith("image/")) {
+        const f = it.getAsFile()
+        if (f) blobs.push(f)
+      }
+    }
+    if (blobs.length === 0) return
+    e.preventDefault()
+    // 同步阶段捕获 DOM 引用与光标位置：React 合成事件的 currentTarget
+    // 仅在事件派发期有效，await 之后会被置为 null，须在异步前取值。
+    const ta = e.currentTarget
+    const cur = ta.value
+    const start = ta.selectionStart ?? cur.length
+    const end = ta.selectionEnd ?? cur.length
+    const ids = await Promise.all(blobs.map((b) => addImage(b, b.type)))
+    const token = ids.map((id) => `![](imgref:${id})`).join("\n\n")
+    onChange(cur.slice(0, start) + token + cur.slice(end))
+    const caret = start + token.length
+    requestAnimationFrame(() => {
+      ta.focus()
+      ta.setSelectionRange(caret, caret)
+    })
+  }
 
   const toggleMode = () => {
     if (mode === "visual") {
       setMode("source")
     } else {
       // 切回可视化：用最新 value 同步编辑器（源码编辑已通过 onChange 回流到 value）
-      suppressRef.current = true
       editor.commands.setContent(normalizeLegacyImg(value || ""), { emitUpdate: false })
-      upgradeLinkCards(editor)
-      suppressRef.current = false
+      scheduleUpgradeLinkCards(editor, { suppressRef })
       setMode("visual")
     }
   }
@@ -168,6 +195,7 @@ export function RichTextEditor({
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onPaste={handleSourcePaste}
           spellCheck={false}
           className={cn(
             "w-full min-h-0 flex-1 overflow-auto rounded-lg border bg-background px-3 py-2 font-mono text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",

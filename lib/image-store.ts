@@ -69,10 +69,33 @@ export async function addImage(blob: Blob, kind = "image/png"): Promise<string> 
   })
 }
 
+/**
+ * object URL 进程内缓存：同一 imgId 的 blob 转成的 object URL 在标签页
+ * 生命周期内恒定，缓存后可避免每次组件挂载都重读 IndexedDB 并生成新 URL
+ * ——否则图片会随节点重绘反复重新加载/闪烁。失效点见 invalidateUrlCache。
+ */
+const urlCache = new Map<string, string>()
+
+/** 释放某个图片的缓存 object URL；不传 id 则清空全部（如导入覆盖后）。 */
+function invalidateUrlCache(id?: string) {
+  if (id) {
+    const u = urlCache.get(id)
+    if (u) {
+      URL.revokeObjectURL(u)
+      urlCache.delete(id)
+    }
+  } else {
+    for (const u of urlCache.values()) URL.revokeObjectURL(u)
+    urlCache.clear()
+  }
+}
+
 /** 读取一张图，返回 objectURL；不存在则返回 null（调用方负责 revokeObjectURL） */
 export async function getImageURL(id: string): Promise<string | null> {
+  const cached = urlCache.get(id)
+  if (cached) return cached
   const db = await openDB()
-  return new Promise((resolve, reject) => {
+  const url = await new Promise<string | null>((resolve, reject) => {
     const req = db.transaction(STORE, "readonly").objectStore(STORE).get(id)
     req.onsuccess = () => {
       const rec = req.result as StoredImage | undefined
@@ -84,6 +107,8 @@ export async function getImageURL(id: string): Promise<string | null> {
     }
     req.onerror = () => reject(req.error)
   })
+  if (url) urlCache.set(id, url)
+  return url
 }
 
 export async function getImageBlob(id: string): Promise<Blob | null> {
@@ -103,7 +128,10 @@ export async function deleteImage(id: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite")
     tx.objectStore(STORE).delete(id)
-    tx.oncomplete = () => resolve()
+    tx.oncomplete = () => {
+      invalidateUrlCache(id)
+      resolve()
+    }
     tx.onerror = () => reject(tx.error)
   })
 }
@@ -170,6 +198,7 @@ export async function importImages(map: Record<string, string>): Promise<number>
     })
     count++
   }
+  invalidateUrlCache()
   return count
 }
 
@@ -195,6 +224,7 @@ export async function importImageBlobs(map: Record<string, Blob>): Promise<numbe
     })
     count++
   }
+  invalidateUrlCache()
   return count
 }
 
