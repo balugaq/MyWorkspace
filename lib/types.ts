@@ -163,13 +163,17 @@ export const SHORTCUT_META: ShortcutMeta[] = [
   { action: "search", label: "全局搜索", description: "打开全局搜索", defaults: { modifier: true, key: "k" } },
 ]
 
+// AI 供应商选择（见 lib/ai/providers.ts）
+export type AIProviderId = "zcode" | "deepseek" | "custom"
+
 // 底部状态栏 / 导航等处使用的「视图显示名」。新增视图时只需在此补一项，
 // 避免像此前「密码保险库」那样漏改状态栏导致显示成「工作台」。
 // （workspace 视图的显示名是动态的——当前分类名或「工作台」，故不在此列出。）
-export const VIEW_LABEL: Record<"calendar" | "contacts" | "vault", string> = {
+export const VIEW_LABEL: Record<"calendar" | "contacts" | "vault" | "ai-chat", string> = {
   calendar: "日历",
   contacts: "联系人",
   vault: "密码保险库",
+  "ai-chat": "AI 助手",
 }
 
 // 可持久化的系统设置
@@ -190,6 +194,11 @@ export interface Settings {
   shortcuts: Record<ShortcutAction, ShortcutBinding>
   fontSize: number // 全局基础字号 rem，例如 16（对应 --font-size-base）
   githubToken: string // GitHub 个人访问令牌（PAT），用于提升 GitHub 预览卡的 API 限额；留空则匿名（60 次/小时/IP）
+  // AI 助手配置：用户选 provider + 填 apiKey；所有供应商均可在下方「模型名」框覆盖默认模型；custom 模式另需填 baseURL
+  aiProvider: AIProviderId
+  aiApiKey: string
+  aiBaseUrl: string // 仅 custom 模式使用
+  aiModel: string // 覆盖模型名（留空则用供应商默认模型，如 智谱 glm-4-plus / DeepSeek deepseek-chat）
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -201,5 +210,9 @@ export const DEFAULT_SETTINGS: Settings = {
   >,
   fontSize: 16,
   githubToken: "",
+  aiProvider: "zcode",
+  aiApiKey: "",
+  aiBaseUrl: "",
+  aiModel: "",
 }
 

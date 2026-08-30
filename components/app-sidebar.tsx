@@ -13,6 +13,7 @@ import {
   GripVertical,
   Users,
   KeyRound,
+  Bot,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
@@ -118,6 +119,7 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
           <CalendarNavItem />
           <ContactNavItem />
           <VaultNavItem />
+          <AIChatNavItem />
         </nav>
       </ScrollArea>
 
@@ -236,6 +238,27 @@ function VaultNavItem() {
     >
       <KeyRound className="size-4" />
       密码保险库
+    </button>
+  )
+}
+
+function AIChatNavItem() {
+  const view = useWorkspace((s) => s.view)
+  const goAIChat = useWorkspace((s) => s.goAIChat)
+  const active = view === "ai-chat"
+  return (
+    <button
+      type="button"
+      onClick={goAIChat}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+        active
+          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+          : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      )}
+    >
+      <Bot className="size-4" />
+      AI 助手
     </button>
   )
 }

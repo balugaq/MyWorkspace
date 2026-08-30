@@ -48,7 +48,7 @@ interface WorkspaceState {
   calendar: CalendarData
   activeCategoryId: string | null // null 表示日历
   activeItemId: string | null // 章节 id 或节点 id
-  view: "workspace" | "calendar" | "contacts" | "vault"
+  view: "workspace" | "calendar" | "contacts" | "vault" | "ai-chat"
   selectedDate: string
   hydrated: boolean
 
@@ -85,6 +85,7 @@ interface WorkspaceState {
   goCalendar: () => void
   goContacts: () => void
   goVault: () => void
+  goAIChat: () => void
 
   // 系统设置 / UI
   updateSettings: (patch: Partial<Settings>) => void
@@ -401,6 +402,7 @@ export const useWorkspace = create<WorkspaceState>()(
       goCalendar: () => set({ view: "calendar", activeCategoryId: null }),
       goContacts: () => set({ view: "contacts", activeCategoryId: null }),
       goVault: () => set({ view: "vault", activeCategoryId: null }),
+      goAIChat: () => set({ view: "ai-chat", activeCategoryId: null }),
 
       addChapter: (catId) =>
         set((s) => ({

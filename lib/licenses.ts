@@ -269,4 +269,25 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     license: "MIT",
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
+  {
+    name: "ai (Vercel AI SDK)",
+    author: "Vercel Inc.",
+    description: "AI 应用开发 SDK；本项目用其 streamText + 工具循环在浏览器端直连 OpenAI 兼容接口实现 AI 助手。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "@ai-sdk/openai-compatible",
+    author: "Vercel Inc.",
+    description: "Vercel AI SDK 的 OpenAI 兼容供应商适配层，用于对接 ZCode/BigModel、DeepSeek 等任意 /v1/chat/completions 端点。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "zod",
+    author: "Colin McDonnell",
+    description: "TypeScript 优先的 schema 校验库，用于给 AI 技能工具声明参数结构（v4）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
 ]

@@ -18,7 +18,9 @@ import {
   type ShortcutBinding,
   type DefaultView,
   type ThemePreference,
+  type AIProviderId,
 } from "@/lib/types"
+import { AI_PROVIDERS } from "@/lib/ai/providers"
 import {
   Dialog,
   DialogContent,
@@ -257,6 +259,61 @@ export function SettingsDialog() {
             />
             <p className="text-xs text-muted-foreground">
               GitHub 预览卡的 API 限额令牌（仅本机明文存储于 localStorage，请勿在共享环境使用）。留空则匿名访问（60 次/小时/IP）。
+            </p>
+          </section>
+
+          <section className="flex flex-col gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">AI 助手</Label>
+            <Select
+              value={settings.aiProvider}
+              onValueChange={(v) => {
+                if (v) updateSettings({ aiProvider: v as AIProviderId })
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue>
+                  {AI_PROVIDERS[settings.aiProvider]?.label ?? "选择供应商"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.values(AI_PROVIDERS).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <input
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={settings.aiApiKey}
+              placeholder={AI_PROVIDERS[settings.aiProvider]?.apiKeyPlaceholder ?? "API Key"}
+              onChange={(e) => updateSettings({ aiApiKey: e.target.value })}
+              className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            />
+            {settings.aiProvider === "custom" && (
+              <input
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                value={settings.aiBaseUrl}
+                placeholder="Base URL（如 https://api.example.com/v1）"
+                onChange={(e) => updateSettings({ aiBaseUrl: e.target.value })}
+                className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              />
+            )}
+            <input
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              value={settings.aiModel}
+              placeholder={`模型名（默认 ${AI_PROVIDERS[settings.aiProvider]?.defaultModel ?? "gpt-4o-mini"}；留空则用默认，也可填其它如 glm-4-flash / deepseek-reasoner）`}
+              onChange={(e) => updateSettings({ aiModel: e.target.value })}
+              className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            />
+            <p className="text-xs text-muted-foreground">
+              仅本机明文存储于 localStorage，请不要在共享环境使用。{AI_PROVIDERS[settings.aiProvider]?.help}
             </p>
           </section>
 
