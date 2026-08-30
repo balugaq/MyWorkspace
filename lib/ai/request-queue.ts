@@ -180,6 +180,8 @@ async function runJob(job: Job) {
   let httpStatusText = ""
   let rawBody: string | null = null
   const invocations: { name: string; display?: string; result?: string }[] = []
+  // 本轮助手消息消耗的 token（OpenAI 兼容 usage）；流消费成功后写入消息。
+  let lastUsage: { input: number; output: number } | null = null
 
   // 诊断用 fetch：在 abort 时把 fetch 的 AbortError reject 转成空响应，避免 unhandled rejection。
   const diagFetch = (input: RequestInfo | URL, init?: RequestInit) =>
@@ -317,6 +319,7 @@ async function runJob(job: Job) {
         role: "assistant",
         content: finalContent,
         tools: invocations.length ? [...invocations] : undefined,
+        tokens: lastUsage ?? undefined,
       },
     ]
     useWorkspace.getState().setConversationMessages(conversationId, finalMsgs)
@@ -394,6 +397,16 @@ async function runJob(job: Job) {
         sawError = true
         if (!errorMsg) errorMsg = flushErr instanceof Error ? flushErr.message : String(flushErr)
       }
+    }
+
+    // 捕获 OpenAI 兼容 usage（inputTokens / outputTokens）。流已消费，此处可安全读取。
+    try {
+      const u = await result.usage
+      const input = u.inputTokens ?? 0
+      const output = u.outputTokens ?? 0
+      if (input > 0 || output > 0) lastUsage = { input, output }
+    } catch {
+      // 读取用量失败不影响正文
     }
 
     finish(controller.signal.aborted)

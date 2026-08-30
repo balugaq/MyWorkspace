@@ -172,6 +172,8 @@ export interface AIChatMessage {
   content: string
   /** 本次回复过程中 AI 调用过的技能（用于 UI 展示） */
   tools?: { name: string; display?: string; result?: string }[]
+  /** 该轮（助手消息）消耗的 token（来自 OpenAI 兼容 usage）；用于状态栏汇总 */
+  tokens?: { input: number; output: number }
 }
 
 // AI 助手：一个独立对话（各自持有完整上下文，持久化到 localStorage）
