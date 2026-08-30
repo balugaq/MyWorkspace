@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { LicenseDialog } from "@/components/license-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -341,6 +342,18 @@ export function SettingsDialog() {
               onChange={(e) => updateSettings({ aiModel: e.target.value })}
               className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             />
+            <div className="mt-1 flex flex-col gap-1">
+              <Label className="text-xs font-medium">AI 人设（自定义指令）</Label>
+              <Textarea
+                value={settings.aiPersona}
+                onChange={(e) => updateSettings({ aiPersona: e.target.value })}
+                placeholder="例如：你是一位严谨的软件工程师，回答偏好给出可运行的代码片段与根因分析。"
+                className="min-h-20 resize-y text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                会作为系统提示词注入每一段 AI 对话；留空则仅使用默认提示词。随对话导出/导入一并备份。
+              </p>
+            </div>
             <div className="mt-1 flex items-center gap-3">
               <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">
                 {settings.aiUserAvatar ? (

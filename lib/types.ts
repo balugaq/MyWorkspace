@@ -220,6 +220,8 @@ export interface Settings {
   // AI 对话强制同步：开启后所有对话的用户请求统一进入单队列串行处理；
   // 关闭则允许并发（同一会话仍不会重复发起）。两种模式下切换会话/视图都不会中断在途请求。
   aiForceSync: boolean
+  // AI 人设（自定义指令）：拼接到 system 提示词，注入每段对话；留空则仅用基础提示词。
+  aiPersona: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -237,5 +239,6 @@ export const DEFAULT_SETTINGS: Settings = {
   aiModel: "",
   aiUserAvatar: "",
   aiForceSync: false,
+  aiPersona: "",
 }
 

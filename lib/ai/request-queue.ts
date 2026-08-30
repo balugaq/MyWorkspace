@@ -26,10 +26,24 @@ export interface AIChatConfig {
   model?: string
 }
 
-const SYSTEM_PROMPT = `你是一个集成在「全能工作台」个人应用里的 AI 助手。
+const SYSTEM_BASE = `你是一个集成在「全能工作台」个人应用里的 AI 助手。
 工作台支持：思维导图式待办、分类笔记、日历日程、通讯录、密码保险库。
 回答应简洁、实用、用中文。
 当用户的需求匹配某个「技能」时，请调用对应的技能工具获取其操作说明，再据此完成任务。`
+
+// 组装 system 提示词：基础提示词 + 用户自定义人设（来自设置）+ 动态上下文（当前时间）。
+// 在每次请求时读取最新设置，因此修改人设无需重新构建即可生效。
+function buildSystemPrompt(): string {
+  const parts = [SYSTEM_BASE]
+  const persona = useWorkspace.getState().settings.aiPersona?.trim()
+  if (persona) {
+    parts.push(`\n# 人设（自定义指令）\n${persona}`)
+  }
+  const now = new Date()
+  const dateStr = now.toLocaleString("zh-CN", { dateStyle: "long", timeStyle: "short" })
+  parts.push(`\n# 当前时间\n${dateStr}`)
+  return parts.join("\n")
+}
 
 function newId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -311,7 +325,7 @@ async function runJob(job: Job) {
   try {
     const result = streamText({
       model,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(),
       messages: modelMessages,
       tools,
       stopWhen: stepCountIs(12),
