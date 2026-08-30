@@ -31,11 +31,12 @@ const SYSTEM_BASE = `你是一个集成在「全能工作台」个人应用里�
 回答应简洁、实用、用中文。
 当用户的需求匹配某个「技能」时，请调用对应的技能工具获取其操作说明，再据此完成任务。`
 
-// 组装 system 提示词：基础提示词 + 用户自定义人设（来自设置）+ 动态上下文（当前时间）。
-// 在每次请求时读取最新设置，因此修改人设无需重新构建即可生效。
+// 组装 system 提示词：基础提示词 + 当前选中的全局人设（来自设置）+ 动态上下文（当前时间）。
+// 在每次请求时读取最新设置，因此切换人设无需重新构建即可生效。
 function buildSystemPrompt(): string {
   const parts = [SYSTEM_BASE]
-  const persona = useWorkspace.getState().settings.aiPersona?.trim()
+  const { aiPersonas, aiActivePersonaId } = useWorkspace.getState().settings
+  const persona = aiPersonas.find((p) => p.id === aiActivePersonaId)?.content?.trim()
   if (persona) {
     parts.push(`\n# 人设（自定义指令）\n${persona}`)
   }

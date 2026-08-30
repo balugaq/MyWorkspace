@@ -29,9 +29,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
 import { LicenseDialog } from "@/components/license-dialog"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
+import { PersonaManagerDialog } from "@/components/ai-personas-dialog"
 import { SkillsToggleDialog } from "@/components/ai-skills-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -95,6 +95,7 @@ export function SettingsDialog() {
   const [pendingFiles, setPendingFiles] = useState<Record<string, Uint8Array> | null>(null)
   const [licenseOpen, setLicenseOpen] = useState(false)
   const [modelsOpen, setModelsOpen] = useState(false)
+  const [personasOpen, setPersonasOpen] = useState(false)
   const [skillsOpen, setSkillsOpen] = useState(false)
 
   const activeModelEntry =
@@ -332,17 +333,25 @@ export function SettingsDialog() {
               技能启停
             </Button>
 
-            <div className="mt-1 flex flex-col gap-1">
-              <Label className="text-xs font-medium">AI 人设（自定义指令）</Label>
-              <Textarea
-                value={settings.aiPersona}
-                onChange={(e) => updateSettings({ aiPersona: e.target.value })}
-                placeholder="例如：你是一位严谨的软件工程师，回答偏好给出可运行的代码片段与根因分析。"
-                className="min-h-20 resize-y text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                会作为系统提示词注入每一段 AI 对话；留空则仅使用默认提示词。随对话导出/导入一并备份。
-              </p>
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="min-w-0">
+                <Label className="text-xs font-medium">人设</Label>
+                <p className="truncate text-xs text-muted-foreground">
+                  {settings.aiActivePersonaId
+                    ? `当前：${settings.aiPersonas.find((p) => p.id === settings.aiActivePersonaId)?.name ?? "—"}`
+                    : "未使用（仅默认提示词）"}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setPersonasOpen(true)}
+              >
+                <Sparkles className="size-4" />
+                管理人设
+              </Button>
             </div>
             <div className="mt-1 flex items-center gap-3">
               <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">
@@ -419,6 +428,7 @@ export function SettingsDialog() {
           </section>
 
           <ModelManagerDialog open={modelsOpen} onOpenChange={setModelsOpen} />
+          <PersonaManagerDialog open={personasOpen} onOpenChange={setPersonasOpen} />
           <SkillsToggleDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
 
           <section className="flex flex-col gap-2">

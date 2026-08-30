@@ -165,6 +165,13 @@ export const SHORTCUT_META: ShortcutMeta[] = [
 // AI 供应商选择（见 lib/ai/providers.ts）
 export type AIProviderId = "zcode" | "deepseek" | "custom"
 
+// AI 人设：可创建多个，供全局选择使用（注入每段 AI 对话的 system 提示词）。
+export interface AIPersona {
+  id: string
+  name: string // 展示名
+  content: string // 人设正文（自定义指令）
+}
+
 // AI 助手：单条对话消息（用户 / 助手）
 export interface AIChatMessage {
   id: string
@@ -233,8 +240,10 @@ export interface Settings {
   // AI 对话强制同步：开启后所有对话的用户请求统一进入单队列串行处理；
   // 关闭则允许并发（同一会话仍不会重复发起）。两种模式下切换会话/视图都不会中断在途请求。
   aiForceSync: boolean
-  // AI 人设（自定义指令）：拼接到 system 提示词，注入每段对话；留空则仅用基础提示词。
-  aiPersona: string
+  // AI 人设：可创建多条，全局选择其中一条作为「当前人设」注入每段对话的 system 提示词。
+  // aiPersonas 为空 或 aiActivePersonaId 为 null/不存在 → 仅用基础提示词（不使用人设）。
+  aiPersonas: AIPersona[]
+  aiActivePersonaId: string | null
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -251,6 +260,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiEnabledSkills: null,
   aiUserAvatar: "",
   aiForceSync: false,
-  aiPersona: "",
+  aiPersonas: [],
+  aiActivePersonaId: null,
 }
 

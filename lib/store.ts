@@ -23,8 +23,40 @@ import type {
   AIModelEntry,
   // CalendarScript, // 日历标记脚本已弃用停用：不再引入该类型
 } from "./types"
-import { DEFAULT_SETTINGS } from "./types"
+import { DEFAULT_SETTINGS, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
+
+/**
+ * 人设迁移：把旧存档/旧备份里的单一 `aiPersona` 字符串升级为多人人设列表。
+ * - aiPersonas 已有数据 → 原样保留；aiActivePersonaId 指向不存在的人设时复位为 null。
+ * - aiPersonas 为空且旧 aiPersona 非空 → 生成一条「默认人设」并设为当前。
+ * 返回最终应写入 settings 的 { aiPersonas, aiActivePersonaId }。
+ */
+function migratePersona(rawSettings: Record<string, unknown>): {
+  aiPersonas: AIPersona[]
+  aiActivePersonaId: string | null
+} {
+  let aiPersonas: AIPersona[] = Array.isArray(rawSettings.aiPersonas)
+    ? (rawSettings.aiPersonas as AIPersona[])
+    : []
+  let aiActivePersonaId: string | null =
+    typeof rawSettings.aiActivePersonaId === "string" ? rawSettings.aiActivePersonaId : null
+
+  if (aiPersonas.length === 0) {
+    const legacy =
+      typeof rawSettings.aiPersona === "string" ? rawSettings.aiPersona.trim() : ""
+    if (legacy) {
+      const id = `p_${Date.now().toString(36)}`
+      aiPersonas = [{ id, name: "默认人设", content: legacy }]
+      aiActivePersonaId = id
+    }
+  }
+  // 选中的人设若不存在，复位为 null（仅用基础提示词）。
+  if (aiActivePersonaId && !aiPersonas.some((p) => p.id === aiActivePersonaId)) {
+    aiActivePersonaId = null
+  }
+  return { aiPersonas, aiActivePersonaId }
+}
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -286,12 +318,15 @@ export const useWorkspace = create<WorkspaceState>()(
             ? (data.conversations as Conversation[])
             : null
           const cur = get()
+          const persona = migratePersona((data.settings ?? {}) as Record<string, unknown>)
           set({
             categories: data.categories as Category[],
             calendar: data.calendar as CalendarData,
             settings: {
               ...DEFAULT_SETTINGS,
               ...(data.settings ?? {}),
+              aiPersonas: persona.aiPersonas,
+              aiActivePersonaId: persona.aiActivePersonaId,
             } as Settings,
             conversations: convs ?? cur.conversations,
             activeConversationId: convs
@@ -860,6 +895,8 @@ export const useWorkspace = create<WorkspaceState>()(
           aiModels = [entry]
           aiActiveModelId = entry.id
         }
+        // 迁移：旧版单一人设字符串（aiPersona）升级为多人人设列表 + 全局选中。
+        const persona = migratePersona(rawSettings)
         // 若历史数据没有 settings，则并入当前默认设置
         return {
           ...current,
@@ -872,6 +909,8 @@ export const useWorkspace = create<WorkspaceState>()(
             ...(rawSettings as Partial<Settings>),
             aiModels,
             aiActiveModelId,
+            aiPersonas: persona.aiPersonas,
+            aiActivePersonaId: persona.aiActivePersonaId,
           },
         }
       },
