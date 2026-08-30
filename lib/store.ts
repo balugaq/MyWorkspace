@@ -99,7 +99,6 @@ interface WorkspaceState {
   deleteConversation: (id: string) => void
   renameConversation: (id: string, title: string) => void
   setConversationMessages: (id: string, messages: AIChatMessage[]) => void
-  clearActiveConversation: () => void
 
   // 系统设置 / UI
   updateSettings: (patch: Partial<Settings>) => void
@@ -463,17 +462,6 @@ export const useWorkspace = create<WorkspaceState>()(
             c.id === id ? { ...c, messages, updatedAt: Date.now() } : c,
           ),
         })),
-      clearActiveConversation: () =>
-        set((s) => {
-          if (!s.activeConversationId) return {}
-          return {
-            conversations: s.conversations.map((c) =>
-              c.id === s.activeConversationId
-                ? { ...c, messages: [], updatedAt: Date.now() }
-                : c,
-            ),
-          }
-        }),
 
       addChapter: (catId) =>
         set((s) => ({

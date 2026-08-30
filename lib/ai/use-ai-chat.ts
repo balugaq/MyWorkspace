@@ -1,12 +1,11 @@
 // useAIChat：AI 对话的 React 钩子。流式请求的实际所有权在 lib/ai/request-queue.ts（模块级单例），
 // 本钩子只负责把组件与队列连接起来：通过 useSyncExternalStore 订阅队列的 live 消息与进行中状态，
-// 并把 send/stop/clear 委托给队列。这样切换会话 / 切走视图都不会中断在途请求。
+// 并把 send/stop 委托给队列。这样切换会话 / 切走视图都不会中断在途请求。
 
 "use client"
 
 import { useCallback, useSyncExternalStore } from "react"
 
-import { useWorkspace } from "@/lib/store"
 import {
   enqueue,
   stopConversation,
@@ -45,10 +44,6 @@ export function useAIChat({
   const stop = useCallback(() => {
     stopConversation(conversationId)
   }, [conversationId])
-  const clear = useCallback(() => {
-    stopConversation(conversationId, true)
-    useWorkspace.getState().clearActiveConversation()
-  }, [conversationId])
 
-  return { messages, isLoading, send, stop, clear }
+  return { messages, isLoading, send, stop }
 }

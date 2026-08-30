@@ -51,7 +51,6 @@ interface Job {
   assistantId: string
   history: AIChatMessage[] // 本次请求之前已有的消息（不含新 user）
   controller: AbortController
-  discard?: boolean // 中止时直接丢弃（如「清空对话」），不写回部分回复
 }
 
 const activeJobs = new Map<string, Job>()
@@ -117,10 +116,9 @@ export function enqueue(conversationId: string, userContent: string, config: AIC
   pump()
 }
 
-export function stopConversation(conversationId: string, discard = false) {
+export function stopConversation(conversationId: string) {
   const job = activeJobs.get(conversationId)
   if (job) {
-    job.discard = discard
     job.controller.abort()
   }
   const idx = pendingQueue.findIndex((j) => j.conversationId === conversationId)
@@ -266,8 +264,8 @@ async function runJob(job: Job) {
       pump()
       return
     }
-    if (aborted && (!body || job.discard)) {
-      // 用户中止：无任何正文，或「清空对话」要求丢弃 —— 不写回，直接清理。
+    if (aborted && !body) {
+      // 用户中止且尚未流到任何正文 —— 不写回，直接清理。
       liveMessages.delete(conversationId)
       streaming.delete(conversationId)
       activeJobs.delete(conversationId)

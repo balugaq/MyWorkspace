@@ -7,7 +7,7 @@
 
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react"
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
 import {
   Bot,
   Send,
@@ -81,6 +81,53 @@ export function AIChatWorkspace() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState("")
 
+  // 对话列表宽度（可拖拽分隔线调整，持久化到 localStorage）
+  const RAIL_MIN = 180
+  const RAIL_MAX = 480
+  const containerRef = useRef<HTMLDivElement>(null)
+  const draggingRef = useRef(false)
+  const latestWidthRef = useRef(256)
+  const [railWidth, setRailWidth] = useState(256)
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("ai-rail-width")
+      if (v) {
+        const n = Number(v)
+        if (!Number.isNaN(n)) setRailWidth(Math.min(RAIL_MAX, Math.max(RAIL_MIN, n)))
+      }
+    } catch {
+      /* SSR / 隐私模式下忽略 */
+    }
+  }, [])
+  const startDragRail = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    draggingRef.current = true
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    const clamp = (w: number) => Math.min(RAIL_MAX, Math.max(RAIL_MIN, w))
+    const move = (ev: PointerEvent) => {
+      if (!draggingRef.current || !containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const w = clamp(ev.clientX - rect.left)
+      latestWidthRef.current = w
+      setRailWidth(w)
+    }
+    const up = () => {
+      draggingRef.current = false
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+      try {
+        localStorage.setItem("ai-rail-width", String(latestWidthRef.current))
+      } catch {
+        /* 忽略 */
+      }
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+  }
+
   const providerLabel = AI_PROVIDERS[settings.aiProvider]?.label ?? settings.aiProvider
   const hasKey = settings.aiApiKey.trim().length > 0
   const userAvatar = settings.aiUserAvatar || ""
@@ -97,7 +144,7 @@ export function AIChatWorkspace() {
     body: s.description,
   }))
 
-  const { messages, isLoading, send, stop, clear } = useAIChat({
+  const { messages, isLoading, send, stop } = useAIChat({
     config,
     conversationId: active?.id ?? "",
   })
@@ -152,7 +199,7 @@ export function AIChatWorkspace() {
   }
 
   return (
-    <div className="relative flex h-full min-h-0">
+    <div ref={containerRef} className="relative flex h-full min-h-0">
       {/* 移动端遮罩 */}
       {railOpen && (
         <div
@@ -163,8 +210,9 @@ export function AIChatWorkspace() {
 
       {/* 左侧：对话列表 */}
       <aside
+        style={{ width: railWidth }}
         className={cn(
-          "z-30 flex w-64 shrink-0 flex-col border-r bg-muted/30",
+          "z-30 flex shrink-0 flex-col border-r bg-muted/30",
           "max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:shadow-xl max-md:transition-transform",
           railOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full",
         )}
@@ -199,7 +247,7 @@ export function AIChatWorkspace() {
                   )}
                   onClick={() => c.id !== activeId && onSelect(c.id)}
                 >
-                  <MessageSquare className="size-3.5 shrink-0 opacity-60" />
+                  <MessageSquare className="size-3.5 shrink-0 opacity-60 mr-2.5" />
                   {editingId === c.id ? (
                     <input
                       autoFocus
@@ -254,6 +302,17 @@ export function AIChatWorkspace() {
         </ScrollArea>
       </aside>
 
+      {/* 拖拽分隔线（仅桌面端）：左右拖动调整对话列表宽度 */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        onPointerDown={startDragRail}
+        className="group hidden w-1.5 shrink-0 cursor-col-resize md:block"
+        title="拖动调整对话列表宽度"
+      >
+        <div className="mx-auto h-full w-px bg-border/40 transition-colors group-hover:bg-primary/60" />
+      </div>
+
       {/* 主区 */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-2 border-b px-4 py-2">
@@ -269,16 +328,6 @@ export function AIChatWorkspace() {
           <Bot className="size-4 text-primary" />
           <h2 className="truncate text-sm font-semibold">{active?.title ?? "AI 助手"}</h2>
           <span className="text-xs text-muted-foreground">{providerLabel}</span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="ml-auto"
-            onClick={clear}
-            disabled={!active}
-            title="清空当前对话"
-          >
-            <Trash2 />
-          </Button>
         </header>
 
         <div
