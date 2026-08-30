@@ -18,6 +18,8 @@ import type {
   ShortcutAction,
   ShortcutBinding,
   ConnectResult,
+  Conversation,
+  AIChatMessage,
   // CalendarScript, // 日历标记脚本已弃用停用：不再引入该类型
 } from "./types"
 import { DEFAULT_SETTINGS } from "./types"
@@ -69,6 +71,10 @@ interface WorkspaceState {
   // 全局标签库：容纳从联系人 roles 等外部来源导入的标签，供 TagPicker 复用
   knownTags: string[]
 
+  // AI 助手：多会话（各自持有上下文，持久化到 localStorage）
+  conversations: Conversation[]
+  activeConversationId: string | null
+
   // 分类
   addCategory: (
     name: string,
@@ -86,6 +92,14 @@ interface WorkspaceState {
   goContacts: () => void
   goVault: () => void
   goAIChat: () => void
+
+  // AI 助手：多会话管理（各自持有上下文）
+  createConversation: () => string
+  selectConversation: (id: string) => void
+  deleteConversation: (id: string) => void
+  renameConversation: (id: string, title: string) => void
+  setConversationMessages: (id: string, messages: AIChatMessage[]) => void
+  clearActiveConversation: () => void
 
   // 系统设置 / UI
   updateSettings: (patch: Partial<Settings>) => void
@@ -174,6 +188,10 @@ export const useWorkspace = create<WorkspaceState>()(
 
       // 全局标签库默认空（角色由联系人数据加载时导入）
       knownTags: [],
+
+      // AI 助手：默认无会话（视图挂载时若无会话则创建一个），不预置 activeConversationId
+      conversations: [],
+      activeConversationId: null,
 
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -403,6 +421,59 @@ export const useWorkspace = create<WorkspaceState>()(
       goContacts: () => set({ view: "contacts", activeCategoryId: null }),
       goVault: () => set({ view: "vault", activeCategoryId: null }),
       goAIChat: () => set({ view: "ai-chat", activeCategoryId: null }),
+
+      // ---- AI 助手：多会话（各自持有上下文） ----
+      createConversation: () => {
+        const id = uid()
+        const now = Date.now()
+        const conv: Conversation = {
+          id,
+          title: "新对话",
+          messages: [],
+          createdAt: now,
+          updatedAt: now,
+        }
+        set((s) => ({
+          conversations: [conv, ...s.conversations],
+          activeConversationId: id,
+        }))
+        return id
+      },
+      selectConversation: (id) => set({ activeConversationId: id }),
+      deleteConversation: (id) =>
+        set((s) => {
+          const conversations = s.conversations.filter((c) => c.id !== id)
+          const activeConversationId =
+            s.activeConversationId === id
+              ? (conversations[0]?.id ?? null)
+              : s.activeConversationId
+          return { conversations, activeConversationId }
+        }),
+      renameConversation: (id, title) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === id
+              ? { ...c, title: title.trim() || "新对话", updatedAt: Date.now() }
+              : c,
+          ),
+        })),
+      setConversationMessages: (id, messages) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === id ? { ...c, messages, updatedAt: Date.now() } : c,
+          ),
+        })),
+      clearActiveConversation: () =>
+        set((s) => {
+          if (!s.activeConversationId) return {}
+          return {
+            conversations: s.conversations.map((c) =>
+              c.id === s.activeConversationId
+                ? { ...c, messages: [], updatedAt: Date.now() }
+                : c,
+            ),
+          }
+        }),
 
       addChapter: (catId) =>
         set((s) => ({
@@ -749,6 +820,9 @@ export const useWorkspace = create<WorkspaceState>()(
         return {
           ...current,
           ...p,
+          conversations: (p.conversations as Conversation[] | undefined) ?? [],
+          activeConversationId:
+            (p.activeConversationId as string | null | undefined) ?? null,
           settings: {
             ...DEFAULT_SETTINGS,
             ...(p.settings as Partial<Settings> | undefined),

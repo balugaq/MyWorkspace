@@ -165,6 +165,24 @@ export const SHORTCUT_META: ShortcutMeta[] = [
 // AI 供应商选择（见 lib/ai/providers.ts）
 export type AIProviderId = "zcode" | "deepseek" | "custom"
 
+// AI 助手：单条对话消息（用户 / 助手）
+export interface AIChatMessage {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  /** 本次回复过程中 AI 调用过的技能（用于 UI 展示） */
+  tools?: { name: string; display?: string; result?: string }[]
+}
+
+// AI 助手：一个独立对话（各自持有完整上下文，持久化到 localStorage）
+export interface Conversation {
+  id: string
+  title: string
+  messages: AIChatMessage[]
+  createdAt: number
+  updatedAt: number
+}
+
 // 底部状态栏 / 导航等处使用的「视图显示名」。新增视图时只需在此补一项，
 // 避免像此前「密码保险库」那样漏改状态栏导致显示成「工作台」。
 // （workspace 视图的显示名是动态的——当前分类名或「工作台」，故不在此列出。）

@@ -16,7 +16,7 @@
 
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   streamText,
   tool,
@@ -31,15 +31,7 @@ import { z } from "zod"
 import { resolveProvider } from "./providers"
 import { loadSkills } from "./skills"
 import { BUILTIN_SKILLS } from "./builtin-skills"
-import type { AIProviderId } from "@/lib/types"
-
-export interface ChatMessage {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  /** 本次回复过程中 AI 调用过的技能（用于 UI 展示） */
-  tools?: { name: string; display?: string; result?: string }[]
-}
+import type { AIProviderId, AIChatMessage } from "@/lib/types"
 
 export interface AIChatConfig {
   providerId: AIProviderId
@@ -48,8 +40,17 @@ export interface AIChatConfig {
   model?: string
 }
 
+// 多会话化参数：hook 接收「当前会话 id + 持久化的初始消息 + 提交回调」，
+// 在会话之间切换时由组件经 conversationId 变化触发本地消息重置。
+export interface UseAIChatArgs {
+  config: AIChatConfig
+  conversationId: string
+  initialMessages: AIChatMessage[]
+  onCommit: (messages: AIChatMessage[]) => void
+}
+
 const SYSTEM_PROMPT = `你是一个集成在「全能工作台」个人应用里的 AI 助手。
-工作台支持：思维导图式待办、分类笔记、日历日程、密码保险库。
+工作台支持：思维导图式待办、分类笔记、日历日程、通讯录、密码保险库。
 回答应简洁、实用、用中文。
 当用户的需求匹配某个「技能」时，请调用对应的技能工具获取其操作说明，再据此完成任务。`
 
@@ -60,13 +61,28 @@ function newId(): string {
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-export function useAIChat(config: AIChatConfig) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+export function useAIChat({ config, conversationId, initialMessages, onCommit }: UseAIChatArgs) {
+  const [messages, setMessages] = useState<AIChatMessage[]>(initialMessages)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const messagesRef = useRef<ChatMessage[]>(messages)
+  const messagesRef = useRef<AIChatMessage[]>(messages)
   messagesRef.current = messages
+  const onCommitRef = useRef(onCommit)
+  onCommitRef.current = onCommit
+  // 会话「代际」标记：每次切换会话自增。send 开始时记录当前代际，
+  // 流结束提交时若代际已变（说明中途切走了），则丢弃提交，避免把残流写进新会话。
+  const genRef = useRef(0)
+
+  // 切换会话：把本地消息重置为所选会话的持久化内容，并丢弃错误与进行中的流状态。
+  // 进行中的流由调用方在切换前调用 stop() 中断；此处只负责界面状态对齐。
+  useEffect(() => {
+    genRef.current += 1
+    setMessages(initialMessages)
+    setError(null)
+    // 仅依赖 conversationId：initialMessages 在每轮提交后会变化，不应触发重置。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId])
 
   const send = useCallback(
     async (input: string) => {
@@ -77,10 +93,12 @@ export function useAIChat(config: AIChatConfig) {
         return
       }
 
-      const userMsg: ChatMessage = { id: newId(), role: "user", content: trimmed }
+      const gen = genRef.current
+      const userMsg: AIChatMessage = { id: newId(), role: "user", content: trimmed }
       const assistantId = newId()
       const history = [...messagesRef.current, userMsg]
       setMessages([...history, { id: assistantId, role: "assistant", content: "" }])
+      onCommitRef.current(history) // 立即持久化用户消息
       setIsLoading(true)
       setError(null)
 
@@ -186,37 +204,42 @@ export function useAIChat(config: AIChatConfig) {
       const controller = new AbortController()
       abortRef.current = controller
 
-      const finalize = () => {
-        const body = text.trim()
-        if (body) {
-          // 已有正文：即便缺少 finish_reason / 流被提前截断，也保留已输出的内容。
-          const note = sawError
-            ? "\n\n⚠️ 响应被提前结束（未收到 finish_reason），以上内容可能不完整。"
-            : ""
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, content: body + note } : m,
-            ),
-          )
-        } else {
-          // 完全没有任何正文：判定为真正的失败。
-          // 优先展示供应商返回的真实错误（JSON），而非无意义的 "without finish reason"。
+      const invocations: { name: string; display?: string; result?: string }[] = []
+
+      // 把最终消息写回本地与持久化。gen 不匹配（中途切走）时直接丢弃，不污染新会话。
+      const finalize = (body: string, failed: boolean) => {
+        if (genRef.current !== gen) return
+        if (failed) {
           const providerErr = extractProviderError(rawBody)
           const reason =
             httpStatus != null && httpStatus !== 200
               ? `HTTP ${httpStatus} ${httpStatusText}`
               : providerErr
                 ? `供应商返回错误：${providerErr}`
-                : errorMsg ?? "响应流被提前结束（未收到 finish_reason）"
+                : errorMsg ?? "未知错误"
           setError(`请求失败：${reason}`)
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? { ...m, content: `⚠️ 请求失败：${reason}` }
-                : m,
-            ),
-          )
+          const finalMsgs: AIChatMessage[] = [
+            ...history,
+            { id: assistantId, role: "assistant", content: `⚠️ 请求失败：${reason}` },
+          ]
+          setMessages(finalMsgs)
+          onCommitRef.current(finalMsgs)
+          return
         }
+        const note = sawError
+          ? "\n\n⚠️ 响应被提前结束（未收到 finish_reason），以上内容可能不完整。"
+          : ""
+        const finalMsgs: AIChatMessage[] = [
+          ...history,
+          {
+            id: assistantId,
+            role: "assistant",
+            content: body + note,
+            tools: invocations.length ? [...invocations] : undefined,
+          },
+        ]
+        setMessages(finalMsgs)
+        onCommitRef.current(finalMsgs)
       }
 
       try {
@@ -231,8 +254,6 @@ export function useAIChat(config: AIChatConfig) {
             errorMsg = err instanceof Error ? err.message : String(err)
           },
         })
-
-        const invocations: { name: string; display?: string; result?: string }[] = []
 
         for await (const part of result.fullStream) {
           if (part.type === "text-delta") {
@@ -267,40 +288,22 @@ export function useAIChat(config: AIChatConfig) {
           }
         }
 
-        finalize()
+        const body = text.trim()
+        if (body) {
+          finalize(body, false)
+        } else {
+          // 完全没有任何正文：判定为真正的失败。
+          finalize("", true)
+        }
       } catch (e) {
         sawError = true
         errorMsg = e instanceof Error ? e.message : String(e)
-        // 即便抛错，也尽量保留已流式输出的正文。
         const body = text.trim()
         if (body) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? {
-                    ...m,
-                    content: body + "\n\n⚠️ 响应异常中断，以上内容可能不完整。",
-                  }
-                : m,
-            ),
-          )
+          // 即便抛错也保留已流式输出的正文（finalize 会按 sawError 追加提示）。
+          finalize(body, false)
         } else {
-          // 优先展示供应商返回的真实错误（JSON），而非无意义的 "without finish reason"。
-          const providerErr = extractProviderError(rawBody)
-          const reason =
-            httpStatus != null && httpStatus !== 200
-              ? `HTTP ${httpStatus} ${httpStatusText}`
-              : providerErr
-                ? `供应商返回错误：${providerErr}`
-                : errorMsg ?? "未知错误"
-          setError(`请求失败：${reason}`)
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId
-                ? { ...m, content: `⚠️ 请求失败：${reason}` }
-                : m,
-            ),
-          )
+          finalize("", true)
         }
       } finally {
         setIsLoading(false)
@@ -316,6 +319,7 @@ export function useAIChat(config: AIChatConfig) {
   const clear = useCallback(() => {
     abortRef.current?.abort()
     setMessages([])
+    onCommitRef.current([])
     setError(null)
   }, [])
 
