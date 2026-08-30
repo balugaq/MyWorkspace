@@ -476,14 +476,14 @@ function DayDetail({
   const lunarText = lunarTextForSolar(dateObj)
 
   return (
-    <aside className="flex w-full flex-col lg:w-auto lg:shrink-0" style={style}>
+    <aside className="flex w-full min-h-0 flex-col lg:h-full lg:w-auto lg:shrink-0" style={style}>
       <div className="border-b px-4 py-3">
         <p className="text-base font-semibold">{format(dateObj, "M 月 d 日", { locale: zhCN })}</p>
         <p className="text-[14px] text-muted-foreground">{format(dateObj, "EEEE", { locale: zhCN })}</p>
         <p className="mt-0.5 text-[14px] text-muted-foreground/70">{lunarText}</p>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1 overflow-hidden">
         <div className="flex flex-col gap-5 p-4">
           {bdays.length > 0 && (
             <>
