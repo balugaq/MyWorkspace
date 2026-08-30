@@ -35,12 +35,14 @@ export function RichTextView({
 
   useEffect(() => {
     if (!editor) return
-    editor.commands.setContent(normalizeLegacyImg(content || ""), { emitUpdate: false })
-    // upgradeLinkCards 内部会调用 editor.chain().insertContentAt().run()，
-    // 若在 React 提交阶段（useEffect 内）同步执行，会触发 TipTap 的 flushSync 而报错。
-    // 按错误提示移出生命周期：延后到下一个 macrotask 执行，并加 isDestroyed 守卫。
+    // setContent 与 upgradeLinkCards 内部都会触发 TipTap 的 flushSync；
+    // 若在 React 提交阶段（useEffect 内）同步执行，会抛
+    // "flushSync was called from inside a lifecycle method" 错误。
+    // 两者都延后到下一个 macrotask 执行，并加 isDestroyed 守卫。
     const t = window.setTimeout(() => {
-      if (!editor.isDestroyed) upgradeLinkCards(editor)
+      if (editor.isDestroyed) return
+      editor.commands.setContent(normalizeLegacyImg(content || ""), { emitUpdate: false })
+      upgradeLinkCards(editor)
     }, 0)
     return () => window.clearTimeout(t)
   }, [content, editor])
