@@ -308,25 +308,44 @@
 .cal-month-anim-up   { animation: cal-month-enter-up   0.25s cubic-bezier(0.2, 0.9, 0.4, 1) both; }
 
 /* 原生滚动条统一为与 Base UI ScrollArea（侧边栏/列表）一致的「细圆角」风格。
- * 富文本编辑器等使用原生 overflow-auto 的容器在 Windows 下会渲染粗条，
- * 与侧边栏的自定义细滑条不一致；此工具类让一切原生滚动条视觉对齐。 */
-.native-scroll {
+ * 竖轨 10px、滑块 border 色圆角胶囊、轨道透明；hover 略加深。
+ * 作用范围：.native-scroll 容器、所有 textarea、页面本身。
+ * 刻意排除 Base UI ScrollArea（data-slot^="scroll-area"）——它自带自定义细滑条，
+ * 若再叠加原生样式会出现「原生+自定义」双滑条。 */
+.native-scroll,
+textarea,
+html,
+body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;
 }
-.native-scroll::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+.native-scroll::-webkit-scrollbar,
+textarea::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
 }
-.native-scroll::-webkit-scrollbar-track {
-  background: transparent;
+.native-scroll::-webkit-scrollbar-track,
+textarea::-webkit-scrollbar-track,
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: transparent !important;
 }
-.native-scroll::-webkit-scrollbar-thumb {
-  background-color: var(--color-border);
-  border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+.native-scroll::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background-color: var(--color-border) !important;
+  border-radius: 9999px !important;
+  /* 与 Base UI ScrollArea（侧边栏/对话列表）一致：10px 轨道内留 1px 内边距，
+   * 滑块为满宽圆角胶囊（bg-border），可见宽度约 8px。 */
+  border: 1px solid transparent !important;
+  background-clip: padding-box !important;
 }
-.native-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-muted-foreground);
+.native-scroll::-webkit-scrollbar-thumb:hover,
+textarea::-webkit-scrollbar-thumb:hover,
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-muted-foreground) !important;
 }

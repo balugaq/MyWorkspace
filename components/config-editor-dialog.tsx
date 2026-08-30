@@ -75,7 +75,7 @@ export function ConfigEditorDialog({
           value={text}
           onChange={(e) => setText(e.target.value)}
           spellCheck={false}
-          className="h-72 w-full resize-y overflow-auto rounded-lg border bg-muted/40 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="native-scroll h-72 w-full resize-y overflow-auto rounded-lg border bg-muted/40 p-3 font-mono text-xs leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         />
 
         <div className="flex justify-between gap-2">

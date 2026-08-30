@@ -156,9 +156,16 @@ export function AIChatWorkspace() {
   })
 
   // 新消息后滚到底部
+  // 消息列表现为 Base UI ScrollArea，需要滚动的是 viewport（data-slot="scroll-area-viewport"），
+  // 兜底仍支持原生的 el 自身滚动。
   useEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (!el) return
+    const viewport = el.closest(
+      '[data-slot="scroll-area-viewport"]',
+    ) as HTMLElement | null
+    const scroller = viewport ?? el
+    scroller.scrollTop = scroller.scrollHeight
   }, [messages])
 
   const startEdit = (c: { id: string; title: string }) => {
@@ -351,10 +358,8 @@ export function AIChatWorkspace() {
           <span className="text-xs text-muted-foreground">{modelLabel}</span>
         </header>
 
-        <div
-          ref={scrollRef}
-          className="native-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3"
-        >
+        <ScrollArea className="min-h-0 flex-1 overflow-hidden">
+          <div ref={scrollRef} className="flex flex-col px-4 py-3">
           {!hasKey && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
@@ -459,7 +464,8 @@ export function AIChatWorkspace() {
           })}
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
         <form
           className="flex flex-col gap-2 border-t p-3"

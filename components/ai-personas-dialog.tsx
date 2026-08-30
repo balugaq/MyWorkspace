@@ -68,7 +68,7 @@ export function PersonaManagerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="native-scroll max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>人设管理</DialogTitle>
           <DialogDescription>
@@ -202,7 +202,7 @@ function PersonaForm({
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="例如：你是一位严谨的软件工程师，回答偏好给出可运行的代码片段与根因分析。"
-          className="min-h-28 max-h-64 overflow-y-auto resize-none text-sm"
+          className="native-scroll min-h-28 max-h-64 overflow-y-auto resize-none text-sm"
         />
       </div>
       <div className="mt-1 flex justify-end gap-2">

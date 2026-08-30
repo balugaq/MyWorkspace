@@ -110,7 +110,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
           ))}
         </div>
 
-        <div className="max-h-[50vh] overflow-y-auto p-2">
+        <div className="native-scroll max-h-[50vh] overflow-y-auto p-2">
           {query.trim() === "" ? (
             <p className="px-3 py-10 text-center text-sm text-muted-foreground">输入关键词开始搜索</p>
           ) : results.length === 0 ? (

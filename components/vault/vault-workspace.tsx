@@ -275,7 +275,7 @@ function VaultHome() {
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="值：账号、密码或任意混合内容，完全由你填写"
-              className="min-h-16 max-h-64 overflow-y-auto resize-none"
+              className="native-scroll min-h-16 max-h-64 overflow-y-auto resize-none"
             />
             <Button onClick={submitAdd} disabled={busy} className="self-start gap-1.5">
               <Plus className="size-4" />
@@ -362,7 +362,7 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
         <Textarea
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="min-h-16 max-h-64 overflow-y-auto resize-none"
+          className="native-scroll min-h-16 max-h-64 overflow-y-auto resize-none"
           placeholder="值"
         />
         <div className="flex justify-end gap-2">

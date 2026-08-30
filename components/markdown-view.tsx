@@ -138,7 +138,7 @@ function renderBlock(tokens: MdToken[], keyPrefix: string, fullSize?: boolean): 
         return (
           <pre
             key={key}
-            className="my-1 overflow-auto rounded-md bg-muted p-2 text-xs font-mono"
+            className="native-scroll my-1 overflow-auto rounded-md bg-muted p-2 text-xs font-mono"
           >
             <code className="whitespace-pre">{t.text}</code>
           </pre>
