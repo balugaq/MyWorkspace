@@ -2,13 +2,13 @@
 
 import { useMemo } from "react"
 import { useWorkspace } from "@/lib/store"
-import { STATUS_META, VIEW_LABEL, type RelationContent } from "@/lib/types"
+import { VIEW_LABEL, type RelationContent } from "@/lib/types"
 import { parse, format } from "date-fns"
 
 /**
  * 底部状态栏：根据当前视图对聚合数据做轻量摘要。
  * - workspace + 普通分类：共 N 项 / 已完成 X / 进行中 Y
- * - workspace + 关系类：节点 N / 解决方案 X / 进行中 Y
+ * - workspace + 关系类：节点 N / 已完成 Y
  * - calendar：本月待办 X / 已完成 Y / 事件 Z
  * 纯展示组件，只订阅 store，不修改任何数据。
  */
@@ -68,14 +68,10 @@ function categoryStats(chapters: Array<{ done?: boolean }>): StatItem[] {
 
 function relationStats(relation: RelationContent): StatItem[] {
   const total = relation.nodes.length
-  const withSolution = relation.nodes.filter((n) => n.solution && n.solution.content).length
-  const doing = relation.nodes.filter(
-    (n) => n.solution && n.solution.content && n.solution.status === "doing",
-  ).length
+  const done = relation.nodes.filter((n) => n.done).length
   return [
     { key: "nodes", value: total, label: "节点" },
-    { key: "solutions", value: withSolution, label: "解决方案" },
-    { key: "doing", value: doing, label: STATUS_META.doing.label },
+    { key: "done", value: done, label: "已完成" },
   ]
 }
 
