@@ -197,7 +197,7 @@ export function RichTextEditor({
       </div>
       {!forceSource && mode === "visual" ? (
         <>
-          <EditorContent editor={editor} className="w-full min-h-0 flex-1 overflow-auto" />
+          <EditorContent editor={editor} className="native-scroll w-full min-h-0 flex-1 overflow-auto" />
           <SelectionToolbar editor={editor} />
         </>
       ) : (
@@ -207,7 +207,7 @@ export function RichTextEditor({
           onPaste={handleSourcePaste}
           spellCheck={false}
           className={cn(
-            "w-full min-h-0 flex-1 overflow-auto rounded-lg border bg-background px-3 py-2 font-mono text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            "native-scroll w-full min-h-0 flex-1 overflow-auto rounded-lg border bg-background px-3 py-2 font-mono text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
             minHeight,
             className,
           )}
