@@ -199,6 +199,7 @@ export interface Settings {
   aiApiKey: string
   aiBaseUrl: string // 仅 custom 模式使用
   aiModel: string // 覆盖模型名（留空则用供应商默认模型，如 智谱 glm-4-plus / DeepSeek deepseek-chat）
+  aiUserAvatar: string // 用户头像（data URL，压缩后存储）；留空则用默认用户图标
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -214,5 +215,6 @@ export const DEFAULT_SETTINGS: Settings = {
   aiApiKey: "",
   aiBaseUrl: "",
   aiModel: "",
+  aiUserAvatar: "",
 }
 

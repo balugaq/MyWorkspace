@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useEscapeClose } from "@/hooks/use-escape-close"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User } from "lucide-react"
 // import { Wand2 } from "lucide-react" // 日历标记脚本入口（已弃用停用）
 import { useWorkspace } from "@/lib/store"
 import {
@@ -51,6 +51,33 @@ const DEFAULT_VIEWS: { value: DefaultView; label: string }[] = [
   { value: "calendar", label: "日历" },
 ]
 
+// 用户头像压缩：限制最长边 256px，转 JPEG 控制体积（避免撑爆 localStorage）。
+const MAX_AVATAR = 256
+function compressAvatar(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(reader.error)
+    reader.onload = () => {
+      const img = new Image()
+      img.onerror = () => reject(new Error("图片读取失败"))
+      img.onload = () => {
+        const scale = Math.min(1, MAX_AVATAR / Math.max(img.width, img.height))
+        const w = Math.max(1, Math.round(img.width * scale))
+        const h = Math.max(1, Math.round(img.height * scale))
+        const canvas = document.createElement("canvas")
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext("2d")
+        if (!ctx) return reject(new Error("无法创建画布"))
+        ctx.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL("image/jpeg", 0.85))
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
 export function SettingsDialog() {
   const open = useWorkspace((s) => s.settingsOpen)
   const setOpen = useWorkspace((s) => s.setSettingsOpen)
@@ -58,6 +85,7 @@ export function SettingsDialog() {
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setShortcut = useWorkspace((s) => s.setShortcut)
   // const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen) // 日历标记脚本（已弃用停用）
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const setImagesOpen = useWorkspace((s) => s.setImagesOpen)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -312,6 +340,63 @@ export function SettingsDialog() {
               onChange={(e) => updateSettings({ aiModel: e.target.value })}
               className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             />
+            <div className="mt-1 flex items-center gap-3">
+              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">
+                {settings.aiUserAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={settings.aiUserAvatar}
+                    alt="用户头像"
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <User className="size-5" />
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">用户头像</span>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    <ImageIcon className="size-3.5" />
+                    {settings.aiUserAvatar ? "更换" : "上传"}
+                  </Button>
+                  {settings.aiUserAvatar && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-muted-foreground"
+                      onClick={() => updateSettings({ aiUserAvatar: "" })}
+                    >
+                      清除
+                    </Button>
+                  )}
+                </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = ""
+                    if (!f) return
+                    try {
+                      const dataUrl = await compressAvatar(f)
+                      updateSettings({ aiUserAvatar: dataUrl })
+                    } catch {
+                      toast.error("头像读取失败，请换一张图片")
+                    }
+                  }}
+                />
+              </div>
+            </div>
             <p className="text-xs text-muted-foreground">
               仅本机明文存储于 localStorage，请不要在共享环境使用。{AI_PROVIDERS[settings.aiProvider]?.help}
             </p>

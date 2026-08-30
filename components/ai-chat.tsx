@@ -5,7 +5,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
-import { Bot, Send, Square, Trash2, Wrench, AlertTriangle } from "lucide-react"
+import { Bot, Send, Square, Trash2, Wrench, AlertTriangle, User } from "lucide-react"
 
 import { useWorkspace } from "@/lib/store"
 import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
@@ -36,6 +36,7 @@ export function AIChatWorkspace() {
 
   const providerLabel = AI_PROVIDERS[settings.aiProvider]?.label ?? settings.aiProvider
   const hasKey = settings.aiApiKey.trim().length > 0
+  const userAvatar = settings.aiUserAvatar || ""
 
   useEffect(() => {
     loadSkills().then(setSkills).catch(() => setSkills([]))
@@ -113,37 +114,62 @@ export function AIChatWorkspace() {
           </div>
         )}
 
-        {messages.map((m) => (
-          <div
-            key={m.id}
-            className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}
-          >
+        {messages.map((m) => {
+          const isUser = m.role === "user"
+          return (
             <div
+              key={m.id}
               className={cn(
-                "max-w-[85%] rounded-lg px-3 py-2 text-sm break-words whitespace-pre-wrap",
-                m.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground",
+                "flex items-end gap-2",
+                isUser ? "flex-row-reverse justify-start" : "flex-row justify-start",
               )}
             >
-              {m.content || (isLoading && m.role === "assistant" ? "思考中…" : "")}
-              {m.tools && m.tools.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1 border-t border-border/50 pt-1.5">
-                  {m.tools.map((t, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
-                      title={t.name}
-                    >
-                      <Wrench className="size-3" />
-                      {t.display ?? t.name}
-                    </span>
-                  ))}
+              {/* 头像：左侧机器人默认头像 / 右侧用户头像（可自定义） */}
+              {isUser ? (
+                userAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={userAvatar}
+                    alt="用户头像"
+                    className="size-8 shrink-0 rounded-full object-cover ring-1 ring-border"
+                  />
+                ) : (
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-border">
+                    <User className="size-4" />
+                  </div>
+                )
+              ) : (
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-border">
+                  <Bot className="size-4" />
                 </div>
               )}
+              <div
+                className={cn(
+                  "max-w-[78%] rounded-lg px-3 py-2 text-sm break-words whitespace-pre-wrap",
+                  m.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground",
+                )}
+              >
+                {m.content || (isLoading && m.role === "assistant" ? "思考中…" : "")}
+                {m.tools && m.tools.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1 border-t border-border/50 pt-1.5">
+                    {m.tools.map((t, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                        title={t.name}
+                      >
+                        <Wrench className="size-3" />
+                        {t.display ?? t.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* 输入区 */}
