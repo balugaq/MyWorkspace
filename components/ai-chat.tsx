@@ -140,8 +140,8 @@ export function AIChatWorkspace() {
     const isFirst = active.messages.length === 0
     setInput("")
     void send(text)
-    // 首条消息自动取名（不发额外请求），取前约 18 字
-    if (isFirst) renameConversation(active.id, text.trim().slice(0, 18))
+    // 首条消息自动取名（不发额外请求），最多取前 10 字
+    if (isFirst) renameConversation(active.id, text.trim().slice(0, 10))
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -203,8 +203,9 @@ export function AIChatWorkspace() {
                   {editingId === c.id ? (
                     <input
                       autoFocus
+                      maxLength={10}
                       value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onChange={(e) => setEditingTitle(e.target.value.slice(0, 10))}
                       onBlur={commitEdit}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") commitEdit()

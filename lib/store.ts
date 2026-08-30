@@ -453,7 +453,7 @@ export const useWorkspace = create<WorkspaceState>()(
         set((s) => ({
           conversations: s.conversations.map((c) =>
             c.id === id
-              ? { ...c, title: title.trim() || "新对话", updatedAt: Date.now() }
+              ? { ...c, title: title.trim().slice(0, 10) || "新对话", updatedAt: Date.now() }
               : c,
           ),
         })),
