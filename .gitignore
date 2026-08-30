@@ -39,5 +39,6 @@ next-env.d.ts
 
 public/custom_festivals.yml
 public/address_book.yml
+public/skills/
 
 .workbuddy
