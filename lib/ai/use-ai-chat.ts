@@ -21,7 +21,7 @@ export function useAIChat({
   config,
   conversationId,
 }: {
-  config: AIChatConfig
+  config: AIChatConfig | null
   conversationId: string
 }) {
   const messages = useSyncExternalStore(
@@ -37,6 +37,7 @@ export function useAIChat({
 
   const send = useCallback(
     (input: string) => {
+      if (!config) return
       enqueue(conversationId, input, config)
     },
     [conversationId, config],

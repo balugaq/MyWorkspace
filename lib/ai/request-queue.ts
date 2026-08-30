@@ -231,9 +231,13 @@ async function runJob(job: Job) {
   const model = provider.chatModel(resolved.model)
 
   const tools: ToolSet = {}
+  // 全局技能启停：null = 全部启用；否则仅 enabled 列表中的技能名可用。
+  const enabledSkills = useWorkspace.getState().settings.aiEnabledSkills
+  const isSkillEnabled = (name: string) => !enabledSkills || enabledSkills.includes(name)
   try {
     const skills = await loadSkills()
     for (const s of skills) {
+      if (!isSkillEnabled(s.name)) continue
       tools[s.name] = tool({
         description: s.description,
         inputSchema: zodSchema(z.object({})),
@@ -244,6 +248,7 @@ async function runJob(job: Job) {
     // 技能加载失败不影响普通对话
   }
   for (const s of BUILTIN_SKILLS) {
+    if (!isSkillEnabled(s.name)) continue
     const skillName = s.name
     tools[skillName] = tool({
       description: s.description,

@@ -14,6 +14,7 @@ import {
   Square,
   Trash2,
   Wrench,
+  Sparkles,
   AlertTriangle,
   User,
   Plus,
@@ -22,20 +23,25 @@ import {
 } from "lucide-react"
 
 import { useWorkspace } from "@/lib/store"
-import { useAIChat } from "@/lib/ai/use-ai-chat"
+import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
 import { subscribeQueue, isWorking, stopConversation } from "@/lib/ai/request-queue"
-import { loadSkills, type Skill } from "@/lib/ai/skills"
-import { BUILTIN_SKILL_DISPLAY } from "@/lib/ai/builtin-skills"
-import { AI_PROVIDERS } from "@/lib/ai/providers"
 import { MarkdownView } from "@/components/markdown-view"
+import { ModelManagerDialog } from "@/components/ai-models-dialog"
+import { SkillsToggleDialog } from "@/components/ai-skills-dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
+// 新对话空状态下的预置问题；第三个由我们替用户补充。
+const PRESET_QUESTIONS = [
+  "今天适合做什么？",
+  "最近有什么新兴的开源项目？",
+  "用通俗的语言给我讲讲 AI Agent 是什么？",
+]
+
 export function AIChatWorkspace() {
   const settings = useWorkspace((s) => s.settings)
-  const setSettingsOpen = useWorkspace((s) => s.setSettingsOpen)
   const conversations = useWorkspace((s) => s.conversations)
   const activeId = useWorkspace((s) => s.activeConversationId)
   const createConversation = useWorkspace((s) => s.createConversation)
@@ -43,14 +49,25 @@ export function AIChatWorkspace() {
   const deleteConversation = useWorkspace((s) => s.deleteConversation)
   const renameConversation = useWorkspace((s) => s.renameConversation)
 
-  const config = useMemo(
-    () => ({
-      providerId: settings.aiProvider,
-      apiKey: settings.aiApiKey,
-      baseURL: settings.aiBaseUrl || undefined,
-      model: settings.aiModel || undefined,
-    }),
-    [settings.aiProvider, settings.aiApiKey, settings.aiBaseUrl, settings.aiModel],
+  // 当前选中的模型（优先 aiActiveModelId，否则取第一条）；无模型则为 null。
+  const activeModel = useMemo(
+    () =>
+      settings.aiModels.find((m) => m.id === settings.aiActiveModelId) ??
+      settings.aiModels[0] ??
+      null,
+    [settings.aiModels, settings.aiActiveModelId],
+  )
+  const config = useMemo<AIChatConfig | null>(
+    () =>
+      activeModel
+        ? {
+            providerId: activeModel.provider,
+            apiKey: activeModel.apiKey,
+            baseURL: activeModel.baseUrl || undefined,
+            model: activeModel.model || undefined,
+          }
+        : null,
+    [activeModel],
   )
 
   // 进入视图时确保至少有一个会话、且有一个被选中。
@@ -74,12 +91,13 @@ export function AIChatWorkspace() {
 
   const active = conversations.find((c) => c.id === activeId) ?? null
 
-  const [skills, setSkills] = useState<Skill[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState("")
   const [railOpen, setRailOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState("")
+  const [skillsOpen, setSkillsOpen] = useState(false)
+  const [modelsOpen, setModelsOpen] = useState(false)
 
   // 对话列表宽度（可拖拽分隔线调整，持久化到 localStorage）
   const RAIL_MIN = 180
@@ -128,21 +146,9 @@ export function AIChatWorkspace() {
     window.addEventListener("pointerup", up)
   }
 
-  const providerLabel = AI_PROVIDERS[settings.aiProvider]?.label ?? settings.aiProvider
-  const hasKey = settings.aiApiKey.trim().length > 0
+  const modelLabel = activeModel?.label ?? "未配置模型"
+  const hasKey = !!activeModel && activeModel.apiKey.trim().length > 0
   const userAvatar = settings.aiUserAvatar || ""
-
-  useEffect(() => {
-    loadSkills().then(setSkills).catch(() => setSkills([]))
-  }, [])
-
-  // 内置技能的展示清单（与 markdown 技能合并展示）
-  const builtinSkills: Skill[] = BUILTIN_SKILL_DISPLAY.map((s) => ({
-    name: s.name,
-    displayName: s.name,
-    description: s.description,
-    body: s.description,
-  }))
 
   const { messages, isLoading, send, stop } = useAIChat({
     config,
@@ -189,6 +195,18 @@ export function AIChatWorkspace() {
     void send(text)
     // 首条消息自动取名（不发额外请求），最多取前 10 字
     if (isFirst) renameConversation(active.id, text.trim().slice(0, 10))
+  }
+
+  // 点击预置问题：已配置模型则直接发送；否则仅填入输入框提示用户去配置。
+  const applyPreset = (q: string) => {
+    if (!active || !hasKey) {
+      setInput(q)
+      return
+    }
+    const isFirst = active.messages.length === 0
+    setInput("")
+    void send(q)
+    if (isFirst) renameConversation(active.id, q.trim().slice(0, 10))
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -330,49 +348,52 @@ export function AIChatWorkspace() {
           </Button>
           <Bot className="size-4 text-primary" />
           <h2 className="truncate text-sm font-semibold">{active?.title ?? "AI 助手"}</h2>
-          <span className="text-xs text-muted-foreground">{providerLabel}</span>
+          <span className="text-xs text-muted-foreground">{modelLabel}</span>
         </header>
 
         <div
           ref={scrollRef}
-          className="native-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3"
+          className="native-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3"
         >
           {!hasKey && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <div>
-                尚未配置 API Key。
+                尚未配置模型或 API Key。
                 <button
                   className="mx-1 underline underline-offset-2"
-                  onClick={() => setSettingsOpen(true)}
+                  onClick={() => setModelsOpen(true)}
                 >
-                  去设置
+                  去配置模型
                 </button>
-                选择供应商并填写 Key（仅本机存储）。
+                填写 Key 后即可对话（仅本机存储）。
               </div>
             </div>
           )}
 
-          {messages.length === 0 && (
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>在下方输入消息即可开始对话。可用技能（用户技能 + 内置只读技能）：</p>
-              {skills.length === 0 && builtinSkills.length === 0 ? (
-                <p className="text-xs">（未找到技能文件，不影响普通对话）</p>
-              ) : (
-                <ul className="flex flex-wrap gap-1.5">
-                  {[...skills, ...builtinSkills].map((s) => (
-                    <li
-                      key={s.name}
-                      className="rounded-full border bg-muted px-2 py-0.5 text-xs"
-                      title={s.description}
-                    >
-                      {s.displayName}
-                    </li>
-                  ))}
-                </ul>
-              )}
+          {messages.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 px-2 text-center">
+              <div className="space-y-2">
+                <h1 className="text-2xl font-semibold">今天想问点什么？</h1>
+                <p className="text-sm text-muted-foreground">
+                  挑选一个问题开始，或直接在下方输入。
+                </p>
+              </div>
+              <div className="flex w-full max-w-md flex-col gap-2">
+                {PRESET_QUESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => applyPreset(q)}
+                    className="rounded-xl border bg-muted/30 px-4 py-3 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
+          ) : (
+            <div className="flex flex-col gap-3">
 
           {messages.map((m) => {
             const isUser = m.role === "user"
@@ -436,10 +457,12 @@ export function AIChatWorkspace() {
               </div>
             )
           })}
+            </div>
+          )}
         </div>
 
         <form
-          className="flex items-end gap-2 border-t p-3"
+          className="flex flex-col gap-2 border-t p-3"
           onSubmit={(e) => {
             e.preventDefault()
             submit()
@@ -454,27 +477,54 @@ export function AIChatWorkspace() {
                 ? active
                   ? "输入消息，Enter 发送，Shift+Enter 换行"
                   : "请先选择或新建一个对话"
-                : "请先在设置中配置 API Key"
+                : "请先在「模型」中配置 API Key"
             }
             disabled={!active || !hasKey}
             className="native-scroll max-h-40 min-h-9 flex-1 resize-none"
             rows={1}
           />
-          {isLoading ? (
-            <Button type="button" variant="outline" size="icon" onClick={stop} title="停止">
-              <Square />
-            </Button>
-          ) : (
+          <div className="flex items-center gap-2">
             <Button
-              type="submit"
-              size="icon"
-              disabled={!input.trim() || !active || !hasKey}
-              title="发送"
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setSkillsOpen(true)}
+              title="技能启停"
             >
-              <Send />
+              <Wrench className="size-4" />
+              技能
             </Button>
-          )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setModelsOpen(true)}
+              title="模型选择"
+            >
+              <Sparkles className="size-4" />
+              {modelLabel}
+            </Button>
+            <div className="ml-auto" />
+            {isLoading ? (
+              <Button type="button" variant="outline" size="icon" onClick={stop} title="停止">
+                <Square />
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="icon"
+                disabled={!input.trim() || !active || !hasKey}
+                title="发送"
+              >
+                <Send />
+              </Button>
+            )}
+          </div>
         </form>
+        <SkillsToggleDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
+        <ModelManagerDialog open={modelsOpen} onOpenChange={setModelsOpen} />
       </div>
     </div>
   )

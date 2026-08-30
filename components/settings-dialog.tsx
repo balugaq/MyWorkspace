@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useEscapeClose } from "@/hooks/use-escape-close"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench } from "lucide-react"
 // import { Wand2 } from "lucide-react" // 日历标记脚本入口（已弃用停用）
 import { useWorkspace } from "@/lib/store"
 import {
@@ -18,9 +18,7 @@ import {
   type ShortcutBinding,
   type DefaultView,
   type ThemePreference,
-  type AIProviderId,
 } from "@/lib/types"
-import { AI_PROVIDERS } from "@/lib/ai/providers"
 import {
   Dialog,
   DialogContent,
@@ -33,6 +31,8 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { LicenseDialog } from "@/components/license-dialog"
+import { ModelManagerDialog } from "@/components/ai-models-dialog"
+import { SkillsToggleDialog } from "@/components/ai-skills-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Select,
@@ -94,6 +94,12 @@ export function SettingsDialog() {
   // 待导入的已解包 ZIP 文件映射（选中 zip 后、弹出替换/合并选择前暂存）
   const [pendingFiles, setPendingFiles] = useState<Record<string, Uint8Array> | null>(null)
   const [licenseOpen, setLicenseOpen] = useState(false)
+  const [modelsOpen, setModelsOpen] = useState(false)
+  const [skillsOpen, setSkillsOpen] = useState(false)
+
+  const activeModelEntry =
+    settings.aiModels.find((m) => m.id === settings.aiActiveModelId) ?? settings.aiModels[0]
+  const modelLabel = activeModelEntry?.label ?? "未配置"
 
   // ESC 关闭设置弹窗（与其它弹窗行为一致）
   useEscapeClose(open, () => setOpen(false))
@@ -294,54 +300,38 @@ export function SettingsDialog() {
 
           <section className="flex flex-col gap-2">
             <Label className="text-xs font-medium text-muted-foreground">AI 助手</Label>
-            <Select
-              value={settings.aiProvider}
-              onValueChange={(v) => {
-                if (v) updateSettings({ aiProvider: v as AIProviderId })
-              }}
+
+            <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="min-w-0">
+                <Label className="text-xs font-medium">模型</Label>
+                <p className="truncate text-xs text-muted-foreground">
+                  {settings.aiModels.length === 0
+                    ? "尚未配置（点击添加）"
+                    : `已配置 ${settings.aiModels.length} 个 · 当前：${modelLabel}`}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setModelsOpen(true)}
+              >
+                <Sparkles className="size-4" />
+                管理模型
+              </Button>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setSkillsOpen(true)}
             >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {AI_PROVIDERS[settings.aiProvider]?.label ?? "选择供应商"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {Object.values(AI_PROVIDERS).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <input
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={settings.aiApiKey}
-              placeholder={AI_PROVIDERS[settings.aiProvider]?.apiKeyPlaceholder ?? "API Key"}
-              onChange={(e) => updateSettings({ aiApiKey: e.target.value })}
-              className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            />
-            {settings.aiProvider === "custom" && (
-              <input
-                type="text"
-                autoComplete="off"
-                spellCheck={false}
-                value={settings.aiBaseUrl}
-                placeholder="Base URL（如 https://api.example.com/v1）"
-                onChange={(e) => updateSettings({ aiBaseUrl: e.target.value })}
-                className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-              />
-            )}
-            <input
-              type="text"
-              autoComplete="off"
-              spellCheck={false}
-              value={settings.aiModel}
-              placeholder={`模型名（默认 ${AI_PROVIDERS[settings.aiProvider]?.defaultModel ?? "gpt-4o-mini"}；留空则用默认，也可填其它如 glm-4-flash / deepseek-reasoner）`}
-              onChange={(e) => updateSettings({ aiModel: e.target.value })}
-              className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            />
+              <Wrench className="size-4" />
+              技能启停
+            </Button>
+
             <div className="mt-1 flex flex-col gap-1">
               <Label className="text-xs font-medium">AI 人设（自定义指令）</Label>
               <Textarea
@@ -412,7 +402,7 @@ export function SettingsDialog() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              仅本机明文存储于 localStorage，请不要在共享环境使用。{AI_PROVIDERS[settings.aiProvider]?.help}
+              仅本机明文存储于 localStorage，请不要在共享环境使用。
             </p>
             <div className="mt-2 flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
               <div className="min-w-0">
@@ -427,6 +417,9 @@ export function SettingsDialog() {
               />
             </div>
           </section>
+
+          <ModelManagerDialog open={modelsOpen} onOpenChange={setModelsOpen} />
+          <SkillsToggleDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
 
           <section className="flex flex-col gap-2">
             <Label className="text-xs font-medium text-muted-foreground">数据备份（含图片）</Label>

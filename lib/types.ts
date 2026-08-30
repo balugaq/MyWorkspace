@@ -205,17 +205,28 @@ export type DefaultView = "workspace" | "calendar"
 //   code: string
 // }
 
+// AI 模型条目：支持配置多个模型，每条独立保存 provider / key / baseUrl / model。
+// 各 Key 仅存于本机 localStorage（纯前端静态站，无后端），互不干扰。
+export interface AIModelEntry {
+  id: string
+  label: string // 展示名，如「GPT-4o」「我的 DeepSeek」
+  provider: AIProviderId
+  apiKey: string
+  baseUrl: string // 仅 custom 供应商使用
+  model: string // 覆盖模型名（留空则用供应商默认模型，如 智谱 glm-4-plus / DeepSeek deepseek-chat）
+}
+
 export interface Settings {
   theme: ThemePreference
   defaultView: DefaultView
   shortcuts: Record<ShortcutAction, ShortcutBinding>
   fontSize: number // 全局基础字号 rem，例如 16（对应 --font-size-base）
   githubToken: string // GitHub 个人访问令牌（PAT），用于提升 GitHub 预览卡的 API 限额；留空则匿名（60 次/小时/IP）
-  // AI 助手配置：用户选 provider + 填 apiKey；所有供应商均可在下方「模型名」框覆盖默认模型；custom 模式另需填 baseURL
-  aiProvider: AIProviderId
-  aiApiKey: string
-  aiBaseUrl: string // 仅 custom 模式使用
-  aiModel: string // 覆盖模型名（留空则用供应商默认模型，如 智谱 glm-4-plus / DeepSeek deepseek-chat）
+  // AI 助手：支持配置多个模型，可随时切换当前使用的模型。
+  aiModels: AIModelEntry[]
+  aiActiveModelId: string | null // 当前选中的模型 id；为空表示尚未配置任何模型
+  // 全局技能启停：null = 全部启用；否则为「启用」的技能名列表（用户技能名 + 内置技能名）。
+  aiEnabledSkills: string[] | null
   aiUserAvatar: string // 用户头像（data URL，压缩后存储）；留空则用默认用户图标
   // AI 对话强制同步：开启后所有对话的用户请求统一进入单队列串行处理；
   // 关闭则允许并发（同一会话仍不会重复发起）。两种模式下切换会话/视图都不会中断在途请求。
@@ -233,10 +244,9 @@ export const DEFAULT_SETTINGS: Settings = {
   >,
   fontSize: 16,
   githubToken: "",
-  aiProvider: "zcode",
-  aiApiKey: "",
-  aiBaseUrl: "",
-  aiModel: "",
+  aiModels: [],
+  aiActiveModelId: null,
+  aiEnabledSkills: null,
   aiUserAvatar: "",
   aiForceSync: false,
   aiPersona: "",

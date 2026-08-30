@@ -20,9 +20,11 @@ import type {
   ConnectResult,
   Conversation,
   AIChatMessage,
+  AIModelEntry,
   // CalendarScript, // 日历标记脚本已弃用停用：不再引入该类型
 } from "./types"
 import { DEFAULT_SETTINGS } from "./types"
+import { AI_PROVIDERS } from "@/lib/ai/providers"
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -832,6 +834,32 @@ export const useWorkspace = create<WorkspaceState>()(
         // 也不把僵尸字段写回 localStorage）。
         delete p.calendarScripts
         delete p.scriptsOpen
+        // 迁移：旧版「单一模型配置」（aiProvider/aiApiKey/aiBaseUrl/aiModel）转为多模型数组。
+        // 旧快照里这些字段存在但 aiModels 不存在；新用户则 aiModels 为空、由首次配置补齐。
+        const rawSettings = (p.settings as Record<string, unknown> | undefined) ?? {}
+        let aiModels: AIModelEntry[] = Array.isArray(rawSettings.aiModels)
+          ? (rawSettings.aiModels as AIModelEntry[])
+          : []
+        let aiActiveModelId: string | null =
+          typeof rawSettings.aiActiveModelId === "string"
+            ? rawSettings.aiActiveModelId
+            : null
+        if (aiModels.length === 0) {
+          const legacyProvider = rawSettings.aiProvider as Settings["aiModels"][number]["provider"] | undefined
+          const entry: AIModelEntry = {
+            id: `m_${Date.now().toString(36)}`,
+            label:
+              legacyProvider && AI_PROVIDERS[legacyProvider]
+                ? AI_PROVIDERS[legacyProvider].label
+                : "默认模型",
+            provider: legacyProvider ?? "zcode",
+            apiKey: typeof rawSettings.aiApiKey === "string" ? rawSettings.aiApiKey : "",
+            baseUrl: typeof rawSettings.aiBaseUrl === "string" ? rawSettings.aiBaseUrl : "",
+            model: typeof rawSettings.aiModel === "string" ? rawSettings.aiModel : "",
+          }
+          aiModels = [entry]
+          aiActiveModelId = entry.id
+        }
         // 若历史数据没有 settings，则并入当前默认设置
         return {
           ...current,
@@ -841,7 +869,9 @@ export const useWorkspace = create<WorkspaceState>()(
             (p.activeConversationId as string | null | undefined) ?? null,
           settings: {
             ...DEFAULT_SETTINGS,
-            ...(p.settings as Partial<Settings> | undefined),
+            ...(rawSettings as Partial<Settings>),
+            aiModels,
+            aiActiveModelId,
           },
         }
       },
