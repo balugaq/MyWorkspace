@@ -64,9 +64,8 @@ export interface RelationContent {
 }
 
 export interface CategoryConfig {
-  namingRule?: string // 命名规则，如 "第%首"
   autoNumber?: boolean
-  itemLabel?: string // 单条目的称呼，如 "章节" "笔记"
+  unit?: string // 单条目单位（量词），如 "章" "首" "回" "条" "课"；唯一来源，同时决定导航「上一X/下一X」与自动编号标题「第%X」，缺省回退为 "章"
 }
 
 // 分类

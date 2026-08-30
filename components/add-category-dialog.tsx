@@ -30,9 +30,9 @@ export function AddCategoryDialog({
   const addCategory = useWorkspace((s) => s.addCategory)
   const [name, setName] = useState("")
   const [template, setTemplate] = useState<TemplateType>("novel")
-  const [namingRule, setNamingRule] = useState("第%首")
   const [autoNumber, setAutoNumber] = useState(true)
   const [count, setCount] = useState(3)
+  const [unit, setUnit] = useState("")
 
   // ESC 关闭弹窗（与其它弹窗行为一致）
   useEscapeClose(open, () => onOpenChange(false))
@@ -40,9 +40,9 @@ export function AddCategoryDialog({
   function reset() {
     setName("")
     setTemplate("novel")
-    setNamingRule("第%首")
     setAutoNumber(true)
     setCount(3)
+    setUnit("")
   }
 
   function submit() {
@@ -53,7 +53,9 @@ export function AddCategoryDialog({
     addCategory(
       name.trim(),
       template,
-      template === "novel" ? { namingRule, autoNumber, itemLabel: "章节" } : {},
+      template === "novel"
+        ? { autoNumber, unit: unit.trim() || "章" }
+        : { unit: unit.trim() || "章" },
       template === "novel" ? Math.max(0, Math.min(300, count)) : 0,
     )
     toast.success(`已创建分类「${name.trim()}」`)
@@ -93,7 +95,6 @@ export function AddCategoryDialog({
                     type="button"
                     onClick={() => {
                       setTemplate(t.type)
-                      if (t.type === "novel") setNamingRule("第%首")
                     }}
                     className={cn(
                       "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
@@ -113,23 +114,25 @@ export function AddCategoryDialog({
             </p>
           </div>
 
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="unit">条目单位（可选）</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                id="unit"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="章"
+                className="max-w-24"
+                maxLength={4}
+              />
+              <span className="text-xs text-muted-foreground">
+                如 章 / 首 / 回 / 条 / 课；留空则用「章」。同时决定底部翻页（上一X/下一X）与自动编号标题（第%X → 第一章）
+              </span>
+            </div>
+          </div>
+
           {template === "novel" && (
             <div className="flex flex-col gap-4 rounded-lg border bg-muted/40 p-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="naming">命名规则</Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="naming"
-                    value={namingRule}
-                    onChange={(e) => setNamingRule(e.target.value)}
-                    placeholder="第%首"
-                    className="max-w-40"
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    {"用 % 表示编号占位，如 第%首 → 第一首"}
-                  </span>
-                </div>
-              </div>
               <div className="flex items-center justify-between gap-4">
                 <Label htmlFor="auto" className="cursor-pointer">
                   自动中文编号

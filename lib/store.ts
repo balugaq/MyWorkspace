@@ -784,9 +784,10 @@ function iconForTemplate(t: TemplateType): string {
   }
 }
 
-// 依据命名规则生成标题，如 "第%首" + 序号 => "第一首"
+// 依据单位（unit）生成标题，如 unit="章" → "第%章" + 序号 => "第一章"。
+// unit 为单位语义的唯一来源，同时决定导航「上一X/下一X」与自动编号标题。
 export function buildTitle(config: CategoryConfig, index: number): string {
-  const rule = config.namingRule || "第%"
+  const rule = `第%${config.unit || "章"}`
   const num =
     config.autoNumber !== false ? toChineseNumber(index) : String(index)
   if (rule.includes("%")) return rule.replace("%", num)

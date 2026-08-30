@@ -148,7 +148,7 @@ function TemplateQuickAdd() {
     if (t === "relation") {
       id = addCategory(defaultName(t), "relation", {}, 0)
     } else if (t === "novel") {
-      id = addCategory(defaultName(t), "novel", { namingRule: "第%章", autoNumber: true, itemLabel: "章节" }, 5)
+      id = addCategory(defaultName(t), "novel", { autoNumber: true, unit: "章" }, 5)
     } else {
       // study / work / life / custom：空白条目分类
       id = addCategory(defaultName(t), t, {}, 0)

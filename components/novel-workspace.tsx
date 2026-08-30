@@ -180,6 +180,8 @@ function ChapterEditor({
   }, [chapters, chapter.id])
 
   const isNovel = category.template === "novel"
+  // 导航单位：配置了 unit 才用它（上一X/下一X），否则回退默认「章」。
+  const unit = category.config.unit?.trim() || "章"
 
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-6 py-6">
@@ -245,7 +247,7 @@ function ChapterEditor({
           className="gap-1"
         >
           <ChevronLeft className="size-4" />
-          上一{isNovel ? "首" : "条"}
+          上一{unit}
         </Button>
         <Button
           variant="outline"
@@ -254,7 +256,7 @@ function ChapterEditor({
           onClick={() => next && setActiveItem(next.id)}
           className="gap-1"
         >
-          下一{isNovel ? "首" : "条"}
+          下一{unit}
           <ChevronRight className="size-4" />
         </Button>
       </div>
