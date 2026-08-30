@@ -6,7 +6,7 @@
 
 ## TL;DR（太长了不看）
 
-1. 本仓库是 **Next.js 16（App Router）+ React 19 + TypeScript 严格模式** 的个人工作台（思维导图 Todo / 分类笔记 / 日历日程），所有改动必须通过 `npm run typecheck` 与 `npm run lint` **均 0 错误**后才能视为完成。
+1. 本仓库是 **Next.js 16（App Router）+ React 19 + TypeScript 严格模式** 的个人工作台（思维导图 Todo / 分类笔记 / 日历日程 / 通讯录 / AI 助手 / 密码保险库），所有改动必须通过 `npm run typecheck` 与 `npm run lint` **均 0 错误**后才能视为完成。
 2. 状态集中在 `lib/store.ts` 的 Zustand store（localStorage 持久化）；**禁止**到处散落本地 state 承载应属于 store 的数据。新增功能优先复用 `app/` 与 `components/` 既有模块。
 3. 本机直接在当前分支开发（个人仓库），提交信息遵循 Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `chore:`）。**严禁 AI 执行 `git commit`（提交仅由宿主执行），已有提交保留不撤回**（详见第 5 节红线第 8 条与第 6 节）。
 
@@ -16,13 +16,13 @@
 
 | 维度 | 事实 |
 | --- | --- |
-| 定位 | 纯前端个人工作台：思维导图式 Todo、分类笔记（小说/学习/工作/生活）、日历日程、密码保险库；localStorage + IndexedDB |
-| 技术栈 | Next.js 16.2.6（App Router + **static export**）、React 19、TS 严格、Tailwind v4、shadcn/ui（`@base-ui/react`）、Zustand、`@xyflow/react`（React Flow）、`date-fns` |
-| 入口 | `app/page.tsx`（主布局：侧边栏 + 工作区分发 + 状态栏 + 各弹窗 + `useGlobalShortcuts`；`useCalendarScripts` 已弃用停用）；`app/layout.tsx`（系统字体栈 + `ThemeProvider` + `Toaster` + `VaultProvider`） |
+| 定位 | 纯前端个人工作台：思维导图式 Todo、分类笔记（小说/学习/工作/生活）、日历日程、通讯录、AI 助手、密码保险库；localStorage + IndexedDB |
+| 技术栈 | Next.js 16.2.6（App Router + **static export**）、React 19、TS 严格、Tailwind v4、shadcn/ui（`@base-ui/react`）、Zustand、`@xyflow/react`（React Flow）、`date-fns`；**富文本基座 TipTap v3**（`@tiptap/core` + `@tiptap/react` + `@tiptap/starter-kit` + `@tiptap/extension-*` + `tiptap-markdown`，正文统一以 Markdown 串存储）、**AI 助手基座 AI SDK**（`ai` + `@ai-sdk/openai-compatible`）；其余 UI/工具依赖（`cmdk` / `lucide-react` / `sonner` / `next-themes` / `zod` / `yaml` / `marked` / `lowlight` / `fast-xml-parser` / `tw-animate-css` / `class-variance-authority` / `clsx` / `tailwind-merge`）见 `lib/licenses.ts` 的 `THIRD_PARTY_LICENSES`（共 40 条，必须随依赖同步增补） |
+| 入口 | `app/page.tsx`（主布局：侧边栏 + 工作区分发 + 状态栏 + 各弹窗 + `useGlobalShortcuts`；按 `view` 分发 `calendar`/`contacts`/`vault`/`ai-chat` 与分类工作区；`useCalendarScripts` 已弃用停用）；`app/layout.tsx`（系统字体栈 + `ThemeProvider` + `Toaster` + `VaultProvider`） |
 | 状态 | `lib/store.ts` —— `useWorkspace`（Zustand + persist），含分类/章节/思维图节点与连线/日历/系统设置/密码保险库会话（保险库仅存加密 blob，密钥不落盘；日历脚本字段已弃用停用） |
-| 图片 | IndexedDB（`lib/image-store.ts`）；正文用引用 token `{{img:<id>}}` |
+| 图片 | IndexedDB（`lib/image-store.ts` + 引用扫描 `lib/image-refs.ts`）；正文用 `imgref:<id>` 引用 token（旧 `{{img:<id>}}` 在读取时由 `components/richtext/normalize.ts` 归一，详见 `docs/entry-points.md` §8.9） |
 | 加密 | 密码保险库用 Web Crypto（PBKDF2 + AES-256-GCM），加密 blob 存 IndexedDB（`lib/vault-store.ts`），密钥驻留 `VaultProvider` 内存 |
-| 部署 | `output: "export"`，`next build` 产出 `out/`，`scripts/serve-static.mjs` 本地托管 |
+| 部署 | `output: "export"`，`next build` 产出 `out/`，`scripts/serve-static.mjs` 本地托管；`postbuild` 由 `scripts/inject-csp.mjs` 为 `out/` 所有 HTML 注入**严格 CSP**（`script-src` 走 hash 白名单，放行框架自带行内脚本、拦截其他行内脚本），`app/layout.tsx` 预留 CSP meta 占位 `__CSP_INJECTED_AT_BUILD__` |
 | AI 职责范围 | 功能开发、Bug 修复、组件/状态重构、构建/脚本维护、文档维护 |
 | AI 不负责 | 提交 git（`git commit`）、发布公网、推送远程（由宿主/开发者执行） |
 
@@ -36,6 +36,7 @@
 | 验收三件套 | `npm run typecheck`（=`tsc --noEmit`，0 错误）+ `npm run lint`（=`eslint`，0 错误）；开发机再加 `npm run build` |
 | 格式化 | `npm run format` |
 | 构建期依赖更新 | `npm run update-dependencies`（由 `predev`/`prebuild` 自动触发；`SKIP_DEP_UPDATE=1` 跳过；当前维护 `lunar-javascript`） |
+| 构建后 CSP 注入 | `postbuild` 自动执行 `scripts/inject-csp.mjs`（`next build` 后、`serve` 前）；为 `out/` 注入严格 CSP，**不可省略**（否则 `layout.tsx` 的占位 meta 不生效、行内脚本可能被拦） |
 
 ---
 
@@ -55,7 +56,7 @@
 - **新增 store 字段/action**：同时改 `WorkspaceState` 接口与 `create()`；沿用不可变更新 + `set`；增删必要时在 `merge` 兼容旧存档。
 - **新增可搜索内容**：在 `lib/search.ts` 的 `runSearch` 对应分支出追加命中，并在 `components/global-search.tsx` 的 `TYPE_ICON` 与跳转里注册。
 - **新增全局快捷键**：改 `lib/types.ts` 的 `SHORTCUT_META`，在 `hooks/use-shortcuts.ts` 的 `useGlobalShortcuts` 接线。
-- **新增视图（如 vault）**：改 `lib/store.ts` 的 `view` 联合类型 + `goXxx` action；在 `app/page.tsx` 分发渲染；在 `app-sidebar.tsx` 加 `XxxNavItem`；并在 `lib/types.ts` 的 `VIEW_LABEL` 补显示名（状态栏右下角对齐）。
+- **新增视图（如 vault / contacts / ai-chat）**：改 `lib/store.ts` 的 `view` 联合类型 + `goXxx` action；在 `app/page.tsx` 分发渲染；在 `app-sidebar.tsx` 加 `XxxNavItem`；并在 `lib/types.ts` 的 `VIEW_LABEL` 补显示名（状态栏右下角对齐）。
 - **新增设置项**：在 `Settings` 类型 + `components/settings-dialog.tsx` 的弹窗分区；持久化项走 store。
 - **新增第三方依赖**：`npm install` 后必须在 `lib/licenses.ts` 的 `THIRD_PARTY_LICENSES` 补一条声明（名称 / 作者 / 本项目用途描述 / 许可证 / 许可证链接），否则不会出现在「设置 → 开源许可证」页面。
 - ~~**新增脚本能力**：改 `lib/calendar-events.ts`（事件/注入 API），文档同步 `docs/calendar-script-docs.md`。~~（日历标记脚本已弃用停用）
@@ -86,7 +87,7 @@
 
 ## 7. 质量规范
 
-- TS 严格模式，不引入 `any` 逃逸；Web Crypto 相关类型统一用 `Uint8Array<ArrayBuffer>` 规避 TS5.9 对 `BufferSource` 的严格校验。
+- TS 严格模式，**原则上不引入 `any` 逃逸**；**唯一已知例外**为 `components/richtext/upgrade.ts`（prosemirror `Node` 类型推断异常，回调形参桥接为 `any`，已加注释说明，新增 `any` 须在此报备）。Web Crypto 相关类型统一用 `Uint8Array<ArrayBuffer>` 规避 TS5.9 对 `BufferSource` 的严格校验。
 - 组件放 `components/`（业务）或 `components/ui/`（基础）；纯逻辑放 `lib/`（如 `store.ts`、`search.ts`、`image-store.ts`、`crypto.ts`、`vault-store.ts`）。
 - 数据流单向：store → 组件；组件回调调用 store action。
 - 每个改动是能通过 typecheck/lint、逻辑自洽的完整状态；不留死代码/unused import。
