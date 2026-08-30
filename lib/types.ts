@@ -43,6 +43,8 @@ export interface MindNode {
   dueDate?: string | null // 截止日期 yyyy-MM-dd；null / 缺省 = 长期任务
   longTerm?: boolean // 是否为长期任务（true 时不显示在日历）
   done?: boolean // 节点本身是否已完成
+  createdAt?: number // 节点创建时间（epoch ms）；旧存档缺失时由迁移逻辑补齐
+  completedAt?: number | null // 节点完成时间（epoch ms）；null = 未完成；旧存档缺失时由迁移逻辑补齐
   hidden?: boolean // 是否在图里隐藏（隐藏后仅列表显示）
 }
 

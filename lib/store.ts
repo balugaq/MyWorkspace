@@ -70,6 +70,32 @@ function mergeById<T extends { id: string }>(a: T[], b: T[]): T[] {
   return [...m.values()]
 }
 
+// 旧版思维导图节点无 createdAt / completedAt 字段；统一默认时间（用户指定：2026/8/31 02:00:00 GMT+8）。
+const LEGACY_NODE_TIME = new Date("2026-08-31T02:00:00+08:00").getTime()
+
+// 为旧存档/旧备份中缺失 createdAt / completedAt 的节点补齐默认值（并在加载时写回持久化）。
+// 约定：字段为 undefined = 旧数据缺失 → 补齐 LEGACY_NODE_TIME；字段为 null = 明确「未完成」→ 保留。
+function normalizeCategoryNodes(cats: Category[]): Category[] {
+  return cats.map((c) => {
+    if (!c.relation || !Array.isArray(c.relation.nodes) || c.relation.nodes.length === 0)
+      return c
+    let changed = false
+    const nodes = c.relation.nodes.map((n) => {
+      const next = { ...n }
+      if (typeof next.createdAt !== "number") {
+        next.createdAt = LEGACY_NODE_TIME
+        changed = true
+      }
+      if (next.completedAt === undefined) {
+        next.completedAt = LEGACY_NODE_TIME
+        changed = true
+      }
+      return next
+    })
+    return changed ? { ...c, relation: { ...c.relation, nodes } } : c
+  })
+}
+
 /** 合并某天的日历数据：笔记取备份非空值，待办/事件按 id 合并 */
 function mergeCalendarDay(a: CalendarDay, b: CalendarDay): CalendarDay {
   return {
@@ -320,7 +346,7 @@ export const useWorkspace = create<WorkspaceState>()(
           const cur = get()
           const persona = migratePersona((data.settings ?? {}) as Record<string, unknown>)
           set({
-            categories: data.categories as Category[],
+            categories: normalizeCategoryNodes(data.categories as Category[]),
             calendar: data.calendar as CalendarData,
             settings: {
               ...DEFAULT_SETTINGS,
@@ -363,7 +389,7 @@ export const useWorkspace = create<WorkspaceState>()(
           const catMap = new Map<string, Category>()
           for (const c of cur.categories) catMap.set(c.id, c)
           for (const c of data.categories as Category[]) catMap.set(c.id, c)
-          const categories = [...catMap.values()]
+          const categories = normalizeCategoryNodes([...catMap.values()])
           // 日历：按日期合并
           const calendar: CalendarData = { ...cur.calendar }
           const bCal = data.calendar as CalendarData
@@ -590,6 +616,8 @@ export const useWorkspace = create<WorkspaceState>()(
                 x: 200 + Math.random() * 200,
                 y: 120 + Math.random() * 160,
               },
+              createdAt: Date.now(),
+              completedAt: null,
             }
             return {
               ...c,
@@ -609,9 +637,15 @@ export const useWorkspace = create<WorkspaceState>()(
                   ...c,
                   relation: {
                     ...c.relation,
-                    nodes: c.relation.nodes.map((n) =>
-                      n.id === nodeId ? { ...n, ...patch } : n
-                    ),
+                    nodes: c.relation.nodes.map((n) => {
+                      if (n.id !== nodeId) return n
+                      const next = { ...n, ...patch }
+                      // 切换完成态时同步记录完成时间：完成 = 现在，未完成 = null
+                      if ("done" in patch) {
+                        next.completedAt = patch.done ? Date.now() : null
+                      }
+                      return next
+                    }),
                   },
                 }
               : c
@@ -901,6 +935,10 @@ export const useWorkspace = create<WorkspaceState>()(
         return {
           ...current,
           ...p,
+          // 旧存档节点可能缺失 createdAt / completedAt：补齐默认值并随本次写入持久化。
+          categories: Array.isArray(p.categories)
+            ? normalizeCategoryNodes(p.categories)
+            : current.categories,
           conversations: (p.conversations as Conversation[] | undefined) ?? [],
           activeConversationId:
             (p.activeConversationId as string | null | undefined) ?? null,
