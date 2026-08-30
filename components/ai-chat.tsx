@@ -226,7 +226,10 @@ export function AIChatWorkspace() {
             size="icon-sm"
             className="ml-auto"
             onClick={() => {
-              createConversation()
+              // 已存在「空对话」（无任何消息记录）则直接切换过去，不重复创建
+              const empty = conversations.find((c) => c.messages.length === 0)
+              if (empty) selectConversation(empty.id)
+              else createConversation()
               setRailOpen(false)
             }}
             title="新建对话"
