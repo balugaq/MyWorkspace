@@ -15,7 +15,7 @@ import { collectReferencedImageIds } from "./image-refs"
  * 导出（`exportBackupZip`）：
  *   workplace-backup-YYYY-MM-DD.zip
  *   ├── manifest.json      # 元信息（app / version / exportedAt）
- *   ├── workspace.json     # store 快照（分类/日历/设置，等同 localStorage 持久化数据）
+ *   ├── workspace.json     # store 快照（分类/日历/设置/AI 对话，等同 localStorage 持久化数据）
  *   ├── vault.json         # 保险库加密数据（salt/iv/ciphertext 的 base64，主密码无关，可直接搬运）
  *   └── images/<id>.<ext>  # 全部用户图片（含暂存区；已是压缩格式，level 0 直存）
  *

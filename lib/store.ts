@@ -258,6 +258,8 @@ export const useWorkspace = create<WorkspaceState>()(
               categories: s.categories,
               calendar: s.calendar,
               settings: s.settings,
+              conversations: s.conversations,
+              activeConversationId: s.activeConversationId,
               // calendarScripts: s.calendarScripts, // 日历标记脚本（已弃用停用）
             },
             null,
@@ -277,6 +279,11 @@ export const useWorkspace = create<WorkspaceState>()(
             typeof data.calendar !== "object"
           )
             return false
+          // AI 对话：仅当备份显式包含 conversations 时才覆盖（旧版无此字段则保留当前对话）。
+          const convs = Array.isArray(data.conversations)
+            ? (data.conversations as Conversation[])
+            : null
+          const cur = get()
           set({
             categories: data.categories as Category[],
             calendar: data.calendar as CalendarData,
@@ -284,6 +291,12 @@ export const useWorkspace = create<WorkspaceState>()(
               ...DEFAULT_SETTINGS,
               ...(data.settings ?? {}),
             } as Settings,
+            conversations: convs ?? cur.conversations,
+            activeConversationId: convs
+              ? (convs.find((c) => c.id === data.activeConversationId)
+                  ? data.activeConversationId
+                  : convs[0]?.id ?? null)
+              : cur.activeConversationId,
             // 日历标记脚本（已弃用停用）：不再恢复 calendarScripts 字段
             // calendarScripts: Array.isArray(data.calendarScripts)
             //   ? (data.calendarScripts as CalendarScript[])
@@ -322,7 +335,22 @@ export const useWorkspace = create<WorkspaceState>()(
             const cDay = calendar[date]
             calendar[date] = cDay ? mergeCalendarDay(cDay, bDay) : bDay
           }
-          set({ categories, calendar })
+          // AI 对话：仅当备份包含 conversations 时按 id 合并（同 id 覆盖，新 id 追加），
+          // 否则保留当前对话；合并模式不改动当前选中的会话（若仍存在于结果中）。
+          const bConvs = data.conversations as Conversation[] | undefined
+          if (Array.isArray(bConvs)) {
+            const convMap = new Map<string, Conversation>()
+            for (const c of cur.conversations) convMap.set(c.id, c)
+            for (const c of bConvs) convMap.set(c.id, c)
+            const conversations = [...convMap.values()]
+            const activeConversationId =
+              cur.activeConversationId && convMap.has(cur.activeConversationId)
+                ? cur.activeConversationId
+                : (conversations[0]?.id ?? null)
+            set({ categories, calendar, conversations, activeConversationId })
+          } else {
+            set({ categories, calendar })
+          }
           return true
         } catch {
           return false
