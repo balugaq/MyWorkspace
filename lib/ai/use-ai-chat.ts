@@ -30,6 +30,7 @@ import { z } from "zod"
 
 import { resolveProvider } from "./providers"
 import { loadSkills } from "./skills"
+import { BUILTIN_SKILLS } from "./builtin-skills"
 import type { AIProviderId } from "@/lib/types"
 
 export interface ChatMessage {
@@ -154,6 +155,26 @@ export function useAIChat(config: AIChatConfig) {
         }
       } catch {
         // 技能加载失败不影响普通对话
+      }
+
+      // 注册内置（代码驱动、只读）技能：直接读取运行时状态与数据文件，返回结构化 JSON。
+      // 工具名以 wb_ 前缀，避免与用户 markdown 技能冲突。全部为只读操作。
+      for (const s of BUILTIN_SKILLS) {
+        const skillName = s.name
+        tools[skillName] = tool({
+          description: s.description,
+          inputSchema: zodSchema(s.parameters),
+          execute: async (args) => {
+            try {
+              const out = await s.execute(args as Record<string, unknown>)
+              return typeof out === "string" ? out : JSON.stringify(out, null, 2)
+            } catch (e) {
+              return JSON.stringify({
+                error: e instanceof Error ? e.message : String(e),
+              })
+            }
+          },
+        })
       }
 
       const modelMessages: ModelMessage[] = history.map((m): ModelMessage =>

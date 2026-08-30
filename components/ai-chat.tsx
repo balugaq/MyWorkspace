@@ -10,6 +10,7 @@ import { Bot, Send, Square, Trash2, Wrench, AlertTriangle, User } from "lucide-r
 import { useWorkspace } from "@/lib/store"
 import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
 import { loadSkills, type Skill } from "@/lib/ai/skills"
+import { BUILTIN_SKILL_DISPLAY } from "@/lib/ai/builtin-skills"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -41,6 +42,14 @@ export function AIChatWorkspace() {
   useEffect(() => {
     loadSkills().then(setSkills).catch(() => setSkills([]))
   }, [])
+
+  // 内置技能的展示清单（与 markdown 技能合并展示）
+  const builtinSkills: Skill[] = BUILTIN_SKILL_DISPLAY.map((s) => ({
+    name: s.name,
+    displayName: s.name,
+    description: s.description,
+    body: s.description,
+  }))
 
   useEffect(() => {
     // 新消息后滚到底部
@@ -96,15 +105,16 @@ export function AIChatWorkspace() {
 
         {messages.length === 0 && (
           <div className="space-y-2 text-sm text-muted-foreground">
-            <p>在下方输入消息即可开始对话。可用技能（读取自 public/skills）：</p>
-            {skills.length === 0 ? (
+            <p>在下方输入消息即可开始对话。可用技能（用户技能 + 内置只读技能）：</p>
+            {skills.length === 0 && builtinSkills.length === 0 ? (
               <p className="text-xs">（未找到技能文件，不影响普通对话）</p>
             ) : (
               <ul className="flex flex-wrap gap-1.5">
-                {skills.map((s) => (
+                {[...skills, ...builtinSkills].map((s) => (
                   <li
                     key={s.name}
                     className="rounded-full border bg-muted px-2 py-0.5 text-xs"
+                    title={s.description}
                   >
                     {s.displayName}
                   </li>
