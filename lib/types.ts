@@ -217,6 +217,9 @@ export interface Settings {
   aiBaseUrl: string // 仅 custom 模式使用
   aiModel: string // 覆盖模型名（留空则用供应商默认模型，如 智谱 glm-4-plus / DeepSeek deepseek-chat）
   aiUserAvatar: string // 用户头像（data URL，压缩后存储）；留空则用默认用户图标
+  // AI 对话强制同步：开启后所有对话的用户请求统一进入单队列串行处理；
+  // 关闭则允许并发（同一会话仍不会重复发起）。两种模式下切换会话/视图都不会中断在途请求。
+  aiForceSync: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -233,5 +236,6 @@ export const DEFAULT_SETTINGS: Settings = {
   aiBaseUrl: "",
   aiModel: "",
   aiUserAvatar: "",
+  aiForceSync: false,
 }
 

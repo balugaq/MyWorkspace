@@ -1,12 +1,13 @@
 // AI 助手视图：侧边栏「AI 助手」入口进入。
 // 多会话架构（类似成熟 AI 网页服务）：左侧为对话列表，各自持有完整上下文，
 // 主区为所选对话的消息流。会话持久化在 store（localStorage），刷新后保留。
-// 配置（provider / apiKey）来自 store.settings；skills 由 useAIChat 内部读取。
+// 流式请求由 lib/ai/request-queue 全局持有——切换会话 / 切走视图都不会中断在途请求。
+// 配置（provider / apiKey）来自 store.settings；skills 由队列内部读取。
 // AI 回复用项目内置的 MarkdownView 安全渲染（marked.lexer + React，不接外部呈现库）。
 
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react"
 import {
   Bot,
   Send,
@@ -22,6 +23,7 @@ import {
 
 import { useWorkspace } from "@/lib/store"
 import { useAIChat } from "@/lib/ai/use-ai-chat"
+import { subscribeQueue, isWorking, stopConversation } from "@/lib/ai/request-queue"
 import { loadSkills, type Skill } from "@/lib/ai/skills"
 import { BUILTIN_SKILL_DISPLAY } from "@/lib/ai/builtin-skills"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
@@ -40,7 +42,6 @@ export function AIChatWorkspace() {
   const selectConversation = useWorkspace((s) => s.selectConversation)
   const deleteConversation = useWorkspace((s) => s.deleteConversation)
   const renameConversation = useWorkspace((s) => s.renameConversation)
-  const setConversationMessages = useWorkspace((s) => s.setConversationMessages)
 
   const config = useMemo(
     () => ({
@@ -96,13 +97,9 @@ export function AIChatWorkspace() {
     body: s.description,
   }))
 
-  const { messages, isLoading, error, send, stop, clear } = useAIChat({
+  const { messages, isLoading, send, stop, clear } = useAIChat({
     config,
     conversationId: active?.id ?? "",
-    initialMessages: active?.messages ?? [],
-    onCommit: (msgs) => {
-      if (active?.id) setConversationMessages(active.id, msgs)
-    },
   })
 
   // 新消息后滚到底部
@@ -121,7 +118,8 @@ export function AIChatWorkspace() {
   }
   const onDelete = (id: string) => {
     if (!confirm("确定删除这个对话？删除后不可恢复。")) return
-    stop()
+    // 若该对话正在生成，先中断其请求（其余对话不受影响）
+    stopConversation(id)
     deleteConversation(id)
     setRailOpen(false)
   }
@@ -130,14 +128,15 @@ export function AIChatWorkspace() {
       setRailOpen(false)
       return
     }
-    stop() // 切走前中断进行中的流，避免残流写回新会话（hook 另有 gen 守卫）
+    // 注意：不再中断进行中的流——请求在后台继续，切回时可看到其回复
+    // （"正常中断应当保持对话请求"：切换会话 / 视图都不杀掉在途请求）。
     selectConversation(id)
     setRailOpen(false)
   }
 
   const submit = () => {
     const text = input
-    if (!text.trim() || isLoading || !active) return
+    if (!text.trim() || isLoading || !active || !hasKey) return
     const isFirst = active.messages.length === 0
     setInput("")
     void send(text)
@@ -222,6 +221,7 @@ export function AIChatWorkspace() {
                       {c.title}
                     </span>
                   )}
+                  <StreamingDot id={c.id} />
                   {editingId !== c.id && (
                     <>
                       <button
@@ -403,7 +403,7 @@ export function AIChatWorkspace() {
                   : "请先选择或新建一个对话"
                 : "请先在设置中配置 API Key"
             }
-            disabled={!active}
+            disabled={!active || !hasKey}
             className="native-scroll max-h-40 min-h-9 flex-1 resize-none"
             rows={1}
           />
@@ -415,16 +415,26 @@ export function AIChatWorkspace() {
             <Button
               type="submit"
               size="icon"
-              disabled={!input.trim() || !active}
+              disabled={!input.trim() || !active || !hasKey}
               title="发送"
             >
               <Send />
             </Button>
           )}
         </form>
-
-        {error && <div className="px-4 pb-2 text-xs text-destructive">{error}</div>}
       </div>
     </div>
+  )
+}
+
+// 对话列表中某个会话是否正在生成（流式或排队中）——订阅全局队列，仅在状态变化时重渲染该小圆点。
+function StreamingDot({ id }: { id: string }) {
+  const working = useSyncExternalStore(subscribeQueue, () => isWorking(id), () => false)
+  if (!working) return null
+  return (
+    <span
+      className="ml-1 size-1.5 shrink-0 animate-pulse rounded-full bg-primary"
+      title="正在生成…"
+    />
   )
 }

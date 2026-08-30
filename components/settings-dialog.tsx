@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { LicenseDialog } from "@/components/license-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -400,6 +401,18 @@ export function SettingsDialog() {
             <p className="text-xs text-muted-foreground">
               仅本机明文存储于 localStorage，请不要在共享环境使用。{AI_PROVIDERS[settings.aiProvider]?.help}
             </p>
+            <div className="mt-2 flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="min-w-0">
+                <Label className="text-xs font-medium">AI 对话强制同步</Label>
+                <p className="text-xs text-muted-foreground">
+                  开启后，所有对话的用户请求统一进入单队列、串行处理；关闭则允许并发。无论是否开启，切换会话 / 切走视图都不会中断在途请求。
+                </p>
+              </div>
+              <Switch
+                checked={settings.aiForceSync}
+                onCheckedChange={(v) => updateSettings({ aiForceSync: v })}
+              />
+            </div>
           </section>
 
           <section className="flex flex-col gap-2">
