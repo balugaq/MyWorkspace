@@ -120,13 +120,22 @@ export function RichTextEditor({
   // 源码模式下编辑器被隐藏且以 textarea 为唯一事实源，跳过此同步——
   // 否则 upgradeLinkCards 会改动隐藏编辑器并触发 onChange，把用户刚输入的
   // 回车/空格等被 markdown 序列化规范掉的空白「回写」掉，导致无法输入。
+  //
+  // 注意：editor.commands.setContent 会 dispatch 事务，TipTap 内部用 flushSync
+  // 强制重渲染编辑器；若在 useEffect（React 提交阶段）内同步执行会触发
+  // "flushSync was called from inside a lifecycle method"。因此整体延后到下一个
+  // macrotask，并加 isDestroyed 守卫；effect 清理时取消待执行的定时任务。
   useEffect(() => {
     if (!editor || mode === "source") return
-    const current = getEditorMarkdown(editor)
-    if (value !== current) {
-      editor.commands.setContent(normalizeLegacyImg(value || ""), { emitUpdate: false })
-      return scheduleUpgradeLinkCards(editor)
-    }
+    const id = window.setTimeout(() => {
+      if (editor.isDestroyed) return
+      const current = getEditorMarkdown(editor)
+      if (value !== current) {
+        editor.commands.setContent(normalizeLegacyImg(value || ""), { emitUpdate: false })
+        scheduleUpgradeLinkCards(editor)
+      }
+    }, 0)
+    return () => window.clearTimeout(id)
   }, [value, editor, mode])
 
   if (!editor) return null
