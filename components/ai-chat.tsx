@@ -327,7 +327,7 @@ export function AIChatWorkspace() {
               <div
                 key={m.id}
                 className={cn(
-                  "flex items-end gap-2",
+                  "flex items-start gap-2",
                   isUser ? "flex-row-reverse justify-start" : "flex-row justify-start",
                 )}
               >
