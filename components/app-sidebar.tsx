@@ -278,7 +278,8 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
   const [renameValue, setRenameValue] = useState(category.name)
 
   const Icon = getIcon(category.icon)
-  const isNovelLike = category.template !== "relation"
+  const isRelation = category.template === "relation"
+  const isNovelLike = !isRelation
   const items = category.chapters ?? []
 
   function doRename() {
@@ -289,127 +290,44 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
     setRenaming(false)
   }
 
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div
-        className={cn(
-          "group flex items-center gap-1 rounded-md pr-1 transition-colors",
-          active ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60",
-        )}
-      >
-        <CollapsibleTrigger className="flex flex-1 items-center gap-2 py-2 pl-2 text-left text-sm">
-          <ChevronRight
-            className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+  // 分类管理菜单（打开 / 重命名 / 删除）与删除、重命名弹窗在两种形态下共用
+  const moreMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6 opacity-0 transition-opacity group-hover:opacity-100 data-popup-open:opacity-100"
           />
-          <Icon className="size-4 shrink-0 text-primary" />
-          <span className="truncate font-medium" title={category.name}>
-            {category.name}
-          </span>
-        </CollapsibleTrigger>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-6 opacity-0 transition-opacity group-hover:opacity-100 data-popup-open:opacity-100"
-              />
-            }
-          >
-            <MoreHorizontal className="size-3.5" />
-            <span className="sr-only">分类操作</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => setActiveCategory(category.id)}>打开</DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  setRenameValue(category.name)
-                  setRenaming(true)
-                }}
-              >
-                <Pencil className="size-3.5" />
-                重命名
-              </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onClick={() => setConfirmDel(true)}>
-                <Trash2 className="size-3.5" />
-                删除
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <CollapsibleContent className="ml-4 border-l border-sidebar-border pl-1">
-        <button
-          type="button"
-          onClick={() => setActiveCategory(category.id)}
-          className={cn(
-            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
-            active && !activeItemId
-              ? "text-primary font-medium"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {category.template === "relation" ? "思维导图画布" : "分类概览"}
-        </button>
-
-        {isNovelLike &&
-          items.map((ch, i) => (
-            <button
-              key={ch.id}
-              type="button"
-              draggable
-              onDragStart={(e) => {
-                e.stopPropagation()
-                e.dataTransfer.setData("text/plain", ch.id)
-                e.dataTransfer.effectAllowed = "move"
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault()
-                const id = e.dataTransfer.getData("text/plain")
-                if (!id) return
-                const from = items.findIndex((x) => x.id === id)
-                if (from === -1) return
-                // 按落点在该行位置的上半/下半决定插入到前面还是后面
-                const rect = e.currentTarget.getBoundingClientRect()
-                const before = e.clientY < rect.top + rect.height / 2
-                const to = before ? i : i + 1
-                if (from !== i && (to !== from)) moveChapter(category.id, from, to)
-              }}
-              onClick={() => {
-                setActiveCategory(category.id)
-                setActiveItem(ch.id)
-              }}
-              className={cn(
-                "flex w-full cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors active:cursor-grabbing",
-                active && activeItemId === ch.id
-                  ? "bg-sidebar-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
-              )}
-            >
-              <GripVertical className="size-3 shrink-0 text-muted-foreground/40" />
-              <span className="truncate">{ch.title || "未命名"}</span>
-            </button>
-          ))}
-
-        {isNovelLike && (
-          <button
-            type="button"
+        }
+      >
+        <MoreHorizontal className="size-3.5" />
+        <span className="sr-only">分类操作</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => setActiveCategory(category.id)}>打开</DropdownMenuItem>
+          <DropdownMenuItem
             onClick={() => {
-              addChapter(category.id)
-              toast.success("已添加条目")
+              setRenameValue(category.name)
+              setRenaming(true)
             }}
-            className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-primary"
           >
-            <Plus className="size-3" />
-            添加条目
-          </button>
-        )}
-      </CollapsibleContent>
+            <Pencil className="size-3.5" />
+            重命名
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={() => setConfirmDel(true)}>
+            <Trash2 className="size-3.5" />
+            删除
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 
+  const dialogs = (
+    <>
       <AlertDialog open={confirmDel} onOpenChange={setConfirmDel}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -449,6 +367,127 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  )
+
+  // 关系类（思维导图）：直接点击整行进入画布，无需展开只有「思维导图画布」一项的折叠下拉
+  if (isRelation) {
+    return (
+      <>
+        <div
+          className={cn(
+            "group flex items-center gap-1 rounded-md pr-1 transition-colors",
+            active ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60",
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveCategory(category.id)}
+            className="flex flex-1 items-center gap-2 py-2 pl-2 text-left text-sm"
+          >
+            <Icon className="size-4 shrink-0 text-primary" />
+            <span className="truncate font-medium" title={category.name}>
+              {category.name}
+            </span>
+          </button>
+          {moreMenu}
+        </div>
+        {dialogs}
+      </>
+    )
+  }
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div
+        className={cn(
+          "group flex items-center gap-1 rounded-md pr-1 transition-colors",
+          active ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60",
+        )}
+      >
+        <CollapsibleTrigger className="flex flex-1 items-center gap-2 py-2 pl-2 text-left text-sm">
+          <ChevronRight
+            className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
+          />
+          <Icon className="size-4 shrink-0 text-primary" />
+          <span className="truncate font-medium" title={category.name}>
+            {category.name}
+          </span>
+        </CollapsibleTrigger>
+
+        {moreMenu}
+      </div>
+
+      <CollapsibleContent className="ml-4 border-l border-sidebar-border pl-1">
+        <button
+          type="button"
+          onClick={() => setActiveCategory(category.id)}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
+            active && !activeItemId
+              ? "text-primary font-medium"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          分类概览
+        </button>
+
+        {isNovelLike &&
+          items.map((ch, i) => (
+            <button
+              key={ch.id}
+              type="button"
+              draggable
+              onDragStart={(e) => {
+                e.stopPropagation()
+                e.dataTransfer.setData("text/plain", ch.id)
+                e.dataTransfer.effectAllowed = "move"
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                const id = e.dataTransfer.getData("text/plain")
+                if (!id) return
+                const from = items.findIndex((x) => x.id === id)
+                if (from === -1) return
+                // 按落点在该行位置的上半/下半决定插入到前面还是后面
+                const rect = e.currentTarget.getBoundingClientRect()
+                const before = e.clientY < rect.top + rect.height / 2
+                const to = before ? i : i + 1
+                if (from !== i && to !== from) moveChapter(category.id, from, to)
+              }}
+              onClick={() => {
+                setActiveCategory(category.id)
+                setActiveItem(ch.id)
+              }}
+              className={cn(
+                "flex w-full cursor-grab items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors active:cursor-grabbing",
+                active && activeItemId === ch.id
+                  ? "bg-sidebar-primary/10 text-primary font-medium"
+                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
+              )}
+            >
+              <GripVertical className="size-3 shrink-0 text-muted-foreground/40" />
+              <span className="truncate">{ch.title || "未命名"}</span>
+            </button>
+          ))}
+
+        {isNovelLike && (
+          <button
+            type="button"
+            onClick={() => {
+              addChapter(category.id)
+              toast.success("已添加条目")
+            }}
+            className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:text-primary"
+          >
+            <Plus className="size-3" />
+            添加条目
+          </button>
+        )}
+      </CollapsibleContent>
+
+      {dialogs}
     </Collapsible>
   )
 }
