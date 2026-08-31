@@ -3,7 +3,7 @@
 // 主区为所选对话的消息流。会话持久化在 store（localStorage），刷新后保留。
 // 流式请求由 lib/ai/request-queue 全局持有——切换会话 / 切走视图都不会中断在途请求。
 // 配置（provider / apiKey）来自 store.settings；skills 由队列内部读取。
-// AI 回复用项目内置的 MarkdownView 安全渲染（marked.lexer + React，不接外部呈现库）。
+// 用户消息与 AI 回复统一用 RichTextView 渲染（与节点内容同管线：表格/代码高亮/卡片/内文图一致生效）。
 
 "use client"
 
@@ -28,7 +28,7 @@ import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
 import { subscribeQueue, isWorking, stopConversation } from "@/lib/ai/request-queue"
-import { MarkdownView } from "@/components/markdown-view"
+import { RichTextView } from "@/components/richtext/rich-text-view"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
 import { SkillsToggleDialog } from "@/components/ai-skills-dialog"
 import { Button } from "@/components/ui/button"
@@ -484,10 +484,10 @@ export function AIChatWorkspace() {
                         : "bg-muted text-foreground",
                     )}
                   >
-                    {isUser ? (
-                      <span className="whitespace-pre-wrap break-words">{m.content}</span>
-                    ) : m.content ? (
-                      <MarkdownView text={m.content} />
+                    {m.content ? (
+                      // 用户与 AI 回复统一走 RichTextView（与节点内容同渲染管线：
+                      // 表格 / 代码高亮 / 任务列表 / GitHub·B站卡 / 内文图一致生效）
+                      <RichTextView content={m.content} className="chat-md" />
                     ) : isLoading ? (
                       <span className="text-muted-foreground">思考中…</span>
                     ) : null}
