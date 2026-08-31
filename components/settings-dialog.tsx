@@ -111,7 +111,10 @@ export function SettingsDialog() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = `workplace-backup-${new Date().toISOString().slice(0, 10)}.zip`
+      // 文件名用用户本地时区的日期：避免 toISOString()（UTC）在 GMT+8 等时区下差一天
+      const now = new Date()
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+      a.download = `workplace-backup-${stamp}.zip`
       a.click()
       URL.revokeObjectURL(url)
       toast.success("已导出备份（ZIP：含分类/日历/设置与全部图片）")
