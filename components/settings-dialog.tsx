@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useEscapeClose } from "@/hooks/use-escape-close"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot } from "lucide-react"
 // import { Wand2 } from "lucide-react" // 日历标记脚本入口（已弃用停用）
 import { useWorkspace } from "@/lib/store"
 import {
@@ -88,6 +88,7 @@ export function SettingsDialog() {
   const setShortcut = useWorkspace((s) => s.setShortcut)
   // const setScriptsOpen = useWorkspace((s) => s.setScriptsOpen) // 日历标记脚本（已弃用停用）
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const aiAvatarInputRef = useRef<HTMLInputElement>(null)
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const setImagesOpen = useWorkspace((s) => s.setImagesOpen)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -406,6 +407,63 @@ export function SettingsDialog() {
                     try {
                       const dataUrl = await compressAvatar(f)
                       updateSettings({ aiUserAvatar: dataUrl })
+                    } catch {
+                      toast.error("头像读取失败，请换一张图片")
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <div className="mt-2 flex items-center gap-3">
+              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary ring-1 ring-border">
+                {settings.aiAssistantAvatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={settings.aiAssistantAvatar}
+                    alt="AI 头像"
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <Bot className="size-5" />
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">AI 头像</span>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => aiAvatarInputRef.current?.click()}
+                  >
+                    <ImageIcon className="size-3.5" />
+                    {settings.aiAssistantAvatar ? "更换" : "上传"}
+                  </Button>
+                  {settings.aiAssistantAvatar && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-muted-foreground"
+                      onClick={() => updateSettings({ aiAssistantAvatar: "" })}
+                    >
+                      清除
+                    </Button>
+                  )}
+                </div>
+                <input
+                  ref={aiAvatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = ""
+                    if (!f) return
+                    try {
+                      const dataUrl = await compressAvatar(f)
+                      updateSettings({ aiAssistantAvatar: dataUrl })
                     } catch {
                       toast.error("头像读取失败，请换一张图片")
                     }

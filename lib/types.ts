@@ -241,6 +241,7 @@ export interface Settings {
   // 全局技能启停：null = 全部启用；否则为「启用」的技能名列表（用户技能名 + 内置技能名）。
   aiEnabledSkills: string[] | null
   aiUserAvatar: string // 用户头像（data URL，压缩后存储）；留空则用默认用户图标
+  aiAssistantAvatar: string // AI 头像（data URL，压缩后存储）；留空则用默认机器人图标
   // AI 对话强制同步：开启后所有对话的用户请求统一进入单队列串行处理；
   // 关闭则允许并发（同一会话仍不会重复发起）。两种模式下切换会话/视图都不会中断在途请求。
   aiForceSync: boolean
@@ -263,6 +264,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiActiveModelId: null,
   aiEnabledSkills: null,
   aiUserAvatar: "",
+  aiAssistantAvatar: "",
   aiForceSync: false,
   aiPersonas: [],
   aiActivePersonaId: null,

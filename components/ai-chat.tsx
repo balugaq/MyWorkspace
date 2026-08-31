@@ -164,6 +164,7 @@ export function AIChatWorkspace() {
   const modelLabel = activeModel?.label ?? "未配置模型"
   const hasKey = !!activeModel && activeModel.apiKey.trim().length > 0
   const userAvatar = settings.aiUserAvatar || ""
+  const assistantAvatar = settings.aiAssistantAvatar || ""
 
   const { messages, isLoading, send, stop, regenerateLast } = useAIChat({
     config,
@@ -463,6 +464,13 @@ export function AIChatWorkspace() {
                         <User className="size-4" />
                       </div>
                     )
+                  ) : assistantAvatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={assistantAvatar}
+                      alt="AI 头像"
+                      className="size-8 shrink-0 rounded-full object-cover ring-1 ring-border"
+                    />
                   ) : (
                     <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-border">
                       <Bot className="size-4" />
