@@ -46,6 +46,8 @@ export interface MindNode {
   createdAt?: number // 节点创建时间（epoch ms）；旧存档缺失时由迁移逻辑补齐
   completedAt?: number | null // 节点完成时间（epoch ms）；null = 未完成；旧存档缺失时由迁移逻辑补齐
   hidden?: boolean // 是否在图里隐藏（隐藏后仅列表显示）
+  /** 单图节点的图片缩放倍数（1 = 100%）；仅当节点内容恰好含 1 张图时生效，范围 0.1–4 */
+  imageZoom?: number
 }
 
 // 节点之间的连线

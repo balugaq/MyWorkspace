@@ -1,6 +1,6 @@
 "use client"
 
-import { memo } from "react"
+import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { Handle, Position, type NodeProps } from "@xyflow/react"
 import {
   Pin,
@@ -16,6 +16,18 @@ import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { RichTextView } from "@/components/richtext/rich-text-view"
+import { getImageURL } from "@/lib/image-store"
+import { imageIdsInText } from "@/lib/image-refs"
+
+const ZOOM_MIN = 0.1
+const ZOOM_MAX = 4
+
+// 去掉正文里的图片引用 token（保留文字），供「恰好 1 张图」时单独渲染可缩放图片、文字另排。
+function stripImageTokens(text: string): string {
+  return text
+    .replace(/!\[[^\]]*\]\(imgref:[^)\s]+\)/g, "")
+    .replace(/\{\{img:[^}]+\}\}/g, "")
+}
 
 const STATUS_STYLE: Record<SolutionStatus, string> = {
   doing: "bg-solution text-solution-foreground",
@@ -27,6 +39,8 @@ interface TodoNodeData {
   node: MindNode
   collapsed?: boolean
   onToggleCollapse?: () => void
+  /** 单图缩放时上报实时倍数（由画布负责持久化与右下角显示） */
+  onImageZoom?: (value: number) => void
 }
 
 export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
@@ -34,8 +48,14 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
     node,
     collapsed = false,
     onToggleCollapse,
+    onImageZoom,
   } = data as unknown as TodoNodeData
   const subCount = node.sub.length
+  // 节点内容恰好含 1 张图时，单独渲染可缩放图片（其余文字另排）
+  const singleImageId =
+    node.content && imageIdsInText(node.content).size === 1
+      ? Array.from(imageIdsInText(node.content))[0]
+      : null
   return (
     <div
       className={cn(
@@ -102,7 +122,24 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
             <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">结果：{node.result}</span>
           </span>
         )}
-        {node.content && <RichTextView content={node.content} className="text-[11px]" />}
+        {node.content &&
+          (singleImageId ? (
+            <>
+              <NodeImageZoom
+                imageId={singleImageId}
+                scale={node.imageZoom ?? 1}
+                onZoomChange={(v) => onImageZoom?.(v)}
+              />
+              {(() => {
+                const textOnly = stripImageTokens(node.content).trim()
+                return textOnly ? (
+                  <RichTextView content={textOnly} className="text-[11px]" />
+                ) : null
+              })()}
+            </>
+          ) : (
+            <RichTextView content={node.content} className="text-[11px]" />
+          ))}
       </div>
       {(node.tags && node.tags.length > 0) || node.dueDate || node.longTerm ? (
         <div className="flex flex-wrap items-center gap-1 border-t px-3 py-1.5">
@@ -167,3 +204,97 @@ export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
     </div>
   )
 })
+
+/**
+ * 单图节点内的可缩放图片：ctrl + 滚轮 调整缩放（10%–400%）。
+ * 缩放实时通过 onZoomChange 上报（画布负责持久化与右下角显示）；本地 maintain scale 保证顺滑。
+ * 非 ctrl 滚轮不拦截，照常交给画布（平移/缩放画布）。
+ */
+function NodeImageZoom({
+  imageId,
+  scale,
+  onZoomChange,
+}: {
+  imageId: string
+  scale: number
+  onZoomChange: (value: number) => void
+}) {
+  const [url, setUrl] = useState<string | null>(null)
+  const scaleRef = useRef(scale)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+  const natRef = useRef<{ w: number; h: number } | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    getImageURL(imageId).then((u) => {
+      if (alive && u) setUrl(u)
+    })
+    return () => {
+      alive = false
+    }
+  }, [imageId])
+
+  // 实际改变图片元素的尺寸（而非 transform），让占用的空间随缩放变化；左上对齐。
+  const applySize = useCallback((s: number) => {
+    const img = imgRef.current
+    const nat = natRef.current
+    if (!img || !nat) return
+    // 100% 时把较长边限制在 256px 以内，避免原图过大撑爆节点
+    const base = Math.min(1, 256 / Math.max(nat.w, nat.h))
+    const eff = base * s
+    img.style.width = `${Math.round(nat.w * eff)}px`
+    img.style.height = `${Math.round(nat.h * eff)}px`
+  }, [])
+
+  // 外部缩放值（如内容变动后缩放被清除）同步进来
+  useEffect(() => {
+    scaleRef.current = scale
+    applySize(scale)
+  }, [scale, applySize])
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return
+      e.preventDefault()
+      e.stopPropagation()
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
+      const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, scaleRef.current * factor))
+      scaleRef.current = next
+      applySize(next)
+      onZoomChange(next)
+    }
+    el.addEventListener("wheel", onWheel, { passive: false })
+    return () => el.removeEventListener("wheel", onWheel)
+  }, [onZoomChange, applySize])
+
+  if (!url) {
+    return <div className="h-12 w-12 animate-pulse rounded-md bg-muted ring-1 ring-border/50" />
+  }
+
+  return (
+    <div
+      ref={wrapRef}
+      className="inline-block self-start overflow-hidden rounded-md ring-1 ring-border/50"
+      style={{ lineHeight: 0 }}
+    >
+      {/* 图片来自 IndexedDB 的 object URL（blob:），无法走 next/image，故用原生 img */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={imgRef}
+        src={url}
+        alt=""
+        draggable={false}
+        onLoad={(e) => {
+          const el = e.currentTarget
+          natRef.current = { w: el.naturalWidth, h: el.naturalHeight }
+          applySize(scaleRef.current)
+        }}
+        className="block select-none"
+      />
+    </div>
+  )
+}
+

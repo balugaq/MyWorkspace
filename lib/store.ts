@@ -25,6 +25,7 @@ import type {
 } from "./types"
 import { DEFAULT_SETTINGS, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
+import { imageIdsInText } from "./image-refs"
 
 /**
  * 人设迁移：把旧存档/旧备份里的单一 `aiPersona` 字符串升级为多人人设列表。
@@ -134,6 +135,8 @@ interface WorkspaceState {
   // AI 助手：多会话（各自持有上下文，持久化到 localStorage）
   conversations: Conversation[]
   activeConversationId: string | null
+  // 外部（如日历 DayDetail）触发的"打开 AI 闲聊并自动询问"：携带待发送 query；消费后清空（不持久化）。
+  pendingAiQuery: string | null
 
   // 分类
   addCategory: (
@@ -643,6 +646,12 @@ export const useWorkspace = create<WorkspaceState>()(
                       // 切换完成态时同步记录完成时间：完成 = 现在，未完成 = null
                       if ("done" in patch) {
                         next.completedAt = patch.done ? Date.now() : null
+                      }
+                      // 单图缩放清理：内容变动后若图片不再恰好为 1 张，缩放失效并删除
+                      if (patch.content !== undefined) {
+                        if (imageIdsInText(patch.content).size !== 1) {
+                          delete next.imageZoom
+                        }
                       }
                       return next
                     }),

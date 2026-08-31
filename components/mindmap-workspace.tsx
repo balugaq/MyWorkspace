@@ -171,6 +171,35 @@ function Canvas({ category }: { category: Category }) {
 
   const selectedNode = relation.nodes.find((n) => n.id === activeItemId) ?? null
 
+  // 单图缩放的右下角实时倍数显示：缩放中可见，停止后淡出。
+  const [zoomBadge, setZoomBadge] = useState<{ value: number; visible: boolean } | null>(null)
+  const zoomHideTimer = useRef<number | undefined>(undefined)
+  const zoomPersist = useRef<{ id: string; value: number } | null>(null)
+  const zoomPersistTimer = useRef<number | undefined>(undefined)
+  const handleImageZoom = useCallback(
+    (nodeId: string, value: number) => {
+      setZoomBadge({ value, visible: true })
+      if (zoomHideTimer.current) window.clearTimeout(zoomHideTimer.current)
+      zoomHideTimer.current = window.setTimeout(() => {
+        setZoomBadge((b) => (b ? { ...b, visible: false } : b))
+      }, 700)
+      // 节流写回 store：最后一次滚轮 250ms 后才落盘，避免每帧都写 localStorage
+      zoomPersist.current = { id: nodeId, value }
+      if (zoomPersistTimer.current) window.clearTimeout(zoomPersistTimer.current)
+      zoomPersistTimer.current = window.setTimeout(() => {
+        const p = zoomPersist.current
+        if (p) updateNode(category.id, p.id, { imageZoom: p.value })
+      }, 250)
+    },
+    [updateNode, category.id],
+  )
+  useEffect(() => {
+    return () => {
+      if (zoomHideTimer.current) window.clearTimeout(zoomHideTimer.current)
+      if (zoomPersistTimer.current) window.clearTimeout(zoomPersistTimer.current)
+    }
+  }, [])
+
   // 按 Delete / Backspace 请求删除当前选中的节点（弹出确认，避开文本输入框）
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
@@ -211,6 +240,7 @@ function Canvas({ category }: { category: Category }) {
           node: n,
           collapsed: collapsed.has(n.id),
           onToggleCollapse: () => toggleCollapse(n.id),
+          onImageZoom: (v: number) => handleImageZoom(n.id, v),
         },
         selected: n.id === activeItemId,
       })
@@ -232,6 +262,7 @@ function Canvas({ category }: { category: Category }) {
     hidden,
     collapsed,
     toggleCollapse,
+    handleImageZoom,
   ])
 
   const rfEdges: Edge[] = useMemo(() => {
@@ -427,6 +458,17 @@ function Canvas({ category }: { category: Category }) {
             <p className="text-xs text-muted-foreground/70">
               拖拽节点底部圆点可连线，点击连线可删除；双击节点可编辑，带子任务的节点可折叠。
             </p>
+          </div>
+        )}
+        {/* 单图缩放实时倍数：缩放中显示，停止后淡出 */}
+        {zoomBadge && (
+          <div
+            className={cn(
+              "pointer-events-none absolute bottom-3 right-3 z-10 rounded-md bg-card/90 px-2 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-opacity duration-500",
+              zoomBadge.visible ? "opacity-100" : "opacity-0",
+            )}
+          >
+            {Math.round(zoomBadge.value * 100)}%
           </div>
         )}
       </div>
