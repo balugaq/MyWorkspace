@@ -162,6 +162,9 @@ interface WorkspaceState {
   deleteConversation: (id: string) => void
   renameConversation: (id: string, title: string) => void
   setConversationMessages: (id: string, messages: AIChatMessage[]) => void
+  // 外部触发：新建会话并切到 AI 闲聊，携带一条待发送 query（由 AI 聊天界面消费后清空）
+  askAiAbout: (text: string) => void
+  clearPendingAiQuery: () => void
 
   // 系统设置 / UI
   updateSettings: (patch: Partial<Settings>) => void
@@ -254,6 +257,7 @@ export const useWorkspace = create<WorkspaceState>()(
       // AI 助手：默认无会话（视图挂载时若无会话则创建一个），不预置 activeConversationId
       conversations: [],
       activeConversationId: null,
+      pendingAiQuery: null,
 
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -556,6 +560,13 @@ export const useWorkspace = create<WorkspaceState>()(
             c.id === id ? { ...c, messages, updatedAt: Date.now() } : c,
           ),
         })),
+      // 外部（如日历 DayDetail）触发：新建会话、切到 AI 闲聊，并挂起一条待发送 query。
+      // 由 AIChatWorkspace 在会话就绪后消费（send 后再 clearPendingAiQuery）。
+      askAiAbout: (text) => {
+        get().createConversation()
+        set({ view: "ai-chat", activeCategoryId: null, pendingAiQuery: text })
+      },
+      clearPendingAiQuery: () => set({ pendingAiQuery: null }),
 
       addChapter: (catId) =>
         set((s) => ({
@@ -903,6 +914,8 @@ export const useWorkspace = create<WorkspaceState>()(
           state.hydrated = true
           // 应用用户设置的默认视图（仅当尚未处于某个明确视图时属于启动行为）
           applyDefaultView(state)
+          // pendingAiQuery 不持久化：刷新后不应自动重发，置空保险
+          state.pendingAiQuery = null
         }
       },
       merge: (persisted, current) => {

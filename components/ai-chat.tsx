@@ -61,6 +61,8 @@ export function AIChatWorkspace() {
   const selectConversation = useWorkspace((s) => s.selectConversation)
   const deleteConversation = useWorkspace((s) => s.deleteConversation)
   const renameConversation = useWorkspace((s) => s.renameConversation)
+  const pendingAiQuery = useWorkspace((s) => s.pendingAiQuery)
+  const clearPendingAiQuery = useWorkspace((s) => s.clearPendingAiQuery)
 
   // 当前选中的模型（优先 aiActiveModelId，否则取第一条）；无模型则为 null。
   const activeModel = useMemo(
@@ -235,6 +237,25 @@ export function AIChatWorkspace() {
       submit()
     }
   }
+
+  // 消费外部触发的"打开 AI 闲聊并自动询问"（如日历 DayDetail 的 节日/笔记 查询）：
+  // 新建会话切到本视图后，pendingAiQuery 就绪即发送；若无模型配置则填入输入框并提示。
+  useEffect(() => {
+    const text = pendingAiQuery
+    if (!text) return
+    clearPendingAiQuery()
+    if (!active || !hasKey) {
+      setInput(text)
+      if (!hasKey) toast.error("请先在设置中配置 AI 模型后再询问")
+      return
+    }
+    const isFirst = active.messages.length === 0
+    setInput("")
+    void send(text)
+    if (isFirst) renameConversation(active.id, text.trim().slice(0, 10))
+    // 仅依赖 pendingAiQuery：消费一次即清空，无需对其余依赖建立依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAiQuery])
 
   return (
     <div ref={containerRef} className="relative flex h-full min-h-0">

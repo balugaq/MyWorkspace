@@ -16,7 +16,7 @@ import {
   isToday,
 } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, Plus, Trash2, StickyNote, Clock } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Trash2, StickyNote, Clock, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
@@ -464,6 +464,7 @@ function DayDetail({
   const removeCalendarEvent = useWorkspace((s) => s.removeCalendarEvent)
   const setActiveCategory = useWorkspace((s) => s.setActiveCategory)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
+  const askAiAbout = useWorkspace((s) => s.askAiAbout)
 
   const day = calendar[dateKey] ?? { note: "", todos: [], events: [] }
   const [todoInput, setTodoInput] = useState("")
@@ -475,6 +476,24 @@ function DayDetail({
   const bdays = birthdaysOn(people, dateObj.getFullYear(), dateObj.getMonth() + 1, dateObj.getDate())
   const lunarText = lunarTextForSolar(dateObj)
 
+  // 一键向 AI 闲聊发起关于"当日节日 / 当日笔记"的询问：新建会话并自动切到 AI 闲聊发送。
+  const dateLabel = format(dateObj, "M 月 d 日", { locale: zhCN })
+  const weekdayLabel = format(dateObj, "EEEE", { locale: zhCN })
+  const askFestival = () => {
+    const names = festivals.map((f) => f.name)
+    const prompt = names.length
+      ? `今天是 ${dateLabel}（${weekdayLabel}），这一天的节日有：${names.join("、")}。请给我讲讲这些节日的来历、传统习俗和相关趣味知识。`
+      : `今天是 ${dateLabel}（${weekdayLabel}），请问这一天有哪些节日（含国际/传统节日）？请简单介绍一下。`
+    askAiAbout(prompt)
+  }
+  const askNote = () => {
+    const noteText = (day.note || "").trim()
+    const prompt = noteText
+      ? `今天是 ${dateLabel}（${weekdayLabel}），我今天写的笔记内容如下：\n${noteText}\n请帮我梳理、补充或解读这份笔记。`
+      : `今天是 ${dateLabel}（${weekdayLabel}），我今天还没有写笔记。请帮我列一份适合今天记录的笔记大纲/要点。`
+    askAiAbout(prompt)
+  }
+
   return (
     <aside className="flex w-full min-h-0 flex-col lg:h-full lg:w-auto lg:shrink-0" style={style}>
       <div className="border-b px-4 py-3">
@@ -485,6 +504,25 @@ function DayDetail({
 
       <ScrollArea className="min-h-0 flex-1 overflow-hidden">
         <div className="flex flex-col gap-5 p-4">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={askFestival}
+              className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            >
+              <Sparkles className="size-3.5 text-primary" />
+              AI 询问节日
+            </button>
+            <button
+              type="button"
+              onClick={askNote}
+              className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            >
+              <Sparkles className="size-3.5 text-primary" />
+              AI 询问笔记
+            </button>
+          </div>
+
           {bdays.length > 0 && (
             <>
               <section className="flex flex-col gap-2">
