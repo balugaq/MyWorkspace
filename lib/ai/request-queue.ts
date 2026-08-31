@@ -336,7 +336,15 @@ async function runJob(job: Job) {
           : providerErr
             ? `供应商返回错误：${providerErr}`
             : errorMsg ?? "未知错误"
-      finalContent = `⚠️ 请求失败：${reason}`
+      // 非 2xx 时把服务器真实返回的响应体（已限长）一并附上，便于排查
+      // （如 429 的限流说明、具体错误码等）；避免只看到状态码却不知因由。
+      const detail =
+        httpStatus != null && httpStatus !== 200 && rawBody && rawBody.trim()
+          ? rawBody.trim().replace(/```/g, "'''")
+          : null
+      finalContent = detail
+        ? `⚠️ 请求失败：${reason}\n\n服务器原始响应：\n\`\`\`text\n${detail}\n\`\`\``
+        : `⚠️ 请求失败：${reason}`
     }
     const finalMsgs: AIChatMessage[] = [
       ...history,
