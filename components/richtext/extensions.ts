@@ -6,6 +6,7 @@ import TaskItem from "@tiptap/extension-task-item"
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight"
 import { createLowlight, common } from "lowlight"
 import { Markdown } from "tiptap-markdown"
+import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table"
 import { StoredImage } from "./stored-image"
 import { GitHubCard } from "./github-card"
 import { BilibiliCard } from "./bilibili-card"
@@ -22,6 +23,7 @@ const lowlight = createLowlight(common)
  *  - TaskList / TaskItem：任务列表（checkbox）。
  *  - GitHubCard：GitHub Issue/PR 预览卡节点。
  *  - BilibiliCard：B 站视频预览卡节点（iframe 预览 + 链接）。
+ *  - Table / TableRow / TableHeader / TableCell：GFM 表格（AI 回复 / 笔记里的 | a | b | 可渲染）。
  *  - Markdown：让正文以 markdown 字符串序列化（getMarkdown/setMarkdown），正文仍是 markdown，无需数据格式迁移。
  */
 export const richTextExtensions = [
@@ -33,6 +35,10 @@ export const richTextExtensions = [
   TaskList,
   TaskItem.configure({ nested: true }),
   CodeBlockLowlight.configure({ lowlight }),
+  Table.configure({ resizable: false }),
+  TableRow,
+  TableHeader,
+  TableCell,
   GitHubCard,
   BilibiliCard,
   Markdown.configure({

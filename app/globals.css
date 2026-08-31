@@ -182,6 +182,37 @@
 .rich-text-content u { text-decoration: underline; text-underline-offset: 2px; }
 .rich-text-content a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
 
+/* GFM 表格（RichTextView 渲染 AI 回复 / 笔记里的 | a | b |）*/
+.rich-text-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+  font-size: 0.9em;
+  display: block;
+  overflow-x: auto;
+}
+.rich-text-content th,
+.rich-text-content td {
+  border: 1px solid var(--color-border);
+  padding: 0.3em 0.5em;
+  text-align: left;
+  vertical-align: top;
+  min-width: 4em;
+}
+.rich-text-content th,
+.rich-text-content .table-header {
+  background: var(--color-muted);
+  font-weight: 600;
+}
+
+/* 聊天气泡（bg-muted）内代码块：气泡本身已是 muted 底，给代码块更深一档的中性对比背景，
+   半透明灰在亮/暗主题下都相对底色加了一层明暗差，避免“隐身” */
+.rich-text-content.chat-md pre,
+.rich-text-content.chat-md code {
+  background: rgba(128, 128, 128, 0.18);
+}
+.rich-text-content.chat-md pre code { background: transparent; }
+
 /* 代码块语法高亮配色：基于 GitHub 浅/深两套调色板，用 CSS 变量随主题切换。
  * CodeBlockLowlight 会把 token 包成 .hljs-* 的 <span>，这里只负责上色。 */
 :root {

@@ -220,6 +220,13 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
   {
+    name: "@tiptap/extension-table",
+    author: "tiptap.dev（Philipp Kühn）",
+    description: "GFM 表格扩展（Table/TableRow/TableHeader/TableCell），使 AI 回复与笔记中的 | a | b | 表格可正常渲染。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
     name: "@tiptap/extension-task-list",
     author: "tiptap.dev（Philipp Kühn）",
     description: "任务列表（checkbox 列表）节点扩展。",
