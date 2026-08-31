@@ -131,6 +131,32 @@ export function enqueue(conversationId: string, userContent: string, config: AIC
   pump()
 }
 
+// 重新回答：截取最后一条用户消息之后的所有内容（含其对应的助手回复），
+// 再以相同的用户输入重发——实现「重新回答」当前这条 AI 回复。
+export function regenerate(conversationId: string, config: AIChatConfig) {
+  if (!conversationId) return
+  if (activeJobs.has(conversationId) || queued.has(conversationId)) return
+  if (!config.apiKey?.trim()) return
+  const state = useWorkspace.getState()
+  const conv = state.conversations.find((c) => c.id === conversationId)
+  if (!conv) return
+  const msgs = conv.messages
+  // 找到最后一条用户消息，作为重发的输入
+  let lastUserIdx = -1
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === "user") {
+      lastUserIdx = i
+      break
+    }
+  }
+  if (lastUserIdx === -1) return
+  const userContent = msgs[lastUserIdx].content
+  // 截掉该用户消息之后的所有内容（多半是上一次的助手回复），再以相同输入重发
+  const trimmed = msgs.slice(0, lastUserIdx)
+  state.setConversationMessages(conversationId, trimmed)
+  enqueue(conversationId, userContent, config)
+}
+
 export function stopConversation(conversationId: string) {
   const job = activeJobs.get(conversationId)
   if (job) {

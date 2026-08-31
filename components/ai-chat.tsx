@@ -20,7 +20,10 @@ import {
   Plus,
   Pencil,
   MessageSquare,
+  Copy,
+  RefreshCw,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { useWorkspace } from "@/lib/store"
 import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
@@ -39,6 +42,16 @@ const PRESET_QUESTIONS = [
   "最近有什么新兴的开源项目？",
   "用通俗的语言给我讲讲 AI Agent 是什么？",
 ]
+
+// 复制消息原文（raw 文本）到剪贴板，并给出轻量提示。
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.success("已复制")
+  } catch {
+    toast.error("复制失败")
+  }
+}
 
 export function AIChatWorkspace() {
   const settings = useWorkspace((s) => s.settings)
@@ -150,7 +163,7 @@ export function AIChatWorkspace() {
   const hasKey = !!activeModel && activeModel.apiKey.trim().length > 0
   const userAvatar = settings.aiUserAvatar || ""
 
-  const { messages, isLoading, send, stop } = useAIChat({
+  const { messages, isLoading, send, stop, regenerateLast } = useAIChat({
     config,
     conversationId: active?.id ?? "",
   })
@@ -403,60 +416,91 @@ export function AIChatWorkspace() {
           {messages.map((m) => {
             const isUser = m.role === "user"
             return (
+              // 外层竖列：气泡 + 反应按钮；用户消息整体靠右、AI 消息靠左，
+              // 反应按钮因此自然贴在气泡正下方（气泡之外）。
               <div
                 key={m.id}
-                className={cn(
-                  "flex items-start gap-2",
-                  isUser ? "flex-row-reverse justify-start" : "flex-row justify-start",
-                )}
+                className={cn("flex flex-col gap-1", isUser ? "items-end" : "items-start")}
               >
-                {/* 头像：左侧机器人默认头像 / 右侧用户头像（可自定义） */}
-                {isUser ? (
-                  userAvatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={userAvatar}
-                      alt="用户头像"
-                      className="size-8 shrink-0 rounded-full object-cover ring-1 ring-border"
-                    />
-                  ) : (
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-border">
-                      <User className="size-4" />
-                    </div>
-                  )
-                ) : (
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-border">
-                    <Bot className="size-4" />
-                  </div>
-                )}
                 <div
                   className={cn(
-                    "max-w-[78%] rounded-lg px-3 py-2 text-sm",
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
+                    "flex items-start gap-2",
+                    isUser ? "flex-row-reverse" : "flex-row",
                   )}
                 >
+                  {/* 头像：左侧机器人默认头像 / 右侧用户头像（可自定义） */}
                   {isUser ? (
-                    <span className="whitespace-pre-wrap break-words">{m.content}</span>
-                  ) : m.content ? (
-                    <MarkdownView text={m.content} />
-                  ) : isLoading ? (
-                    <span className="text-muted-foreground">思考中…</span>
-                  ) : null}
-                  {m.tools && m.tools.length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-1 border-t border-border/50 pt-1.5">
-                      {m.tools.map((t, i) => (
-                        <span
-                          key={i}
-                          className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
-                          title={t.name}
-                        >
-                          <Wrench className="size-3" />
-                          {t.display ?? t.name}
-                        </span>
-                      ))}
+                    userAvatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={userAvatar}
+                        alt="用户头像"
+                        className="size-8 shrink-0 rounded-full object-cover ring-1 ring-border"
+                      />
+                    ) : (
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-border">
+                        <User className="size-4" />
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-border">
+                      <Bot className="size-4" />
                     </div>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-[78%] rounded-lg px-3 py-2 text-sm",
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground",
+                    )}
+                  >
+                    {isUser ? (
+                      <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                    ) : m.content ? (
+                      <MarkdownView text={m.content} />
+                    ) : isLoading ? (
+                      <span className="text-muted-foreground">思考中…</span>
+                    ) : null}
+                    {m.tools && m.tools.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1 border-t border-border/50 pt-1.5">
+                        {m.tools.map((t, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                            title={t.name}
+                          >
+                            <Wrench className="size-3" />
+                            {t.display ?? t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 反应（reaction）：直接贴在气泡下方、气泡之外，以 icon 按钮呈现 */}
+                <div className="flex items-center gap-0.5 text-muted-foreground">
+                  <button
+                    type="button"
+                    onClick={() => copyText(m.content)}
+                    className="rounded p-1 transition-colors hover:bg-accent hover:text-accent-foreground"
+                    title="复制"
+                    aria-label="复制"
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                  {!isUser && (
+                    <button
+                      type="button"
+                      onClick={regenerateLast}
+                      disabled={isLoading}
+                      className="rounded p-1 transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                      title="重新回答"
+                      aria-label="重新回答"
+                    >
+                      <RefreshCw className="size-3.5" />
+                    </button>
                   )}
                 </div>
               </div>

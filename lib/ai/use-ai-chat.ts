@@ -9,6 +9,7 @@ import { useCallback, useSyncExternalStore } from "react"
 import {
   enqueue,
   stopConversation,
+  regenerate,
   subscribeQueue,
   getMessagesSnapshot,
   isWorking,
@@ -45,6 +46,10 @@ export function useAIChat({
   const stop = useCallback(() => {
     stopConversation(conversationId)
   }, [conversationId])
+  const regenerateLast = useCallback(() => {
+    if (!config) return
+    regenerate(conversationId, config)
+  }, [conversationId, config])
 
-  return { messages, isLoading, send, stop }
+  return { messages, isLoading, send, stop, regenerateLast }
 }
