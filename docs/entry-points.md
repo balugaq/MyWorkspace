@@ -208,6 +208,7 @@
 | 视图外壳 + 会话侧栏 | `components/ai-chat.tsx` 的 `AIChatWorkspace`；会话列表新建/切换/重命名/删除，侧栏宽度可拖拽（`draggingRef` + `latestWidthRef`，默认 256） |
 | 导航与分发 | 侧边栏 `AIChatNavItem`（`goAIChat`）→ `app/page.tsx` 按 `view === "ai-chat"` → `AIChatWorkspace` |
 | 会话 store actions | `lib/store.ts`：`createConversation` / `selectConversation` / `deleteConversation` / `renameConversation` / `togglePinConversation` / `setConversationMessages`；`pendingAiQuery` **不持久化**（刷新不重发，见 `onRehydrateStorage`） |
+| 列表分组与排序 | `components/ai-chat.tsx`：`groups`（`useMemo`）按锚点时间分组——锚点=最后一条 user 消息 `createdAt`，否则 `updatedAt`；分组为 置顶 / 今天 / 昨天 / 7天内 / 30天内 / `YYYY-MM`（每月）；组内按锚点倒序；继续对话后锚点刷新自动置顶。消息时间戳在 `lib/ai/request-queue.ts` 构造处填 `createdAt: Date.now()`（`AIChatMessage.createdAt`，可选，旧存档回落） |
 | 置顶 + 更多操作菜单 | 列表项右侧重命名/删除双按钮改为 **3 点 kebab 菜单**（base-ui `DropdownMenu`，`components/ui/dropdown-menu`）：含「置顶/取消置顶」「重命名」「删除（destructive + 分隔线）」；列表按 `pinned` 置顶排序（`ordered`）；`Conversation.pinned?: boolean`（`lib/types.ts`，旧存档缺字段回落 false，免迁移） |
 | React 钩子 | `lib/ai/use-ai-chat.ts`：`useAIChat({ config, conversationId })` → `{ messages, isLoading, send, stop, regenerateLast }`；经 `useSyncExternalStore` 订阅队列 |
 | 请求队列 | `lib/ai/request-queue.ts`：`enqueue` / `regenerate` / `stopConversation` / `subscribeQueue` / `getMessagesSnapshot` / `isWorking`；模块级 `liveMessages` / `streaming` / `queued` 为临时态，不落盘 |

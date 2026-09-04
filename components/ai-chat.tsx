@@ -7,7 +7,7 @@
 
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
 import {
   Bot,
   Send,
@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner"
 
 import { useWorkspace } from "@/lib/store"
+import type { Conversation } from "@/lib/types"
 import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
 import { subscribeQueue, isWorking, stopConversation } from "@/lib/ai/request-queue"
 import { RichTextView } from "@/components/richtext/rich-text-view"
@@ -45,6 +46,57 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+
+// —— 对话列表按时间分组 ——
+// 锚点时间：以「最后一条用户消息的创建时间」为准（继续对话后自然变为最新，实现自动置顶）；
+// 旧消息/无消息时回落 updatedAt / createdAt，保证总能分组。
+function conversationAnchor(c: Conversation): number {
+  for (let i = c.messages.length - 1; i >= 0; i--) {
+    const m = c.messages[i]
+    if (m.role === "user" && m.createdAt) return m.createdAt
+  }
+  return c.updatedAt ?? c.createdAt
+}
+
+// 锚点相对「今天本地零点」的天数差（0=今天，1=昨天，负数=未来）。
+function dayDiff(anchor: number, now: number): number {
+  const a = new Date(anchor)
+  const n = new Date(now)
+  const a0 = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
+  const n0 = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())
+  return Math.floor((n0 - a0) / 86400000)
+}
+
+// 分组 key：置顶 / today / yesterday / week(2~7天) / month30(8~30天) / ym-YYYY-MM(>30天)
+function bucketKey(c: Conversation, now: number): string {
+  if (c.pinned) return "pinned"
+  const d = dayDiff(conversationAnchor(c), now)
+  if (d <= 0) return "today"
+  if (d === 1) return "yesterday"
+  if (d <= 7) return "week"
+  if (d <= 30) return "month30"
+  const a = new Date(conversationAnchor(c))
+  return `ym-${a.getFullYear()}-${String(a.getMonth() + 1).padStart(2, "0")}`
+}
+
+const GROUP_LABEL: Record<string, string> = {
+  pinned: "置顶",
+  today: "今天",
+  yesterday: "昨天",
+  week: "7 天内",
+  month30: "30 天内",
+}
+function groupLabel(key: string): string {
+  if (key.startsWith("ym-")) return key.slice(3)
+  return GROUP_LABEL[key] ?? key
+}
+
+// 固定分组顺序：置顶最前，然后时间由近到远；ym-* 统一排在 month30 之后。
+const GROUP_ORDER = ["pinned", "today", "yesterday", "week", "month30"]
+function groupRank(key: string): number {
+  const i = GROUP_ORDER.indexOf(key)
+  return i >= 0 ? i : GROUP_ORDER.length
+}
 
 // 新对话空状态下的预置问题；第三个由我们替用户补充。
 const PRESET_QUESTIONS = [
@@ -210,14 +262,29 @@ export function AIChatWorkspace() {
     deleteConversation(id)
     setRailOpen(false)
   }
-  // 置顶的对话排在最前；组内保持原有相对顺序（Array.sort 在现代引擎为稳定排序）。
-  const ordered = useMemo(
-    () =>
-      [...conversations].sort(
-        (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0),
-      ),
-    [conversations],
-  )
+  // 对话列表分组：置顶最前，其余按锚点时间落入 今天/昨天/7天内/30天内/YYYY-MM；
+  // 每组内部按锚点时间倒序（最新在上）。继续对话后锚点更新，自动提到对应时间段顶部。
+  const groups = useMemo(() => {
+    const now = Date.now()
+    const byKey = new Map<string, Conversation[]>()
+    for (const c of conversations) {
+      const k = bucketKey(c, now)
+      if (!byKey.has(k)) byKey.set(k, [])
+      byKey.get(k)!.push(c)
+    }
+    const list = [...byKey.entries()].map(([key, items]) => ({
+      key,
+      items: [...items].sort((a, b) => conversationAnchor(b) - conversationAnchor(a)),
+    }))
+    list.sort((a, b) => {
+      const ra = groupRank(a.key)
+      const rb = groupRank(b.key)
+      if (ra !== rb) return ra - rb
+      // 同为 ym-* 月份组时，近的（key 字典序大）排在前
+      return b.key.localeCompare(a.key)
+    })
+    return list
+  }, [conversations])
   const onSelect = (id: string) => {
     if (id === activeId) {
       setRailOpen(false)
@@ -318,17 +385,22 @@ export function AIChatWorkspace() {
         </Button>
         <ScrollArea className="min-h-0 flex-1 overflow-hidden">
           <ul className="flex flex-col gap-0.5 p-2">
-            {ordered.map((c) => (
-              <li key={c.id}>
-                <div
-                  className={cn(
-                    "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm",
-                    c.id === activeId
-                      ? "bg-accent text-accent-foreground"
-                      : "cursor-pointer hover:bg-accent/50",
-                  )}
-                  onClick={() => c.id !== activeId && onSelect(c.id)}
-                >
+            {groups.map((g) => (
+              <Fragment key={g.key}>
+                <li className="px-2 pb-1 pt-3 text-xs font-medium text-muted-foreground first:pt-0">
+                  {groupLabel(g.key)}
+                </li>
+                {g.items.map((c) => (
+                  <li key={c.id}>
+                    <div
+                      className={cn(
+                        "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm",
+                        c.id === activeId
+                          ? "bg-accent text-accent-foreground"
+                          : "cursor-pointer hover:bg-accent/50",
+                      )}
+                      onClick={() => c.id !== activeId && onSelect(c.id)}
+                    >
                   {editingId === c.id ? (
                     <input
                       autoFocus
@@ -408,6 +480,8 @@ export function AIChatWorkspace() {
                   )}
                 </div>
               </li>
+                ))}
+              </Fragment>
             ))}
           </ul>
         </ScrollArea>

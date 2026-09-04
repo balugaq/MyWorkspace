@@ -105,12 +105,12 @@ export function enqueue(conversationId: string, userContent: string, config: AIC
   if (!conv) return
 
   const history = conv.messages
-  const userMsg: AIChatMessage = { id: newId(), role: "user", content: userContent }
+  const userMsg: AIChatMessage = { id: newId(), role: "user", content: userContent, createdAt: Date.now() }
   const assistantId = newId()
   const newHistory: AIChatMessage[] = [
     ...history,
     userMsg,
-    { id: assistantId, role: "assistant", content: "" },
+    { id: assistantId, role: "assistant", content: "", createdAt: Date.now() },
   ]
   // 立即持久化用户消息（不含助手占位，避免空占位落盘）
   state.setConversationMessages(conversationId, [...history, userMsg])
@@ -355,6 +355,7 @@ async function runJob(job: Job) {
         content: finalContent,
         tools: invocations.length ? [...invocations] : undefined,
         tokens: lastUsage ?? undefined,
+        createdAt: Date.now(),
       },
     ]
     useWorkspace.getState().setConversationMessages(conversationId, finalMsgs)

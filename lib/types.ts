@@ -187,6 +187,8 @@ export interface AIChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
+  /** 消息创建时间（epoch ms）；用于对话列表按时间分组与置顶排序。旧存档消息可能缺失，分组时回落 updatedAt/createdAt */
+  createdAt?: number
   /** 本次回复过程中 AI 调用过的技能（用于 UI 展示） */
   tools?: { name: string; display?: string; result?: string }[]
   /** 该轮（助手消息）消耗的 token（来自 OpenAI 兼容 usage）；用于状态栏汇总 */
