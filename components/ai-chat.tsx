@@ -329,7 +329,6 @@ export function AIChatWorkspace() {
                   )}
                   onClick={() => c.id !== activeId && onSelect(c.id)}
                 >
-                  <MessageSquare className="size-3.5 shrink-0 opacity-60 mr-2.5" />
                   {editingId === c.id ? (
                     <input
                       autoFocus
