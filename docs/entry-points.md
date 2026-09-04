@@ -7,7 +7,7 @@
 
 | 功能 | 入口点 |
 | --- | --- |
-| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`/`VaultWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`（`useCalendarScripts` 已弃用停用）；`VaultProvider` 在 `app/layout.tsx` 包裹 `children`（保险库会话状态/密钥驻留内存） |
+| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`/`VaultWorkspace`/`AIChatWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`（`useCalendarScripts` 已弃用停用）；`VaultProvider` 在 `app/layout.tsx` 包裹 `children`（保险库会话状态/密钥驻留内存） |
 | 根布局 / 主题 / 字号 / Toaster | `app/layout.tsx` 的 `RootLayout`；`components/theme-provider.tsx` 的 `ThemeProvider` / `ThemeFromStore` / `FontSizeSetter` |
 | 全局快捷键 | `hooks/use-shortcuts.ts`：`useGlobalShortcuts()`、`matchShortcut(e, binding)`；绑定在 `settings.shortcuts`（`SHORTCUT_META`） |
 | 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`（订阅 store 算统计）；右下角视图名取自 `lib/types.ts` 的 `VIEW_LABEL`（新增视图须在此补一项，否则状态栏会显示成「工作台」） |
@@ -20,6 +20,7 @@
 | 内置模板快捷区 | `TemplateQuickAdd`（调用 store `addCategory`） |
 | 分类项（增删改、折叠、操作菜单） | `CategoryItem` |
 | 日历导航入口 | `CalendarNavItem`（调用 `goCalendar`） |
+| AI 助手导航入口 | `AIChatNavItem`（调用 `goAIChat`） |
 | 联系人导航入口 | `ContactNavItem`（调用 `goContacts`） |
 | 密码保险库导航入口 | `VaultNavItem`（调用 `goVault`） |
 | 新建分类弹窗 | `components/add-category-dialog.tsx` 的 `AddCategoryDialog` |
@@ -67,7 +68,7 @@
 | 功能 | 入口点 |
 | --- | --- |
 | 标题 / 原因 cause / 导向 leadTo / 结果 result | `patch({ title | cause | leadTo | result })`（`updateNode`） |
-| 内容（富文本 + 粘贴图片 + GitHub 卡） | `RichTextEditor`（TipTap v3；粘贴图片经 `lib/image-store.ts` 落库并插入 `imgref:<id>` 节点；粘贴 GitHub Issue/PR 链接自动升级为 `githubCard` 节点；详见 §8.13） |
+| 内容（富文本 + 粘贴图片 + GitHub 卡） | `RichTextEditor`（TipTap v3；粘贴图片经 `lib/image-store.ts` 落库并插入 `imgref:<id>` 节点；粘贴 GitHub Issue/PR 链接自动升级为 `githubCard` 节点；详见 §8.10） |
 | 标签（共用） | `TagPicker`（`patch({ tags })`） |
 | 完成 | `patch({ done })`（`Checkbox`「已完成」） |
 | 在图里隐藏 | `patch({ hidden })`（`Checkbox`「在图里隐藏」；隐藏后仅列表显示） |
@@ -146,7 +147,7 @@
 | 图片渲染组件 | `components/rich-text.tsx`：`StoredImg`（`imgref:id` → IndexedDB blob URL）、`MarkdownImg`（`![](url)` 远程图，识别 `isImgref` 时回退 `StoredImg`） |
 | 旧协议兼容 | `components/richtext/normalize.ts`：`normalizeLegacyImg(md)` 把遗留 `{{img:<id>}}` 在读取时归一为 `![图片](imgref:<id>)`；导出 `IMGREF_PREFIX` / `isImgref` / `imgrefId` |
 
-## 8.13 富文本 / 思维导图节点卡片（TipTap v3）
+## 8.10 富文本 / 思维导图节点卡片（TipTap v3）
 
 > 正文（章节 / 思维图节点 / 日历笔记）统一为 **Markdown 字符串** 存储，编辑与预览共用 TipTap v3 + `tiptap-markdown` 扩展，往返保持 Markdown 串（无需数据迁移）。旧 `{{img:<id>}}` 在读取时由 `normalizeLegacyImg` 归一为新协议。
 
@@ -166,7 +167,7 @@
 
 > 注：`components/markdown-view.tsx`（`MarkdownView`，基于 `marked` lexer 的手工渲染）仍保留，供列表卡片 `clamp` 两行截断预览使用；思维图节点卡片 `components/mindmap/nodes.tsx` 已改用 `RichTextView`，以便节点卡片也能呈现 GitHub/B 站预览卡（代价是每个可见节点一个只读编辑器实例，节点极多时留意性能）。`components/image-rich-input.tsx`、`components/rich-text.tsx` 中 `DebouncedTextarea` 已删除，富文本入口统一为 `RichTextEditor`。
 
-## 8.10 密码保险库（Vault）
+## 8.11 密码保险库（Vault）
 
 > `name : value` 自由键值对（名称/值均由用户填写，不预设账号/密码字段）；AES-256-GCM 加密后存入 IndexedDB，主密码经 PBKDF2 派生，密钥仅驻留内存。
 
@@ -180,19 +181,59 @@
 | 备份集成 | `lib/backup.ts`：`exportBackupZip` 写入 `vault.json`（加密 blob base64）；`importBackupZip` 在「替换」模式下 `importVault` 恢复（合并模式因加密数据无法无密码合并而跳过） |
 | 安全上下文 | Web Crypto 仅 `https`/`localhost` 可用；`crypto.subtle` 不可用时 `getSubtle()` 抛出明确错误 |
 
-## 8.11 联系人（`components/contacts-workspace.tsx`）
+## 8.12 联系人（`components/contacts-workspace.tsx`）
 
 > 只读通讯录：数据来自 `public/address_book.yml`，用户自行编辑该文件，界面不可增删改。
 
 | 功能 | 入口点 |
 | --- | --- |
 | 工作区分发 | `app/page.tsx` 按 `view === "contacts"` → `ContactsWorkspace` |
-| 视图 state / 切换 | store `view`（`"workspace" | "calendar" | "contacts" | "vault"`）+ `goContacts`；侧边栏 `ContactNavItem` |
+| 视图 state / 切换 | store `view`（`"workspace" | "calendar" | "contacts" | "vault" | "ai-chat"`）+ `goContacts`；侧边栏 `ContactNavItem` |
 | 列表 + 搜索 | `ContactsWorkspace`：`loadAddressBook()`（`lib/address-book.ts`）+ `query` 过滤（范围含 name/description/birthday/address/roles/contact，见 `filtered`） |
 | dropdown 展开 contact | `ContactsWorkspace` 内 `expanded` Set + `toggle(name)`；每个 contact 项含复制按钮（`navigator.clipboard.writeText` + toast） |
 | 数据模型 | `lib/address-book.ts`：`Person` / `ContactItem` / `AddressBookFile` / `loadAddressBook` / `parseBirthday` |
 
-## 8.12 ~~日历标记脚本~~ —— 已弃用停用
+## 8.13 AI 助手（`components/ai-chat.tsx` + `lib/ai/*`）
+
+> 纯前端直连 OpenAI 兼容端点（`output: "export"` 无后端路由），API Key 仅存本机 localStorage。
+> 多会话架构：每个会话各持完整上下文，持久化到 store。
+> **流式请求的所有权在 `lib/ai/request-queue.ts` 全局单例队列**（不在组件里），因此切换会话 / 切走视图都不会中断在途请求。
+
+**视图与会话**
+| 功能 | 入口点 |
+| --- | --- |
+| 视图外壳 + 会话侧栏 | `components/ai-chat.tsx` 的 `AIChatWorkspace`；会话列表新建/切换/重命名/删除，侧栏宽度可拖拽（`draggingRef` + `latestWidthRef`，默认 256） |
+| 导航与分发 | 侧边栏 `AIChatNavItem`（`goAIChat`）→ `app/page.tsx` 按 `view === "ai-chat"` → `AIChatWorkspace` |
+| 会话 store actions | `lib/store.ts`：`createConversation` / `selectConversation` / `deleteConversation` / `renameConversation` / `setConversationMessages`；`pendingAiQuery` **不持久化**（刷新不重发，见 `onRehydrateStorage`） |
+| React 钩子 | `lib/ai/use-ai-chat.ts`：`useAIChat({ config, conversationId })` → `{ messages, isLoading, send, stop, regenerateLast }`；经 `useSyncExternalStore` 订阅队列 |
+| 请求队列 | `lib/ai/request-queue.ts`：`enqueue` / `regenerate` / `stopConversation` / `subscribeQueue` / `getMessagesSnapshot` / `isWorking`；模块级 `liveMessages` / `streaming` / `queued` 为临时态，不落盘 |
+| 强制同步 | `settings.aiForceSync` 为 true 时所有会话串行（单队列），false 时允许并发（同一会话仍不会重复发起） |
+| 消息渲染 | 用户/助手消息统一走 `RichTextView`（与节点内容同管线：表格/代码高亮/链接卡/内文图一致生效）；空状态预置问题 `PRESET_QUESTIONS`；复制原文 `copyText` |
+| 状态栏 | `components/status-bar.tsx` 的 `case "ai-chat"`：轮数 + 输入/输出 token（3 位有效数字缩写） |
+
+**模型 / 提示词 / 人设**
+| 功能 | 入口点 |
+| --- | --- |
+| 供应商与模型解析 | `lib/ai/providers.ts`：`AI_PROVIDERS`（`zcode` 智谱 / `deepseek` / `custom`）+ `resolveProvider(providerId, apiKey, customBaseURL, selectedModel)`；实际模型来自设置 `aiModels` + `aiActiveModelId`（管理 UI `ModelManagerDialog`） |
+| system 提示词 | 队列内 `buildSystemPrompt()` = `SYSTEM_BASE` + 当前人设正文 + 当前时间；**每次请求重新读取设置**，切人设无需重建组件 |
+| 人设（多套） | `settings.aiPersonas` + `aiActivePersonaId`；管理 UI `PersonaManagerDialog`；旧存档单一 `aiPersona` 字符串由 `lib/store.ts` 的 `migratePersona` 升级为「默认人设」 |
+| 头像 | `settings.aiUserAvatar` / `aiAssistantAvatar`（data URL；设置里压缩至最长边 256px 转 JPEG，避免撑爆 localStorage） |
+
+**技能（Skills）**
+| 功能 | 入口点 |
+| --- | --- |
+| 说明型技能（用户自定义） | `lib/ai/skills.ts`：`loadSkills()` 读 `public/skills/manifest.json` 再并发取各 `.md`；文件名 slug 作 tool 名、`# 标题` 作展示名、标题后首段作描述、**全文作说明书正文**（AI 调用时回传给模型）；任何失败安全降级为 `[]` |
+| 内置可执行技能 | `lib/ai/builtin-skills.ts`：`BUILTIN_SKILLS`（`BUILTIN_SKILL_DISPLAY` 为展示用），tool 名 `wb_` 前缀，**纯只读查询**；当前含 `wb_get_day_note` / `wb_get_dates_with_notes` / `wb_get_day_calendar_data` / `wb_get_contact_names` / `wb_get_contact` / `wb_get_categories` / `wb_get_chapters` / `wb_get_chapter_content` / `wb_get_mindmap_graph` / `wb_get_mindmap_node`；新增须保持只读且返回可 JSON 序列化的结果 |
+| 技能启停 | `settings.aiEnabledSkills`（`null` = 全部启用）；UI `SkillsToggleDialog`；队列内 `isSkillEnabled` 同时过滤说明型与内置技能 |
+| 工具调用与展示 | 队列用 AI SDK 的 `streamText` + `tool()` + `stepCountIs`；调用过的技能记入 `AIChatMessage.tools`（UI 以 `Wrench` 徽标展示），token 记入 `AIChatMessage.tokens` |
+| 跨视图提问 | store `askAiAbout(text)`：新建会话 → 切 `ai-chat` → 挂起 `pendingAiQuery`，由 `AIChatWorkspace` 在会话就绪后消费并 `clearPendingAiQuery`；日历 `DayDetail` 的「问 AI」（`askFestival` / `askNote`）走此路径 |
+| 容错 | 队列自定义 `fetch` 在 abort 时把 reject 转为空响应以避免 unhandled rejection；用户点「停止」视为预期行为，静默收尾不报错 |
+
+> 相关类型集中在 `lib/types.ts`：`AIProviderId`、`AIPersona`、`AIChatMessage`、`Conversation`，以及 `Settings` 的 `aiModels` / `aiActiveModelId` / `aiEnabledSkills` / `aiUserAvatar` / `aiAssistantAvatar` / `aiForceSync` / `aiPersonas` / `aiActivePersonaId`。
+
+---
+
+## 8.14 ~~日历标记脚本~~ —— 已弃用停用
 
 > 日历标记脚本整体停用：`lib/calendar-events.ts` 运行时、`hooks/use-calendar-scripts.ts` 加载器、
 > `calendar-workspace.tsx` 触发点与标记 API、store 的 `calendarScripts` 字段/actions、
