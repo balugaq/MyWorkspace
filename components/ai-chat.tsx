@@ -234,18 +234,22 @@ export function AIChatWorkspace() {
     conversationId: active?.id ?? "",
   })
 
-  // 新消息后滚到底部
-  // 消息列表现为 Base UI ScrollArea，需要滚动的是 viewport（data-slot="scroll-area-viewport"），
-  // 兜底仍支持原生的 el 自身滚动。
+  // 打开对话 / 新消息后滚到底部
+  // 消息列表现为 Base UI ScrollArea，实际可滚动的是 viewport（data-slot="scroll-area-viewport"）。
+  // 同时依赖 messages 与 activeId：切换对话（即「打开对话」）时即使 messages 引用未变也要滚到底；
+  // 用 requestAnimationFrame 等浏览器完成布局（含图片等异步撑高）后再定位，避免滚不到位。
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const viewport = el.closest(
-      '[data-slot="scroll-area-viewport"]',
-    ) as HTMLElement | null
-    const scroller = viewport ?? el
-    scroller.scrollTop = scroller.scrollHeight
-  }, [messages])
+    const raf = requestAnimationFrame(() => {
+      const viewport = el.closest(
+        '[data-slot="scroll-area-viewport"]',
+      ) as HTMLElement | null
+      const scroller = viewport ?? el
+      scroller.scrollTop = scroller.scrollHeight
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [messages, activeId])
 
   const startEdit = (c: { id: string; title: string }) => {
     setEditingId(c.id)
