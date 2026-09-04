@@ -213,6 +213,17 @@
 }
 .rich-text-content.chat-md pre code { background: transparent; }
 
+/* 用户消息：保留原始换行与缩进，不做软换行（代码/长串按原样展现，超出气泡则横向滚动）。
+ * 覆盖 TipTap 默认 .ProseMirror 的 white-space:pre-wrap 与 rich-text-content 的 overflow-wrap:anywhere，
+ * 否则短文本会按气泡宽度被拆行（空格处甚至 CJK 中间都被断），与用户“保留原长不要换行”的期望相悖。 */
+.rich-text-content.chat-md-user,
+.rich-text-content.chat-md-user .ProseMirror {
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.rich-text-content.chat-md-user pre { white-space: pre; }
+
 /* 代码块语法高亮配色：基于 GitHub 浅/深两套调色板，用 CSS 变量随主题切换。
  * CodeBlockLowlight 会把 token 包成 .hljs-* 的 <span>，这里只负责上色。 */
 :root {

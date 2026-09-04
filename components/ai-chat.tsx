@@ -644,16 +644,20 @@ export function AIChatWorkspace() {
                   )}
                   <div
                     className={cn(
-                      "max-w-[78%] rounded-lg px-3 py-2 text-sm",
+                      "rounded-lg px-3 py-2 text-sm",
                       m.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground",
+                        ? "bg-primary text-primary-foreground max-w-full min-w-0 overflow-x-auto"
+                        : "bg-muted text-foreground max-w-[78%]",
                     )}
                   >
                     {m.content ? (
                       // 用户与 AI 回复统一走 RichTextView（与节点内容同渲染管线：
-                      // 表格 / 代码高亮 / 任务列表 / GitHub·B站卡 / 内文图一致生效）
-                      <RichTextView content={m.content} className="chat-md" />
+                      // 表格 / 代码高亮 / 任务列表 / GitHub·B站卡 / 内文图一致生效）。
+                      // 用户消息额外加 chat-md-user：保留原始换行、不软折行（超宽横向滚动）。
+                      <RichTextView
+                        content={m.content}
+                        className={cn("chat-md", m.role === "user" && "chat-md-user")}
+                      />
                     ) : isLoading ? (
                       <span className="text-muted-foreground">思考中…</span>
                     ) : null}
