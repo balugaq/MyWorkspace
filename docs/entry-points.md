@@ -11,6 +11,7 @@
 | 根布局 / 主题 / 字号 / Toaster | `app/layout.tsx` 的 `RootLayout`；`components/theme-provider.tsx` 的 `ThemeProvider` / `ThemeFromStore` / `FontSizeSetter` |
 | 全局快捷键 | `hooks/use-shortcuts.ts`：`useGlobalShortcuts()`、`matchShortcut(e, binding)`；绑定在 `settings.shortcuts`（`SHORTCUT_META`） |
 | 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`（订阅 store 算统计）；右下角视图名取自 `lib/types.ts` 的 `VIEW_LABEL`（新增视图须在此补一项，否则状态栏会显示成「工作台」） |
+| 桌面端侧边栏宽度（可拖拽） | `app/page.tsx` 的 `Page`：desktop sidebar 容器 `style={{ width: sidebarWidthLocal }}`，右侧 `role="separator"` 分隔条 `onMouseDown={startResizeSidebar}`（min 200 / max 420 px）；实时宽度本地 `sidebarWidthLocal` state，松手写入 store `sidebarWidth` / `setSidebarWidth`（`lib/store.ts`，刷新后保留；旧存档缺字段自动回落默认 288） |
 
 ## 8.2 侧边栏（`components/app-sidebar.tsx`）
 

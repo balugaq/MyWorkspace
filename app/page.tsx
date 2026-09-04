@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 import { useWorkspace } from "@/lib/store"
 import { useGlobalShortcuts } from "@/hooks/use-shortcuts"
 import { loadAddressBook } from "@/lib/address-book"
@@ -42,6 +42,43 @@ export default function Page() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
 
+  // 桌面端侧边栏宽度（拖拽分隔条调整，持久化到 store）：
+  // 实时宽度用本地 state 保证拖动流畅，松手时写入 store，刷新后从 store 恢复。
+  const sidebarWidth = useWorkspace((s) => s.sidebarWidth)
+  const setSidebarWidth = useWorkspace((s) => s.setSidebarWidth)
+  const [sidebarWidthLocal, setSidebarWidthLocal] = useState(sidebarWidth)
+  const latestSidebarWidth = useRef(sidebarWidth)
+  const sidebarDragging = useRef(false)
+  const sidebarHostRef = useRef<HTMLDivElement>(null)
+  const SIDEBAR_MIN = 200
+  const SIDEBAR_MAX = 420
+  useEffect(() => {
+    setSidebarWidthLocal(sidebarWidth)
+    latestSidebarWidth.current = sidebarWidth
+  }, [sidebarWidth])
+
+  function startResizeSidebar(e: ReactMouseEvent) {
+    e.preventDefault()
+    sidebarDragging.current = true
+    const onMove = (ev: MouseEvent) => {
+      if (!sidebarDragging.current || !sidebarHostRef.current) return
+      const rect = sidebarHostRef.current.getBoundingClientRect()
+      const w = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, ev.clientX - rect.left))
+      setSidebarWidthLocal(w)
+      latestSidebarWidth.current = w
+    }
+    const onUp = () => {
+      sidebarDragging.current = false
+      document.body.style.userSelect = ""
+      setSidebarWidth(latestSidebarWidth.current)
+      window.removeEventListener("mousemove", onMove)
+      window.removeEventListener("mouseup", onUp)
+    }
+    document.body.style.userSelect = "none"
+    window.addEventListener("mousemove", onMove)
+    window.addEventListener("mouseup", onUp)
+  }
+
   // 统一的全局快捷键（Ctrl+M 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
   useGlobalShortcuts()
 
@@ -80,9 +117,24 @@ export default function Page() {
 
   return (
     <div className="flex h-svh overflow-hidden bg-background">
-      {/* Desktop sidebar */}
-      <div className="hidden w-72 shrink-0 border-r md:block">
+      {/* Desktop sidebar（宽度可拖拽，持久化到 store） */}
+      <div
+        ref={sidebarHostRef}
+        className="hidden shrink-0 border-r md:block"
+        style={{ width: sidebarWidthLocal }}
+      >
         <AppSidebar />
+      </div>
+
+      {/* 可拖拽分隔条：桌面端左右拖动调整侧边栏宽度 */}
+      <div
+        onMouseDown={startResizeSidebar}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="调整侧边栏宽度"
+        className="hidden w-1.5 shrink-0 cursor-col-resize items-stretch bg-border/40 transition-colors hover:bg-primary/50 md:flex"
+      >
+        <div className="mx-auto my-auto h-10 w-0.5 rounded-full bg-border" />
       </div>
 
       {/* Mobile sidebar */}

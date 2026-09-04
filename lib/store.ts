@@ -129,6 +129,9 @@ interface WorkspaceState {
   // 日历 / DayDetail 分隔条宽度（px），持久化以便刷新后保留用户拖动结果
   calendarDetailWidth: number
 
+  // 桌面端侧边栏宽度（px），持久化以便刷新后保留用户拖动结果（拖动分隔条调整）
+  sidebarWidth: number
+
   // 全局标签库：容纳从联系人 roles 等外部来源导入的标签，供 TagPicker 复用
   knownTags: string[]
 
@@ -177,6 +180,9 @@ interface WorkspaceState {
 
   // 日历 / DayDetail 分隔条宽度（持久化）
   setCalendarDetailWidth: (w: number) => void
+
+  // 桌面端侧边栏宽度（持久化）
+  setSidebarWidth: (w: number) => void
 
   // 全局标签库（导入联系人 roles 等）：并入去重后的标签，已存在则忽略
   addKnownTags: (tags: string[]) => void
@@ -251,6 +257,9 @@ export const useWorkspace = create<WorkspaceState>()(
       // 日历 / DayDetail 分隔条默认宽度（px），与原 w-96 一致
       calendarDetailWidth: 384,
 
+      // 桌面端侧边栏默认宽度（px），与原 w-72=18rem 一致
+      sidebarWidth: 288,
+
       // 全局标签库默认空（角色由联系人数据加载时导入）
       knownTags: [],
 
@@ -277,6 +286,8 @@ export const useWorkspace = create<WorkspaceState>()(
       setImagesOpen: (v) => set({ imagesOpen: v }),
 
       setCalendarDetailWidth: (w) => set({ calendarDetailWidth: w }),
+
+      setSidebarWidth: (w) => set({ sidebarWidth: w }),
 
       addKnownTags: (tags) =>
         set((s) => {
