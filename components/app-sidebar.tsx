@@ -385,6 +385,8 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
             onClick={() => setActiveCategory(category.id)}
             className="flex flex-1 items-center gap-2 py-2 pl-2 text-left text-sm"
           >
+            {/* 占位：与展开箭头等宽，保证图标/文字与其他分类对齐 */}
+            <span className="size-3.5 shrink-0" aria-hidden />
             <Icon className="size-4 shrink-0 text-primary" />
             <span className="truncate font-medium" title={category.name}>
               {category.name}
