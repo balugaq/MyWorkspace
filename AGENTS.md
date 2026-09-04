@@ -22,7 +22,7 @@
 | 状态 | `lib/store.ts` —— `useWorkspace`（Zustand + persist），含分类/章节/思维图节点与连线/日历/系统设置/AI 助手多会话（conversations + activeConversationId，各持完整消息上下文）/密码保险库会话（保险库仅存加密 blob，密钥不落盘；日历脚本字段已弃用停用）；流式请求由 `lib/ai/request-queue.ts` 全局队列持有——切换会话/切走视图都不中断在途请求，设置 `aiForceSync` 可把所有对话请求串行化（单队列） |
 | 图片 | IndexedDB（`lib/image-store.ts` + 引用扫描 `lib/image-refs.ts`）；正文用 `imgref:<id>` 引用 token（旧 `{{img:<id>}}` 在读取时由 `components/richtext/normalize.ts` 归一，详见 `docs/entry-points.md` §8.9） |
 | 加密 | 密码保险库用 Web Crypto（PBKDF2 + AES-256-GCM），加密 blob 存 IndexedDB（`lib/vault-store.ts`），密钥驻留 `VaultProvider` 内存 |
-| 部署 | `output: "export"`，`next build` 产出 `out/`，`scripts/serve-static.mjs` 本地托管；`postbuild` 由 `scripts/inject-csp.mjs` 为 `out/` 所有 HTML 注入**严格 CSP**（`script-src` 走 hash 白名单，放行框架自带行内脚本、拦截其他行内脚本），`app/layout.tsx` 预留 CSP meta 占位 `__CSP_INJECTED_AT_BUILD__` |
+| 部署 | `output: "export"`，`next build` 产出 `out/`，`scripts/serve-static.mjs` 本地托管。**不启用 CSP**：项目只用 `npm run dev`（dev 下 CSP meta 占位符本就被浏览器忽略），构建期注入策略的整套机制已于 2026-09-05 移除（`scripts/inject-csp.mjs`、`postbuild`、`layout.tsx` 的 meta 均已删）；XSS 防线改为依赖「不渲染原始 HTML」（见 `components/markdown-view.tsx`） |
 | AI 职责范围 | 功能开发、Bug 修复、组件/状态重构、构建/脚本维护、文档维护 |
 | AI 不负责 | 提交 git（`git commit`）、发布公网、推送远程（由宿主/开发者执行） |
 
@@ -36,7 +36,6 @@
 | 验收三件套 | `npm run typecheck`（=`tsc --noEmit`，0 错误）+ `npm run lint`（=`eslint`，0 错误）；开发机再加 `npm run build` |
 | 格式化 | `npm run format` |
 | 构建期依赖更新 | `npm run update-dependencies`（由 `predev`/`prebuild` 自动触发；`SKIP_DEP_UPDATE=1` 跳过；当前维护 `lunar-javascript`） |
-| 构建后 CSP 注入 | `postbuild` 自动执行 `scripts/inject-csp.mjs`（`next build` 后、`serve` 前）；为 `out/` 注入严格 CSP，**不可省略**（否则 `layout.tsx` 的占位 meta 不生效、行内脚本可能被拦） |
 
 ---
 
