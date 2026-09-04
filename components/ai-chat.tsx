@@ -300,22 +300,22 @@ export function AIChatWorkspace() {
           <Bot className="size-4 text-primary" />
           <span className="text-sm font-semibold">对话</span>
           <span className="text-xs text-muted-foreground">{conversations.length}</span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="ml-auto"
-            onClick={() => {
-              // 已存在「空对话」（无任何消息记录）则直接切换过去，不重复创建
-              const empty = conversations.find((c) => c.messages.length === 0)
-              if (empty) selectConversation(empty.id)
-              else createConversation()
-              setRailOpen(false)
-            }}
-            title="新建对话"
-          >
-            <Plus />
-          </Button>
         </div>
+        <Button
+          variant="default"
+          className="mx-3 my-2 w-[calc(100%-1.5rem)] justify-start gap-2"
+          onClick={() => {
+            // 已存在「空对话」（无任何消息记录）则直接切换过去，不重复创建
+            const empty = conversations.find((c) => c.messages.length === 0)
+            if (empty) selectConversation(empty.id)
+            else createConversation()
+            setRailOpen(false)
+          }}
+          title="开启新对话"
+        >
+          <Plus className="size-4" />
+          开启新对话
+        </Button>
         <ScrollArea className="min-h-0 flex-1 overflow-hidden">
           <ul className="flex flex-col gap-0.5 p-2">
             {ordered.map((c) => (
