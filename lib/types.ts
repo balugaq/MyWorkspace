@@ -200,6 +200,8 @@ export interface Conversation {
   messages: AIChatMessage[]
   createdAt: number
   updatedAt: number
+  /** 是否置顶：置顶的对话排在列表最前（旧存档缺此字段回落 false，无需迁移） */
+  pinned?: boolean
 }
 
 // 底部状态栏 / 导航等处使用的「视图显示名」。新增视图时只需在此补一项，

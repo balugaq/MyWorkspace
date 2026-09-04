@@ -22,6 +22,9 @@ import {
   MessageSquare,
   Copy,
   RefreshCw,
+  MoreVertical,
+  Pin,
+  PinOff,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -34,6 +37,13 @@ import { SkillsToggleDialog } from "@/components/ai-skills-dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 
 // 新对话空状态下的预置问题；第三个由我们替用户补充。
@@ -60,6 +70,7 @@ export function AIChatWorkspace() {
   const createConversation = useWorkspace((s) => s.createConversation)
   const selectConversation = useWorkspace((s) => s.selectConversation)
   const deleteConversation = useWorkspace((s) => s.deleteConversation)
+  const togglePinConversation = useWorkspace((s) => s.togglePinConversation)
   const renameConversation = useWorkspace((s) => s.renameConversation)
   const pendingAiQuery = useWorkspace((s) => s.pendingAiQuery)
   const clearPendingAiQuery = useWorkspace((s) => s.clearPendingAiQuery)
@@ -199,6 +210,14 @@ export function AIChatWorkspace() {
     deleteConversation(id)
     setRailOpen(false)
   }
+  // 置顶的对话排在最前；组内保持原有相对顺序（Array.sort 在现代引擎为稳定排序）。
+  const ordered = useMemo(
+    () =>
+      [...conversations].sort(
+        (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0),
+      ),
+    [conversations],
+  )
   const onSelect = (id: string) => {
     if (id === activeId) {
       setRailOpen(false)
@@ -299,7 +318,7 @@ export function AIChatWorkspace() {
         </div>
         <ScrollArea className="min-h-0 flex-1 overflow-hidden">
           <ul className="flex flex-col gap-0.5 p-2">
-            {conversations.map((c) => (
+            {ordered.map((c) => (
               <li key={c.id}>
                 <div
                   className={cn(
@@ -333,30 +352,60 @@ export function AIChatWorkspace() {
                       {c.title}
                     </span>
                   )}
+                  {c.pinned && (
+                    <Pin className="size-3 shrink-0 text-muted-foreground" />
+                  )}
                   <StreamingDot id={c.id} />
                   {editingId !== c.id && (
-                    <>
-                      <button
-                        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          startEdit(c)
-                        }}
-                        title="重命名"
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 data-[popup-open]:opacity-100 focus-visible:opacity-100"
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label="更多操作"
                       >
-                        <Pencil className="size-3.5" />
-                      </button>
-                      <button
-                        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onDelete(c.id)
-                        }}
-                        title="删除"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </>
+                        <MoreVertical className="size-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" side="bottom">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            togglePinConversation(c.id)
+                          }}
+                        >
+                          {c.pinned ? (
+                            <>
+                              <PinOff className="size-4" />
+                              取消置顶
+                            </>
+                          ) : (
+                            <>
+                              <Pin className="size-4" />
+                              置顶
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            startEdit(c)
+                          }}
+                        >
+                          <Pencil className="size-4" />
+                          重命名
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDelete(c.id)
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                          删除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
               </li>

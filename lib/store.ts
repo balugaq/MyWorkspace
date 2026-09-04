@@ -164,6 +164,7 @@ interface WorkspaceState {
   selectConversation: (id: string) => void
   deleteConversation: (id: string) => void
   renameConversation: (id: string, title: string) => void
+  togglePinConversation: (id: string) => void
   setConversationMessages: (id: string, messages: AIChatMessage[]) => void
   // 外部触发：新建会话并切到 AI 闲聊，携带一条待发送 query（由 AI 聊天界面消费后清空）
   askAiAbout: (text: string) => void
@@ -563,6 +564,12 @@ export const useWorkspace = create<WorkspaceState>()(
             c.id === id
               ? { ...c, title: title.trim().slice(0, 10) || "新对话", updatedAt: Date.now() }
               : c,
+          ),
+        })),
+      togglePinConversation: (id) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === id ? { ...c, pinned: !c.pinned } : c,
           ),
         })),
       setConversationMessages: (id, messages) =>
