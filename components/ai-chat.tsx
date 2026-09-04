@@ -45,6 +45,16 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 
 // —— 对话列表按时间分组 ——
@@ -176,6 +186,8 @@ export function AIChatWorkspace() {
   const [editingTitle, setEditingTitle] = useState("")
   const [skillsOpen, setSkillsOpen] = useState(false)
   const [modelsOpen, setModelsOpen] = useState(false)
+  // 待删除的对话 id（非空时弹出确认弹窗）；用项目自带 AlertDialog 替代原生 confirm
+  const [delTarget, setDelTarget] = useState<string | null>(null)
 
   // 对话列表宽度（可拖拽分隔线调整，持久化到 localStorage）
   const RAIL_MIN = 180
@@ -260,7 +272,6 @@ export function AIChatWorkspace() {
     setEditingId(null)
   }
   const onDelete = (id: string) => {
-    if (!confirm("确定删除这个对话？删除后不可恢复。")) return
     // 若该对话正在生成，先中断其请求（其余对话不受影响）
     stopConversation(id)
     deleteConversation(id)
@@ -473,7 +484,7 @@ export function AIChatWorkspace() {
                           variant="destructive"
                           onClick={(e) => {
                             e.stopPropagation()
-                            onDelete(c.id)
+                            setDelTarget(c.id)
                           }}
                         >
                           <Trash2 className="size-4" />
@@ -490,6 +501,35 @@ export function AIChatWorkspace() {
           </ul>
         </ScrollArea>
       </aside>
+
+      {/* 删除对话确认弹窗：项目自带 AlertDialog，替代原生 confirm */}
+      <AlertDialog
+        open={delTarget !== null}
+        onOpenChange={(o) => {
+          if (!o) setDelTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除这个对话？</AlertDialogTitle>
+            <AlertDialogDescription>
+              删除后不可恢复，该对话的所有消息都会丢失。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (delTarget) onDelete(delTarget)
+                setDelTarget(null)
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 拖拽分隔线（仅桌面端）：左右拖动调整对话列表宽度 */}
       <div
