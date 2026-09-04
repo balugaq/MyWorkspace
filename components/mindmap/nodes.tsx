@@ -15,6 +15,7 @@ import {
 import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { argbToCss } from "@/lib/color-utils"
 import { RichTextView } from "@/components/richtext/rich-text-view"
 import { getImageURL } from "@/lib/image-store"
 import { imageIdsInText } from "@/lib/image-refs"
@@ -56,8 +57,15 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
     node.content && imageIdsInText(node.content).size === 1
       ? Array.from(imageIdsInText(node.content))[0]
       : null
+  // 节点风格：自定义边框/背景色（ARGB），无值时回落主题默认（border-border / bg-card）
+  const borderCss = argbToCss(node.borderColor)
+  const bgCss = argbToCss(node.bgColor)
   return (
     <div
+      style={{
+        ...(bgCss ? { backgroundColor: bgCss } : null),
+        ...(borderCss ? { borderColor: borderCss } : null),
+      }}
       className={cn(
         "w-auto max-w-[50vw] min-w-56 rounded-xl border-2 bg-card shadow-sm transition-colors",
         selected ? "border-primary ring-2 ring-primary/30" : "border-border"

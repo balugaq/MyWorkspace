@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Trash2, X, Lightbulb, Tag, CalendarClock, Plus } from "lucide-react"
+import { Trash2, X, Lightbulb, Tag, CalendarClock, Plus, Shuffle, RotateCcw, Palette } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { RichTextEditor } from "@/components/richtext/rich-text-editor"
@@ -27,6 +27,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { TagPicker } from "@/components/tag-picker"
 import { cn } from "@/lib/utils"
+import {
+  NODE_PALETTE,
+  parseArgb,
+  toArgb,
+  argbToCss,
+  randomHarmoniousColor,
+} from "@/lib/color-utils"
 
 const STATUSES: SolutionStatus[] = ["doing", "paused", "done"]
 const STATUS_BTN: Record<SolutionStatus, string> = {
@@ -163,6 +170,18 @@ export function NodeInspector({
               <span className="text-xs font-medium text-muted-foreground">标签</span>
             </div>
             <TagPicker tags={tags} onChange={(next) => patch({ tags: next })} />
+          </div>
+
+          <Separator />
+
+          {/* 节点风格：边框色 / 背景色（ARGB + 透明度），自绘取色器，无第三方依赖 */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1.5">
+              <Palette className="size-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">节点风格</span>
+            </div>
+            <ColorField label="边框" value={node.borderColor} onChange={(v) => patch({ borderColor: v })} />
+            <ColorField label="背景" value={node.bgColor} onChange={(v) => patch({ bgColor: v })} />
           </div>
 
           <Separator />
@@ -322,6 +341,94 @@ function Field({
     <div className="flex flex-col gap-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       {children}
+    </div>
+  )
+}
+
+/**
+ * ARGB 取色器（自绘，无第三方依赖）：原生 color input 选 RGB + 透明度滑块（0–100%）
+ * + 预设调色板点选 + 「随机」和谐色 + 「清除」回落主题默认。
+ * 存储值均为 #AARRGGBB；空值表示使用主题默认色。
+ */
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string | undefined
+  onChange: (v: string | undefined) => void
+}) {
+  const { rgb, alpha } = parseArgb(value)
+  return (
+    <div className="flex flex-col gap-2 rounded-md border bg-background p-2">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+          {value ?? "默认"}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={rgb}
+          onChange={(e) => onChange(toArgb(e.target.value, alpha))}
+          className="size-8 shrink-0 cursor-pointer rounded border bg-transparent p-0.5"
+          aria-label={`${label}颜色`}
+        />
+        <div className="flex flex-wrap gap-1">
+          {NODE_PALETTE.map((c) => (
+            <button
+              key={c}
+              type="button"
+              title={c}
+              onClick={() => onChange(toArgb(c, alpha))}
+              className="size-5 shrink-0 rounded-full border border-border/60 transition-transform hover:scale-110"
+              style={{ backgroundColor: argbToCss(c) }}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground">透明</span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={alpha}
+          onChange={(e) => onChange(toArgb(rgb, Number(e.target.value)))}
+          className="h-1.5 flex-1 cursor-pointer accent-primary"
+          aria-label={`${label}透明度`}
+        />
+        <span className="w-9 text-right text-[10px] tabular-nums text-muted-foreground">
+          {alpha}%
+        </span>
+      </div>
+
+      <div className="flex gap-1.5">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 flex-1 gap-1"
+          onClick={() => onChange(randomHarmoniousColor())}
+        >
+          <Shuffle className="size-3" />
+          随机
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 flex-1 gap-1"
+          onClick={() => onChange(undefined)}
+        >
+          <RotateCcw className="size-3" />
+          清除
+        </Button>
+      </div>
     </div>
   )
 }

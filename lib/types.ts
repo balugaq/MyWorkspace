@@ -48,6 +48,12 @@ export interface MindNode {
   hidden?: boolean // 是否在图里隐藏（隐藏后仅列表显示）
   /** 单图节点的图片缩放倍数（1 = 100%）；仅当节点内容恰好含 1 张图时生效，范围 0.1–4 */
   imageZoom?: number
+  /** 节点风格：边框颜色，ARGB 十六进制（#AARRGGBB；缺 alpha 视为不透明 #RRGGBB）。
+   *  为空时回落到主题默认（border-border）。 */
+  borderColor?: string
+  /** 节点风格：背景颜色，ARGB 十六进制（同 borderColor 格式）。
+   *  为空时回落到主题默认（bg-card）。 */
+  bgColor?: string
 }
 
 // 节点之间的连线

@@ -75,11 +75,13 @@
 | 在图里隐藏 | `patch({ hidden })`（`Checkbox`「在图里隐藏」；隐藏后仅列表显示） |
 | 截止日期 / 长期任务 | `patch({ dueDate | longTerm })`（`Input type=date` + 「设为长期」按钮） |
 | 解决方案 + 状态 | `setNodeSolution(catId, nodeId, content, status)`；状态 `doing|paused|done`（`STATUS_META`） |
+| 节点风格（边框色 / 背景色 ARGB + 透明度） | `ColorField`（`patch({ borderColor | bgColor })`）；预设 `NODE_PALETTE` + 原生 color input（RGB）+ 透明度滑块（0–100%）+ `randomHarmoniousColor()` 随机和谐色 + 「清除」回落主题默认；存储串 `#AARRGGBB`，转换 `argbToCss`（`lib/color-utils.ts`） |
 
 **节点卡片（`components/mindmap/nodes.tsx`）**
 | 功能 | 入口点 |
 | --- | --- |
 | Todo 节点卡片 | `TodoNode`（标题 + `done` 删除线/✓、原因/导向/结果、**内容常显** via `RichText`、子任务折叠钮、标签/截止/长期徽标） |
+| 自定义边框/背景色 | `TodoNode` 经 `argbToCss`（`lib/color-utils.ts`）把 `node.borderColor` / `node.bgColor`（ARGB `#AARRGGBB`）转 `rgba()` 以 inline style 覆盖默认；空值回落 `border-border` / `bg-card` |
 | 长文本/超长串防溢出 | `RichText` 容器用 `overflow-wrap:anywhere` + `break-words`；图片 `fullSize` 加 `max-w-full`；原因/导向/结果行加 `min-w-0` + 任意断词，避免无空格长串（如 URL）撑破 `max-w-[50vw]` 卡片 |
 | 图片原尺寸展示 | `RichText` 传 `fullSize`（`h-auto w-auto`，可撑破卡片；卡片 `w-auto min-w-56 max-w-[50vw]`） |
 | 解决方案节点卡片 | `SolutionNode`（绿框 + 状态 `STATUS_META`） |
