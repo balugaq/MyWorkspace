@@ -24,6 +24,7 @@
 | AI 助手导航入口 | `AIChatNavItem`（调用 `goAIChat`） |
 | 联系人导航入口 | `ContactNavItem`（调用 `goContacts`） |
 | 密码保险库导航入口 | `VaultNavItem`（调用 `goVault`） |
+| 头像按钮（打开个人主页） | `AppSidebar` 头部 `<button>`：读 `settings.aiUserAvatar`，空回落 `User` 图标；点击调用 `goProfile` |
 | 新建分类弹窗 | `components/add-category-dialog.tsx` 的 `AddCategoryDialog` |
 | 分类/章节拖拽排序 | 分类 `moveCategory(from,to)`、章节 `moveChapter(catId,from,to)`（储存在 `lib/store.ts`）；注意小分类（章节）`draggable` 嵌套在大分类容器内，章节 `onDragStart` 须 `stopPropagation()` 防止 `dataTransfer` 的 id 被外层覆盖成分类 id |
 
@@ -191,7 +192,7 @@
 | 功能 | 入口点 |
 | --- | --- |
 | 工作区分发 | `app/page.tsx` 按 `view === "contacts"` → `ContactsWorkspace` |
-| 视图 state / 切换 | store `view`（`"workspace" | "calendar" | "contacts" | "vault" | "ai-chat"`）+ `goContacts`；侧边栏 `ContactNavItem` |
+| 视图 state / 切换 | store `view`（`"workspace" | "calendar" | "contacts" | "vault" | "ai-chat" | "profile"`）+ `goContacts`；侧边栏 `ContactNavItem` |
 | 列表 + 搜索 | `ContactsWorkspace`：`loadAddressBook()`（`lib/address-book.ts`）+ `query` 过滤（范围含 name/description/birthday/address/roles/contact，见 `filtered`） |
 | dropdown 展开 contact | `ContactsWorkspace` 内 `expanded` Set + `toggle(name)`；每个 contact 项含复制按钮（`navigator.clipboard.writeText` + toast） |
 | 数据模型 | `lib/address-book.ts`：`Person` / `ContactItem` / `AddressBookFile` / `loadAddressBook` / `parseBirthday` |
@@ -235,6 +236,21 @@
 | 容错 | 队列自定义 `fetch` 在 abort 时把 reject 转为空响应以避免 unhandled rejection；用户点「停止」视为预期行为，静默收尾不报错 |
 
 > 相关类型集中在 `lib/types.ts`：`AIProviderId`、`AIPersona`、`AIChatMessage`、`Conversation`（含 `pinned?`），以及 `Settings` 的 `aiModels` / `aiActiveModelId` / `aiEnabledSkills` / `aiUserAvatar` / `aiAssistantAvatar` / `aiForceSync` / `aiPersonas` / `aiActivePersonaId`。
+
+---
+
+## 8.15 个人主页 Profile Dashboard（`components/profile-workspace.tsx`）
+
+| 功能 | 入口点 |
+| --- | --- |
+| 视图外壳 | `ProfileWorkspace`（`app/page.tsx` 按 `view === "profile"` 渲染）；占满主区，内部 `overflow-auto` |
+| 导航与分发 | 侧边栏头像按钮（`goProfile`）→ `view: "profile"` → `ProfileWorkspace`；`VIEW_LABEL` 补 `"profile": "个人主页"` |
+| 头像来源 | 复用 `settings.aiUserAvatar`（与 AI 对话头像同源；空回落默认 `User` 图标），256×256 圆角容器 |
+| 天气 / 地区 / 诗歌 / 签到 | 当前均为**占位**：天气卡（温度+`CloudSun`+描述）、地区（1 行）、每日诗歌（右下角小字）、签到按钮（`toast.info("签到功能开发中")`） |
+| 日期 / 星期 | 实时 `new Date()` 计算（非占位） |
+| 贡献热力图 | GitHub 风格 53 周 × 7 天；`buildCells()` 用确定性伪随机填 5 级绿色强度（避免 SSR 水合不一致），后续接真实数据替换 level 来源 |
+
+> 约定：本视图为纯展示模板，数据填充逻辑（天气 API、签到状态、真实贡献计数）留待后续迭代；当前除日期/星期外均为占位符。
 
 ---
 

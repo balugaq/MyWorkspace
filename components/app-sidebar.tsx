@@ -14,6 +14,7 @@ import {
   Users,
   KeyRound,
   Bot,
+  User,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
@@ -50,6 +51,8 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
   const addOpen = useWorkspace((s) => s.addCategoryOpen)
   const setAddOpen = useWorkspace((s) => s.setAddCategoryOpen)
   const moveCategory = useWorkspace((s) => s.moveCategory)
+  const settings = useWorkspace((s) => s.settings)
+  const goProfile = useWorkspace((s) => s.goProfile)
 
   return (
     <aside className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
@@ -62,6 +65,24 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
             <span className="text-sm font-semibold">全能工作台</span>
             <span className="text-[11px] text-muted-foreground">My Workspace</span>
           </div>
+          {/* 头像按钮：点击打开个人主页 Profile Dashboard；空头像回落默认 User 图标 */}
+          <button
+            type="button"
+            onClick={goProfile}
+            title="打开个人主页"
+            className="ml-1 flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent transition-colors hover:bg-sidebar-accent/70"
+          >
+            {settings.aiUserAvatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={settings.aiUserAvatar}
+                alt="用户头像"
+                className="size-full object-cover"
+              />
+            ) : (
+              <User className="size-4 text-muted-foreground" />
+            )}
+          </button>
         </div>
         {onCollapse && (
           <Button variant="ghost" size="icon" className="size-8" onClick={onCollapse}>

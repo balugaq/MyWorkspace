@@ -209,11 +209,15 @@ export interface Conversation {
 // 底部状态栏 / 导航等处使用的「视图显示名」。新增视图时只需在此补一项，
 // 避免像此前「密码保险库」那样漏改状态栏导致显示成「工作台」。
 // （workspace 视图的显示名是动态的——当前分类名或「工作台」，故不在此列出。）
-export const VIEW_LABEL: Record<"calendar" | "contacts" | "vault" | "ai-chat", string> = {
+export const VIEW_LABEL: Record<
+  "calendar" | "contacts" | "vault" | "ai-chat" | "profile",
+  string
+> = {
   calendar: "日历",
   contacts: "联系人",
   vault: "密码保险库",
   "ai-chat": "AI 助手",
+  profile: "个人主页",
 }
 
 // 可持久化的系统设置

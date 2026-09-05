@@ -14,6 +14,7 @@ import { CalendarWorkspace } from "@/components/calendar-workspace"
 import { ContactsWorkspace } from "@/components/contacts-workspace"
 import { VaultWorkspace } from "@/components/vault/vault-workspace"
 import { AIChatWorkspace } from "@/components/ai-chat"
+import { ProfileWorkspace } from "@/components/profile-workspace"
 import { GlobalSearch } from "@/components/global-search"
 import { SettingsDialog } from "@/components/settings-dialog"
 // 日历标记脚本已弃用停用：不再引入 CalendarScriptsDialog
@@ -174,6 +175,8 @@ export default function Page() {
             <VaultWorkspace />
           ) : view === "ai-chat" ? (
             <AIChatWorkspace />
+          ) : view === "profile" ? (
+            <ProfileWorkspace />
           ) : activeCategory ? (
             activeCategory.template === "relation" ? (
               <MindmapWorkspace key={activeCategory.id} category={activeCategory} />
