@@ -271,7 +271,7 @@ export const useWorkspace = create<WorkspaceState>()(
       // 全局标签库默认空（角色由联系人数据加载时导入）
       knownTags: [],
 
-      // 天气：默认无城市（首屏将走 IP 定位或提示用户选择）
+      // 天气：默认无城市，需用户在天气卡片中手动选择
       weatherCityCode: "",
 
       // AI 助手：默认无会话（视图挂载时若无会话则创建一个），不预置 activeConversationId

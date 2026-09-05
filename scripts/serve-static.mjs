@@ -15,7 +15,7 @@ import { createServer } from "node:http"
 import { readFile, stat } from "node:fs/promises"
 import { extname, join, normalize, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { startWeatherProxy } from "./weather-proxy-lib.mjs"
+import { handleWeatherRequest, startWeatherProxy } from "./weather-proxy-lib.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const root = ROOT // 项目根目录
@@ -63,6 +63,15 @@ function safePath(urlPathname, baseDir) {
 
 const server = createServer(async (req, res) => {
   try {
+    // 天气 API：与静态站点同源（output:"export" 不支持 Next Route Handler，
+    // 故在此由同一服务器进程直接处理 /api/weather*，免去独立代理进程与 127.0.0.1 写死，
+    // 跨设备/局域网访问也能正常工作）。
+    if ((req.url ?? "/").startsWith("/api/weather")) {
+      const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
+      await handleWeatherRequest(req, res, url)
+      return
+    }
+
     const reqPath = (req.url ?? "/").split("?")[0]
     // 目录内真实文件；若不存在则回退到 index.html（支持 SPA 直链）
     let file = safePath(reqPath, publicDir)
@@ -116,8 +125,8 @@ const server = createServer(async (req, res) => {
   }
 })
 
-// 天气代理：静态导出（output:"export"）不支持 Next Route Handler，
-// 故在此并行启动独立代理进程（默认 :3005，可用 WEATHER_PROXY_PORT 覆盖）。
+// 兼容旧构建：部分已导出的 out/ 仍把天气基址写死为 http://127.0.0.1:3005，
+// 故这里并行启动独立代理（同源接口已内置上方，新构建走同源即可，代理仅作兜底）。
 try {
   const weatherPort = Number(process.env.WEATHER_PROXY_PORT) || 3005
   const weatherServer = startWeatherProxy(weatherPort)

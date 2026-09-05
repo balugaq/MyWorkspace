@@ -18,6 +18,12 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const WEATHER_PORT = Number(process.env.WEATHER_PROXY_PORT) || 3005
 const NEXT_PORT = Number(process.env.PORT) || 3000
 
+// 开发期 next dev 无法托管 /api/weather（静态导出禁用 Route Handler），
+// 故天气走独立 :3005 代理；注入基址让前端（编译期读取 NEXT_PUBLIC_*）指向它。
+// 生产静态托管（serve-static.mjs）已同源内置该接口，无需此变量。
+process.env.NEXT_PUBLIC_WEATHER_PROXY =
+  process.env.NEXT_PUBLIC_WEATHER_PROXY || `http://127.0.0.1:${WEATHER_PORT}`
+
 // 1) 天气代理
 const weatherServer = startWeatherProxy(WEATHER_PORT)
 weatherServer.on("error", (e) => {

@@ -1,6 +1,7 @@
-// 前端天气数据客户端：经本地代理（scripts/weather-proxy-lib.mjs）获取天气。
-// 代理默认在 http://127.0.0.1:3005；可用环境变量 NEXT_PUBLIC_WEATHER_PROXY 覆盖
-// （静态导出场景下在构建期内联，故本地托管时一般保持默认即可）。
+// 前端天气数据客户端：天气接口由托管本应用的同源服务器提供
+// （scripts/serve-static.mjs 已内置 /api/weather；开发期由 scripts/dev.mjs 拉起的
+// 独立代理在 :3005 提供）。默认使用相对路径（同源），故跨设备/局域网访问也能工作；
+// 仅当显式设置 NEXT_PUBLIC_WEATHER_PROXY 时才改用该基址（开发期指向上面那个 :3005 代理）。
 
 export interface WeatherNow {
   /** 城市名（中文） */
@@ -32,10 +33,8 @@ export interface CityOption {
   province: string
 }
 
-const PROXY_BASE = (
-  process.env.NEXT_PUBLIC_WEATHER_PROXY?.replace(/\/+$/, "") ||
-  "http://127.0.0.1:3005"
-)
+// 默认同源（相对路径）；开发期 dev.mjs 会注入 NEXT_PUBLIC_WEATHER_PROXY 指向 :3005 代理。
+const PROXY_BASE = process.env.NEXT_PUBLIC_WEATHER_PROXY?.replace(/\/+$/, "") || ""
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${PROXY_BASE}${path}`)

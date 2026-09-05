@@ -79,7 +79,9 @@ export function WeatherWidget() {
       const w = await fetchWeather(code)
       setData(w)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "获取失败")
+      const msg = e instanceof Error ? e.message : "获取失败"
+      // 网络层失败（如服务未启动）统一给出可读提示，而非浏览器原始的 "Failed to fetch"
+      setError(msg === "Failed to fetch" ? "天气服务连接失败" : msg)
       setData(null)
     } finally {
       setLoading(false)
