@@ -47,8 +47,8 @@ export function ProfileWorkspace() {
   const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()]
 
   // 所在地区：用户可双击编辑（不可留空，空则回退上一值）；未设置时默认展示「中国」
-  const storedLocation = useWorkspace((s) => s.settings.location)
   const updateSettings = useWorkspace((s) => s.updateSettings)
+  const storedLocation = useWorkspace((s) => s.settings.location)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState("")
   const displayLocation = storedLocation.trim() || "中国"
@@ -69,6 +69,28 @@ export function ProfileWorkspace() {
     setEditing(false)
   }
   const cancelEdit = () => setEditing(false)
+
+  // 用户名：同款双击编辑（不可留空，空则回退上一值）；未设置时默认展示「未命名用户」
+  const storedName = useWorkspace((s) => s.settings.userName)
+  const [nameEditing, setNameEditing] = useState(false)
+  const [nameDraft, setNameDraft] = useState("")
+  const displayName = storedName.trim() || "未命名用户"
+
+  const startNameEdit = () => {
+    setNameDraft(displayName)
+    setNameEditing(true)
+  }
+  const commitNameEdit = () => {
+    const next = nameDraft.trim()
+    if (!next) {
+      toast.error("用户名不能为空")
+      setNameEditing(false)
+      return
+    }
+    updateSettings({ userName: next })
+    setNameEditing(false)
+  }
+  const cancelNameEdit = () => setNameEditing(false)
 
   // 占位内容（后续接真实数据源时替换）
   const poem = "海上生明月，天涯共此时。"
@@ -106,7 +128,36 @@ export function ProfileWorkspace() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="text-lg font-semibold text-foreground">未命名用户</span>
+            {/* 用户名：双击编辑（不可留空，空则回退上一值） */}
+            {nameEditing ? (
+              <input
+                autoFocus
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={commitNameEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    commitNameEdit()
+                  } else if (e.key === "Escape") {
+                    e.preventDefault()
+                    cancelNameEdit()
+                  }
+                }}
+                placeholder="用户名"
+                className="w-40 rounded border border-border bg-background px-1 text-lg font-semibold text-foreground outline-none focus:border-primary"
+              />
+            ) : (
+              <span
+                title="双击编辑用户名"
+                onDoubleClick={startNameEdit}
+                className="w-fit cursor-text text-lg font-semibold text-foreground hover:opacity-80"
+              >
+                {displayName}
+              </span>
+            )}
+
+            {/* 所在地区：双击编辑（不可留空，空则回退上一值） */}
             {editing ? (
               <input
                 autoFocus
