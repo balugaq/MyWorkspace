@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { CalendarDays, CalendarCheck, User, Feather } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
@@ -46,8 +46,31 @@ export function ProfileWorkspace() {
   const day = now.getDate()
   const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()]
 
+  // 所在地区：用户可双击编辑（不可留空，空则回退上一值）；未设置时默认展示「中国」
+  const storedLocation = useWorkspace((s) => s.settings.location)
+  const updateSettings = useWorkspace((s) => s.updateSettings)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState("")
+  const displayLocation = storedLocation.trim() || "中国"
+
+  const startEdit = () => {
+    setDraft(displayLocation)
+    setEditing(true)
+  }
+  // 提交：空值不保存（回退上一值并提示），否则写入
+  const commitEdit = () => {
+    const next = draft.trim()
+    if (!next) {
+      toast.error("所在地区不能为空")
+      setEditing(false)
+      return
+    }
+    updateSettings({ location: next })
+    setEditing(false)
+  }
+  const cancelEdit = () => setEditing(false)
+
   // 占位内容（后续接真实数据源时替换）
-  const location = "上海, 中国"
   const poem = "海上生明月，天涯共此时。"
   const totalContributions = 342
 
@@ -84,10 +107,34 @@ export function ProfileWorkspace() {
 
           <div className="flex flex-col gap-1">
             <span className="text-lg font-semibold text-foreground">未命名用户</span>
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
-              <span aria-hidden>📍</span>
-              {location}
-            </span>
+            {editing ? (
+              <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    commitEdit()
+                  } else if (e.key === "Escape") {
+                    e.preventDefault()
+                    cancelEdit()
+                  }
+                }}
+                placeholder="所在地区"
+                className="w-40 rounded border border-border bg-background px-1 text-sm text-muted-foreground outline-none focus:border-primary"
+              />
+            ) : (
+              <span
+                title="双击编辑所在地区"
+                onDoubleClick={startEdit}
+                className="flex w-fit cursor-text items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <span aria-hidden>📍</span>
+                {displayLocation}
+              </span>
+            )}
           </div>
 
           {/* 签到功能（占位：按钮完整，逻辑待接） */}

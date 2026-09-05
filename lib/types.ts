@@ -256,6 +256,8 @@ export interface Settings {
   aiEnabledSkills: string[] | null
   aiUserAvatar: string // 用户头像（data URL，压缩后存储）；留空则用默认用户图标
   aiAssistantAvatar: string // AI 头像（data URL，压缩后存储）；留空则用默认机器人图标
+  // 用户自定义「所在地区」标签（Profile 头像下方展示）；留空则默认显示「中国」
+  location: string
   // AI 对话强制同步：开启后所有对话的用户请求统一进入单队列串行处理；
   // 关闭则允许并发（同一会话仍不会重复发起）。两种模式下切换会话/视图都不会中断在途请求。
   aiForceSync: boolean
@@ -279,6 +281,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiEnabledSkills: null,
   aiUserAvatar: "",
   aiAssistantAvatar: "",
+  location: "",
   aiForceSync: false,
   aiPersonas: [],
   aiActivePersonaId: null,
