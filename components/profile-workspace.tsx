@@ -2,9 +2,10 @@
 
 import { useMemo } from "react"
 import { toast } from "sonner"
-import { CloudSun, CalendarDays, CalendarCheck, User, Feather } from "lucide-react"
+import { CalendarDays, CalendarCheck, User, Feather } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
+import { WeatherWidget } from "@/components/weather-widget"
 
 // GitHub 风格贡献热力图：53 周 × 7 天。
 // 占位：用确定性伪随机（依 index 计算，避免 SSR 水合不一致）填充 5 级强度，
@@ -46,9 +47,6 @@ export function ProfileWorkspace() {
   const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()]
 
   // 占位内容（后续接真实数据源时替换）
-  const weatherTemp = 24
-  const weatherDesc = "多云转晴，微风"
-  const weatherExtra = "AQI 32 · 湿度 45%"
   const location = "上海, 中国"
   const poem = "海上生明月，天涯共此时。"
   const totalContributions = 342
@@ -111,19 +109,8 @@ export function ProfileWorkspace() {
         {/* 右栏：天气 + 日期（上）；贡献图（下） */}
         <div className="flex min-w-0 flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* 今天天气 */}
-            <div className="rounded-xl border border-border bg-card p-4">
-              <div className="flex items-center gap-3">
-                <CloudSun className="size-8 text-amber-500" />
-                <div className="flex flex-col">
-                  <span className="text-2xl font-bold leading-none text-foreground">
-                    {weatherTemp}°C
-                  </span>
-                  <span className="mt-1 text-xs text-muted-foreground">{weatherDesc}</span>
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">{weatherExtra}</p>
-            </div>
+            {/* 今天天气（实时数据：本地天气代理 + 中国天气网） */}
+            <WeatherWidget />
 
             {/* 今天日期 + 星期 */}
             <div className="rounded-xl border border-border bg-card p-4">

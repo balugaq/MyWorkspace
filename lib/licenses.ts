@@ -297,4 +297,20 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     license: "MIT",
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
+  {
+    name: "weather-com-cn-api",
+    author: "CHCAT1320",
+    description:
+      "中国天气网数据接口封装（getWeatherIndex / searchCity / getIpLocation）。本项目不在客户端引用其依赖原生 sharp 的渲染模块，而是复用其抓取逻辑，由 scripts/weather-proxy-lib.mjs 以纯 Node 实现服务端代理（静态导出无法使用 Next Route Handler）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "weathercityid",
+    author: "LiuQixuan@Aiusoft",
+    description:
+      "中国行政区编码与天气网城市编码映射库。本项目的城市搜索选择器由其提供全量城市名/别名→9 位天气码索引（scripts/weather-proxy-lib.mjs 在 Node 代理端消费）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
 ]

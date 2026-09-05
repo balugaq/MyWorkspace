@@ -15,6 +15,7 @@ import { createServer } from "node:http"
 import { readFile, stat } from "node:fs/promises"
 import { extname, join, normalize, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { startWeatherProxy } from "./weather-proxy-lib.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const root = ROOT // 项目根目录
@@ -114,6 +115,18 @@ const server = createServer(async (req, res) => {
     console.error(err)
   }
 })
+
+// 天气代理：静态导出（output:"export"）不支持 Next Route Handler，
+// 故在此并行启动独立代理进程（默认 :3005，可用 WEATHER_PROXY_PORT 覆盖）。
+try {
+  const weatherPort = Number(process.env.WEATHER_PROXY_PORT) || 3005
+  const weatherServer = startWeatherProxy(weatherPort)
+  weatherServer.on("error", (e) => {
+    console.error(`[天气代理] 启动失败（端口 ${weatherPort} 可能被占用）:`, e.message)
+  })
+} catch (e) {
+  console.error(`[天气代理] 未能启动:`, e)
+}
 
 server.listen(port, () => {
   console.log(`✔ 已启动本地静态服务器`)
