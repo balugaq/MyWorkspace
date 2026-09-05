@@ -87,6 +87,60 @@ export function searchCity(name) {
 }
 
 // ---- 城市搜索索引（weathercityid：行政区 → 天气码，用于选择器）----
+let _cityCoords = null
+async function getCityCoords() {
+  if (_cityCoords) return _cityCoords
+  const resp = await fetch("https://i.tq121.com.cn/j/webgis_v2/city.json", { headers: WX_H })
+  if (!resp.ok) throw new Error(`城市坐标库返回 ${resp.status}`)
+  const text = await resp.text()
+  const ps = text.indexOf("(")
+  const pe = text.lastIndexOf(")")
+  const inner = ps >= 0 && pe > ps ? text.slice(ps + 1, pe) : text
+  const obj = JSON.parse(inner)
+  const list = []
+  for (const code of Object.keys(obj)) {
+    const v = obj[code]
+    const lat = Number(v.y)
+    const lng = Number(v.x)
+    if (Number.isFinite(lat) && Number.isFinite(lng)) list.push({ code, name: v.n || "", lat, lng })
+  }
+  _cityCoords = list
+  return _cityCoords
+}
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
+/** GPS 经纬度 → 最近的中国天气网 9 位城市码（haversine 距离，缓存坐标库） */
+export async function nearestCity(lat, lng) {
+  const coords = await getCityCoords()
+  let best = null
+  let bestD = Infinity
+  for (const c of coords) {
+    const d = haversine(lat, lng, c.lat, c.lng)
+    if (d < bestD) {
+      bestD = d
+      best = c
+    }
+  }
+  if (!best) throw new Error("无可用城市坐标")
+  return {
+    code: best.code,
+    name: best.name,
+    lat: best.lat,
+    lng: best.lng,
+    distanceKm: Math.round(bestD * 10) / 10,
+  }
+}
+
+// ---- 城市搜索索引（weathercityid：行政区 → 天气码，用于选择器）----
 const require = createRequire(import.meta.url)
 let _cityIdTable = null
 function getCityIdTable() {
@@ -142,6 +196,20 @@ export async function handleWeatherRequest(req, res, url) {
     if (path === "/api/weather/search") {
       const name = url.searchParams.get("name") ?? ""
       sendJson(res, 200, { list: await searchCity(name) })
+      return true
+    }
+    if (path === "/api/weather/locate") {
+      sendJson(res, 200, { code: await locateCity() })
+      return true
+    }
+    if (path === "/api/weather/nearest") {
+      const lat = Number(url.searchParams.get("lat"))
+      const lng = Number(url.searchParams.get("lng"))
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        sendJson(res, 400, { error: "缺少有效的 lat/lng 参数" })
+        return true
+      }
+      sendJson(res, 200, await nearestCity(lat, lng))
       return true
     }
   } catch (e) {
