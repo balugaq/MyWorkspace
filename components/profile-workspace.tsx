@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { CalendarDays, CalendarCheck, User, Feather } from "lucide-react"
+import { CalendarDays, CalendarCheck, User, Feather, RefreshCw } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { WeatherWidget } from "@/components/weather-widget"
@@ -35,6 +35,74 @@ function buildCells() {
 
 const MONTH_LABELS = ["Jun", "Jul", "", "Aug", "", "", "Sep", "", "", "", "", ""]
 const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
+
+// 每日诗歌：数据源接口（无「出处/集」字段，出处用 author.name + title 拼）
+const POEM_API = "https://poetry.palemoky.com/api/poems/random"
+
+interface PoemPayload {
+  data: {
+    title: string
+    content: string[]
+    author: { name: string }
+    dynasty: { name: string }
+    type: { name: string }
+  }
+  lang: string
+}
+
+interface PoemCache {
+  line: string
+  author: string
+  title: string
+  date: string
+}
+
+function todayKey(d = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+// 从 content 数组随机抽一句：先过滤空串；若都空则回退 content[0]
+function pickLine(content: string[]): string {
+  const nonEmpty = content.filter((c) => c.trim().length > 0)
+  const pool = nonEmpty.length > 0 ? nonEmpty : content
+  if (pool.length === 0) return ""
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+// 请求一首诗并解析；非 200 / 解析失败 / 网络错误都会抛错（由调用方处理兜底）
+async function fetchPoem(): Promise<{ line: string; author: string; title: string }> {
+  const res = await fetch(POEM_API, { cache: "no-store" })
+  if (!res.ok) throw new Error(`poem http ${res.status}`)
+  const payload = (await res.json()) as PoemPayload
+  const data = payload?.data
+  if (!data) throw new Error("poem payload missing data")
+  return {
+    line: pickLine(data.content ?? []),
+    author: data.author?.name ?? "",
+    title: data.title ?? "",
+  }
+}
+
+function writePoemCache(value: PoemCache): void {
+  try {
+    localStorage.setItem(`mw:poem:${value.date}`, JSON.stringify(value))
+  } catch {
+    // 隐私模式 / 配额超限：忽略写入失败，不影响展示
+  }
+}
+
+function readPoemCache(): PoemCache | null {
+  try {
+    const raw = localStorage.getItem(`mw:poem:${todayKey()}`)
+    if (!raw) return null
+    return JSON.parse(raw) as PoemCache
+  } catch {
+    return null
+  }
+}
 
 export function ProfileWorkspace() {
   const settings = useWorkspace((s) => s.settings)
@@ -93,8 +161,66 @@ export function ProfileWorkspace() {
   }
   const cancelNameEdit = () => setNameEditing(false)
 
-  // 占位内容（后续接真实数据源时替换）
-  const poem = "海上生明月，天涯共此时。"
+  // 每日诗歌（接真实 API：每天按日期缓存一次，跨天再换）
+  const [poemLine, setPoemLine] = useState("")
+  const [poemAuthor, setPoemAuthor] = useState("")
+  const [poemTitle, setPoemTitle] = useState("")
+  const [poemVisible, setPoemVisible] = useState(true)
+  const [poemLoading, setPoemLoading] = useState(true)
+  const [poemRefreshing, setPoemRefreshing] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const cached = readPoemCache()
+    // 命中当日缓存：直接展示，不重复请求、不跳变
+    if (cached && cached.date === todayKey()) {
+      setPoemLine(cached.line)
+      setPoemAuthor(cached.author)
+      setPoemTitle(cached.title)
+      setPoemLoading(false)
+      return
+    }
+    fetchPoem()
+      .then((p) => {
+        if (cancelled) return
+        const date = todayKey()
+        writePoemCache({ line: p.line, author: p.author, title: p.title, date })
+        setPoemLine(p.line)
+        setPoemAuthor(p.author)
+        setPoemTitle(p.title)
+        setPoemLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        // 初始/挂载 fetch 失败（网络/非 200/CORS）：整块隐藏
+        setPoemVisible(false)
+        setPoemLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const refreshPoem = () => {
+    if (poemRefreshing) return
+    setPoemRefreshing(true)
+    fetchPoem()
+      .then((p) => {
+        const date = todayKey()
+        writePoemCache({ line: p.line, author: p.author, title: p.title, date })
+        setPoemLine(p.line)
+        setPoemAuthor(p.author)
+        setPoemTitle(p.title)
+      })
+      .catch(() => {
+        // 手动刷新失败：保留当前诗句 + toast 提示，不隐藏整块
+        toast.error("诗词刷新失败，请稍后再试")
+      })
+      .finally(() => {
+        setPoemRefreshing(false)
+      })
+  }
+
   const totalContributions = 342
 
   return (
@@ -297,13 +423,38 @@ export function ProfileWorkspace() {
         </div>
       </ScrollArea>
 
-      {/* 右下角：每日诗歌（一行小字） */}
-      <footer className="px-8 pb-4 text-right text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <Feather className="size-3" />
-          「{poem}」
-        </span>
-      </footer>
+      {/* 右下角：每日诗歌（API 接入，按日期缓存，可手动刷新） */}
+      {poemVisible && (
+        <footer className="flex items-end justify-end gap-2 px-8 pb-4 text-right text-xs text-muted-foreground">
+          <div className="flex flex-col items-end gap-0.5">
+            {poemLoading ? (
+              <span>诗词加载中…</span>
+            ) : (
+              <>
+                <span className="inline-flex items-center gap-1">
+                  <Feather className="size-3" />
+                  「{poemLine}」
+                </span>
+                {poemAuthor && poemTitle && (
+                  <span className="text-[10px] opacity-80">
+                    ——{poemAuthor}《{poemTitle}》
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={refreshPoem}
+            disabled={poemRefreshing || poemLoading}
+            title="换一首诗"
+            aria-label="换一首诗"
+          >
+            <RefreshCw className={poemRefreshing ? "size-3 animate-spin" : "size-3"} />
+          </Button>
+        </footer>
+      )}
     </div>
   )
 }
