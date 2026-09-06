@@ -6,6 +6,7 @@ import { CalendarDays, CalendarCheck, User, Feather } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { WeatherWidget } from "@/components/weather-widget"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // GitHub 风格贡献热力图：53 周 × 7 天。
 // 占位：用确定性伪随机（依 index 计算，避免 SSR 水合不一致）填充 5 级强度，
@@ -97,18 +98,15 @@ export function ProfileWorkspace() {
   const totalContributions = 342
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-auto">
+    <div className="flex h-full min-h-0 flex-col">
       {/* 顶栏：固定左上角 title（350×80） */}
-      <header className="flex items-center justify-between px-8 py-6">
-        <div className="flex h-20 w-[350px] flex-col justify-center">
-          <h1 className="text-2xl font-bold leading-tight text-foreground">全能工作台</h1>
-          <span className="text-sm text-muted-foreground">Profile Dashboard</span>
-        </div>
-        <span className="text-xs text-muted-foreground">Personal Home Screen</span>
+      <header className="flex items-center px-8 py-6">
+        <h1 className="text-2xl font-bold leading-tight text-foreground">Profile Dashboard</h1>
       </header>
 
-      {/* 主体双栏 */}
-      <div className="grid flex-1 grid-cols-1 gap-6 px-8 pb-4 lg:grid-cols-[auto_1fr]">
+      {/* 主体双栏：用 ScrollArea 滚动（细滚动条，与 sidebar 风格一致） */}
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="grid grid-cols-1 gap-6 px-8 pb-4 lg:grid-cols-[auto_1fr]">
         {/* 左栏：头像 + 昵称/地区 + 签到 */}
         <div className="flex flex-col gap-4">
           {/* 用户头像 256×256 圆角 */}
@@ -233,7 +231,8 @@ export function ProfileWorkspace() {
               <span className="text-xs text-muted-foreground">{totalContributions} 次</span>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <ScrollArea horizontal className="w-full overflow-hidden">
+              <div className="flex gap-2 pb-2">
               {/* 周几标签列 */}
               <div className="flex shrink-0 flex-col gap-1 pt-4">
                 {WEEKDAY_LABELS.map((label, i) => (
@@ -278,7 +277,8 @@ export function ProfileWorkspace() {
                   ))}
                 </div>
               </div>
-            </div>
+              </div>
+            </ScrollArea>
 
             {/* 图例 */}
             <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
@@ -294,7 +294,8 @@ export function ProfileWorkspace() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </ScrollArea>
 
       {/* 右下角：每日诗歌（一行小字） */}
       <footer className="px-8 pb-4 text-right text-xs text-muted-foreground">
