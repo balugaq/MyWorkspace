@@ -65,7 +65,7 @@ interface Contribution {
 
 未来还会有更多的 contribution type （如 TODO 9）
 
-TODO 9. （状态：待处理）
+TODO 9. （状态：已完成）
 完成profile dashboard 里的签到功能
 当按下签到功能后，弹出toast弹窗提出签到成功，签到按钮同步增加暗色图层，文字改成“√已签到”
 签到每天04:00重置（用户时区）（采用 TODO 8 同一个offset配置）
@@ -78,3 +78,57 @@ TODO 10. （状态：待处理）
 
 TODO 11. （状态：待处理）
 很多文档里存在行数定位，这些都不应存在，应当以方法名/属性名等定位，其他文档可能存在类似问题，需要同样修改。
+
+TODO 12. （状态：已完成）
+在 Activity & Contributions 下添加类似github一样的，contribution 详情
+单次显示最多 5 条（如没有则显示 居中灰色字"暂无活动记录"）
+每一条的显示形式为大卡片（参考类型如下）：
+
+1. 整体布局与主题 (Layout & Theme)
+深色模式 (Dark Theme): 背景采用了深灰色（近似 #1e1e1e 或 #222），而非纯黑。这种设计可以减轻视觉疲劳，同时让文字和彩色标签更突出。
+
+容器化 (Card/Container): 内容被包裹在一个带有圆角的容器中，通常通过 border-radius (如 12px 或 16px) 实现，并且可能带有极细的边框或轻微的阴影以与背景区分。
+
+灵活布局 (Flexbox/Grid):
+
+顶部标题栏（标签、标题、日期）使用了水平排列，非常适合使用 display: flex; justify-content: space-between; align-items: center; 来实现。
+
+下方的信息列表（时间、地点、人物等）采用了“左侧固定宽度标签 + 右侧自适应内容”的布局，这可以通过 Flexbox 或 Grid 轻松实现。
+
+2. 色彩与对比 (Color & Contrast)
+文字色彩层级:
+
+主标题: 纯白色 (#ffffff)，字重较大，吸引第一眼注意力。
+
+标签字段 (如时间、地点): 使用了中灰色（如 #999 或 #aaa），降低视觉层级。
+
+正文内容: 浅灰色（如 #ccc 或 #ddd），保证在深色背景上的阅读舒适度。
+
+强调色 (Accent Colors):
+
+左上角的“国内”标签使用了暗红色背景搭配亮红色文字。
+
+正文中的关键词（“甲醛溶液”、“三部门”）使用了高饱和度的红色/橙色（类似 #e63946 或 #ff5722）。这在CSS中通常通过给 <span> 标签单独设置 color 属性来实现。
+
+3. 排版与字体 (Typography)
+字体家族 (Font Family): 采用了典型的无衬线字体（Sans-serif），如系统默认的 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif，保证屏幕阅读的清晰度。
+
+行高 (Line-height): 正文部分的行高设置得比较宽松（如 1.6 或 1.8），这是提升大段文字可读性的关键CSS属性。
+
+对齐方式 (Text Align):
+
+顶部的日期使用了右对齐 (text-align: right)。
+
+正文列表呈现两端对齐或左对齐的视觉效果。
+
+4. 具体组件样式 (Component Styles)
+胶囊标签 (Pill Badges):
+
+左上角的“国内”和右上角的日期都呈现胶囊形状，通过 border-radius: 999px;（或较大数值）实现。
+
+右上角的日期背景有轻微的填充色，可能是 background-color: rgba(255,255,255,0.1);，边缘有细边框。
+
+列表项间距 (Spacing): 信息列表每一项（时间、地点等）之间有明显的垂直间距，通常通过 margin-bottom 或 Flexbox 的 gap 属性控制。
+
+继续todo：
+然后添加一个github那样的下展开按钮，点击可以继续显示最多5条，如果已经显示完，则删除下展开按钮并显示"无更多活动记录"
