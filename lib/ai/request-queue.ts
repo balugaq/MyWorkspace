@@ -379,6 +379,15 @@ async function runJob(job: Job) {
       tools,
       stopWhen: stepCountIs(12),
       abortSignal: controller.signal,
+      // 显式关闭 AI SDK 遥测：SDK 在 streamText 内部会用
+      // `completion: result._totalUsage.promise.then(() => void 0)`（ai/dist/index.js 的
+      // telemetryDispatcher.startTracingChannelContext 调用）建一个只给 Telemetry 用的派生 promise，
+      // 而该 promise 只在 Node 运行时才会被 SDK 兜住（openTelemetryChannelSpanContext 里
+      // `if (!isNodeRuntime()) return`）。浏览器环境没人接它，一旦 _totalUsage 被 reject
+      // （用户点停止 → abortSignal.reason；429 无输出 → AI_NoOutputGeneratedError），
+      // 就变成未捕获 rejection 弹到 Next.js 运行时面板。传 isEnabled:false 后 dispatcher 直接返回 {}，
+      // 连那个派生 promise 都不会被创建（本应用不使用 SDK 遥测，无行为影响）。
+      telemetry: { isEnabled: false },
       onError: (err) => {
         errorMsg = err instanceof Error ? err.message : String(err)
       },
@@ -425,10 +434,16 @@ async function runJob(job: Job) {
     // 失败（如 429）/ 空内容时会以 AI_NoOutputGeneratedError 拒绝。不吸收就会变成未捕获 rejection。
     // 注意必须放在 fullStream 消费循环之后：这些字段均标注 "Automatically consumes the stream"，
     // 循环内访问会与 fullStream 抢消费。429/网络错信息已通过 errorMsg / httpStatus 在对话框展示。
+    // 清单依据 ai@7 的 StreamTextResult 接口维护（node_modules/ai/dist/index.d.ts），包含其全部
+    // PromiseLike 取值器；SDK 升级后若新增 PromiseLike 字段，需同步补到这里。
+    // 切勿加入 elementStream：它是 AsyncIterableStream 且无 array output 规格时会同步抛
+    // UnsupportedFunctionalityError（index.d.ts 里其余 *Stream 都是惰性 getter，不访问即不创建）。
     const absorbed = await Promise.allSettled([
       result.consumeStream(), // [0] 主动 finalize 流，其错误沿用下方原有诊断逻辑
       result.text,
       result.content,
+      result.reasoning,
+      result.reasoningText,
       result.finishReason,
       result.rawFinishReason,
       result.steps,
