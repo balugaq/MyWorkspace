@@ -113,7 +113,7 @@ interface WorkspaceState {
   calendar: CalendarData
   activeCategoryId: string | null // null 表示日历
   activeItemId: string | null // 章节 id 或节点 id
-  view: "workspace" | "calendar" | "contacts" | "vault" | "ai-chat" | "profile"
+  view: "workspace" | "calendar" | "contacts" | "vault" | "ai-chat" | "profile" | "settings"
   selectedDate: string
   hydrated: boolean
 
@@ -121,7 +121,6 @@ interface WorkspaceState {
   settings: Settings
   // UI 弹窗状态（跨组件触发，例如全局快捷键 Ctrl+M）
   addCategoryOpen: boolean
-  settingsOpen: boolean
   configEditorOpen: boolean
   imagesOpen: boolean
 
@@ -167,6 +166,7 @@ interface WorkspaceState {
   goVault: () => void
   goAIChat: () => void
   goProfile: () => void
+  goSettings: () => void
 
   // AI 助手：多会话管理（各自持有上下文）
   createConversation: () => string
@@ -183,7 +183,6 @@ interface WorkspaceState {
   updateSettings: (patch: Partial<Settings>) => void
   setShortcut: (action: ShortcutAction, binding: ShortcutBinding) => void
   setAddCategoryOpen: (v: boolean) => void
-  setSettingsOpen: (v: boolean) => void
   setConfigEditorOpen: (v: boolean) => void
   setImagesOpen: (v: boolean) => void
 
@@ -263,7 +262,6 @@ export const useWorkspace = create<WorkspaceState>()(
       hydrated: false,
       settings: DEFAULT_SETTINGS,
       addCategoryOpen: false,
-      settingsOpen: false,
       configEditorOpen: false,
       imagesOpen: false,
 
@@ -302,7 +300,6 @@ export const useWorkspace = create<WorkspaceState>()(
         })),
 
       setAddCategoryOpen: (v) => set({ addCategoryOpen: v }),
-      setSettingsOpen: (v) => set({ settingsOpen: v }),
       setConfigEditorOpen: (v) => set({ configEditorOpen: v }),
       setImagesOpen: (v) => set({ imagesOpen: v }),
 
@@ -561,6 +558,7 @@ export const useWorkspace = create<WorkspaceState>()(
       goVault: () => set({ view: "vault", activeCategoryId: null }),
       goAIChat: () => set({ view: "ai-chat", activeCategoryId: null }),
       goProfile: () => set({ view: "profile", activeCategoryId: null }),
+      goSettings: () => set({ view: "settings", activeCategoryId: null }),
 
       // ---- AI 助手：多会话（各自持有上下文） ----
       createConversation: () => {
@@ -1180,6 +1178,8 @@ export const useWorkspace = create<WorkspaceState>()(
 
 function applyDefaultView(state: WorkspaceState) {
   const dv: DefaultView = state.settings?.defaultView ?? "workspace"
+  // "last"：view/activeCategoryId 本身已持久化，rehydrate 出来的就是上次的视图，什么都不做即可
+  if (dv === "last") return
   if (dv === "calendar" && state.view !== "calendar") {
     state.view = "calendar"
     state.activeCategoryId = null

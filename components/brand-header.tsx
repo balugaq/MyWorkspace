@@ -22,7 +22,7 @@ export function BrandHeader({
 }) {
   const settings = useWorkspace((s) => s.settings)
   const goProfile = useWorkspace((s) => s.goProfile)
-  const setSettingsOpen = useWorkspace((s) => s.setSettingsOpen)
+  const goSettings = useWorkspace((s) => s.goSettings)
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -103,7 +103,7 @@ export function BrandHeader({
           variant="ghost"
           size="icon"
           className="size-9"
-          onClick={() => setSettingsOpen(true)}
+          onClick={goSettings}
         >
           <SettingsIcon className="size-4" />
           <span className="sr-only">设置</span>

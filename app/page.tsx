@@ -15,7 +15,7 @@ import { VaultWorkspace } from "@/components/vault/vault-workspace"
 import { AIChatWorkspace } from "@/components/ai-chat"
 import { ProfileWorkspace } from "@/components/profile-workspace"
 import { GlobalSearch } from "@/components/global-search"
-import { SettingsDialog } from "@/components/settings-dialog"
+import { SettingsView } from "@/components/settings-view"
 import { ConfigEditorDialog } from "@/components/config-editor-dialog"
 import { ImageCacheDialog } from "@/components/image-cache-dialog"
 import { StatusBar } from "@/components/status-bar"
@@ -183,6 +183,8 @@ export default function Page() {
             <AIChatWorkspace />
           ) : view === "profile" ? (
             <ProfileWorkspace />
+          ) : view === "settings" ? (
+            <SettingsView />
           ) : activeCategory ? (
             activeCategory.template === "relation" ? (
               <MindmapWorkspace key={activeCategory.id} category={activeCategory} />
@@ -211,7 +213,6 @@ export default function Page() {
       </div>
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
-      <SettingsDialog />
       <ConfigEditorDialog open={configEditorOpen} onOpenChange={setConfigEditorOpen} />
       <ImageCacheDialog open={imagesOpen} onOpenChange={setImagesOpen} />
     </div>

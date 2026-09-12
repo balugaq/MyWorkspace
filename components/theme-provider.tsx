@@ -3,6 +3,7 @@
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 import { useWorkspace } from "@/lib/store"
+import type { UIFontFamily } from "@/lib/types"
 
 function ThemeProvider({
   children,
@@ -18,21 +19,30 @@ function ThemeProvider({
     >
       <ThemeHotkey />
       <ThemeFromStore />
-      <FontSizeSetter />
+      <FontSetter />
       {children}
     </NextThemesProvider>
   )
 }
 
-// 将全局基础字号（settings.fontSize）应用到 html 根元素
-function FontSizeSetter() {
+// 字体家族 → 根元素 fontFamily 的 CSS 变量映射
+const FONT_FAMILY_MAP: Record<UIFontFamily, string> = {
+  system: "var(--font-sans)",
+  serif: "var(--font-serif)",
+  mono: "var(--font-mono)",
+}
+
+// 将全局基础字号（settings.fontSize）与字体家族（settings.uiFontFamily）应用到 html 根元素
+function FontSetter() {
   const fontSize = useWorkspace((s) => s.settings.fontSize)
+  const uiFontFamily = useWorkspace((s) => s.settings.uiFontFamily)
   const hydrated = useWorkspace((s) => s.hydrated)
 
   React.useEffect(() => {
     if (!hydrated) return
     document.documentElement.style.fontSize = `${Math.min(24, Math.max(12, fontSize))}px`
-  }, [fontSize, hydrated])
+    document.documentElement.style.fontFamily = FONT_FAMILY_MAP[uiFontFamily]
+  }, [fontSize, uiFontFamily, hydrated])
 
   return null
 }

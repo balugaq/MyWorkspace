@@ -249,7 +249,7 @@ export interface Conversation {
 // 避免像此前「密码保险库」那样漏改状态栏导致显示成「工作台」。
 // （workspace 视图的显示名是动态的——当前分类名或「工作台」，故不在此列出。）
 export const VIEW_LABEL: Record<
-  "calendar" | "contacts" | "vault" | "ai-chat" | "profile",
+  "calendar" | "contacts" | "vault" | "ai-chat" | "profile" | "settings",
   string
 > = {
   calendar: "日历",
@@ -257,11 +257,15 @@ export const VIEW_LABEL: Record<
   vault: "密码保险库",
   "ai-chat": "AI 助手",
   profile: "个人主页",
+  settings: "设置",
 }
 
 // 可持久化的系统设置
 export type ThemePreference = "light" | "dark" | "system"
-export type DefaultView = "workspace" | "calendar"
+/** 默认启动视图；"last" = 打开上次的视图（view/activeCategoryId 本身已持久化，rehydrate 后即为上次状态） */
+export type DefaultView = "workspace" | "calendar" | "last"
+/** 界面字体家族：映射根元素 fontFamily 的 CSS 变量（--font-sans / --font-serif / --font-mono） */
+export type UIFontFamily = "system" | "serif" | "mono"
 
 // AI 模型条目：支持配置多个模型，每条独立保存 provider / key / baseUrl / model。
 // 各 Key 仅存于本机 localStorage（纯前端静态站，无后端），互不干扰。
@@ -279,6 +283,8 @@ export interface Settings {
   defaultView: DefaultView
   shortcuts: Record<ShortcutAction, ShortcutBinding>
   fontSize: number // 全局基础字号 rem，例如 16（对应 --font-size-base）
+  // 界面字体家族：映射根元素 fontFamily（system → var(--font-sans) 等，见 components/theme-provider.tsx）
+  uiFontFamily: UIFontFamily
   githubToken: string // GitHub 个人访问令牌（PAT），用于提升 GitHub 预览卡的 API 限额；留空则匿名（60 次/小时/IP）
   // AI 助手：支持配置多个模型，可随时切换当前使用的模型。
   aiModels: AIModelEntry[]
@@ -311,6 +317,7 @@ export const DEFAULT_SETTINGS: Settings = {
     ShortcutBinding
   >,
   fontSize: 16,
+  uiFontFamily: "system",
   githubToken: "",
   aiModels: [],
   aiActiveModelId: null,
