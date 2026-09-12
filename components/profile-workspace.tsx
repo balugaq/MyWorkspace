@@ -16,6 +16,7 @@ import {
   parseDayStartOffset,
   todayKey,
 } from "@/lib/contributions"
+import { type ContributionType } from "@/lib/types"
 
 // GitHub 风格贡献热力图：53 周 × 7 天，数据来自 store 的真实「贡献账本」
 // （lib/contributions.ts 纯逻辑 + lib/store.ts 记账）。
@@ -30,12 +31,24 @@ const LEVEL_COLORS = [
   "#39d353",
 ]
 
+// 贡献类型 → 徽章文案 / 配色（贡献详情列表用）
+const CONTRIB_TYPE_META: Record<ContributionType, { label: string; badge: string }> = {
+  "mindmap-node-created": { label: "新建节点", badge: "text-blue-400 bg-blue-400/10" },
+  "mindmap-node-done": { label: "完成节点", badge: "text-green-500 bg-green-500/10" },
+  "check-in": { label: "签到", badge: "text-primary bg-primary/10" },
+}
+
 const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
 
 // 贡献值展示：四舍五入取整（todo.md 口径）。
 // amount < 0.5 的日子（例如当天只新建 1 个节点 = 0.2）会显示 0 —— 主人明确要求照实显示，不做修饰。
 function formatAmount(n: number): string {
   return String(Math.round(n))
+}
+
+// 贡献详情列表用：整数保留整数，小数显示 1 位（如 2 → "2"，0.2 → "0.2"）
+function formatContribAmount(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1)
 }
 
 // 每日诗歌：数据源接口（无「出处/集」字段，出处用 author.name + title 拼）
@@ -122,6 +135,13 @@ export function ProfileWorkspace() {
   const byDay = useMemo(
     () => aggregateByDay(contributions, offsetMinutes),
     [contributions, offsetMinutes],
+  )
+
+  // 贡献详情列表：按 at 倒序（新在前），初始展示 5 条，可「展开更多」递进 5 条
+  const [visible, setVisible] = useState(5)
+  const sorted = useMemo(
+    () => [...contributions].sort((a, b) => b.at - a.at),
+    [contributions],
   )
 
   // 日期 / 星期：实时计算（非占位）
@@ -472,6 +492,54 @@ export function ProfileWorkspace() {
                 />
               ))}
               多
+            </div>
+
+            {/* 贡献详情列表 */}
+            <div className="mt-4 border-t border-border pt-4">
+              <p className="text-xs font-medium text-muted-foreground">贡献详情</p>
+              {sorted.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">暂无活动记录</p>
+              ) : (
+                <>
+                  <div className="mt-2 space-y-2">
+                    {sorted.slice(0, visible).map((c) => {
+                      const meta = CONTRIB_TYPE_META[c.type]
+                      return (
+                        <div key={c.id} className="rounded-lg border border-border bg-card p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.badge}`}
+                            >
+                              {meta.label}
+                            </span>
+                            <span className="rounded-full bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
+                              {format(new Date(c.at), "MM-dd-HH-mm")}
+                            </span>
+                          </div>
+                          <p className="mt-2 truncate text-sm text-foreground">{c.content}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            贡献值 {formatContribAmount(c.amount)}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {visible < sorted.length ? (
+                    <div className="mt-3 text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-sm text-muted-foreground"
+                        onClick={() => setVisible((v) => v + 5)}
+                      >
+                        查看更多活动记录
+                      </Button>
+                    </div>
+                  ) : sorted.length > 5 ? (
+                    <p className="py-2 text-center text-xs text-muted-foreground">无更多活动记录</p>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
         </div>
