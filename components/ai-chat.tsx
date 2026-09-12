@@ -25,6 +25,7 @@ import {
   MoreVertical,
   Pin,
   PinOff,
+  ChevronDown,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -38,6 +39,7 @@ import { SkillsToggleDialog } from "@/components/ai-skills-dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -122,6 +124,38 @@ async function copyText(text: string) {
     toast.success("已复制")
   } catch {
     toast.error("复制失败")
+  }
+}
+
+// query bar 的 title 文本：纯文本截断，超过 20 字取前 20 字加省略号
+function shortQueryTitle(content: string): string {
+  return content.length > 20 ? content.slice(0, 20) + "…" : content
+}
+
+// 自定义 rAF 缓动滚动（原生 scrollIntoView 无 duration）；rafRef 记录动画帧 id，供重复点击时取消上一个动画。
+// 直接写 viewport 的 scrollTop 与 ScrollArea 兼容（viewport 即原生滚动容器）。
+function animateScrollTop(
+  container: HTMLElement,
+  targetTop: number,
+  duration = 500,
+  rafRef?: { current: number },
+) {
+  if (rafRef) cancelAnimationFrame(rafRef.current)
+  const start = container.scrollTop
+  const delta = targetTop - start
+  const t0 = performance.now()
+  const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2) // easeInOutQuad
+  const step = (now: number) => {
+    const p = Math.min(1, (now - t0) / duration)
+    container.scrollTop = start + delta * ease(p)
+    if (p < 1 && rafRef) {
+      rafRef.current = requestAnimationFrame(step)
+    }
+  }
+  if (rafRef) {
+    rafRef.current = requestAnimationFrame(step)
+  } else {
+    requestAnimationFrame(step)
   }
 }
 
@@ -262,6 +296,91 @@ export function AIChatWorkspace() {
     })
     return () => cancelAnimationFrame(raf)
   }, [messages, activeId])
+
+  // —— Query bar（桌面端右侧问题导航）——
+  // userMsgs：当前会话的全部用户提问（过滤空内容）；bar 只显示最近 9 条（旧上新下）。
+  const userMsgs = useMemo(
+    () => messages.filter((m) => m.role === "user" && m.content.trim().length > 0),
+    [messages],
+  )
+  const visibleTitles = userMsgs.slice(-9)
+  // 当前所处位置对应的用户提问 id（滚动追踪得出；null = 无可高亮项）
+  const [activeQueryId, setActiveQueryId] = useState<string | null>(null)
+  const scrollAnimRafRef = useRef(0)
+  // 「回到底部」按钮：消息可滚动且用户不在底部时渐显，到底后消失
+  const [showScrollDown, setShowScrollDown] = useState(false)
+
+  // 滚动追踪「当前所处位置」：监听真实滚动容器（ScrollArea viewport），
+  // rAF 节流地遍历用户消息 DOM，取「视口顶部之下、底部已进入视口上半部」的最近一条；
+  // 视口在第一条之前则取第一条；一条用户消息都没有则清空。
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const viewport = el.closest('[data-slot="scroll-area-viewport"]') as HTMLElement | null
+    const scroller = viewport ?? el
+    let raf = 0
+    const computeActive = () => {
+      const rect = scroller.getBoundingClientRect()
+      const mid = rect.top + rect.height / 2
+      // 顺带计算「回到底部」按钮显隐：内容可滚动（溢出 >40px）且当前距底部 >40px
+      const distToBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
+      setShowScrollDown(scroller.scrollHeight - scroller.clientHeight > 40 && distToBottom > 40)
+      let current: string | null = null
+      let first: string | null = null
+      for (const m of userMsgs) {
+        const node = el.querySelector(`[data-msg-id="${m.id}"]`)
+        if (!node) continue
+        if (!first) first = m.id
+        if (node.getBoundingClientRect().bottom <= mid) current = m.id
+      }
+      setActiveQueryId(current ?? first)
+    }
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        computeActive()
+      })
+    }
+    scroller.addEventListener("scroll", onScroll, { passive: true })
+    computeActive()
+    return () => {
+      scroller.removeEventListener("scroll", onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+    // messages / activeId 变化时重挂监听并立即重算（切会话/消息清空自然重置）
+  }, [messages, userMsgs, activeId])
+
+  // 点击 title：0.5s 缓动滚动到对应用户消息（留 12px 呼吸空间，clamp 到滚动范围）
+  const jumpToQuery = (id: string) => {
+    const el = scrollRef.current
+    if (!el) return
+    const viewport = el.closest('[data-slot="scroll-area-viewport"]') as HTMLElement | null
+    const scroller = viewport ?? el
+    const node = el.querySelector(`[data-msg-id="${id}"]`)
+    if (!node) return
+    const target =
+      node.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop -
+      12
+    const max = scroller.scrollHeight - scroller.clientHeight
+    animateScrollTop(
+      scroller,
+      Math.min(max, Math.max(0, target)),
+      500,
+      scrollAnimRafRef,
+    )
+  }
+
+  // 回到底部按钮：0.5s 缓动滑到底；到底后 scroll 事件把 showScrollDown 置 false，按钮消失
+  const scrollToBottom = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const viewport = el.closest('[data-slot="scroll-area-viewport"]') as HTMLElement | null
+    const scroller = viewport ?? el
+    animateScrollTop(scroller, scroller.scrollHeight, 500, scrollAnimRafRef)
+  }
 
   const startEdit = (c: { id: string; title: string }) => {
     setEditingId(c.id)
@@ -560,7 +679,9 @@ export function AIChatWorkspace() {
         </header>
 
         <ScrollArea className="min-h-0 flex-1 overflow-hidden">
-          <div ref={scrollRef} className="flex flex-col px-4 py-3">
+          {/* 聊天框内容限宽 屏宽/2 + 160，水平居中；w-full 钉住宽度（mx-auto 会取消 flex stretch，
+              不钉则随 field-sizing 内容收缩）；滚动容器本身延伸到屏幕右缘，滚动条贴最右侧 */}
+          <div ref={scrollRef} className="mx-auto flex w-full max-w-[calc(50vw+160px)] flex-col px-4 py-3">
           {!hasKey && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
@@ -606,8 +727,11 @@ export function AIChatWorkspace() {
             return (
               // 外层竖列：气泡 + 反应按钮；用户消息整体靠右、AI 消息靠左，
               // 反应按钮因此自然贴在气泡正下方（气泡之外）。
+              // data-msg-id / data-msg-role 供 query bar 滚动定位取真实 DOM。
               <div
                 key={m.id}
+                data-msg-id={m.id}
+                data-msg-role={m.role}
                 className={cn("flex flex-col gap-1", isUser ? "items-end" : "items-start")}
               >
                 <div
@@ -711,27 +835,42 @@ export function AIChatWorkspace() {
         </ScrollArea>
 
         <form
-          className="flex flex-col gap-2 border-t p-3"
+          className="relative mx-auto flex w-full max-w-[calc(50vw+160px)] flex-col gap-2 border-t p-3"
           onSubmit={(e) => {
             e.preventDefault()
             submit()
           }}
         >
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={
-              hasKey
-                ? active
-                  ? "输入消息，Enter 发送，Shift+Enter 换行"
-                  : "请先选择或新建一个对话"
-                : "请先在「模型」中配置 API Key"
-            }
-            disabled={!active || !hasKey}
-            className="native-scroll max-h-40 min-h-9 flex-1 resize-none"
-            rows={1}
-          />
+          {/* 回到底部：消息溢出且不在底部时渐显（fade+zoom 入场）；黑底白 V 形符号，hover 变灰，点击滑到底后消失 */}
+          {showScrollDown && (
+            <button
+              type="button"
+              onClick={scrollToBottom}
+              title="回到底部"
+              aria-label="回到底部"
+              className="animate-in fade-in-0 zoom-in-75 absolute -top-5 right-4 z-10 flex size-9 items-center justify-center rounded-full bg-black text-white shadow-lg duration-200 hover:bg-neutral-600"
+            >
+              <ChevronDown className="size-5" />
+            </button>
+          )}
+          {/* 输入框：NativeScrollArea 自绘胶囊滑块（与消息区 ScrollArea 同风格）；原生条隐藏 */}
+          <NativeScrollArea className="min-h-9 flex-1">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={
+                hasKey
+                  ? active
+                    ? "输入消息，Enter 发送，Shift+Enter 换行"
+                    : "请先选择或新建一个对话"
+                  : "请先在「模型」中配置 API Key"
+              }
+              disabled={!active || !hasKey}
+              className="max-h-40 min-h-9 w-full resize-none"
+              rows={1}
+            />
+          </NativeScrollArea>
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -775,6 +914,46 @@ export function AIChatWorkspace() {
         <SkillsToggleDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
         <ModelManagerDialog open={modelsOpen} onOpenChange={setModelsOpen} />
       </div>
+
+      {/* Query bar（仅桌面端）：悬浮于屏幕右缘、不占布局（主区因此延伸到最右、滚动条贴屏幕最右侧）。
+          热区条 right-6 起步，与贴边滚动条之间留出 gap 不重叠；鼠标靠近热区/条体显形，离开隐没 */}
+      <aside className="group/qbar pointer-events-none absolute inset-y-0 right-6 z-10 hidden w-[11.11vw] flex-col justify-center md:flex">
+        {/* 窄竖条热区：贴近右缘但避开滚动条，hover 触发 bar 显形 */}
+        <div className="pointer-events-auto absolute inset-y-0 right-0 w-10" aria-hidden />
+        <div className="pointer-events-auto invisible flex max-h-[90%] w-full flex-col overflow-hidden rounded-lg border border-border bg-popover opacity-0 shadow-lg transition-opacity duration-200 group-hover/qbar:visible group-hover/qbar:opacity-100">
+          <ScrollArea className="max-h-full min-h-0 flex-1">
+            <div className="flex flex-col gap-0.5 p-2">
+              {visibleTitles.map((m) => {
+                const isActive = m.id === activeQueryId
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => jumpToQuery(m.id)}
+                    title={m.content}
+                    className={cn(
+                      "flex w-full items-center justify-end gap-1.5 px-2 py-1 text-right text-xs",
+                      "transition-colors duration-100",
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {/* 当前提问：文字变蓝，左侧加蓝色横标装饰 */}
+                    {isActive && (
+                      <span
+                        className="inline-block h-0.5 w-3 shrink-0 rounded-full bg-primary align-middle"
+                        aria-hidden
+                      />
+                    )}
+                    <span className="truncate">{shortQueryTitle(m.content)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </ScrollArea>
+        </div>
+      </aside>
     </div>
   )
 }

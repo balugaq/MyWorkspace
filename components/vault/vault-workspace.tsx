@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import {
@@ -271,12 +272,14 @@ function VaultHome() {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) submitAdd()
               }}
             />
-            <Textarea
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder="值：账号、密码或任意混合内容，完全由你填写"
-              className="native-scroll min-h-16 max-h-64 overflow-y-auto resize-none"
-            />
+            <NativeScrollArea>
+              <Textarea
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="值：账号、密码或任意混合内容，完全由你填写"
+                className="min-h-16 max-h-64 overflow-y-auto resize-none"
+              />
+            </NativeScrollArea>
             <Button onClick={submitAdd} disabled={busy} className="self-start gap-1.5">
               <Plus className="size-4" />
               添加
@@ -359,12 +362,14 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
     return (
       <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="名称" />
-        <Textarea
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className="native-scroll min-h-16 max-h-64 overflow-y-auto resize-none"
-          placeholder="值"
-        />
+        <NativeScrollArea>
+          <Textarea
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="min-h-16 max-h-64 overflow-y-auto resize-none"
+            placeholder="值"
+          />
+        </NativeScrollArea>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
             取消

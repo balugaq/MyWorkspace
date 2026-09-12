@@ -11,7 +11,10 @@
 | 根布局 / 主题 / 字号 / Toaster | `app/layout.tsx` 的 `RootLayout`；`components/theme-provider.tsx` 的 `ThemeProvider` / `ThemeFromStore` / `FontSizeSetter` |
 | 全局快捷键 | `hooks/use-shortcuts.ts`：`useGlobalShortcuts()`、`matchShortcut(e, binding)`；绑定在 `settings.shortcuts`（`SHORTCUT_META`） |
 | 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`（订阅 store 算统计）；右下角视图名取自 `lib/types.ts` 的 `VIEW_LABEL`（新增视图须在此补一项，否则状态栏会显示成「工作台」） |
-| 桌面端侧边栏宽度（可拖拽） | `app/page.tsx` 的 `Page`：desktop sidebar 容器 `style={{ width: sidebarWidthLocal }}`，右侧 `role="separator"` 分隔条 `onMouseDown={startResizeSidebar}`（min 200 / max 420 px）；实时宽度本地 `sidebarWidthLocal` state，松手写入 store `sidebarWidth` / `setSidebarWidth`（`lib/store.ts`，刷新后保留；旧存档缺字段自动回落默认 288） |
+| 桌面端侧边栏宽度（可拖拽） | `app/page.tsx` 的 `Page`：desktop sidebar 容器 `style={{ width: sidebarWidthLocal }}`，右侧 `role="separator"` 分隔条 `onMouseDown={startResizeSidebar}`（min 200 / max 420 px）；实时宽度本地 `sidebarWidthLocal` state，松手写入 store `sidebarWidth` / `setSidebarWidth`（`lib/store.ts`，刷新后保留；旧存档缺字段自动回落默认 288）。**sidebar 与分隔条仅在 `view !== "ai-chat"` 时条件渲染**（ai-chat 下经悬浮 Sheet 呼出） |
+| 全局顶栏（品牌 + 头像 + 搜索/设置/主题） | `components/brand-header.tsx` 的 `BrandHeader`：左侧品牌区（`brandClickable` 为 true 时渲染为可点按钮，点击 `onBrandClick`；由 `app/page.tsx` 仅在 `view === "ai-chat"` 时传 true）；右侧依次为 头像按钮（读 `settings.aiUserAvatar`，空回落 `User` 图标；点击 `goProfile`，`cursor-pointer`）、搜索按钮（`onOpenSearch`，带快捷键 kbd）、设置按钮（`setSettingsOpen`）、主题切换（`useTheme` + `settings.theme`）——搜索/设置/主题自 Topbar 迁入，置于 avatar 右侧 |
+| 顶栏标题行（仅非 ai-chat 视图） | `components/topbar.tsx` 的 `Topbar`：仅显示 title/subtitle（日历/分类名等），按钮已全部迁至 `BrandHeader`；ai-chat 下 title 为空且整行由 `app/page.tsx` 条件隐藏（含移动端 PanelLeft 导航按钮） |
+| ai-chat 悬浮侧边栏 | `app/page.tsx` 的 `mobileNav` Sheet（`SheetContent showCloseButton={false}`，仅保留 sidebar 顶部折叠按钮）：ai-chat 下点 BrandHeader 品牌区、移动端 PanelLeft 按钮呼出；`AppSidebar onCollapse` 关闭；`view`/`activeCategoryId` 变化时 `useEffect` 自动关闭 |
 
 ## 8.2 侧边栏（`components/app-sidebar.tsx`）
 
@@ -24,7 +27,8 @@
 | AI 助手导航入口 | `AIChatNavItem`（调用 `goAIChat`） |
 | 联系人导航入口 | `ContactNavItem`（调用 `goContacts`） |
 | 密码保险库导航入口 | `VaultNavItem`（调用 `goVault`） |
-| 头像按钮（打开个人主页） | `AppSidebar` 头部 `<button>`：读 `settings.aiUserAvatar`，空回落 `User` 图标；点击调用 `goProfile` |
+| 头像按钮（打开个人主页） | 已迁至全局顶栏 `components/brand-header.tsx` 的 `BrandHeader`：读 `settings.aiUserAvatar`，空回落 `User` 图标；点击调用 `goProfile` |
+| 折叠按钮 | `AppSidebar` 顶部窄行（仅传入 `onCollapse` 时渲染）：`PanelLeftClose` icon 按钮，悬浮 sidebar（Sheet）内关闭抽屉 |
 | 新建分类弹窗 | `components/add-category-dialog.tsx` 的 `AddCategoryDialog` |
 | 分类/章节拖拽排序 | 分类 `moveCategory(from,to)`、章节 `moveChapter(catId,from,to)`（储存在 `lib/store.ts`）；注意小分类（章节）`draggable` 嵌套在大分类容器内，章节 `onDragStart` 须 `stopPropagation()` 防止 `dataTransfer` 的 id 被外层覆盖成分类 id |
 
@@ -215,7 +219,8 @@
 | React 钩子 | `lib/ai/use-ai-chat.ts`：`useAIChat({ config, conversationId })` → `{ messages, isLoading, send, stop, regenerateLast }`；经 `useSyncExternalStore` 订阅队列 |
 | 请求队列 | `lib/ai/request-queue.ts`：`enqueue` / `regenerate` / `stopConversation` / `subscribeQueue` / `getMessagesSnapshot` / `isWorking`；模块级 `liveMessages` / `streaming` / `queued` 为临时态，不落盘 |
 | 强制同步 | `settings.aiForceSync` 为 true 时所有会话串行（单队列），false 时允许并发（同一会话仍不会重复发起） |
-| 消息渲染 | 用户/助手消息统一走 `RichTextView`（与节点内容同管线：表格/代码高亮/链接卡/内文图一致生效）；空状态预置问题 `PRESET_QUESTIONS`；复制原文 `copyText` |
+| 消息渲染 | 用户/助手消息统一走 `RichTextView`（与节点内容同管线：表格/代码高亮/链接卡/内文图一致生效）；空状态预置问题 `PRESET_QUESTIONS`；复制原文 `copyText`；消息外层 div 挂 `data-msg-id` / `data-msg-role` 供 query bar 定位 |
+| Query bar（问题导航，桌面端） | `AIChatWorkspace`：`userMsgs`（`useMemo` 过滤非空 user 消息）→ `visibleTitles`（最近 9 条，旧上新下）；title 文本 `shortQueryTitle`（>20 字 slice + 「…」）；滚动追踪 `activeQueryId`（监听 ScrollArea viewport 的 scroll 事件，rAF 节流，取视口上半部最近一条用户消息 DOM）；点击 `jumpToQuery` → `animateScrollTop`（easeInOutQuad，500ms，直接写 viewport scrollTop）；当前提问 title 蓝色高亮 + 左侧蓝色横标，其余灰色 hover 变白（`transition-colors duration-100`）；bar 位于右侧 `11.11vw` hover 热区列（`hidden md:flex`），默认 `opacity-0` 悬停显形，内部 `ScrollArea` 滚动 |
 | 状态栏 | `components/status-bar.tsx` 的 `case "ai-chat"`：轮数 + 输入/输出 token（3 位有效数字缩写） |
 
 **模型 / 提示词 / 人设**

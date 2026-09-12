@@ -5,6 +5,7 @@ import { Trash2, X, Lightbulb, Tag, CalendarClock, Plus, Shuffle, RotateCcw, Pal
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { RichTextEditor } from "@/components/richtext/rich-text-editor"
+import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 import type { Category, MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
@@ -248,14 +249,16 @@ export function NodeInspector({
               <Lightbulb className="size-4 text-solution" />
               <span className="text-sm font-medium">解决方案</span>
             </div>
-            <textarea
-              value={node.solution?.content ?? ""}
-              onChange={(e) =>
-                setNodeSolution(category.id, node.id, e.target.value, solStatus)
-              }
-              placeholder="记录解决方案，将以绿线连接到节点…"
-              className="min-h-16 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            />
+            <NativeScrollArea>
+              <textarea
+                value={node.solution?.content ?? ""}
+                onChange={(e) =>
+                  setNodeSolution(category.id, node.id, e.target.value, solStatus)
+                }
+                placeholder="记录解决方案，将以绿线连接到节点…"
+                className="min-h-16 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              />
+            </NativeScrollArea>
             <div className="flex gap-1.5">
               {STATUSES.map((st) => (
                 <button

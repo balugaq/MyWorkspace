@@ -14,6 +14,9 @@
 1. **挂 `.native-scroll` 类**（推荐，最省事）；或
 2. 把该元素选择器写进 `app/globals.css` 的原生滚动条选择器组 —— 共 **5 处**需同步补齐：`scrollbar-width` / `scrollbar-color`、`::-webkit-scrollbar`、`::-webkit-scrollbar-track`、`::-webkit-scrollbar-thumb`、`::-webkit-scrollbar-thumb:hover`。
 
+### Chrome 121+ 陷阱：标准属性会禁用 `::-webkit-scrollbar`
+`scrollbar-width` / `scrollbar-color` 标准属性一旦设置，Chrome 会**整体禁用** `::-webkit-scrollbar` 系伪元素、改用系统标准渲染（thin **直角**条，不是圆角胶囊）。因此内容容器（`.native-scroll` / `textarea` / pre / table）**只走 `::-webkit-scrollbar` 胶囊**，标准属性仅保留给页面级 `html` / `body`。给新容器补样式时同样不要给它加标准属性，否则胶囊失效、退化成系统直角条。
+
 ### 为什么刻意排除 Base UI ScrollArea
 `[data-slot^="scroll-area"]` **不要**并入上面这组选择器。Base UI 的 ScrollArea 自带自定义细滑条，若再把原生滚动条样式叠加到它身上，会出现「原生 + 自定义」**双滑条**。需要滚动时优先用挂 `.native-scroll` 的原生容器，而不是在 ScrollArea 上再补原生样式。
 

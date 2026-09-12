@@ -9,12 +9,10 @@ import {
   Pencil,
   Trash2,
   PanelLeftClose,
-  Sparkles,
   GripVertical,
   Users,
   KeyRound,
   Bot,
-  User,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
@@ -51,48 +49,18 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
   const addOpen = useWorkspace((s) => s.addCategoryOpen)
   const setAddOpen = useWorkspace((s) => s.setAddCategoryOpen)
   const moveCategory = useWorkspace((s) => s.moveCategory)
-  const settings = useWorkspace((s) => s.settings)
-  const goProfile = useWorkspace((s) => s.goProfile)
 
   return (
     <aside className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center justify-between gap-2 px-4 py-4">
-        <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Sparkles className="size-4" />
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold">全能工作台</span>
-            <span className="text-[11px] text-muted-foreground">My Workspace</span>
-          </div>
+      {/* 折叠按钮：仅在传入 onCollapse 时渲染（悬浮 sidebar 内），关闭抽屉 */}
+      {onCollapse && (
+        <div className="flex justify-end px-3 pt-3">
+          <Button variant="ghost" size="icon" className="size-8" onClick={onCollapse}>
+            <PanelLeftClose className="size-4" />
+            <span className="sr-only">折叠侧边栏</span>
+          </Button>
         </div>
-        <div className="flex items-center gap-2">
-          {/* 头像按钮：点击打开个人主页 Profile Dashboard；空头像回落默认 User 图标；靠右对齐到 sidebar 边缘 */}
-          <button
-            type="button"
-            onClick={goProfile}
-            title="打开个人主页"
-            className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent transition-colors hover:bg-sidebar-accent/70"
-          >
-            {settings.aiUserAvatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={settings.aiUserAvatar}
-                alt="用户头像"
-                className="size-full object-cover"
-              />
-            ) : (
-              <User className="size-4 text-muted-foreground" />
-            )}
-          </button>
-          {onCollapse && (
-            <Button variant="ghost" size="icon" className="size-8" onClick={onCollapse}>
-              <PanelLeftClose className="size-4" />
-              <span className="sr-only">折叠侧边栏</span>
-            </Button>
-          )}
-        </div>
-      </div>
+      )}
 
       <div className="px-3">
         <Button className="w-full justify-start gap-2" onClick={() => setAddOpen(true)}>

@@ -355,15 +355,24 @@
  *   可横向滚动的 .rich-text-content pre / table（代码块 / 表格）。
  * 刻意排除 Base UI ScrollArea（data-slot^="scroll-area"）——它自带自定义细滑条，
  * 若再叠加原生样式会出现「原生+自定义」双滑条。
- * 新增：pre / table 二者允许横向滚动，须纳入本组 5 处选择器，否则会退化成原生粗滑条（TODO 7）。 */
-.native-scroll,
-textarea,
+ * 新增：pre / table 二者允许横向滚动，须纳入本组 5 处选择器，否则会退化成原生粗滑条（TODO 7）。
+ * 注意（2026-09-12）：Chrome 121+ 一旦元素设置了 scrollbar-width / scrollbar-color 标准属性，
+ *   ::-webkit-scrollbar 系伪元素会被整体禁用、改用系统标准渲染（thin 直角条 ≠ 圆角胶囊）。
+ *   因此标准属性仅保留给页面级 html / body；内容容器（.native-scroll / textarea / pre /
+ *   table）一律只走下方 ::-webkit-scrollbar 胶囊，才能渲染出圆角滑块。 */
 html,
-body,
-.rich-text-content pre,
-.rich-text-content table {
+body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;
+}
+
+/* 隐藏原生滚动条：给用 NativeScrollArea 自绘胶囊的容器（textarea 等）配套。
+ * 两条并用只为兼容：scrollbar-width:none 管 Firefox，::-webkit-scrollbar 管 Chromium。 */
+.hide-native-scrollbar {
+  scrollbar-width: none;
+}
+.hide-native-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 .native-scroll::-webkit-scrollbar,
 textarea::-webkit-scrollbar,

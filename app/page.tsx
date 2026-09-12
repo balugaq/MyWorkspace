@@ -5,6 +5,7 @@ import { useWorkspace } from "@/lib/store"
 import { useGlobalShortcuts } from "@/hooks/use-shortcuts"
 import { loadAddressBook } from "@/lib/address-book"
 import { AppSidebar } from "@/components/app-sidebar"
+import { BrandHeader } from "@/components/brand-header"
 import { Topbar } from "@/components/topbar"
 import { NovelWorkspace } from "@/components/novel-workspace"
 import { MindmapWorkspace } from "@/components/mindmap-workspace"
@@ -107,50 +108,65 @@ export default function Page() {
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
 
   return (
-    <div className="flex h-svh overflow-hidden bg-background">
-      {/* Desktop sidebar（宽度可拖拽，持久化到 store） */}
-      <div
-        ref={sidebarHostRef}
-        className="hidden shrink-0 border-r md:block"
-        style={{ width: sidebarWidthLocal }}
-      >
-        <AppSidebar />
-      </div>
+    <div className="flex h-svh flex-col overflow-hidden bg-background">
+      {/* 全局顶栏：品牌 + 头像 + 搜索/设置/主题（avatar 右侧）；ai-chat 视图下品牌区可点呼出悬浮 sidebar */}
+      <BrandHeader
+        brandClickable={view === "ai-chat"}
+        onBrandClick={() => setMobileNav(true)}
+        onOpenSearch={() => setSearchOpen(true)}
+      />
 
-      {/* 可拖拽分隔条：桌面端左右拖动调整侧边栏宽度 */}
-      <div
-        onMouseDown={startResizeSidebar}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="调整侧边栏宽度"
-        className="hidden w-1.5 shrink-0 cursor-col-resize items-stretch bg-border/40 transition-colors hover:bg-primary/50 md:flex"
-      >
-        <div className="mx-auto my-auto h-10 w-0.5 rounded-full bg-border" />
-      </div>
+      <div className="flex min-h-0 flex-1">
+        {/* Desktop sidebar（宽度可拖拽，持久化到 store）；ai-chat 视图下隐藏，改由悬浮 Sheet 呼出 */}
+        {view !== "ai-chat" && (
+          <>
+            <div
+              ref={sidebarHostRef}
+              className="hidden shrink-0 border-r md:block"
+              style={{ width: sidebarWidthLocal }}
+            >
+              <AppSidebar />
+            </div>
 
-      {/* Mobile sidebar */}
-      <Sheet open={mobileNav} onOpenChange={setMobileNav}>
-        <SheetContent side="left" className="w-72 p-0">
-          <SheetTitle className="sr-only">导航</SheetTitle>
-          <AppSidebar onCollapse={() => setMobileNav(false)} />
-        </SheetContent>
-      </Sheet>
+            {/* 可拖拽分隔条：桌面端左右拖动调整侧边栏宽度 */}
+            <div
+              onMouseDown={startResizeSidebar}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="调整侧边栏宽度"
+              className="hidden w-1.5 shrink-0 cursor-col-resize items-stretch bg-border/40 transition-colors hover:bg-primary/50 md:flex"
+            >
+              <div className="mx-auto my-auto h-10 w-0.5 rounded-full bg-border" />
+            </div>
+          </>
+        )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="ml-2 size-9 md:hidden"
-            onClick={() => setMobileNav(true)}
-          >
-            <PanelLeft className="size-4" />
-            <span className="sr-only">打开导航</span>
-          </Button>
-          <div className="min-w-0 flex-1">
-            <Topbar onOpenSearch={() => setSearchOpen(true)} />
+        {/* 悬浮 sidebar：ai-chat 下点品牌区 / 移动端 PanelLeft 按钮呼出；仅保留折叠按钮 */}
+        <Sheet open={mobileNav} onOpenChange={setMobileNav}>
+          <SheetContent side="left" className="w-72 p-0" showCloseButton={false}>
+            <SheetTitle className="sr-only">导航</SheetTitle>
+            <AppSidebar onCollapse={() => setMobileNav(false)} />
+          </SheetContent>
+        </Sheet>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+        {/* 标题行（含移动端导航按钮）：ai-chat 下标题已删、按钮已迁全局顶栏 → 整行隐藏 */}
+        {view !== "ai-chat" && (
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-2 size-9 md:hidden"
+              onClick={() => setMobileNav(true)}
+            >
+              <PanelLeft className="size-4" />
+              <span className="sr-only">打开导航</span>
+            </Button>
+            <div className="min-w-0 flex-1">
+              <Topbar />
+            </div>
           </div>
-        </div>
+        )}
 
         <main className="min-h-0 flex-1 overflow-hidden">
           {!hydrated ? (
@@ -191,6 +207,7 @@ export default function Page() {
         </main>
 
         <StatusBar />
+        </div>
       </div>
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />

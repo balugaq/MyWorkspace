@@ -7,9 +7,20 @@ TODO 2. （状态：已完成）
 TODO 3. （状态：已完成）
 workspace很久之前写的日历脚本可以入土了，删除相关注释、描述内容
 
-TODO 4. （状态：待处理）
+TODO 4. （状态：已完成）
 AI Chat 对话页内，右侧边加一个deepseek网页版那样的用户query bar（已经query出去的，点击可以自动滑动到那个对话开始（用户问的位置））
 这个bar有什么功能以及怎么才能显示需要用户说明一下
+在完成todo4之前，需要先将sidebar进行一点拆分，现在sidebar上面是有一个header的（放置了MyWorkspace的icon和用户头像）
+将这个部分拆分出sidebar，因为需要修改ai-chat view布局，不再显示sidebar，但header仍保留，ai页面原本的（工作台）title删除。
+点击全能工作台图标或文字可以再次呼出悬空sidebar（类似显示空间不足时额外显示的按钮）
+（另外这个可折叠sidebar我发现同时存在折叠按钮和删除按钮，请仅保留折叠按钮，删除删除按钮）
+
+sidebar不显示后，整体ai聊天栏就可以左移
+这个query bar放在ai聊天栏界面外右侧居中多出来的位置，这个bar默认不显示，当鼠标靠近时显示，总占的大小约为聊天框，水平方向最大屏幕1/9大小，title超出了则slice换三个点结尾截断
+query bar里最多显示最近9条用户提问，title均靠右显示，在用户当前所处的对话对应的title旁，增加一个蓝色nav横标装饰（超出显示范围后隐藏不显示），同时title本身变为蓝色。
+query bar支持上下滑动。
+title默认颜色都是灰色。
+query bar里的title均可点击，点击后自动0.5s动画移动到对应的对话开头，鼠标hover在title上可将颜色transition 0.1s改为白色显示。（除当前title外）离开hover再transition 0.1s改回灰色。
 
 TODO 5. （状态：已完成）
 终止了 AI Chat 回复后出现了
@@ -168,3 +179,6 @@ mindmap节点的右键contextmenu：
 - 边框
 - 背景
 5. 截止日期
+
+TODO 17. （状态：待处理）
+给ai对话框两边内容添加文字朗读功能？（不过现在还没找到合适的api，先搁置）

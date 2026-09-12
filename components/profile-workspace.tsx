@@ -19,6 +19,7 @@ import {
 import { type ContributionType } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 
 // GitHub 风格贡献热力图：53 周 × 7 天，数据来自 store 的真实「贡献账本」
 // （lib/contributions.ts 纯逻辑 + lib/store.ts 记账）。
@@ -662,12 +663,14 @@ export function ProfileWorkspace() {
                     本次专注已满 10 分钟，可补充这条 Contribution 的内容。
                   </DialogDescription>
                 </DialogHeader>
-                <Textarea
-                  value={focusContentInput}
-                  onChange={(e) => setFocusContentInput(e.target.value)}
-                  placeholder="专注 25 分钟"
-                  className="min-h-20"
-                />
+                <NativeScrollArea>
+                  <Textarea
+                    value={focusContentInput}
+                    onChange={(e) => setFocusContentInput(e.target.value)}
+                    placeholder="专注 25 分钟"
+                    className="min-h-20"
+                  />
+                </NativeScrollArea>
                 <DialogFooter>
                   <DialogClose
                     render={

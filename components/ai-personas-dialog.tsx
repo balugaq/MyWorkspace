@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 import { cn } from "@/lib/utils"
 
 export function PersonaManagerDialog({
@@ -198,12 +199,14 @@ function PersonaForm({
       </div>
       <div className="flex flex-col gap-1">
         <Label className="text-xs">人设正文（自定义指令）</Label>
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="例如：你是一位严谨的软件工程师，回答偏好给出可运行的代码片段与根因分析。"
-          className="native-scroll min-h-28 max-h-64 overflow-y-auto resize-none text-sm"
-        />
+        <NativeScrollArea>
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="例如：你是一位严谨的软件工程师，回答偏好给出可运行的代码片段与根因分析。"
+            className="min-h-28 max-h-64 overflow-y-auto resize-none text-sm"
+          />
+        </NativeScrollArea>
       </div>
       <div className="mt-1 flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onCancel}>

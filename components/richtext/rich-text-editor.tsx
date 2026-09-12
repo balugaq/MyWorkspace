@@ -10,6 +10,7 @@ import { isGithubIssueUrl } from "@/lib/gh-card"
 import { isBilibiliUrl } from "@/lib/bilibili"
 import { addImage } from "@/lib/image-store"
 import { cn } from "@/lib/utils"
+import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 
 const IMGREF_PREFIX = "imgref:"
 
@@ -197,21 +198,25 @@ export function RichTextEditor({
       </div>
       {!forceSource && mode === "visual" ? (
         <>
-          <EditorContent editor={editor} className="native-scroll w-full min-h-0 flex-1 overflow-auto" />
+          <NativeScrollArea className="min-h-0 flex-1">
+            <EditorContent editor={editor} className="h-full w-full overflow-auto" />
+          </NativeScrollArea>
           <SelectionToolbar editor={editor} />
         </>
       ) : (
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onPaste={handleSourcePaste}
-          spellCheck={false}
-          className={cn(
-            "native-scroll w-full min-h-0 flex-1 overflow-auto rounded-lg border bg-background px-3 py-2 font-mono text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-            minHeight,
-            className,
-          )}
-        />
+        <NativeScrollArea className="min-h-0 flex-1">
+          <textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onPaste={handleSourcePaste}
+            spellCheck={false}
+            className={cn(
+              "w-full min-h-0 overflow-auto rounded-lg border bg-background px-3 py-2 font-mono text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              minHeight,
+              className,
+            )}
+          />
+        </NativeScrollArea>
       )}
     </div>
   )
