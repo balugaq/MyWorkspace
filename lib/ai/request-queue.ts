@@ -404,26 +404,54 @@ async function runJob(job: Job) {
         }
       }
     } catch (streamErr) {
-      // fullStream 消费阶段抛错（onError 未吞掉时）：用户中止走 finish(true) 保留已生成内容，
-      // 其余按失败处理并交给下方 finish 统一展示。
-      if (streamErr instanceof Error && controller.signal.aborted) {
-        finish(true)
-        return
+      // fullStream 消费阶段抛错（onError 未吞掉时）：用户中止不再提前 return —— 提前 return 会跳过
+      // 下方统一收尾，被 abortSignal.reason 拒绝的那批 result promise 就无人吸收，进而冒成未捕获
+      // rejection（Next.js 运行时面板的 "AbortError: signal is aborted without reason"）。
+      // 这里只决定是否标记失败，收尾一律交给下方统一处理；中止时保留已生成内容（finish(true)）。
+      if (!(streamErr instanceof Error && controller.signal.aborted)) {
+        sawError = true
+        errorMsg = streamErr instanceof Error ? streamErr.message : String(streamErr)
       }
-      sawError = true
-      errorMsg = streamErr instanceof Error ? streamErr.message : String(streamErr)
     }
 
-    // 主动 finalize 流：请求完全失败（如 429）/ 空内容时，AI SDK 会以
-    // AI_NoOutputGeneratedError 拒绝结果 Promise；若不消费会变成未捕获 rejection
-    // （控制台 Runtime 报错）。此处 await + catch 吸收之——429/网络错信息已通过
-    // errorMsg / httpStatus 在对话框正常展示，无需再抛。中止时不覆盖 errorMsg。
-    try {
-      await result.consumeStream()
-    } catch (flushErr) {
-      if (controller.signal.aborted) {
-        // 用户中止：忽略 flush 阶段错误
-      } else if (
+    // 统一收尾：吸收 result 上所有可能 reject 的 promise。
+    // 为什么要吸收：用户点「停止」时 SDK 会把 abortSignal.reason（abort() 无参数 =>
+    // DOMException "signal is aborted without reason"）作为 error 去拒绝这批 promise；请求完全
+    // 失败（如 429）/ 空内容时会以 AI_NoOutputGeneratedError 拒绝。不吸收就会变成未捕获 rejection。
+    // 注意必须放在 fullStream 消费循环之后：这些字段均标注 "Automatically consumes the stream"，
+    // 循环内访问会与 fullStream 抢消费。429/网络错信息已通过 errorMsg / httpStatus 在对话框展示。
+    const absorbed = await Promise.allSettled([
+      result.consumeStream(), // [0] 主动 finalize 流，其错误沿用下方原有诊断逻辑
+      result.text,
+      result.content,
+      result.finishReason,
+      result.rawFinishReason,
+      result.steps,
+      result.finalStep,
+      result.responseMessages,
+      result.usage,
+      result.totalUsage,
+      result.warnings,
+      result.toolCalls,
+      result.toolResults,
+      result.staticToolCalls,
+      result.dynamicToolCalls,
+      result.staticToolResults,
+      result.dynamicToolResults,
+      result.files,
+      result.sources,
+      result.request,
+      result.response,
+      result.providerMetadata,
+      result.output,
+    ])
+
+    // flush 阶段（consumeStream）的错误仍按原有诊断处理：429/网络错信息已通过 errorMsg / httpStatus
+    // 在对话框正常展示，NoOutputGeneratedError 无需提示，用户中止不覆盖 errorMsg。
+    const flushOutcome = absorbed[0]
+    if (flushOutcome.status === "rejected" && !controller.signal.aborted) {
+      const flushErr: unknown = flushOutcome.reason
+      if (
         !(
           flushErr instanceof Error &&
           (flushErr.name === "AI_NoOutputGeneratedError" ||
@@ -435,7 +463,8 @@ async function runJob(job: Job) {
       }
     }
 
-    // 捕获 OpenAI 兼容 usage（inputTokens / outputTokens）。流已消费，此处可安全读取。
+    // 捕获 OpenAI 兼容 usage（inputTokens / outputTokens）用于 token 统计。流已消费，此处可安全读取；
+    // 中止时该 promise 已被拒绝（上面已吸收），这里静默忽略，不影响正文。
     try {
       const u = await result.usage
       const input = u.inputTokens ?? 0
