@@ -216,11 +216,16 @@ async function runJob(job: Job) {
       .then(async (res) => {
         httpStatus = res.status
         httpStatusText = res.statusText
-        try {
-          const clone = res.clone()
-          rawBody = (await clone.text()).slice(0, 1000)
-        } catch {
-          // 忽略克隆/读取失败
+        // 只在错误响应（非 2xx）上预读 body 供诊断：2xx 多是 SSE 流，clone() + text() 必须等
+        // 整个流读完才 resolve，会阻塞到 Response 才交给 SDK，把逐字流式退化成「一次性整段返回」
+        // （且中止时读到的正文为空）。所以 2xx 直接 return，不 clone、不预读。
+        if (res.status < 200 || res.status >= 300) {
+          try {
+            const clone = res.clone()
+            rawBody = (await clone.text()).slice(0, 1000)
+          } catch {
+            // 忽略克隆/读取失败
+          }
         }
         return res
       })
