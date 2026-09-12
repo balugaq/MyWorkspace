@@ -186,8 +186,7 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       return {
         key,
         note: data?.note ?? "",
-        todos: data?.todos ?? [],
-        events: data?.events ?? [],
+        // TODO 2 停用：日历待办/事件（保留 mindmap dueDate 体系，可恢复）—— 不再返回 todos/events
         dueNodes,
         selected,
         outside,

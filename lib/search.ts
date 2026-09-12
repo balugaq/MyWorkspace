@@ -107,21 +107,22 @@ export function runSearch(
           date,
         })
       }
-      for (const todo of day.todos) {
-        if (match(todo.content)) {
-          results.push({
-            id: `ctodo-${todo.id}`,
-            type: "calendar-todo",
-            typeLabel: "日历Todo",
-            title: todo.content,
-            snippet: `${date}${todo.done ? " · 已完成" : ""}`,
-            source: "日历",
-            categoryId: null,
-            targetId: date,
-            date,
-          })
-        }
-      }
+      // TODO 2 停用：日历待办/事件（保留 mindmap dueDate 体系，可恢复）
+      // for (const todo of day.todos) {
+      //   if (match(todo.content)) {
+      //     results.push({
+      //       id: `ctodo-${todo.id}`,
+      //       type: "calendar-todo",
+      //       typeLabel: "日历Todo",
+      //       title: todo.content,
+      //       snippet: `${date}${todo.done ? " · 已完成" : ""}`,
+      //       source: "日历",
+      //       categoryId: null,
+      //       targetId: date,
+      //       date,
+      //     })
+      //   }
+      // }
     }
   }
 

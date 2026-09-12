@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useWorkspace } from "@/lib/store"
 import { VIEW_LABEL } from "@/lib/types"
 import { loadAddressBook } from "@/lib/address-book"
-import { parse, format } from "date-fns"
+import { format } from "date-fns"
 
 /**
  * 底部状态栏：根据当前视图对聚合数据做轻量摘要。
@@ -12,15 +12,13 @@ import { parse, format } from "date-fns"
  * - contacts（联系人页）：X 人（联系人列表大小）
  * - vault（密码保险库页）：不显示内容
  * - ai-chat（AI 对话页）：X 轮 | 输入 X tok · 输出 X tok |（token 以 3 位有效数字缩写）
- * - calendar：本月待办 X / 已完成 Y / 事件 Z
+ * - calendar：本视图不展示统计（日历待办/事件统计已在 TODO 2 停用，仅保留 mindmap dueDate 聚合）
  * 纯展示组件，只订阅 store，不修改任何数据。
  */
 export function StatusBar() {
   const view = useWorkspace((s) => s.view)
   const categories = useWorkspace((s) => s.categories)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
-  const calendar = useWorkspace((s) => s.calendar)
-  const selectedDate = useWorkspace((s) => s.selectedDate)
   const conversations = useWorkspace((s) => s.conversations)
   const activeConversationId = useWorkspace((s) => s.activeConversationId)
 
@@ -51,9 +49,8 @@ export function StatusBar() {
   const left = useMemo<ReactNode[]>(() => {
     switch (view) {
       case "calendar":
-        return calendarStats(calendar, selectedDate).map((s) => (
-          <Stat key={s.key} value={s.value} label={s.label} />
-        ))
+        // TODO 2 停用：日历待办/事件统计（保留 mindmap dueDate 体系，可恢复）
+        return []
       case "workspace": {
         if (activeCategory?.relation) {
           const nodes = activeCategory.relation.nodes
@@ -101,7 +98,7 @@ export function StatusBar() {
       default:
         return []
     }
-  }, [view, calendar, selectedDate, activeCategory, contactCount, activeConversation])
+  }, [view, activeCategory, contactCount, activeConversation])
 
   return (
     <footer className="flex h-8 shrink-0 items-center gap-4 border-t bg-background/80 px-4 text-[11px] text-muted-foreground backdrop-blur">
@@ -140,6 +137,7 @@ function formatTokens(n: number): string {
   return String(Math.round(n))
 }
 
+/* TODO 2 停用：日历待办/事件统计（保留 mindmap dueDate 体系，可恢复）
 interface StatItem {
   key: string
   value: number
@@ -169,3 +167,4 @@ function calendarStats(
     { key: "cevents", value: events, label: "事件" },
   ]
 }
+*/

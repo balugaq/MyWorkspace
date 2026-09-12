@@ -16,7 +16,7 @@ import {
   isToday,
 } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, Plus, Trash2, StickyNote, Clock, Sparkles } from "lucide-react"
+import { ChevronLeft, ChevronRight, StickyNote, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
@@ -30,8 +30,6 @@ import { lunarTextForSolar } from "@/lib/lunar"
 import { dayShortHint } from "@/lib/day-hint"
 import { RichTextEditor } from "@/components/richtext/rich-text-editor"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -457,19 +455,11 @@ function DayDetail({
 }) {
   const calendar = useWorkspace((s) => s.calendar)
   const setDayNote = useWorkspace((s) => s.setDayNote)
-  const addCalendarTodo = useWorkspace((s) => s.addCalendarTodo)
-  const toggleCalendarTodo = useWorkspace((s) => s.toggleCalendarTodo)
-  const removeCalendarTodo = useWorkspace((s) => s.removeCalendarTodo)
-  const addCalendarEvent = useWorkspace((s) => s.addCalendarEvent)
-  const removeCalendarEvent = useWorkspace((s) => s.removeCalendarEvent)
   const setActiveCategory = useWorkspace((s) => s.setActiveCategory)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const askAiAbout = useWorkspace((s) => s.askAiAbout)
 
   const day = calendar[dateKey] ?? { note: "", todos: [], events: [] }
-  const [todoInput, setTodoInput] = useState("")
-  const [eventTime, setEventTime] = useState("")
-  const [eventContent, setEventContent] = useState("")
 
   const dateObj = parse(dateKey, "yyyy-MM-dd", new Date())
   // 当天过生日的人 + 农历日期文本
@@ -619,6 +609,7 @@ function DayDetail({
             </section>
           )}
 
+          {/* TODO 2 停用：日历待办/事件（保留 mindmap dueDate 体系，可恢复）
           <Separator />
 
           <section className="flex flex-col gap-2">
@@ -738,6 +729,7 @@ function DayDetail({
               </Button>
             </div>
           </section>
+          */}
         </div>
       </ScrollArea>
     </aside>
