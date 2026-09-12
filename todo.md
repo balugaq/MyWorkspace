@@ -1,7 +1,7 @@
-TODO 1. （状态：待处理）
+TODO 1. （状态：已完成）
 接入诗歌api (https://poetry.palemoky.com/api/poems/random)，并在 profile dashboard 右下角下面增加小字标注出处 "——《xxx》"
 
-TODO 2. （状态：待处理）
+TODO 2. （状态：已完成）
 日历里的待办事项、事件安排和mindmap里的日期标注，怎么感觉不是同一套东西？如果确实不是，就保留mindmap的，日历本身的那些，注释掉即可
 
 TODO 3. （状态：待处理）
