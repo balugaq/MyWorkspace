@@ -441,7 +441,7 @@ export function ProfileWorkspace() {
   // ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col">
       {/* 顶栏：固定左上角 title（350×80） */}
       <header className="flex items-center px-8 py-6">
         <h1 className="text-2xl font-bold leading-tight text-foreground">Profile Dashboard</h1>
@@ -831,9 +831,9 @@ export function ProfileWorkspace() {
         </div>
       </ScrollArea>
 
-      {/* 右下角：每日诗歌（API 接入，按日期缓存，可手动刷新） */}
+      {/* 右下角：每日诗歌（API 接入，按日期缓存，可手动刷新）——悬空文字：绝对定位浮在页面右下角，无背景底色，不占布局 */}
       {poemVisible && (
-        <footer className="flex items-end justify-end gap-2 px-8 pb-4 text-right text-xs text-muted-foreground">
+        <footer className="pointer-events-none absolute right-8 bottom-4 z-10 flex items-end justify-end gap-2 text-right text-xs text-muted-foreground">
           <div className="flex flex-col items-end gap-0.5">
             {poemLoading ? (
               <span>诗词加载中…</span>
@@ -854,6 +854,7 @@ export function ProfileWorkspace() {
           <Button
             variant="ghost"
             size="icon-xs"
+            className="pointer-events-auto"
             onClick={refreshPoem}
             disabled={poemRefreshing || poemLoading}
             title="换一首诗"
