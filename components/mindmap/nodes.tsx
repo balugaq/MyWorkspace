@@ -11,11 +11,26 @@ import {
   ChevronDown,
   CalendarClock,
   Check,
+  Plus,
+  Tag,
+  Palette,
+  Undo2,
+  X,
 } from "lucide-react"
 import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { argbToCss } from "@/lib/color-utils"
+import { NODE_PALETTE, argbToCss } from "@/lib/color-utils"
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+} from "@/components/ui/context-menu"
 import { RichTextView } from "@/components/richtext/rich-text-view"
 import { getImageURL } from "@/lib/image-store"
 import { imageIdsInText } from "@/lib/image-refs"
@@ -42,6 +57,9 @@ interface TodoNodeData {
   onToggleCollapse?: () => void
   /** 单图缩放时上报实时倍数（由画布负责持久化与右下角显示） */
   onImageZoom?: (value: number) => void
+  /** 右键菜单动作上报，由画布统一执行：
+   *  add-child / toggle-done / tag:<text> / style-border:<argb|空> / style-bg:<argb|空> / due:<yyyy-MM-dd|空> / long-term */
+  onMenuAction?: (action: string) => void
 }
 
 export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
@@ -50,7 +68,10 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
     collapsed = false,
     onToggleCollapse,
     onImageZoom,
+    onMenuAction,
   } = data as unknown as TodoNodeData
+  // 右键菜单「添加标签」的内嵌输入草稿
+  const [tagDraft, setTagDraft] = useState("")
   const subCount = node.sub.length
   // 节点内容恰好含 1 张图时，单独渲染可缩放图片（其余文字另排）
   const singleImageId =
@@ -60,17 +81,24 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
   // 节点风格：自定义边框/背景色（ARGB），无值时回落主题默认（border-border / bg-card）
   const borderCss = argbToCss(node.borderColor)
   const bgCss = argbToCss(node.bgColor)
+  // 右键菜单：TodoNode 根 div 经 ContextMenuTrigger 的 render prop 接管（base-ui 只拦截 contextmenu，
+  // 不影响 ReactFlow 的节点拖拽/点击/双击）；菜单内容经 Portal 渲染到 body。
   return (
-    <div
-      style={{
-        ...(bgCss ? { backgroundColor: bgCss } : null),
-        ...(borderCss ? { borderColor: borderCss } : null),
-      }}
-      className={cn(
-        "w-auto max-w-[50vw] min-w-56 rounded-xl border-2 bg-card shadow-sm transition-colors",
-        selected ? "border-primary ring-2 ring-primary/30" : "border-border"
-      )}
-    >
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={(triggerProps) => (
+          <div
+            {...triggerProps}
+            style={{
+              ...(bgCss ? { backgroundColor: bgCss } : null),
+              ...(borderCss ? { borderColor: borderCss } : null),
+            }}
+            className={cn(
+              triggerProps.className,
+              "w-auto max-w-[50vw] min-w-56 rounded-xl border-2 bg-card shadow-sm transition-colors",
+              selected ? "border-primary ring-2 ring-primary/30" : "border-border"
+            )}
+          >
       <Handle
         type="target"
         position={Position.Top}
@@ -177,9 +205,139 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
         position={Position.Bottom}
         className="!size-2 !border-2 !border-primary !bg-background"
       />
-    </div>
+          </div>
+        )}
+      />
+      <ContextMenuContent className="min-w-44">
+        <ContextMenuItem onClick={() => onMenuAction?.("add-child")}>
+          <Plus />
+          添加子节点
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onMenuAction?.("toggle-done")}>
+          {node.done ? <Undo2 /> : <Check />}
+          {node.done ? "取消完成" : "标记已完成"}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        {/* 添加标签：内嵌输入（非 Item），stopPropagation 防菜单键盘导航/typeahead 抢事件 */}
+        <div
+          className="flex items-center gap-1.5 px-1.5 py-1"
+          onKeyDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Tag className="size-3.5 shrink-0 text-muted-foreground" />
+          <input
+            value={tagDraft}
+            onChange={(e) => setTagDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const t = tagDraft.trim()
+                if (t) {
+                  onMenuAction?.(`tag:${t}`)
+                  setTagDraft("")
+                }
+              }
+            }}
+            placeholder="输入标签，回车添加"
+            className="h-7 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/60 focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+        <ContextMenuSeparator />
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <Palette />
+            节点风格
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="min-w-44">
+            <div className="flex flex-col gap-1 p-1">
+              <span className="px-1 text-[10px] font-medium text-muted-foreground">边框</span>
+              <PaletteGrid
+                current={node.borderColor}
+                onPick={(argb) => onMenuAction?.(`style-border:${argb}`)}
+              />
+              <span className="px-1 text-[10px] font-medium text-muted-foreground">背景</span>
+              <PaletteGrid
+                current={node.bgColor}
+                onPick={(argb) => onMenuAction?.(`style-bg:${argb}`)}
+              />
+            </div>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <CalendarClock />
+            截止日期
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="min-w-48">
+            <div
+              className="flex flex-col gap-1.5 p-1"
+              onKeyDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                type="date"
+                value={node.dueDate ?? ""}
+                disabled={!!node.longTerm}
+                onChange={(e) => onMenuAction?.(`due:${e.target.value}`)}
+                className="h-7 w-full rounded-md border bg-background px-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                aria-label="截止日期"
+              />
+              <button
+                type="button"
+                onClick={() => onMenuAction?.("long-term")}
+                className={cn(
+                  "h-7 rounded-md border text-xs transition-colors",
+                  node.longTerm
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                {node.longTerm ? "长期任务" : "设为长期"}
+              </button>
+            </div>
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 })
+
+/** 右键菜单色板：12 预置色 + 「清除」格（空值 = 回落主题默认）；当前选中色加 ring 高亮。 */
+function PaletteGrid({
+  current,
+  onPick,
+}: {
+  current?: string
+  onPick: (argb: string) => void
+}) {
+  return (
+    <div className="grid grid-cols-6 gap-1 p-1">
+      {NODE_PALETTE.map((c) => (
+        <button
+          key={c}
+          type="button"
+          title={c}
+          onClick={() => onPick(c)}
+          className={cn(
+            "size-5 rounded-md border border-border/60 transition-transform hover:scale-110",
+            current === c && "ring-2 ring-primary ring-offset-1 ring-offset-popover",
+          )}
+          style={{ backgroundColor: argbToCss(c) }}
+        />
+      ))}
+      <button
+        type="button"
+        title="清除（回落主题默认）"
+        onClick={() => onPick("")}
+        className={cn(
+          "flex size-5 items-center justify-center rounded-md border border-dashed border-border/60 text-muted-foreground transition-transform hover:scale-110",
+          !current && "ring-2 ring-primary ring-offset-1 ring-offset-popover",
+        )}
+      >
+        <X className="size-3" />
+      </button>
+    </div>
+  )
+}
 
 export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
   const node = (data as { node: MindNode }).node

@@ -216,6 +216,63 @@ function Canvas({ category }: { category: Category }) {
     }
   }, [])
 
+  // 节点右键菜单动作（由 TodoNode 上报，此处统一执行 store 变更）
+  const handleMenuAction = useCallback(
+    (nodeId: string, action: string) => {
+      const n = relation.nodes.find((x) => x.id === nodeId)
+      if (!n) return
+      if (action === "add-child") {
+        // 与 NodeInspector.handleAddChild 同逻辑：以「父标题 序号」命名避重，置于父节点右侧并自动连线
+        if (!category.relation) return
+        const base = n.title?.trim() || "新节点"
+        const existing = new Set(
+          category.relation.nodes.map((m) => (m.title ?? "").trim()),
+        )
+        let seq = 1
+        while (existing.has(`${base} ${seq}`)) seq++
+        const pos = n.position ?? { x: 200, y: 120 }
+        const childId = addNode(category.id, { x: pos.x + 300, y: pos.y }, `${base} ${seq}`)
+        connectNodes(category.id, nodeId, childId, "flow")
+        return
+      }
+      if (action === "toggle-done") {
+        // done 跃迁时 updateNode 内部自动记录贡献账 / completedAt
+        updateNode(category.id, nodeId, { done: !n.done })
+        return
+      }
+      if (action === "long-term") {
+        updateNode(category.id, nodeId, { longTerm: !n.longTerm, dueDate: null })
+        return
+      }
+      if (action.startsWith("tag:")) {
+        const t = action.slice(4).trim()
+        if (!t) return
+        if ((n.tags ?? []).includes(t)) {
+          toast.info("该标签已存在")
+          return
+        }
+        updateNode(category.id, nodeId, { tags: [...(n.tags ?? []), t] })
+        return
+      }
+      if (action.startsWith("style-border:")) {
+        // 空值 = 清除自定义边框色，回落主题默认（显式 undefined 才能覆盖掉旧值）
+        updateNode(category.id, nodeId, { borderColor: action.slice(13) || undefined })
+        return
+      }
+      if (action.startsWith("style-bg:")) {
+        updateNode(category.id, nodeId, { bgColor: action.slice(9) || undefined })
+        return
+      }
+      if (action.startsWith("due:")) {
+        // 非空日期清 longTerm（同 NodeInspector 行为）；空串清除截止日期
+        const d = action.slice(4)
+        updateNode(category.id, nodeId, { dueDate: d || null, longTerm: false })
+        return
+      }
+    },
+    [relation.nodes, category, addNode, connectNodes, updateNode],
+  )
+
   // 按 Delete / Backspace 请求删除当前选中的节点（弹出确认，避开文本输入框）
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
@@ -257,6 +314,7 @@ function Canvas({ category }: { category: Category }) {
           collapsed: collapsed.has(n.id),
           onToggleCollapse: () => toggleCollapse(n.id),
           onImageZoom: (v: number) => handleImageZoom(n.id, v),
+          onMenuAction: (a: string) => handleMenuAction(n.id, a),
         },
         selected: n.id === activeItemId,
       })
@@ -279,6 +337,7 @@ function Canvas({ category }: { category: Category }) {
     collapsed,
     toggleCollapse,
     handleImageZoom,
+    handleMenuAction,
   ])
 
   const rfEdges: Edge[] = useMemo(() => {
