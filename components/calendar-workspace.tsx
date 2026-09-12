@@ -448,9 +448,12 @@ function DayDetail({
   const weekdayLabel = format(dateObj, "EEEE", { locale: zhCN })
   const askFestival = () => {
     const names = festivals.map((f) => f.name)
-    const prompt = names.length
-      ? `今天是 ${dateLabel}（${weekdayLabel}），这一天的节日有：${names.join("、")}。请给我讲讲这些节日的来历、传统习俗和相关趣味知识。`
-      : `今天是 ${dateLabel}（${weekdayLabel}），请问这一天有哪些节日（含国际/传统节日）？请简单介绍一下。`
+    // 无节日：不跳转 AI，仅提示
+    if (names.length === 0) {
+      toast.info(`${dateLabel}没有节日`)
+      return
+    }
+    const prompt = `今天是 ${dateLabel}（${weekdayLabel}），这一天的节日有：${names.join("、")}。请给我讲讲这些节日的来历、传统习俗和相关趣味知识。`
     askAiAbout(prompt)
   }
   const askNote = () => {
