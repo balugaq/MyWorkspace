@@ -224,14 +224,6 @@ export const VIEW_LABEL: Record<
 export type ThemePreference = "light" | "dark" | "system"
 export type DefaultView = "workspace" | "calendar"
 
-/** 一条日历标记脚本（已弃用 / 注释停用：日历标记脚本整体停用，类型保留注释以备恢复） */
-// export interface CalendarScript {
-//   id: string
-//   name: string
-//   enabled: boolean
-//   code: string
-// }
-
 // AI 模型条目：支持配置多个模型，每条独立保存 provider / key / baseUrl / model。
 // 各 Key 仅存于本机 localStorage（纯前端静态站，无后端），互不干扰。
 export interface AIModelEntry {

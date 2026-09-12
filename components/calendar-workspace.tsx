@@ -20,8 +20,6 @@ import { ChevronLeft, ChevronRight, StickyNote, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
-// 日历标记脚本已弃用停用：不再引入 emitRenderDate / DateMarkerApi / CalendarDisplayType。
-// import { emitRenderDate, type DateMarkerApi, type CalendarDisplayType } from "@/lib/calendar-events"
 import { loadAddressBook, type Person } from "@/lib/address-book"
 import { loadPublicYaml } from "@/lib/fetch-data"
 import { festivalsForDate, builtinChinaFestivals, type Festival, type FestivalsFile } from "@/lib/festivals"
@@ -119,27 +117,6 @@ export function CalendarWorkspace() {
     const end = endOfWeek(endOfMonth(current))
     return eachDayOfInterval({ start, end })
   }, [current])
-
-  // 单元格渲染后，对每个日期块触发 RenderDateEvent（供日历标记脚本订阅）
-  // 日历标记脚本已弃用停用：以下 effect 整体注释，不再触发标记事件、不再构造标记 API。
-  // useEffect(() => {
-  //   if (view === "day") return // day 视图无网格单元格
-  //   const container = gridRef.current
-  //   if (!container) return
-  //   const displayType: CalendarDisplayType = view === "month" ? "month" : "week"
-  //   // 等一帧确保 DOM 已提交
-  //   const raf = requestAnimationFrame(() => {
-  //     const cells = container.querySelectorAll<HTMLElement>("[data-date]")
-  //     for (const cell of cells) {
-  //       const date = cell.getAttribute("data-date")
-  //       if (!date) continue
-  //       // 每次渲染重建标记容器，避免重复累积
-  //       cell.querySelector("[data-markers]")?.remove()
-  //       emitRenderDate({ displayType, date, element: cell, api: makeMarkerApi(cell) })
-  //     }
-  //   })
-  //   return () => cancelAnimationFrame(raf)
-  // }, [days, view])
 
   function shift(dir: 1 | -1) {
     setDirection(dir)
@@ -735,43 +712,3 @@ function DayDetail({
     </aside>
   )
 }
-
-/**
- * 为签名事件构造标记 API（已弃用 / 注释停用）。
- * 原实现：把标记节点追加到日期块（不依赖 React 状态，脚本可直接改 DOM 装饰）。
- * 因日历标记脚本整体停用而注释；保留以备将来恢复。
- */
-// function makeMarkerApi(cell: HTMLElement): DateMarkerApi {
-//   function container(): HTMLElement {
-//     let box = cell.querySelector<HTMLElement>("[data-markers]")
-//     if (!box) {
-//       box = document.createElement("span")
-//       box.dataset.markers = "1"
-//       box.className = "flex flex-wrap items-center gap-1"
-//       cell.appendChild(box)
-//     }
-//     return box
-//   }
-//   return {
-//     addMarker(kind?: string, text?: string) {
-//       const el = document.createElement("span")
-//       el.className =
-//         "rounded bg-primary/20 px-1 text-[9px] font-medium leading-none text-foreground"
-//       el.textContent = text ?? kind ?? "●"
-//       container().appendChild(el)
-//       return el
-//     },
-//     addBulk(kinds) {
-//       container().innerHTML = ""
-//       for (const k of kinds) this.addMarker(k)
-//       void container()
-//     },
-//     addText(text) {
-//       const el = document.createElement("span")
-//       el.className = "block truncate text-[9px] leading-tight text-foreground"
-//       el.textContent = text
-//       container().appendChild(el)
-//       return el
-//     },
-//   }
-// }

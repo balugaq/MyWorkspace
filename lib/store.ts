@@ -21,7 +21,6 @@ import type {
   Conversation,
   AIChatMessage,
   AIModelEntry,
-  // CalendarScript, // 日历标记脚本已弃用停用：不再引入该类型
 } from "./types"
 import { DEFAULT_SETTINGS, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
@@ -117,12 +116,9 @@ interface WorkspaceState {
 
   // 系统设置
   settings: Settings
-  // 日历标记脚本（已弃用停用，字段与下方相关 action 一并注释；merge 中显式丢弃旧存档残留）
-  // calendarScripts: CalendarScript[]
   // UI 弹窗状态（跨组件触发，例如全局快捷键 Ctrl+M）
   addCategoryOpen: boolean
   settingsOpen: boolean
-  // scriptsOpen: boolean // 日历标记脚本管理弹窗（已弃用停用）
   configEditorOpen: boolean
   imagesOpen: boolean
 
@@ -179,7 +175,6 @@ interface WorkspaceState {
   setShortcut: (action: ShortcutAction, binding: ShortcutBinding) => void
   setAddCategoryOpen: (v: boolean) => void
   setSettingsOpen: (v: boolean) => void
-  // setScriptsOpen: (v: boolean) => void // 日历标记脚本（已弃用停用）
   setConfigEditorOpen: (v: boolean) => void
   setImagesOpen: (v: boolean) => void
 
@@ -194,11 +189,6 @@ interface WorkspaceState {
 
   // 全局标签库（导入联系人 roles 等）：并入去重后的标签，已存在则忽略
   addKnownTags: (tags: string[]) => void
-
-  // 日历标记脚本（已弃用停用：以下三个 action 一并注释）
-  // upsertCalendarScript: (script: CalendarScript) => void
-  // removeCalendarScript: (id: string) => void
-  // toggleCalendarScript: (id: string, enabled: boolean) => void
 
   // 数据备份
   exportData: () => string | null
@@ -255,10 +245,8 @@ export const useWorkspace = create<WorkspaceState>()(
       selectedDate: format(new Date(), "yyyy-MM-dd"),
       hydrated: false,
       settings: DEFAULT_SETTINGS,
-      // calendarScripts: [], // 日历标记脚本（已弃用停用）
       addCategoryOpen: false,
       settingsOpen: false,
-      // scriptsOpen: false, // 日历标记脚本（已弃用停用）
       configEditorOpen: false,
       imagesOpen: false,
 
@@ -292,7 +280,6 @@ export const useWorkspace = create<WorkspaceState>()(
 
       setAddCategoryOpen: (v) => set({ addCategoryOpen: v }),
       setSettingsOpen: (v) => set({ settingsOpen: v }),
-      // setScriptsOpen: (v) => set({ scriptsOpen: v }), // 日历标记脚本（已弃用停用）
       setConfigEditorOpen: (v) => set({ configEditorOpen: v }),
       setImagesOpen: (v) => set({ imagesOpen: v }),
 
@@ -313,32 +300,6 @@ export const useWorkspace = create<WorkspaceState>()(
           return { knownTags: [...s.knownTags, ...additions] }
         }),
 
-      // 日历标记脚本（已弃用停用：以下三个 action 实现一并注释）
-      // upsertCalendarScript: (script) =>
-      //   set((s) => {
-      //     const exists = s.calendarScripts.some((x) => x.id === script.id)
-      //     if (exists) {
-      //       return {
-      //         calendarScripts: s.calendarScripts.map((x) =>
-      //           x.id === script.id ? script : x,
-      //         ),
-      //       }
-      //     }
-      //     return { calendarScripts: [...s.calendarScripts, script] }
-      //   }),
-      //
-      // removeCalendarScript: (id) =>
-      //   set((s) => ({
-      //     calendarScripts: s.calendarScripts.filter((x) => x.id !== id),
-      //   })),
-      //
-      // toggleCalendarScript: (id, enabled) =>
-      //   set((s) => ({
-      //     calendarScripts: s.calendarScripts.map((x) =>
-      //       x.id === id ? { ...x, enabled } : x,
-      //     ),
-      //   })),
-
       exportData: () => {
         const s = get()
         try {
@@ -351,7 +312,6 @@ export const useWorkspace = create<WorkspaceState>()(
               settings: s.settings,
               conversations: s.conversations,
               activeConversationId: s.activeConversationId,
-              // calendarScripts: s.calendarScripts, // 日历标记脚本（已弃用停用）
             },
             null,
             2
@@ -391,10 +351,6 @@ export const useWorkspace = create<WorkspaceState>()(
                   ? data.activeConversationId
                   : convs[0]?.id ?? null)
               : cur.activeConversationId,
-            // 日历标记脚本（已弃用停用）：不再恢复 calendarScripts 字段
-            // calendarScripts: Array.isArray(data.calendarScripts)
-            //   ? (data.calendarScripts as CalendarScript[])
-            //   : [],
             activeCategoryId: data.categories[0]?.id ?? null,
             activeItemId: null,
             view: "workspace",
@@ -952,10 +908,6 @@ export const useWorkspace = create<WorkspaceState>()(
       merge: (persisted, current) => {
         const p = { ...(persisted ?? {}) } as Partial<WorkspaceState> &
           Record<string, unknown>
-        // 日历标记脚本已弃用停用：显式丢弃旧存档残留字段（红线 1 兼容，不破坏旧存档读取，
-        // 也不把僵尸字段写回 localStorage）。
-        delete p.calendarScripts
-        delete p.scriptsOpen
         // 迁移：旧版「单一模型配置」（aiProvider/aiApiKey/aiBaseUrl/aiModel）转为多模型数组。
         // 旧快照里这些字段存在但 aiModels 不存在；新用户则 aiModels 为空、由首次配置补齐。
         const rawSettings = (p.settings as Record<string, unknown> | undefined) ?? {}

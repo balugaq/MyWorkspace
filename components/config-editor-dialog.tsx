@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button"
 /**
  * 配置文件源文本编辑器：直接查看/编辑持久化配置 JSON（categories / calendar / settings）。
  * 载入时用 exportData() 生成，保存时校验 JSON 后经 importData() 整体替换。
- * 注：calendarScripts 已随日历标记脚本弃用停用，不再出现在配置 JSON 中。
  */
 export function ConfigEditorDialog({
   open,
@@ -67,7 +66,7 @@ export function ConfigEditorDialog({
         <DialogHeader>
           <DialogTitle>配置文件（源文本）</DialogTitle>
           <DialogDescription>
-            直接编辑持久化配置 JSON（分类 / 日历 / 系统设置 / 日历脚本）。谨慎修改，格式错误会拒绝保存。
+            直接编辑持久化配置 JSON（分类 / 日历 / 系统设置）。谨慎修改，格式错误会拒绝保存。
           </DialogDescription>
         </DialogHeader>
 

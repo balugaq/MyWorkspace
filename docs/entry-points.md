@@ -7,7 +7,7 @@
 
 | 功能 | 入口点 |
 | --- | --- |
-| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`/`VaultWorkspace`/`AIChatWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`（`useCalendarScripts` 已弃用停用）；`VaultProvider` 在 `app/layout.tsx` 包裹 `children`（保险库会话状态/密钥驻留内存） |
+| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`/`VaultWorkspace`/`AIChatWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`；`VaultProvider` 在 `app/layout.tsx` 包裹 `children`（保险库会话状态/密钥驻留内存） |
 | 根布局 / 主题 / 字号 / Toaster | `app/layout.tsx` 的 `RootLayout`；`components/theme-provider.tsx` 的 `ThemeProvider` / `ThemeFromStore` / `FontSizeSetter` |
 | 全局快捷键 | `hooks/use-shortcuts.ts`：`useGlobalShortcuts()`、`matchShortcut(e, binding)`；绑定在 `settings.shortcuts`（`SHORTCUT_META`） |
 | 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`（订阅 store 算统计）；右下角视图名取自 `lib/types.ts` 的 `VIEW_LABEL`（新增视图须在此补一项，否则状态栏会显示成「工作台」） |
@@ -118,7 +118,6 @@
 | 内置中国日历要素 | `lib/festivals.ts` 的 `builtinChinaFestivals(year,month,day)`：返回二十四节气(`kind:"jieqi"`)与法定假日/调休(`kind:"holiday"`)，与 `custom_festivals.yml` 用户节日在 `calendar-workspace.tsx` 按 `[...builtin, ...userFests]` 合并（内置优先，shortHint 取首项）；`HolidayUtil` 仅覆盖约 2010–2026，空窗由 YAML 的 `holiday_override`/`workday_override` 兜底（见 `docs/custom-data-docs.md` 1.4） |
 | 节日/生日数据 | 只读加载 `public/custom_festivals.yml`、`public/address_book.yml`（见 `docs/custom-data-docs.md`） |
 | 节日类型 `FestivalKind` | `lib/festivals.ts` 导出联合类型 `FestivalKind`（`"monthDay"|"date"|"weekdayOfMonth"|"lunar"|"jieqi"|"holiday"`），`Festival.kind` 引用之；节气/法定假日用 `jieqi`/`holiday` |
-| ~~渲染标记脚本触发~~ | ~~`emitRenderDate`（`lib/calendar-events.ts`）+ `makeMarkerApi`；单元格 `data-date`~~（已弃用停用） |
 
 ## 8.7 全局搜索
 
@@ -134,7 +133,6 @@
 | 默认视图 / 主题 | `SettingsDialog` 的 `Select`（`updateSettings({ defaultView | theme })`） |
 | 字体大小滑块 | `SettingsDialog` 的 range → `updateSettings({ fontSize })` |
 | 快捷键编辑 | `ShortcutRow`（录音捕获 → `setShortcut`） |
-| ~~日历标记脚本~~ | ~~入口 `setScriptsOpen` → `CalendarScriptsDialog`~~（已弃用停用） |
 | 配置源文本编辑 | 入口 `setConfigEditorOpen` → `ConfigEditorDialog`（`exportData`/`importData`） |
 | 图片缓存/暂存 | 入口 `setImagesOpen` → `ImageCacheDialog`（`getImageInventory`） |
 | 备份（含图 + 保险库） | `exportBackupZip()` / `importBackupZip()`（`lib/backup.ts`）；ZIP 内含 `vault.json`（AES-256 加密 blob，替换模式下恢复） |
@@ -252,18 +250,3 @@
 
 > 约定：本视图为纯展示模板，数据填充逻辑（天气 API、签到状态、真实贡献计数）留待后续迭代；当前除日期/星期外均为占位符。
 
----
-
-## 8.14 ~~日历标记脚本~~ —— 已弃用停用
-
-> 日历标记脚本整体停用：`lib/calendar-events.ts` 运行时、`hooks/use-calendar-scripts.ts` 加载器、
-> `calendar-workspace.tsx` 触发点与标记 API、store 的 `calendarScripts` 字段/actions、
-> `components/calendar-scripts-dialog.tsx` 管理 UI 与设置入口均已注释停用。
-> 下列入口点仅作历史存档；如需恢复，按 `docs/calendar-script-docs.md` 顶部说明反注释接线。
-
-| 功能 | 入口点（已停用） |
-| --- | --- |
-| 事件总线 | `lib/calendar-events.ts`：`onRenderDate`、`emitRenderDate`、`runCalendarScript`、`loadCalendarScript`、`unloadCalendarScript`、`calendarLibs` |
-| 类型 | `calendar-events.ts`：`RenderDateEvent`、`DateMarkerApi`、`CalendarDisplayType`、`CalendarLibs` |
-| 脚本加载 | `hooks/use-calendar-scripts.ts` 的 `useCalendarScripts`（同步 `store.calendarScripts` → 总线） |
-| 脚本管理 UI | `components/calendar-scripts-dialog.tsx` 的 `CalendarScriptsDialog` / `ScriptEditor` |
