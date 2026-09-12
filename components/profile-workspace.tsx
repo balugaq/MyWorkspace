@@ -2,17 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { CalendarDays, CalendarCheck, User, Feather, RefreshCw } from "lucide-react"
+import { CalendarDays, CalendarCheck, User, Feather, RefreshCw, ScanLine } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { WeatherWidget } from "@/components/weather-widget"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  aggregateByDay,
+  buildHeatmapGrid,
+  buildMonthLabels,
+  contributionLevel,
+  parseDayStartOffset,
+  todayKey,
+} from "@/lib/contributions"
 
-// GitHub 风格贡献热力图：53 周 × 7 天。
-// 占位：用确定性伪随机（依 index 计算，避免 SSR 水合不一致）填充 5 级强度，
-// 后续接真实数据（如笔记/待办完成天数）时替换 level 来源即可。
+// GitHub 风格贡献热力图：53 周 × 7 天，数据来自 store 的真实「贡献账本」
+// （lib/contributions.ts 纯逻辑 + lib/store.ts 记账）。
+// 颜色按「当日 amount 之和」走 0 / (0,1] / (1,3] / (3,6] / >6 共 5 级；
+// 读取时按 settings.dayStartOffset 现算所属日（改翻篇时间历史会重新分桶）。
 const WEEKS = 53
-const DAYS = 7
 const LEVEL_COLORS = [
   "rgba(128,128,128,0.18)", // 0 级：无贡献
   "#0e4429",
@@ -21,20 +29,13 @@ const LEVEL_COLORS = [
   "#39d353",
 ]
 
-function buildCells() {
-  const cells: number[] = []
-  for (let w = 0; w < WEEKS; w++) {
-    for (let d = 0; d < DAYS; d++) {
-      const seed = (w * 31 + d * 17 + 7) % 100
-      const level = seed < 32 ? 0 : seed < 56 ? 1 : seed < 76 ? 2 : seed < 90 ? 3 : 4
-      cells.push(level)
-    }
-  }
-  return cells
-}
-
-const MONTH_LABELS = ["Jun", "Jul", "", "Aug", "", "", "Sep", "", "", "", "", ""]
 const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
+
+// 贡献值展示：四舍五入取整（todo.md 口径）。
+// amount < 0.5 的日子（例如当天只新建 1 个节点 = 0.2）会显示 0 —— 主人明确要求照实显示，不做修饰。
+function formatAmount(n: number): string {
+  return String(Math.round(n))
+}
 
 // 每日诗歌：数据源接口（无「出处/集」字段，出处用 author.name + title 拼）
 const POEM_API = "https://poetry.palemoky.com/api/poems/random"
@@ -57,7 +58,8 @@ interface PoemCache {
   date: string
 }
 
-function todayKey(d = new Date()): string {
+// 诗词缓存用的「今天」（纯日历日，不含贡献账本的 offset 语义）
+function poemDateKey(d = new Date()): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
   const day = String(d.getDate()).padStart(2, "0")
@@ -96,7 +98,7 @@ function writePoemCache(value: PoemCache): void {
 
 function readPoemCache(): PoemCache | null {
   try {
-    const raw = localStorage.getItem(`mw:poem:${todayKey()}`)
+    const raw = localStorage.getItem(`mw:poem:${poemDateKey()}`)
     if (!raw) return null
     return JSON.parse(raw) as PoemCache
   } catch {
@@ -107,7 +109,17 @@ function readPoemCache(): PoemCache | null {
 export function ProfileWorkspace() {
   const settings = useWorkspace((s) => s.settings)
 
-  const cells = useMemo(buildCells, [])
+  // 贡献账本 → 热力图：账本存「发生时间 at」，读取时按当前 settings.dayStartOffset 现算所属日
+  const contributions = useWorkspace((s) => s.contributions)
+  const scanLegacyContributions = useWorkspace((s) => s.scanLegacyContributions)
+  const offsetMinutes = parseDayStartOffset(settings.dayStartOffset)
+  const today = todayKey(offsetMinutes)
+  const grid = useMemo(() => buildHeatmapGrid(today, WEEKS), [today])
+  const monthLabels = useMemo(() => buildMonthLabels(grid), [grid])
+  const byDay = useMemo(
+    () => aggregateByDay(contributions, offsetMinutes),
+    [contributions, offsetMinutes],
+  )
 
   // 日期 / 星期：实时计算（非占位）
   const now = new Date()
@@ -173,7 +185,7 @@ export function ProfileWorkspace() {
     let cancelled = false
     const cached = readPoemCache()
     // 命中当日缓存：直接展示，不重复请求、不跳变
-    if (cached && cached.date === todayKey()) {
+    if (cached && cached.date === poemDateKey()) {
       setPoemLine(cached.line)
       setPoemAuthor(cached.author)
       setPoemTitle(cached.title)
@@ -183,7 +195,7 @@ export function ProfileWorkspace() {
     fetchPoem()
       .then((p) => {
         if (cancelled) return
-        const date = todayKey()
+        const date = poemDateKey()
         writePoemCache({ line: p.line, author: p.author, title: p.title, date })
         setPoemLine(p.line)
         setPoemAuthor(p.author)
@@ -206,7 +218,7 @@ export function ProfileWorkspace() {
     setPoemRefreshing(true)
     fetchPoem()
       .then((p) => {
-        const date = todayKey()
+        const date = poemDateKey()
         writePoemCache({ line: p.line, author: p.author, title: p.title, date })
         setPoemLine(p.line)
         setPoemAuthor(p.author)
@@ -221,7 +233,15 @@ export function ProfileWorkspace() {
       })
   }
 
-  const totalContributions = 342
+  // ─────────────────────────────────────────────────────────────
+  // 临时功能：存量贡献「补算历史」（幂等）。
+  // 主人用完会要求删除 —— 摘除时删掉本 handleScan + 热力图卡片头部的「补算历史」按钮即可。
+  const handleScan = () => {
+    const added = scanLegacyContributions()
+    if (added > 0) toast.success(`已补算 ${added} 条历史贡献`)
+    else toast.info("没有需要补算的历史贡献")
+  }
+  // ─────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -354,7 +374,20 @@ export function ProfileWorkspace() {
               <span className="text-sm font-medium text-foreground">
                 📊 Activity &amp; Contributions
               </span>
-              <span className="text-xs text-muted-foreground">{totalContributions} 次</span>
+              <div className="flex items-center gap-2">
+                {/* 临时功能：一次性补算存量贡献（主人用完会要求删除）；与 handleScan 一并摘除 */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+                  onClick={handleScan}
+                  title="为热力图上线前已存在的节点补算历史贡献（幂等）"
+                >
+                  <ScanLine className="size-3.5" />
+                  补算历史
+                </Button>
+                <span className="text-xs text-muted-foreground">{contributions.length} 条</span>
+              </div>
             </div>
 
             <ScrollArea horizontal className="w-full overflow-hidden">
@@ -372,9 +405,9 @@ export function ProfileWorkspace() {
               </div>
 
               <div>
-                {/* 月份标签行 */}
+                {/* 月份标签行（动态：仅在月份变化的那列打标签） */}
                 <div className="mb-1 flex gap-1">
-                  {MONTH_LABELS.map((label, i) => (
+                  {monthLabels.map((label, i) => (
                     <span
                       key={i}
                       className="w-[10px] text-[9px] text-muted-foreground"
@@ -384,16 +417,26 @@ export function ProfileWorkspace() {
                   ))}
                 </div>
 
-                {/* 热力格子：53 列 × 7 行 */}
+                {/* 热力格子：53 列 × 7 行（真实数据；晚于今天的格子透明且无 tooltip） */}
                 <div className="flex gap-1">
-                  {Array.from({ length: WEEKS }).map((_, w) => (
+                  {grid.map((col, w) => (
                     <div key={w} className="flex flex-col gap-1">
-                      {Array.from({ length: DAYS }).map((_, d) => {
-                        const level = cells[w * DAYS + d]
+                      {col.map((cell, d) => {
+                        if (!cell.inRange || !cell.dayKey) {
+                          return (
+                            <span key={d} className="size-[10px] rounded-[2px] bg-transparent" />
+                          )
+                        }
+                        const stat = byDay.get(cell.dayKey)
+                        const level = contributionLevel(stat?.amount ?? 0)
+                        const titleText =
+                          stat && stat.count > 0
+                            ? `${cell.dayKey} · ${stat.count} 条 · ${formatAmount(stat.amount)} 贡献值`
+                            : `${cell.dayKey} · 无记录`
                         return (
                           <span
                             key={d}
-                            title={`第 ${w + 1} 周 · 周${d + 1}`}
+                            title={titleText}
                             className="size-[10px] rounded-[2px]"
                             style={{ backgroundColor: LEVEL_COLORS[level] }}
                           />

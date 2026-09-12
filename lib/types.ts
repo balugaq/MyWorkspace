@@ -111,6 +111,37 @@ export interface CalendarDay {
 
 export type CalendarData = Record<string, CalendarDay> // key: yyyy-MM-dd
 
+// ---- 贡献账本（Profile 热力图数据源）----
+
+/**
+ * 贡献类型。本次仅实现思维图节点的「新建 / 完成」两类。
+ * 预留扩展位（本次不实现）：`"check-in"`（签到，TODO 9）、专注钟（TODO 10）等。
+ */
+export type ContributionType = "mindmap-node-created" | "mindmap-node-done"
+// 预留（本次不实现）：| "check-in"
+
+/**
+ * 一条贡献记录（**真账本，非派生**）。
+ * 存「发生时间 `at`」，读取时按当前 `settings.dayStartOffset` 现算所属日 —— 改翻篇时间后历史会重新分桶。
+ */
+export interface Contribution {
+  /** 复合 id：`${nodeId}:created` | `${nodeId}:done`（唯一，且可从 id 反查节点，便于删除时清理） */
+  id: string
+  /** 发生时间（epoch ms） */
+  at: number
+  /** 贡献值：新建 0.2 / 完成 1 */
+  amount: number
+  type: ContributionType
+  /** 快照：写入时节点的 title（之后改标题不回填） */
+  content: string
+}
+
+/** 各贡献类型的权重（唯一来源，集中管理） */
+export const CONTRIBUTION_AMOUNT: Record<ContributionType, number> = {
+  "mindmap-node-created": 0.2,
+  "mindmap-node-done": 1,
+}
+
 // 全局搜索结果
 export type SearchScope = "all" | "category" | "calendar" | "todo" | "mindmap"
 
@@ -259,6 +290,9 @@ export interface Settings {
   // aiPersonas 为空 或 aiActivePersonaId 为 null/不存在 → 仅用基础提示词（不使用人设）。
   aiPersonas: AIPersona[]
   aiActivePersonaId: string | null
+  /** 每天几点「翻篇」（HH:mm，用户本地时区）。默认 "04:00"：04:00 之前仍算前一天。
+   *  影响贡献热力图按日分桶（见 lib/contributions.ts）；后续签到类功能亦复用同一 offset。 */
+  dayStartOffset: string
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -280,5 +314,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiForceSync: false,
   aiPersonas: [],
   aiActivePersonaId: null,
+  // 与 lib/contributions.ts 的 DEFAULT_DAY_START_OFFSET 保持一致（此处写字面量避免循环依赖）
+  dayStartOffset: "04:00",
 }
 

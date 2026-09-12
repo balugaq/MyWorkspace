@@ -132,6 +132,7 @@
 | --- | --- |
 | 默认视图 / 主题 | `SettingsDialog` 的 `Select`（`updateSettings({ defaultView | theme })`） |
 | 字体大小滑块 | `SettingsDialog` 的 range → `updateSettings({ fontSize })` |
+| 每天翻篇时间 | `SettingsDialog` 的 `Input type="time"`（`updateSettings({ dayStartOffset })`，HH:mm；`lib/contributions.ts` 的 `normalizeDayStartOffset` 兜底非法值 → "04:00"） |
 | 快捷键编辑 | `ShortcutRow`（录音捕获 → `setShortcut`） |
 | 配置源文本编辑 | 入口 `setConfigEditorOpen` → `ConfigEditorDialog`（`exportData`/`importData`） |
 | 图片缓存/暂存 | 入口 `setImagesOpen` → `ImageCacheDialog`（`getImageInventory`） |
@@ -246,7 +247,23 @@
 | 头像来源 | 复用 `settings.aiUserAvatar`（与 AI 对话头像同源；空回落默认 `User` 图标），256×256 圆角容器 |
 | 天气 / 地区 / 诗歌 / 签到 | 当前均为**占位**：天气卡（温度+`CloudSun`+描述）、地区（1 行）、每日诗歌（右下角小字）、签到按钮（`toast.info("签到功能开发中")`） |
 | 日期 / 星期 | 实时 `new Date()` 计算（非占位） |
-| 贡献热力图 | GitHub 风格 53 周 × 7 天；`buildCells()` 用确定性伪随机填 5 级绿色强度（避免 SSR 水合不一致），后续接真实数据替换 level 来源 |
+| 贡献热力图（真实数据） | `ProfileWorkspace`：`lib/contributions.ts` 的 `buildHeatmapGrid` / `buildMonthLabels` / `aggregateByDay` / `contributionLevel` + store `contributions`；53 周 × 7 天、周日起始；颜色按「当日 amount 之和」走 0/(0,1]/(1,3]/(3,6]/>6，右上角总数按**条数**（`contributions.length`），tooltip 显示「yyyy-MM-dd · N 条 · X 贡献值」（X **四舍五入取整**，`< 0.5` 显示 `0`）/「yyyy-MM-dd · 无记录」 |
+| 存量贡献补算（临时） | 热力图卡片头部「补算历史」按钮（`ScanLine` 图标）→ store `scanLegacyContributions()`（幂等，toast 报新增条数）；**临时功能，主人用完会要求连同按钮整块删除** |
 
-> 约定：本视图为纯展示模板，数据填充逻辑（天气 API、签到状态、真实贡献计数）留待后续迭代；当前除日期/星期外均为占位符。
+> 约定：天气 / 签到仍为占位；贡献热力图已接真实账本（store `contributions`）；签到状态待 TODO 9 迭代（复用同一 `dayStartOffset`）。
+
+## 8.16 贡献账本 / 热力图（`lib/contributions.ts` + `lib/store.ts` + `components/profile-workspace.tsx`）
+
+> 真账本（非派生）：每次「新建 / 完成」思维图节点都往账本写一行；存「发生时间 `at`」，**读取时**按当前 `dayStartOffset` 现算所属日（改翻篇时间历史会重新分桶）。
+
+| 功能 | 入口点 |
+| --- | --- |
+| 数据结构 | `lib/types.ts`：`ContributionType`（`mindmap-node-created` / `mindmap-node-done`，预留 `check-in`）、`Contribution`（`id`/`at`/`amount`/`type`/`content`）、`CONTRIBUTION_AMOUNT`（新建 0.2 / 完成 1，权重唯一来源） |
+| 复合 id 约定 | `Contribution.id = `${nodeId}:created`` / `${nodeId}:done``（唯一且可反查节点，便于删除清理） |
+| 纯逻辑 | `lib/contributions.ts`：`DEFAULT_DAY_START_OFFSET`（"04:00"）、`parseDayStartOffset` / `normalizeDayStartOffset`、`dayKey` / `todayKey`（本地时间减 offset 后取 yyyy-MM-dd）、`contributionLevel`（0/(0,1]/(1,3]/(3,6]/>6）、`aggregateByDay`、`buildHeatmapGrid`（周日起始 53 列）、`buildMonthLabels` |
+| 记账（写账本） | store `addNode`（+created 0.2）、`updateNode`（`done` **真正跃迁**时 upsert/删 done 条 1）、`removeNode`（删该节点全部条；非递归删子节点）、`removeCategory`（删整个关系型分类 → 连带清掉该分类下全部节点的记录） |
+| 存量补算 | store `scanLegacyContributions()`：遍历所有 `relation.nodes`，按现有账本 id 的 Set 幂等补 created（`createdAt` 为 number）/ done（`completedAt != null`，含迁移写入的 `LEGACY_NODE_TIME`），返回新增条数 |
+| 设置 | `Settings.dayStartOffset`（HH:mm，默认 "04:00"）；`store.merge` / `importData` 对缺失 / 非法值兜底为 "04:00" |
+| 持久化兼容 | `store.merge`：`contributions` 缺失 / 非数组 → `[]`（旧存档）；且已纳入 `exportData` / `importData` / `mergeData` —— 导入旧备份（不含该字段）时**保留**现有账本，不清空；合并模式按 `id` 合并 |
+| 备份格式 | ZIP 备份经 `store.exportData()` 自动携带账本；`lib/backup.ts` 的 `manifest.version` 升至 **4**（v4 = `workspace.json` 增加 `contributions`） |
 

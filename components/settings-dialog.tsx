@@ -26,8 +26,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { normalizeDayStartOffset } from "@/lib/contributions"
 import { LicenseDialog } from "@/components/license-dialog"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
 import { PersonaManagerDialog } from "@/components/ai-personas-dialog"
@@ -239,6 +241,27 @@ export function SettingsDialog() {
               className="w-full accent-primary"
             />
             <p className="text-xs text-muted-foreground">调整全局基础字号（12–24px），实时应用到整个界面。</p>
+          </section>
+
+          <section className="flex flex-col gap-2">
+            <Label htmlFor="day-start-offset" className="text-xs font-medium text-muted-foreground">
+              每天翻篇时间
+            </Label>
+            <Input
+              id="day-start-offset"
+              type="time"
+              step="60"
+              value={settings.dayStartOffset}
+              onChange={(e) => {
+                const v = e.target.value
+                // 编辑过程中 type=time 可能回空串：不写入（避免把默认值强行顶回去），只在拿到合法值时落库
+                if (v) updateSettings({ dayStartOffset: normalizeDayStartOffset(v) })
+              }}
+              className="w-40"
+            />
+            <p className="text-xs text-muted-foreground">
+              {settings.dayStartOffset} 之前仍算前一天（影响贡献热力图与后续签到）。
+            </p>
           </section>
 
           <section className="flex flex-col gap-2">

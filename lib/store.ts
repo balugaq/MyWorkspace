@@ -21,9 +21,11 @@ import type {
   Conversation,
   AIChatMessage,
   AIModelEntry,
+  Contribution,
 } from "./types"
-import { DEFAULT_SETTINGS, type AIPersona } from "./types"
+import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
+import { normalizeDayStartOffset } from "./contributions"
 import { imageIdsInText } from "./image-refs"
 
 /**
@@ -140,6 +142,9 @@ interface WorkspaceState {
   // 外部（如日历 DayDetail）触发的"打开 AI 闲聊并自动询问"：携带待发送 query；消费后清空（不持久化）。
   pendingAiQuery: string | null
 
+  // 贡献账本（Profile 热力图数据源）：每条为一次「新建/完成节点」事件（真账本，非派生）
+  contributions: Contribution[]
+
   // 分类
   addCategory: (
     name: string,
@@ -208,6 +213,9 @@ interface WorkspaceState {
   addNode: (catId: string, position?: { x: number; y: number }, title?: string) => string
   updateNode: (catId: string, nodeId: string, patch: Partial<MindNode>) => void
   removeNode: (catId: string, nodeId: string) => void
+  /** 一次性存量补算：为账本中缺失的节点补 created/done 记录（幂等），返回新增条数。
+   *  临时功能（入口在 Profile 页），主人用完会要求删除 —— 与 Profile 的按钮一并摘除。 */
+  scanLegacyContributions: () => number
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -267,6 +275,9 @@ export const useWorkspace = create<WorkspaceState>()(
       activeConversationId: null,
       pendingAiQuery: null,
 
+      // 贡献账本：默认空（存量由 Profile 页「补算历史」一次性补齐）
+      contributions: [],
+
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
 
@@ -312,6 +323,8 @@ export const useWorkspace = create<WorkspaceState>()(
               settings: s.settings,
               conversations: s.conversations,
               activeConversationId: s.activeConversationId,
+              // 贡献账本（v4 起纳入备份；旧备份无此字段 → 导入时保留当前账本）
+              contributions: s.contributions,
             },
             null,
             2
@@ -334,6 +347,10 @@ export const useWorkspace = create<WorkspaceState>()(
           const convs = Array.isArray(data.conversations)
             ? (data.conversations as Conversation[])
             : null
+          // 贡献账本：仅当备份显式包含数组时才覆盖（旧备份无此字段 → 保留当前账本，不清空）
+          const bContribs = Array.isArray(data.contributions)
+            ? (data.contributions as Contribution[])
+            : null
           const cur = get()
           const persona = migratePersona((data.settings ?? {}) as Record<string, unknown>)
           set({
@@ -344,6 +361,10 @@ export const useWorkspace = create<WorkspaceState>()(
               ...(data.settings ?? {}),
               aiPersonas: persona.aiPersonas,
               aiActivePersonaId: persona.aiActivePersonaId,
+              // 兜底：备份里的 dayStartOffset 缺失 / 非法 → "04:00"
+              dayStartOffset: normalizeDayStartOffset(
+                (data.settings as Record<string, unknown> | undefined)?.dayStartOffset
+              ),
             } as Settings,
             conversations: convs ?? cur.conversations,
             activeConversationId: convs
@@ -351,6 +372,8 @@ export const useWorkspace = create<WorkspaceState>()(
                   ? data.activeConversationId
                   : convs[0]?.id ?? null)
               : cur.activeConversationId,
+            // 账本：备份显式包含则覆盖，否则保留当前（向后兼容旧备份）
+            contributions: bContribs ?? cur.contributions,
             activeCategoryId: data.categories[0]?.id ?? null,
             activeItemId: null,
             view: "workspace",
@@ -385,6 +408,22 @@ export const useWorkspace = create<WorkspaceState>()(
             const cDay = calendar[date]
             calendar[date] = cDay ? mergeCalendarDay(cDay, bDay) : bDay
           }
+          // 贡献账本：仅当备份包含 contributions 时按 id 合并（同 id 覆盖，新 id 追加），否则完全不碰。
+          const bContribs = Array.isArray(data.contributions)
+            ? (data.contributions as Contribution[])
+            : null
+          // 分类 + 日历 +（可选）账本：合并模式下的公共载荷，两个分支共用
+          const base: {
+            categories: Category[]
+            calendar: CalendarData
+            contributions?: Contribution[]
+          } = { categories, calendar }
+          if (bContribs) {
+            const contribMap = new Map<string, Contribution>()
+            for (const x of cur.contributions) contribMap.set(x.id, x)
+            for (const x of bContribs) contribMap.set(x.id, x)
+            base.contributions = [...contribMap.values()]
+          }
           // AI 对话：仅当备份包含 conversations 时按 id 合并（同 id 覆盖，新 id 追加），
           // 否则保留当前对话；合并模式不改动当前选中的会话（若仍存在于结果中）。
           const bConvs = data.conversations as Conversation[] | undefined
@@ -397,9 +436,9 @@ export const useWorkspace = create<WorkspaceState>()(
               cur.activeConversationId && convMap.has(cur.activeConversationId)
                 ? cur.activeConversationId
                 : (conversations[0]?.id ?? null)
-            set({ categories, calendar, conversations, activeConversationId })
+            set({ ...base, conversations, activeConversationId })
           } else {
-            set({ categories, calendar })
+            set(base)
           }
           return true
         } catch {
@@ -445,12 +484,23 @@ export const useWorkspace = create<WorkspaceState>()(
 
       removeCategory: (id) =>
         set((s) => {
+          const removing = s.categories.find((c) => c.id === id)
           const categories = s.categories.filter((c) => c.id !== id)
           const activeCategoryId =
             s.activeCategoryId === id
               ? (categories[0]?.id ?? null)
               : s.activeCategoryId
-          return { categories, activeCategoryId, activeItemId: null }
+          // 账本：删整个关系型分类 = 连带删掉其下所有节点，口径与 removeNode 一致
+          let contributions = s.contributions
+          if (removing?.relation && removing.relation.nodes.length > 0) {
+            const prefixes = removing.relation.nodes.map((n) => `${n.id}:`)
+            const kept = s.contributions.filter(
+              (x) => !prefixes.some((p) => x.id.startsWith(p))
+            )
+            // 未命中则保持原引用，避免无谓重渲染
+            if (kept.length !== s.contributions.length) contributions = kept
+          }
+          return { categories, activeCategoryId, activeItemId: null, contributions }
         }),
 
       renameCategory: (id, name) =>
@@ -601,63 +651,107 @@ export const useWorkspace = create<WorkspaceState>()(
 
       addNode: (catId, position, title) => {
         const id = uid()
-        set((s) => ({
-          categories: s.categories.map((c) => {
-            if (c.id !== catId || !c.relation) return c
-            const node: MindNode = {
-              id,
-              title: title ?? "新节点",
-              content: "",
-              cause: "",
-              leadTo: "",
-              result: "",
-              sub: [],
-              solution: null,
-              position: position ?? {
-                x: 200 + Math.random() * 200,
-                y: 120 + Math.random() * 160,
+        const now = Date.now()
+        const nodeTitle = title ?? "新节点"
+        set((s) => {
+          const cat = s.categories.find((c) => c.id === catId)
+          // 目标分类不存在 / 非 relation：不建节点（保留 activeItemId 行为）
+          if (!cat || !cat.relation) return { activeItemId: id }
+          const node: MindNode = {
+            id,
+            title: nodeTitle,
+            content: "",
+            cause: "",
+            leadTo: "",
+            result: "",
+            sub: [],
+            solution: null,
+            position: position ?? {
+              x: 200 + Math.random() * 200,
+              y: 120 + Math.random() * 160,
+            },
+            createdAt: now,
+            completedAt: null,
+          }
+          return {
+            categories: s.categories.map((c) =>
+              c.id === catId && c.relation
+                ? {
+                    ...c,
+                    relation: { ...c.relation, nodes: [...c.relation.nodes, node] },
+                  }
+                : c
+            ),
+            // 记账：新建节点 +0.2
+            contributions: [
+              ...s.contributions,
+              {
+                id: `${id}:created`,
+                at: now,
+                amount: CONTRIBUTION_AMOUNT["mindmap-node-created"],
+                type: "mindmap-node-created",
+                content: nodeTitle,
               },
-              createdAt: Date.now(),
-              completedAt: null,
-            }
-            return {
-              ...c,
-              relation: { ...c.relation, nodes: [...c.relation.nodes, node] },
-            }
-          }),
-          activeItemId: id,
-        }))
+            ],
+            activeItemId: id,
+          }
+        })
         return id
       },
 
       updateNode: (catId, nodeId, patch) =>
-        set((s) => ({
-          categories: s.categories.map((c) =>
+        set((s) => {
+          const cat = s.categories.find((c) => c.id === catId)
+          if (!cat || !cat.relation) return {}
+          const prev = cat.relation.nodes.find((n) => n.id === nodeId)
+          if (!prev) return {}
+
+          const next = { ...prev, ...patch }
+          // 切换完成态时同步记录完成时间：完成 = 现在，未完成 = null
+          if ("done" in patch) {
+            next.completedAt = patch.done ? Date.now() : null
+          }
+          // 单图缩放清理：内容变动后若图片不再恰好为 1 张，缩放失效并删除
+          if (patch.content !== undefined) {
+            if (imageIdsInText(patch.content).size !== 1) {
+              delete next.imageZoom
+            }
+          }
+
+          const categories = s.categories.map((c) =>
             c.id === catId && c.relation
               ? {
                   ...c,
                   relation: {
                     ...c.relation,
-                    nodes: c.relation.nodes.map((n) => {
-                      if (n.id !== nodeId) return n
-                      const next = { ...n, ...patch }
-                      // 切换完成态时同步记录完成时间：完成 = 现在，未完成 = null
-                      if ("done" in patch) {
-                        next.completedAt = patch.done ? Date.now() : null
-                      }
-                      // 单图缩放清理：内容变动后若图片不再恰好为 1 张，缩放失效并删除
-                      if (patch.content !== undefined) {
-                        if (imageIdsInText(patch.content).size !== 1) {
-                          delete next.imageZoom
-                        }
-                      }
-                      return next
-                    }),
+                    nodes: c.relation.nodes.map((n) => (n.id === nodeId ? next : n)),
                   },
                 }
               : c
-          ),
-        })),
+          )
+
+          // 记账：仅当完成态「真正跃迁」时才写账本（拖拽 position / 图片缩放等 patch 不触发）
+          let contributions = s.contributions
+          if ("done" in patch && !!prev.done !== !!next.done) {
+            const doneId = `${nodeId}:done`
+            // 先删同 id 旧条（upsert，防重复），再按需补
+            const withoutDone = contributions.filter((x) => x.id !== doneId)
+            contributions = next.done
+              ? [
+                  ...withoutDone,
+                  {
+                    id: doneId,
+                    at: Date.now(),
+                    amount: CONTRIBUTION_AMOUNT["mindmap-node-done"],
+                    type: "mindmap-node-done",
+                    content: next.title,
+                  },
+                ]
+              : withoutDone
+          }
+
+          return { categories, contributions }
+        }),
 
       removeNode: (catId, nodeId) =>
         set((s) => ({
@@ -681,8 +775,53 @@ export const useWorkspace = create<WorkspaceState>()(
                 }
               : c
           ),
+          // 记账：删除节点 → 清掉该节点全部条（id 形如 `${nodeId}:created` / `${nodeId}:done`）。
+          // 注：removeNode 非递归，子节点会存活（仅从父节点 sub 解绑），故只清本节点记录。
+          contributions: s.contributions.filter((x) => !x.id.startsWith(`${nodeId}:`)),
           activeItemId: s.activeItemId === nodeId ? null : s.activeItemId,
         })),
+
+      // 一次性存量补算（幂等）：为账本缺失的节点补 created / done 记录，返回新增条数。
+      // 临时功能：入口在 Profile 页「补算历史」按钮，主人用完会要求删除 —— 与按钮一并摘除。
+      scanLegacyContributions: () => {
+        let added = 0
+        set((s) => {
+          const existing = new Set(s.contributions.map((c) => c.id))
+          const next = [...s.contributions]
+          for (const c of s.categories) {
+            if (!c.relation) continue
+            for (const n of c.relation.nodes) {
+              const createdId = `${n.id}:created`
+              if (typeof n.createdAt === "number" && !existing.has(createdId)) {
+                next.push({
+                  id: createdId,
+                  at: n.createdAt,
+                  amount: CONTRIBUTION_AMOUNT["mindmap-node-created"],
+                  type: "mindmap-node-created",
+                  content: n.title,
+                })
+                existing.add(createdId)
+                added++
+              }
+              const doneId = `${n.id}:done`
+              // completedAt != null：含迁移写入的 LEGACY_NODE_TIME（主人要求如实计入）
+              if (n.completedAt != null && !existing.has(doneId)) {
+                next.push({
+                  id: doneId,
+                  at: n.completedAt,
+                  amount: CONTRIBUTION_AMOUNT["mindmap-node-done"],
+                  type: "mindmap-node-done",
+                  content: n.title,
+                })
+                existing.add(doneId)
+                added++
+              }
+            }
+          }
+          return added > 0 ? { contributions: next } : {}
+        })
+        return added
+      },
 
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({
@@ -947,6 +1086,10 @@ export const useWorkspace = create<WorkspaceState>()(
           conversations: (p.conversations as Conversation[] | undefined) ?? [],
           activeConversationId:
             (p.activeConversationId as string | null | undefined) ?? null,
+          // 贡献账本：旧存档无此字段 → 空数组（存量由 Profile 页「补算历史」补齐）
+          contributions: Array.isArray(p.contributions)
+            ? (p.contributions as Contribution[])
+            : [],
           settings: {
             ...DEFAULT_SETTINGS,
             ...(rawSettings as Partial<Settings>),
@@ -954,6 +1097,8 @@ export const useWorkspace = create<WorkspaceState>()(
             aiActiveModelId,
             aiPersonas: persona.aiPersonas,
             aiActivePersonaId: persona.aiActivePersonaId,
+            // 兜底：缺失 / 非法 → "04:00"
+            dayStartOffset: normalizeDayStartOffset(rawSettings.dayStartOffset),
           },
         }
       },

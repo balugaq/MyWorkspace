@@ -67,7 +67,8 @@ export async function exportBackupZip(): Promise<Blob> {
   const enc = new TextEncoder()
   const manifest = {
     app: APP_KEY,
-    version: 3,
+    // v4：workspace.json 增加 contributions（贡献账本）
+    version: 4,
     exportedAt: new Date().toISOString(),
   }
   // JSON 走默认 deflate（压缩率高）；图片本身已是压缩格式，用 level 0 直存避免无谓 CPU
