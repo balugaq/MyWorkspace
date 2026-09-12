@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import { CalendarDays, CalendarCheck, User, Feather, RefreshCw, ScanLine } from "lucide-react"
+import { CalendarDays, CalendarCheck, User, Feather, RefreshCw, ScanLine, Timer } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { WeatherWidget } from "@/components/weather-widget"
@@ -17,6 +17,8 @@ import {
   todayKey,
 } from "@/lib/contributions"
 import { type ContributionType } from "@/lib/types"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 
 // GitHub 风格贡献热力图：53 周 × 7 天，数据来自 store 的真实「贡献账本」
 // （lib/contributions.ts 纯逻辑 + lib/store.ts 记账）。
@@ -36,6 +38,7 @@ const CONTRIB_TYPE_META: Record<ContributionType, { label: string; badge: string
   "mindmap-node-created": { label: "新建节点", badge: "text-blue-400 bg-blue-400/10" },
   "mindmap-node-done": { label: "完成节点", badge: "text-green-500 bg-green-500/10" },
   "check-in": { label: "签到", badge: "text-primary bg-primary/10" },
+  "focus": { label: "专注", badge: "text-amber-400 bg-amber-400/10" },
 }
 
 const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
@@ -143,6 +146,177 @@ export function ProfileWorkspace() {
     () => [...contributions].sort((a, b) => b.at - a.at),
     [contributions],
   )
+
+  // ---- 专注钟（TODO 10）----
+  // 本地计时状态 + 刷新恢复（localStorage 键 mw:focus-timer）。
+  // persisted: { mode, running, startedAt, accumulatedPausedMs, durationMs?, seconds? }
+  const addFocusContribution = useWorkspace((s) => s.addFocusContribution)
+  const FOCUS_KEY = "mw:focus-timer"
+  type FocusPersist = {
+    mode: "up" | "down"
+    running: boolean
+    startedAt: number
+    accumulatedPausedMs: number
+    durationMs?: number
+    seconds?: number
+  }
+  const loadFocus = (): FocusPersist | null => {
+    if (typeof window === "undefined") return null
+    try {
+      const raw = localStorage.getItem(FOCUS_KEY)
+      if (!raw) return null
+      return JSON.parse(raw) as FocusPersist
+    } catch {
+      return null
+    }
+  }
+  const [initialFocus] = useState(loadFocus)
+  const [focusMode, setFocusMode] = useState<"up" | "down">(initialFocus?.mode ?? "down")
+  const [durationMin, setDurationMin] = useState(
+    initialFocus?.mode === "down" && typeof initialFocus.durationMs === "number"
+      ? Math.max(1, Math.round(initialFocus.durationMs / 60_000))
+      : 25,
+  )
+  const [running, setRunning] = useState(initialFocus?.running ?? false)
+  const [startTs, setStartTs] = useState<number | null>(initialFocus?.startedAt ?? null)
+  const [accumulatedPausedMs, setAccumulatedPausedMs] = useState(initialFocus?.accumulatedPausedMs ?? 0)
+  const [focusSeconds, setFocusSeconds] = useState(initialFocus?.seconds ?? 0)
+  const [focusHint, setFocusHint] = useState("")
+  // 结束弹窗（TODO 10 细化）：≥10 分钟时填 content 后再入账
+  const [focusDialogOpen, setFocusDialogOpen] = useState(false)
+  const [pendingFocusMinutes, setPendingFocusMinutes] = useState(0)
+  const [focusContentInput, setFocusContentInput] = useState("")
+  // 暂停起点（仅内存，不持久化）；重载后若处于暂停态，挂载时记为「此刻」以便继续时把刷新间隙计入暂停
+  const pauseStartRef = useRef<number | null>(
+    initialFocus && !initialFocus.running && initialFocus.startedAt != null ? Date.now() : null,
+  )
+
+  const endFocus = useCallback(() => {
+    if (startTs == null) return
+    const elapsedMs = Date.now() - startTs - accumulatedPausedMs
+    const totalSec = Math.max(0, Math.floor(elapsedMs / 1000))
+    const minutes = totalSec / 60
+    const amount = Math.floor(minutes / 10)
+    // 结束即停表（两条路径都先清空计时状态；持久化 effect 会因 startTs 置空移除 localStorage 键）
+    setRunning(false)
+    setStartTs(null)
+    setAccumulatedPausedMs(0)
+    setFocusSeconds(0)
+    pauseStartRef.current = null
+    if (amount < 1) {
+      // 不足 10 分钟：不弹窗、不入账，仅提示
+      setFocusHint("专注不足 10 分钟，不计入贡献")
+      return
+    }
+    // ≥10 分钟：弹窗让用户填写 content，确认/取消后才入账（各写一次）
+    setPendingFocusMinutes(minutes)
+    setFocusContentInput(`专注 ${Math.round(minutes)} 分钟`)
+    setFocusDialogOpen(true)
+  }, [startTs, accumulatedPausedMs])
+
+  const endFocusRef = useRef(endFocus)
+  useEffect(() => {
+    endFocusRef.current = endFocus
+  }, [endFocus])
+
+  // tick：计时中每秒刷新显示；倒计时归零自动结束并记账
+  useEffect(() => {
+    if (!running || startTs == null) return
+    const compute = () => {
+      const elapsedMs = Date.now() - startTs - accumulatedPausedMs
+      if (focusMode === "up") {
+        const s = Math.max(0, Math.floor(elapsedMs / 1000))
+        setFocusSeconds(s)
+        return s
+      }
+      const remain = Math.max(0, Math.floor((durationMin * 60_000 - elapsedMs) / 1000))
+      setFocusSeconds(remain)
+      if (remain <= 0) endFocusRef.current()
+      return remain
+    }
+    compute()
+    const iv = setInterval(compute, 1000)
+    return () => clearInterval(iv)
+  }, [running, startTs, accumulatedPausedMs, focusMode, durationMin])
+
+  // 持久化进行中的计时（结束/清空时 startTs 置空 → 移除键）
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (startTs == null) {
+      localStorage.removeItem(FOCUS_KEY)
+      return
+    }
+    const persist: FocusPersist = {
+      mode: focusMode,
+      running,
+      startedAt: startTs,
+      accumulatedPausedMs,
+      durationMs: focusMode === "down" ? durationMin * 60_000 : undefined,
+      seconds: focusSeconds,
+    }
+    localStorage.setItem(FOCUS_KEY, JSON.stringify(persist))
+  }, [focusMode, running, startTs, accumulatedPausedMs, durationMin, focusSeconds])
+
+  const startOrResumeFocus = () => {
+    setFocusHint("")
+    if (startTs == null) {
+      setStartTs(Date.now())
+      setAccumulatedPausedMs(0)
+      setFocusSeconds(focusMode === "down" ? durationMin * 60 : 0)
+    } else if (pauseStartRef.current != null) {
+      const paused = Date.now() - pauseStartRef.current
+      pauseStartRef.current = null
+      setAccumulatedPausedMs((a) => a + paused)
+    }
+    setRunning(true)
+  }
+
+  const pauseFocus = () => {
+    if (startTs == null) return
+    pauseStartRef.current = Date.now()
+    setRunning(false)
+  }
+
+  const switchFocusMode = (m: "up" | "down") => {
+    if (running || startTs != null) return
+    setFocusMode(m)
+    setFocusSeconds(m === "down" ? durationMin * 60 : 0)
+    setFocusHint("")
+  }
+
+  // 结束弹窗：确认 → 用用户填写的 content 入账；取消 → 不传 content，用默认自动文案入账（保证已得贡献不丢失）。两条路径都只写一次。
+  const handleFocusConfirm = useCallback(() => {
+    const written = addFocusContribution(pendingFocusMinutes, focusContentInput)
+    if (written >= 1) toast.success(`专注完成，+${written} 贡献`)
+    setFocusDialogOpen(false)
+    setPendingFocusMinutes(0)
+    setFocusContentInput("")
+  }, [addFocusContribution, pendingFocusMinutes, focusContentInput])
+
+  const handleFocusCancel = useCallback(() => {
+    const written = addFocusContribution(pendingFocusMinutes)
+    if (written >= 1) toast.success(`专注完成，+${written} 贡献`)
+    setFocusDialogOpen(false)
+    setPendingFocusMinutes(0)
+    setFocusContentInput("")
+  }, [addFocusContribution, pendingFocusMinutes])
+
+  // 外部关闭(点遮罩 / 按 Esc)不应静默丢弃已得贡献：统一走「取消」语义(用默认自动文案入账)。
+  // 点遮罩由 Dialog 的 disablePointerDismissal 直接拦截;这里兜底 Esc 等外部 reason。
+  const handleFocusDialogOpenChange = useCallback(
+    (open: boolean, details?: { reason?: string }) => {
+      const reason = details?.reason
+      if (!open && (reason === "escape-key" || reason === "outside-press")) {
+        handleFocusCancel()
+        return
+      }
+      setFocusDialogOpen(open)
+    },
+    [handleFocusCancel],
+  )
+
+  const focusMm = String(Math.floor(focusSeconds / 60)).padStart(2, "0")
+  const focusSs = String(focusSeconds % 60).padStart(2, "0")
 
   // 日期 / 星期：实时计算（非占位）
   const now = new Date()
@@ -398,6 +572,117 @@ export function ProfileWorkspace() {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">今日暂无待办事项</p>
             </div>
+            {/* 专注钟（TODO 10） */}
+            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Timer className="size-4 text-amber-400" />
+              ⏱ 专注钟
+            </div>
+
+            {/* 模式切换（分段） */}
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => switchFocusMode("up")}
+                className={`rounded-md border px-3 py-1 text-xs ${
+                  focusMode === "up"
+                    ? "border-amber-400/40 bg-amber-400/10 text-amber-400"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                正计时
+              </button>
+              <button
+                type="button"
+                onClick={() => switchFocusMode("down")}
+                className={`rounded-md border px-3 py-1 text-xs ${
+                  focusMode === "down"
+                    ? "border-amber-400/40 bg-amber-400/10 text-amber-400"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                倒计时
+              </button>
+            </div>
+
+            {/* 倒计时专注时长输入（仅倒计时模式可编辑） */}
+            {focusMode === "down" && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <span>专注时长</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={durationMin}
+                  disabled={running}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.floor(Number(e.target.value) || 1))
+                    setDurationMin(v)
+                    if (!running && startTs == null) setFocusSeconds(v * 60)
+                  }}
+                  className="w-16 rounded-md border border-border bg-background px-2 py-1 text-foreground"
+                />
+                <span>分钟</span>
+              </div>
+            )}
+
+            {/* 计时显示 MM:SS */}
+            <div className="mt-3 text-center text-3xl font-semibold tabular-nums text-foreground">
+              {focusMm}:{focusSs}
+            </div>
+
+            {/* 提示文案 */}
+            {focusHint && (
+              <p className="mt-2 text-center text-xs text-muted-foreground">{focusHint}</p>
+            )}
+
+            {/* 控制按钮 */}
+            <div className="mt-3 flex gap-2">
+              {running ? (
+                <>
+                  <Button className="flex-1" variant="outline" onClick={pauseFocus}>
+                    暂停
+                  </Button>
+                  <Button className="flex-1" variant="outline" onClick={endFocus}>
+                    结束
+                  </Button>
+                </>
+              ) : (
+                <Button className="w-full" onClick={startOrResumeFocus}>
+                  {startTs == null ? "开始" : "继续"}
+                </Button>
+              )}
+            </div>
+
+            {/* 结束弹窗：≥10 分钟时填写 content 后入账。showCloseButton=false 去掉右上角 X；disablePointerDismissal 禁点遮罩关闭；Esc 由 onOpenChange 拦截走「取消」语义入账，三路均不丢贡献 */}
+            <Dialog open={focusDialogOpen} onOpenChange={handleFocusDialogOpenChange} disablePointerDismissal>
+              <DialogContent showCloseButton={false}>
+                <DialogHeader>
+                  <DialogTitle>填写专注记录</DialogTitle>
+                  <DialogDescription>
+                    本次专注已满 10 分钟，可补充这条 Contribution 的内容。
+                  </DialogDescription>
+                </DialogHeader>
+                <Textarea
+                  value={focusContentInput}
+                  onChange={(e) => setFocusContentInput(e.target.value)}
+                  placeholder="专注 25 分钟"
+                  className="min-h-20"
+                />
+                <DialogFooter>
+                  <DialogClose
+                    render={
+                      <Button variant="outline" onClick={handleFocusCancel}>
+                        取消
+                      </Button>
+                    }
+                  >
+                    取消
+                  </DialogClose>
+                  <Button onClick={handleFocusConfirm}>确认</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
           </div>
 
           {/* GitHub 式横向贡献热力图 */}

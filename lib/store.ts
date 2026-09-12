@@ -218,6 +218,8 @@ interface WorkspaceState {
   scanLegacyContributions: () => number
   /** 每日签到（TODO 9）：写一条 `check-in:${dayKey}` 贡献（amount 2）；状态由账本按 dayKey 推导，过 04:00 自动重置。 */
   checkIn: () => void
+  /** 专注钟（TODO 10）：结束专注时按专注分钟写一条 `focus:<dayKey>` 贡献；amount = floor(分钟/10)，不足 10 分钟返回 0（不写）。同 dayKey 已存在则覆盖（更新 at / amount）。 */
+  addFocusContribution: (minutes: number, content?: string) => number
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -845,6 +847,32 @@ export const useWorkspace = create<WorkspaceState>()(
             },
           ],
         }))
+      },
+
+      // 专注钟（TODO 10）：结束专注时按专注分钟写一条 `focus:<dayKey>` 贡献（amount = floor(分钟/10)）。
+      // 不足 10 分钟不写，返回 0；同 dayKey 已存在则覆盖（取本次 amount，at 更新为最新）。
+      // 复用 settings.dayStartOffset 同一 offset，过 04:00 后 dayKey 变化即视为新的一天。
+      addFocusContribution: (minutes, content) => {
+        const amount = Math.floor(minutes / 10)
+        if (amount < 1) return 0
+        const off = parseDayStartOffset(get().settings.dayStartOffset)
+        const dayKey = todayKey(off)
+        const id = `focus:${dayKey}`
+        const finalContent =
+          content && content.trim() ? content.trim() : `专注 ${Math.round(minutes)} 分钟`
+        set((s) => ({
+          contributions: [
+            ...s.contributions.filter((c) => c.id !== id),
+            {
+              id,
+              at: Date.now(),
+              amount,
+              type: "focus",
+              content: finalContent,
+            },
+          ],
+        }))
+        return amount
       },
 
       setNodeSolution: (catId, nodeId, content, status) =>

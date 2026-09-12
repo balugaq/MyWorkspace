@@ -114,13 +114,13 @@ export type CalendarData = Record<string, CalendarDay> // key: yyyy-MM-dd
 // ---- 贡献账本（Profile 热力图数据源）----
 
 /**
- * 贡献类型。含思维图节点的「新建 / 完成」两类，以及每日签到（TODO 9 已实现）。
- * 预留扩展位（后续）：专注钟（TODO 10）等。
+ * 贡献类型。含思维图节点的「新建 / 完成」两类，每日签到（TODO 9 已实现），以及专注钟（TODO 10 已实现）。
  */
 export type ContributionType =
   | "mindmap-node-created"
   | "mindmap-node-done"
   | "check-in" // 签到（TODO 9 已实现）
+  | "focus" // 专注钟（TODO 10 已实现）
 
 /**
  * 一条贡献记录（**真账本，非派生**）。
@@ -138,11 +138,13 @@ export interface Contribution {
   content: string
 }
 
-/** 各贡献类型的权重（唯一来源，集中管理） */
+/** 各贡献类型的权重（唯一来源，集中管理）。
+ *  注：`focus` 的 0 为占位；真实 amount 由专注分钟运行时算（floor(分钟 / 10)），不读此值。 */
 export const CONTRIBUTION_AMOUNT: Record<ContributionType, number> = {
   "mindmap-node-created": 0.2,
   "mindmap-node-done": 1,
   "check-in": 2,
+  "focus": 0,
 }
 
 // 全局搜索结果
