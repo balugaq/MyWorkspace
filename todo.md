@@ -4,14 +4,14 @@ TODO 1. （状态：已完成）
 TODO 2. （状态：已完成）
 日历里的待办事项、事件安排和mindmap里的日期标注，怎么感觉不是同一套东西？如果确实不是，就保留mindmap的，日历本身的那些，注释掉即可
 
-TODO 3. （状态：待处理）
+TODO 3. （状态：已完成）
 workspace很久之前写的日历脚本可以入土了，删除相关注释、描述内容
 
 TODO 4. （状态：待处理）
 AI Chat 对话页内，右侧边加一个deepseek网页版那样的用户query bar（已经query出去的，点击可以自动滑动到那个对话开始（用户问的位置））
 这个bar有什么功能以及怎么才能显示需要用户说明一下
 
-TODO 5. （状态：待处理）
+TODO 5. （状态：已完成）
 终止了 AI Chat 回复后出现了
 ## Error Type
 Runtime AbortError
