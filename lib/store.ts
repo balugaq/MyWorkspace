@@ -22,6 +22,7 @@ import type {
   AIChatMessage,
   AIModelEntry,
   Contribution,
+  MindmapViewport,
 } from "./types"
 import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
@@ -145,6 +146,9 @@ interface WorkspaceState {
   // 贡献账本（Profile 热力图数据源）：每条为一次「新建/完成节点」事件（真账本，非派生）
   contributions: Contribution[]
 
+  // 关系类思维图视口存档（key = category.id）：保存上次浏览的 scale 及 x,y，重挂载后恢复
+  mindmapViewports: Record<string, MindmapViewport>
+
   // 分类
   addCategory: (
     name: string,
@@ -235,6 +239,7 @@ interface WorkspaceState {
   removeEdge: (catId: string, edgeId: string) => void
   removeSub: (catId: string, nodeId: string, subId: string) => void
   setRelationView: (catId: string, view: "mindmap" | "list") => void
+  setMindmapViewport: (categoryId: string, viewport: MindmapViewport) => void
 
   // 日历
   setSelectedDate: (date: string) => void
@@ -281,6 +286,9 @@ export const useWorkspace = create<WorkspaceState>()(
 
       // 贡献账本：默认空（存量由 Profile 页「补算历史」一次性补齐）
       contributions: [],
+
+      // 关系图视口存档：默认空（首次进入画布走 fitView 自适应）
+      mindmapViewports: {},
 
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -1003,6 +1011,14 @@ export const useWorkspace = create<WorkspaceState>()(
           ),
         })),
 
+      setMindmapViewport: (categoryId, viewport) =>
+        set((s) => ({
+          mindmapViewports: {
+            ...s.mindmapViewports,
+            [categoryId]: viewport,
+          },
+        })),
+
       setSelectedDate: (date) => set({ selectedDate: date }),
 
       setDayNote: (date, note) =>
@@ -1142,6 +1158,10 @@ export const useWorkspace = create<WorkspaceState>()(
           contributions: Array.isArray(p.contributions)
             ? (p.contributions as Contribution[])
             : [],
+          // 关系图视口存档：旧存档无此字段 → 空对象
+          mindmapViewports:
+            (p.mindmapViewports as Record<string, MindmapViewport> | undefined) ??
+            {},
           settings: {
             ...DEFAULT_SETTINGS,
             ...(rawSettings as Partial<Settings>),

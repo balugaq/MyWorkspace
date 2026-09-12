@@ -114,12 +114,28 @@ function Canvas({ category }: { category: Category }) {
   const connectNodes = useWorkspace((s) => s.connectNodes)
   const removeEdge = useWorkspace((s) => s.removeEdge)
   const removeNode = useWorkspace((s) => s.removeNode)
+  // 上次浏览视口存档：有有效存档则重挂载后恢复（否则初始 fitView 自适应）
+  const savedViewport = useWorkspace((s) => s.mindmapViewports[category.id])
+  const setMindmapViewport = useWorkspace((s) => s.setMindmapViewport)
+  const restoredViewport =
+    savedViewport &&
+    Number.isFinite(savedViewport.x) &&
+    Number.isFinite(savedViewport.y) &&
+    Number.isFinite(savedViewport.zoom)
+      ? savedViewport
+      : undefined
   const { screenToFlowPosition, fitView } = useReactFlow()
   const canvasWrapRef = useRef<HTMLDivElement>(null)
 
   // 鸟瞰模式：允许无限缩小（默认 minZoom=0.5 限制缩小），并禁用拖拽/连线避免缩很小误触
   const [birdView, setBirdView] = useState(false)
+  // 仅在 birdView 真实变化（进/出鸟瞰）时才 fitView：首次挂载与 dev StrictMode 双挂载都跳过，
+  // 否则 fitView 动画会覆盖 defaultViewport 恢复的视口存档（先到位、稍后被拉回原点）
+  const prevBirdViewRef = useRef<boolean | null>(null)
   useEffect(() => {
+    const prev = prevBirdViewRef.current
+    prevBirdViewRef.current = birdView
+    if (prev === null || prev === birdView) return
     fitView({ padding: 0.2, duration: 300 })
   }, [birdView, fitView])
 
@@ -442,7 +458,9 @@ function Canvas({ category }: { category: Category }) {
               toast.success("已删除连线")
             }
           }}
-          fitView
+          fitView={!restoredViewport}
+          defaultViewport={restoredViewport}
+          onMoveEnd={(_, viewport) => setMindmapViewport(category.id, viewport)}
           proOptions={{ hideAttribution: true }}
           className="bg-muted/30"
         >

@@ -67,6 +67,9 @@ export interface MindEdge {
 // connectNodes 的结果
 export type ConnectResult = "created" | "exists" | "invalid"
 
+// 关系类思维图视口（与 @xyflow/react 的 Viewport 结构一致），持久化保存上次浏览位置
+export type MindmapViewport = { x: number; y: number; zoom: number }
+
 export interface RelationContent {
   nodes: MindNode[]
   edges: MindEdge[]

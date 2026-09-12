@@ -45,6 +45,7 @@
 | 工作区外壳 + 视图切换 | `MindmapWorkspace`（`setRelationView` 切 mindmap/list；`ViewBtn`） |
 | 鸟瞰模式 | `MindmapWorkspace` 右上角「鸟瞰」按钮（`birdView` 状态）；开启时 `minZoom` 降到 `0.02` 并 `fitView()`，临时禁用 `nodesDraggable`/`nodesConnectable`；退出恢复 `minZoom=0.5` |
 | 画布 | `Canvas`（`ReactFlow` + `ReactFlowProvider`） |
+| 视口记忆（x/y/zoom） | `Canvas` 读 `store.mindmapViewports[category.id]`（有效存档经 `defaultViewport` 恢复，此时初始 `fitView` 关闭；无存档保持 fitView）；`onMoveEnd` → `setMindmapViewport` 写回（按分类 id 持久化） |
 | 列表视图 | `ListView`（含「添加节点」按钮 `addNode`、完成/隐藏/解决方案徽标） |
 | 节点类型注册 | `nodeTypes = { todo: TodoNode, solution: SolutionNode }` |
 
@@ -102,6 +103,7 @@
 | 解决方案 | `setNodeSolution` |
 | 连线 | `connectNodes(catId, src, tgt, kind)`（返回 `ConnectResult`）、`removeEdge` |
 | 视图 | `setRelationView` |
+| 视口存档 | `setMindmapViewport(catId, { x, y, zoom })`（写 `mindmapViewports`；persist merge 对旧存档兜底为 `{}`） |
 | 导入数据合并 | `mergeData(json)`（分类按 id 合并、日历按日期合并），`mergeById`/`mergeCalendarDay` 辅助 |
 
 ## 8.6 日历（`components/calendar-workspace.tsx`）
