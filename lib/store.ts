@@ -25,7 +25,7 @@ import type {
 } from "./types"
 import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
-import { normalizeDayStartOffset } from "./contributions"
+import { normalizeDayStartOffset, parseDayStartOffset, todayKey } from "./contributions"
 import { imageIdsInText } from "./image-refs"
 
 /**
@@ -216,6 +216,8 @@ interface WorkspaceState {
   /** 一次性存量补算：为账本中缺失的节点补 created/done 记录（幂等），返回新增条数。
    *  临时功能（入口在 Profile 页），主人用完会要求删除 —— 与 Profile 的按钮一并摘除。 */
   scanLegacyContributions: () => number
+  /** 每日签到（TODO 9）：写一条 `check-in:${dayKey}` 贡献（amount 2）；状态由账本按 dayKey 推导，过 04:00 自动重置。 */
+  checkIn: () => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -821,6 +823,28 @@ export const useWorkspace = create<WorkspaceState>()(
           return added > 0 ? { contributions: next } : {}
         })
         return added
+      },
+
+      // 每日签到（TODO 9）：写一条 `check-in:${dayKey}` 贡献（amount 2），状态由账本按 dayKey 推导。
+      // 复用 TODO 8 的 settings.dayStartOffset 同一 offset 配置；过 04:00 后 dayKey 变化即自动「未签到」。
+      checkIn: () => {
+        const off = parseDayStartOffset(get().settings.dayStartOffset)
+        const dayKey = todayKey(off)
+        const id = `check-in:${dayKey}`
+        // 幂等：今天已签过就不再写（按钮虽禁用，双保险）
+        if (get().contributions.some((c) => c.id === id)) return
+        set((s) => ({
+          contributions: [
+            ...s.contributions,
+            {
+              id,
+              at: Date.now(),
+              amount: CONTRIBUTION_AMOUNT["check-in"],
+              type: "check-in",
+              content: "签到",
+            },
+          ],
+        }))
       },
 
       setNodeSolution: (catId, nodeId, content, status) =>

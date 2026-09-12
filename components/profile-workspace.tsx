@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { format } from "date-fns"
 import { CalendarDays, CalendarCheck, User, Feather, RefreshCw, ScanLine } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
@@ -113,7 +114,9 @@ export function ProfileWorkspace() {
   const contributions = useWorkspace((s) => s.contributions)
   const scanLegacyContributions = useWorkspace((s) => s.scanLegacyContributions)
   const offsetMinutes = parseDayStartOffset(settings.dayStartOffset)
+  const checkIn = useWorkspace((s) => s.checkIn)
   const today = todayKey(offsetMinutes)
+  const signedToday = contributions.some((c) => c.id === `check-in:${today}`)
   const grid = useMemo(() => buildHeatmapGrid(today, WEEKS), [today])
   const monthLabels = useMemo(() => buildMonthLabels(grid), [grid])
   const byDay = useMemo(
@@ -332,19 +335,28 @@ export function ProfileWorkspace() {
             )}
           </div>
 
-          {/* 签到功能（占位：按钮完整，逻辑待接） */}
+          {/* 签到功能：点击 toast 成功 + 写 check-in 贡献（进热力图）+ 当天禁用 / 暗色图层仅覆盖按钮 */}
           <div className="w-64 rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <CalendarCheck className="size-4 text-primary" />
               每日签到
             </div>
             <p className="mt-1 text-xs text-muted-foreground">坚持就是胜利，保持活跃。</p>
-            <Button
-              className="mt-3 w-full"
-              onClick={() => toast.info("签到功能开发中")}
-            >
-              签到
-            </Button>
+            <div className="relative mt-3 w-full">
+              <Button
+                className="w-full"
+                disabled={signedToday}
+                onClick={() => {
+                  checkIn()
+                  toast.success("签到成功")
+                }}
+              >
+                {signedToday ? "√ 已签到" : "签到"}
+              </Button>
+              {signedToday && (
+                <div className="pointer-events-none absolute inset-0 rounded-md bg-black/40" />
+              )}
+            </div>
           </div>
         </div>
 
