@@ -182,3 +182,9 @@ mindmap节点的右键contextmenu：
 
 TODO 17. （状态：待处理）
 给ai对话框两边内容添加文字朗读功能？（不过现在还没找到合适的api，先搁置）
+
+TODO 18. （状态：待处理）
+新增消息通知
+主要涉及github通知，每5分钟扫一遍指定仓库的新commit/issue/pr/release（从 这个工作台应用关机时间或当前时间（前者优先，没有数据就后者） 开始算的就算新，然后注意更新最新时间）（可以指定扫的范围：选择commit, issue, pr, release的其中几个）
+然后扫描commit的话，如果committer和用户设置的本地名称一致，则认为这是一个contribution，1个commit计1个contribution，加入到profile的热力图中。
+issue/pr同理，committer一致的话，就计2个contribution/每issue或pr
