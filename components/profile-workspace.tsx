@@ -505,7 +505,7 @@ export function ProfileWorkspace() {
                     {sorted.slice(0, visible).map((c) => {
                       const meta = CONTRIB_TYPE_META[c.type]
                       return (
-                        <div key={c.id} className="rounded-lg border border-border bg-card p-3">
+                        <div key={c.id} className="rounded-lg border border-border border-l-2 border-l-[#FF7F50] bg-card p-3">
                           <div className="flex items-center justify-between gap-2">
                             <span
                               className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.badge}`}
