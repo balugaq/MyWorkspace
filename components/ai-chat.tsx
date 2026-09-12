@@ -612,7 +612,7 @@ export function AIChatWorkspace() {
               >
                 <div
                   className={cn(
-                    "flex items-start gap-2",
+                    "flex w-full items-start gap-2",
                     isUser ? "flex-row-reverse" : "flex-row",
                   )}
                 >
@@ -646,17 +646,17 @@ export function AIChatWorkspace() {
                     className={cn(
                       "rounded-lg px-3 py-2 text-sm",
                       m.role === "user"
-                        ? "bg-primary text-primary-foreground max-w-full min-w-0 overflow-x-auto"
-                        : "bg-muted text-foreground max-w-[78%]",
+                        ? "bg-primary text-primary-foreground max-w-[66%] min-w-0"
+                        : "bg-muted text-foreground max-w-[66%] min-w-0",
                     )}
                   >
                     {m.content ? (
                       // 用户与 AI 回复统一走 RichTextView（与节点内容同渲染管线：
                       // 表格 / 代码高亮 / 任务列表 / GitHub·B站卡 / 内文图一致生效）。
-                      // 用户消息额外加 chat-md-user：保留原始换行、不软折行（超宽横向滚动）。
+                      // 用户与 AI 消息统一走 RichTextView：气泡限宽 2/3、超宽软折行、手工换行保留。
                       <RichTextView
                         content={m.content}
-                        className={cn("chat-md", m.role === "user" && "chat-md-user")}
+                        className="chat-md"
                       />
                     ) : isLoading ? (
                       <span className="text-muted-foreground">思考中…</span>

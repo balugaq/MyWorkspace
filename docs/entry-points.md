@@ -83,7 +83,7 @@
 | --- | --- |
 | Todo 节点卡片 | `TodoNode`（标题 + `done` 删除线/✓、原因/导向/结果、**内容常显** via `RichText`、子任务折叠钮、标签/截止/长期徽标） |
 | 自定义边框/背景色 | `TodoNode` 经 `argbToCss`（`lib/color-utils.ts`）把 `node.borderColor` / `node.bgColor`（ARGB `#AARRGGBB`）转 `rgba()` 以 inline style 覆盖默认；空值回落 `border-border` / `bg-card` |
-| 长文本/超长串防溢出 | `RichText` 容器用 `overflow-wrap:anywhere` + `break-words`；图片 `fullSize` 加 `max-w-full`；原因/导向/结果行加 `min-w-0` + 任意断词，避免无空格长串（如 URL）撑破 `max-w-[50vw]` 卡片 |
+| 长文本/超长串防溢出 | `RichText` 容器用 `overflow-wrap:anywhere` + `break-words`；图片 `fullSize` 加 `max-w-full`；原因/导向/结果行加 `min-w-0` + 任意断词，避免无空格长串（如 URL）撑破 `max-w-[50vw]` 卡片；滚动条 / 溢出 / 限宽的通用约定见 [`ui-conventions.md`](./ui-conventions.md) |
 | 图片原尺寸展示 | `RichText` 传 `fullSize`（`h-auto w-auto`，可撑破卡片；卡片 `w-auto min-w-56 max-w-[50vw]`） |
 | 解决方案节点卡片 | `SolutionNode`（绿框 + 状态 `STATUS_META`） |
 | 子树折叠 | `TodoNode` 折叠按钮 → `onToggleCollapse`（Canvas 内 `collapsed` Set，纯视图态） |

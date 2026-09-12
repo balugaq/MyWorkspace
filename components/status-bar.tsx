@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useWorkspace } from "@/lib/store"
 import { VIEW_LABEL } from "@/lib/types"
 import { loadAddressBook } from "@/lib/address-book"
-import { format } from "date-fns"
 
 /**
  * 底部状态栏：根据当前视图对聚合数据做轻量摘要。

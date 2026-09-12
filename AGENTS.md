@@ -9,6 +9,7 @@
 1. 本仓库是 **Next.js 16（App Router）+ React 19 + TypeScript 严格模式** 的个人工作台（思维导图 Todo / 分类笔记 / 日历日程 / 通讯录 / AI 助手 / 密码保险库），所有改动必须通过 `npm run typecheck` 与 `npm run lint` **均 0 错误**后才能视为完成。
 2. 状态集中在 `lib/store.ts` 的 Zustand store（localStorage 持久化）；**禁止**到处散落本地 state 承载应属于 store 的数据。新增功能优先复用 `app/` 与 `components/` 既有模块。
 3. 本机直接在当前分支开发（个人仓库），提交信息遵循 Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `chore:`）。**严禁 AI 执行 `git commit`（提交仅由宿主执行），已有提交保留不撤回**（详见第 5 节红线第 8 条与第 6 节）。
+4. **AI 不得自行开浏览器**（无头/有头 Chrome、Edge、Playwright、Puppeteer、agent-browser、截图工具等一律禁止）。**样式 / 视觉 / 布局类改动由宿主自己在 `npm run dev` 下目视核验**；AI 的验收手段只允许静态核对：`npm run typecheck` + `npm run lint` + grep 确认改动落地（详见第 5 节红线第 9 条）。
 
 ---
 
@@ -23,8 +24,8 @@
 | 图片 | IndexedDB（`lib/image-store.ts` + 引用扫描 `lib/image-refs.ts`）；正文用 `imgref:<id>` 引用 token（旧 `{{img:<id>}}` 在读取时由 `components/richtext/normalize.ts` 归一，详见 `docs/entry-points.md` §8.9） |
 | 加密 | 密码保险库用 Web Crypto（PBKDF2 + AES-256-GCM），加密 blob 存 IndexedDB（`lib/vault-store.ts`），密钥驻留 `VaultProvider` 内存 |
 | 部署 | `output: "export"`，`next build` 产出 `out/`，`scripts/serve-static.mjs` 本地托管。**不启用 CSP**：项目只用 `npm run dev`（dev 下 CSP meta 占位符本就被浏览器忽略），构建期注入策略的整套机制已于 2026-09-05 移除（`scripts/inject-csp.mjs`、`postbuild`、`layout.tsx` 的 meta 均已删）；XSS 防线改为依赖「不渲染原始 HTML」（见 `components/markdown-view.tsx`） |
-| AI 职责范围 | 功能开发、Bug 修复、组件/状态重构、构建/脚本维护、文档维护 |
-| AI 不负责 | 提交 git（`git commit`）、发布公网、推送远程（由宿主/开发者执行） |
+| AI 职责范围 | 功能开发、Bug 修复、组件/状态重构、构建/脚本维护、文档维护；静态核对（`typecheck` + `lint` + grep） |
+| AI 不负责 | 提交 git（`git commit`）、发布公网、推送远程（由宿主/开发者执行）；**开浏览器做样式/视觉核验**（由宿主目视执行，见第 5 节红线第 9 条） |
 
 ---
 
@@ -33,7 +34,8 @@
 | 场景 | 命令 |
 | --- | --- |
 | 开发 / 构建 / 静态托管 | `npm run dev` / `npm run deploy` / `npm run serve` / `npm run deploy:local` |
-| 验收三件套 | `npm run typecheck`（=`tsc --noEmit`，0 错误）+ `npm run lint`（=`eslint`，0 错误）；开发机再加 `npm run build` |
+| 验收（AI 侧，唯一允许的手段） | `npm run typecheck`（=`tsc --noEmit`，0 错误）+ `npm run lint`（=`eslint`，0 错误）+ grep 核对改动落地；开发机可再加 `npm run build`。**AI 不得开浏览器做任何验证**（见第 5 节红线第 9 条） |
+| 验收（宿主侧·样式/视觉） | 样式 / 视觉 / 布局类改动由**宿主**在 `npm run dev` 下目视核验，AI 不代劳、不代测（见第 5 节红线第 9 条） |
 | 格式化 | `npm run format` |
 | 构建期依赖更新 | `npm run update-dependencies`（由 `predev`/`prebuild` 自动触发；`SKIP_DEP_UPDATE=1` 跳过；当前维护 `lunar-javascript`） |
 
@@ -46,6 +48,7 @@
 - base-ui 注意：`Trigger` 自定义元素用 `render` prop（非 Radix `asChild`）；展开态用 `data-popup-open`；受控 `Select` 的 `onValueChange` 可能回 `null`，需判空；`ScrollArea` 的 viewport 是 `size-full`，需要父级显式高度/`min-h-0` 才能收卷滚动。
 - 持久化数据一律经 store；新增字段要在 `lib/types.ts` 与 `lib/store.ts` 同步，并在 `merge`/`onRehydrateStorage` 做向后兼容。
 - 在 `flex` 列里需要"可滚动内容区"时，必须同时具备 `min-h-0` + `flex-1` + `overflow-auto`，否则会被祖先 `overflow-hidden` 裁切且无滚动条（如图片预览多图场景）。
+- 滚动条 / 溢出 / 限宽等 UI 约定见 [`docs/ui-conventions.md`](./docs/ui-conventions.md)。
 
 ---
 
@@ -72,6 +75,7 @@
 6. 禁止叠加 base-ui 的 Radix 旧语法（`asChild` / `data-[state=open]`）。
 7. 禁止手写 ZIP 读写：备份用 `fflate`（`zipSync`/`unzipSync`），见 `lib/backup.ts`。
 8. 禁止 AI 提交 git：`git commit` 仅能由宿主（开发者）执行，AI 不得执行任何提交动作（`git add` 暂存亦须经宿主确认）。**已有的提交一律保留，不得撤回 / reset / rebase 改写历史**；AI 只负责让工作区处于可通过 `typecheck` + `lint` 的改动状态，并把建议的提交信息告知宿主。
+9. **禁止 AI 自行开浏览器**：不得启动或驱动任何浏览器/渲染引擎做验证 —— 包括无头或有头的 Chrome / Edge / Firefox、Playwright、Puppeteer、`agent-browser`，以及任何截图或像素测量工具。**样式 / 视觉 / 布局类改动一律由宿主在 `npm run dev` 下目视核验**，AI 不得代劳。AI 的验收手段仅限于静态核对：`npm run typecheck` + `npm run lint`（均 0 错误）+ grep 确认改动落地；可以对代码 / CSS 做静态推理与级联分析，但**不得把静态结论当作视觉验收结论上报**，必须明确标注「待宿主目视确认」。
 
 ---
 
