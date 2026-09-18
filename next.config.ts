@@ -9,8 +9,8 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES === 'true',     // GitHub Pages 不支持 Next.js 图片优化
   },
-  basePath: '/MyWorkspace',
-  assetPrefix: '/MyWorkspace',
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
+  assetPrefix: process.env.NEXT_PUBLIC_ASSET_PREFIX || '',
 }
 
 export default nextConfig

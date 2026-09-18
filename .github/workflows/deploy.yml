@@ -32,6 +32,8 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_UNOPTIMIZED_IMAGES: 'true'
+          NEXT_PUBLIC_BASE_PATH: '/MyWorkspace'
+          NEXT_PUBLIC_ASSET_PREFIX: '/MyWorkspace'
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
