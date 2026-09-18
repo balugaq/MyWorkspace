@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   // 可被任意静态服务器托管，也便于本地一键部署（见 scripts/serve-static.mjs）。
   // 注意：启用 static export 后不兼容 `next start` 服务端运行。
   output: "export",
+  images: {
+    unoptimized: process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES === 'true',     // GitHub Pages 不支持 Next.js 图片优化
+  },
+  basePath: '/MyWorkspace',
+  assetPrefix: '/MyWorkspace',
 }
 
 export default nextConfig
