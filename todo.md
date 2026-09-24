@@ -188,3 +188,11 @@ TODO 18. （状态：待处理）
 主要涉及github通知，每5分钟扫一遍指定仓库的新commit/issue/pr/release（从 这个工作台应用关机时间或当前时间（前者优先，没有数据就后者） 开始算的就算新，然后注意更新最新时间）（可以指定扫的范围：选择commit, issue, pr, release的其中几个）
 然后扫描commit的话，如果committer和用户设置的本地名称一致，则认为这是一个contribution，1个commit计1个contribution，加入到profile的热力图中。
 issue/pr同理，committer一致的话，就计2个contribution/每issue或pr
+
+TODO 19. （状态：待处理）
+接下来，你需要给sidebar里的内置模板增加一个折叠，默认不展开
+
+TODO 20. （状态：待处理）
+工具下面新增一个通知，用于自动收集各方通知（如 TODO 18 的 github 通知）
+目前只需要支持内置的sender，如 TODO 18 的 github 通知，内容显示上参考AI对话页面即可，但去掉头像且用户不可回复，如有需要可以抽象接口等操作
+
