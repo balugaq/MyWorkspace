@@ -40,6 +40,9 @@ const CONTRIB_TYPE_META: Record<ContributionType, { label: string; badge: string
   "mindmap-node-done": { label: "完成节点", badge: "text-green-500 bg-green-500/10" },
   "check-in": { label: "签到", badge: "text-primary bg-primary/10" },
   "focus": { label: "专注", badge: "text-amber-400 bg-amber-400/10" },
+  "github-commit": { label: "GitHub 提交", badge: "text-sky-400 bg-sky-400/10" },
+  "github-issue": { label: "GitHub Issue", badge: "text-orange-400 bg-orange-400/10" },
+  "github-pr": { label: "GitHub PR", badge: "text-emerald-400 bg-emerald-400/10" },
 }
 
 const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]

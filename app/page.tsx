@@ -16,6 +16,9 @@ import { AIChatWorkspace } from "@/components/ai-chat"
 import { ProfileWorkspace } from "@/components/profile-workspace"
 import { GlobalSearch } from "@/components/global-search"
 import { SettingsView } from "@/components/settings-view"
+import { NotificationsWorkspace } from "@/components/notifications/notifications-workspace"
+import { NotificationToastQueue } from "@/components/notifications/notification-toast-queue"
+import { startNotificationScheduler } from "@/lib/notifications/scheduler"
 import { ConfigEditorDialog } from "@/components/config-editor-dialog"
 import { ImageCacheDialog } from "@/components/image-cache-dialog"
 import { StatusBar } from "@/components/status-bar"
@@ -104,6 +107,13 @@ export default function Page() {
     }
   }, [addKnownTags])
 
+  // 通知调度器（TODO 20 / 18）：hydrate 后启动（内部模块级 flag 幂等，重复调用安全）。
+  // 每 5 分钟扫描配置仓库的新动态 + 维护活跃心跳。
+  useEffect(() => {
+    if (!hydrated) return
+    startNotificationScheduler()
+  }, [hydrated])
+
 
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
 
@@ -185,6 +195,8 @@ export default function Page() {
             <ProfileWorkspace />
           ) : view === "settings" ? (
             <SettingsView />
+          ) : view === "notifications" ? (
+            <NotificationsWorkspace />
           ) : activeCategory ? (
             activeCategory.template === "relation" ? (
               <MindmapWorkspace key={activeCategory.id} category={activeCategory} />
@@ -215,6 +227,7 @@ export default function Page() {
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <ConfigEditorDialog open={configEditorOpen} onOpenChange={setConfigEditorOpen} />
       <ImageCacheDialog open={imagesOpen} onOpenChange={setImagesOpen} />
+      <NotificationToastQueue />
     </div>
   )
 }

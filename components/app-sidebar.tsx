@@ -13,6 +13,7 @@ import {
   Users,
   KeyRound,
   Bot,
+  Bell,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
@@ -110,6 +111,7 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
           <ContactNavItem />
           <VaultNavItem />
           <AIChatNavItem />
+          <NotificationNavItem />
         </nav>
       </ScrollArea>
 
@@ -269,6 +271,27 @@ function AIChatNavItem() {
     >
       <Bot className="size-4" />
       AI 助手
+    </button>
+  )
+}
+
+function NotificationNavItem() {
+  const view = useWorkspace((s) => s.view)
+  const goNotifications = useWorkspace((s) => s.goNotifications)
+  const active = view === "notifications"
+  return (
+    <button
+      type="button"
+      onClick={goNotifications}
+      className={cn(
+        "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+        active
+          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+          : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      )}
+    >
+      <Bell className="size-4" />
+      通知
     </button>
   )
 }

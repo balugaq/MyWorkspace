@@ -22,9 +22,11 @@ import type {
   AIChatMessage,
   AIModelEntry,
   Contribution,
+  ContributionType,
+  NotificationItem,
   MindmapViewport,
 } from "./types"
-import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, type AIPersona } from "./types"
+import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
 import { normalizeDayStartOffset, parseDayStartOffset, todayKey } from "./contributions"
 import { imageIdsInText } from "./image-refs"
@@ -113,7 +115,15 @@ interface WorkspaceState {
   calendar: CalendarData
   activeCategoryId: string | null // null 表示日历
   activeItemId: string | null // 章节 id 或节点 id
-  view: "workspace" | "calendar" | "contacts" | "vault" | "ai-chat" | "profile" | "settings"
+  view:
+    | "workspace"
+    | "calendar"
+    | "contacts"
+    | "vault"
+    | "ai-chat"
+    | "profile"
+    | "settings"
+    | "notifications"
   selectedDate: string
   hydrated: boolean
 
@@ -147,6 +157,15 @@ interface WorkspaceState {
   // 贡献账本（Profile 热力图数据源）：每条为一次「新建/完成节点」事件（真账本，非派生）
   contributions: Contribution[]
 
+  // 通知中心（TODO 20 / TODO 18）：GitHub sender 等产生的站内通知，持久化，按 createdAt
+  // 降序，上限 200 条（超出截断最旧）
+  notifications: NotificationItem[]
+  // 扫描水位（epoch ms）：上一轮成功扫描的时间，作为下轮起算点；null = 从未扫过
+  notificationWatermark: number | null
+  // 最近活跃时间（epoch ms）：调度器心跳维护；pagehide 时的更新 ≈「关机时间」，
+  // 作为首次扫描（无水位时）的兜底起算点
+  lastActiveAt: number | null
+
   // 关系类思维图视口存档（key = category.id）：保存上次浏览的 scale 及 x,y，重挂载后恢复
   mindmapViewports: Record<string, MindmapViewport>
 
@@ -169,6 +188,7 @@ interface WorkspaceState {
   goAIChat: () => void
   goProfile: () => void
   goSettings: () => void
+  goNotifications: () => void
 
   // AI 助手：多会话管理（各自持有上下文）
   createConversation: () => string
@@ -227,6 +247,17 @@ interface WorkspaceState {
   checkIn: () => void
   /** 专注钟（TODO 10）：结束专注时按专注分钟写一条 `focus:<dayKey>` 贡献；amount = floor(分钟/10)，不足 10 分钟返回 0（不写）。同 dayKey 已存在则覆盖（更新 at / amount）。 */
   addFocusContribution: (minutes: number, content?: string) => number
+  /** 批量追加贡献（TODO 18：GitHub sender 按通知入账）；按 id 与现有账本去重后追加。
+   *  amount 在本 action 内按 CONTRIBUTION_AMOUNT[type] 统一取值（调用方只传 type）。 */
+  appendContributions: (
+    entries: Array<{ id: string; type: ContributionType; at: number; content: string }>
+  ) => void
+  /** 通知入库（TODO 20 / 18）：按 id 去重合并，按 createdAt 降序，上限 200 条截断最旧。 */
+  addNotifications: (items: NotificationItem[]) => void
+  /** 扫描水位：上一轮成功扫描时间（epoch ms）。 */
+  setNotificationWatermark: (ms: number) => void
+  /** 最近活跃时间（epoch ms）：调度器心跳 / pagehide 更新。 */
+  setLastActiveAt: (ms: number) => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -290,6 +321,11 @@ export const useWorkspace = create<WorkspaceState>()(
 
       // 贡献账本：默认空（存量由 Profile 页「补算历史」一次性补齐）
       contributions: [],
+
+      // 通知中心：默认空（GitHub sender 由调度器入库）；水位 / 活跃时间初始 null
+      notifications: [],
+      notificationWatermark: null,
+      lastActiveAt: null,
 
       // 关系图视口存档：默认空（首次进入画布走 fitView 自适应）
       mindmapViewports: {},
@@ -380,6 +416,10 @@ export const useWorkspace = create<WorkspaceState>()(
               // 兜底：备份里的 dayStartOffset 缺失 / 非法 → "04:00"
               dayStartOffset: normalizeDayStartOffset(
                 (data.settings as Record<string, unknown> | undefined)?.dayStartOffset
+              ),
+              // 兜底：旧备份 string[] 或坏值 → NotificationRepoConfig[]
+              notificationRepos: normalizeNotificationRepos(
+                (data.settings as Record<string, unknown> | undefined)?.notificationRepos
               ),
             } as Settings,
             conversations: convs ?? cur.conversations,
@@ -566,6 +606,7 @@ export const useWorkspace = create<WorkspaceState>()(
       goAIChat: () => set({ view: "ai-chat", activeCategoryId: null }),
       goProfile: () => set({ view: "profile", activeCategoryId: null }),
       goSettings: () => set({ view: "settings", activeCategoryId: null }),
+      goNotifications: () => set({ view: "notifications", activeCategoryId: null }),
 
       // ---- AI 助手：多会话（各自持有上下文） ----
       createConversation: () => {
@@ -888,6 +929,43 @@ export const useWorkspace = create<WorkspaceState>()(
         return amount
       },
 
+      // 批量追加贡献（TODO 18）：按 id 与现有账本去重后追加；amount 按
+      // CONTRIBUTION_AMOUNT[type] 统一取值（权重唯一来源在 lib/types.ts）。
+      appendContributions: (entries) =>
+        set((s) => {
+          if (entries.length === 0) return {}
+          const existing = new Set(s.contributions.map((c) => c.id))
+          const additions = entries
+            .filter((e) => !existing.has(e.id) && Number.isFinite(e.at))
+            .map((e) => ({
+              id: e.id,
+              at: e.at,
+              amount: CONTRIBUTION_AMOUNT[e.type],
+              type: e.type,
+              content: e.content,
+            }))
+          if (additions.length === 0) return {}
+          return { contributions: [...s.contributions, ...additions] }
+        }),
+
+      // 通知入库（TODO 20 / 18）：按 id 去重合并（已有条目保留原样），按 createdAt
+      // 降序排列，上限 200 条（超出截断最旧）。
+      addNotifications: (items) =>
+        set((s) => {
+          if (items.length === 0) return {}
+          const map = new Map<string, NotificationItem>()
+          for (const n of s.notifications) map.set(n.id, n)
+          for (const n of items) map.set(n.id, n)
+          const merged = [...map.values()]
+            .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+            .slice(0, 200)
+          return { notifications: merged }
+        }),
+
+      setNotificationWatermark: (ms) => set({ notificationWatermark: ms }),
+
+      setLastActiveAt: (ms) => set({ lastActiveAt: ms }),
+
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({
           categories: s.categories.map((c) =>
@@ -1176,6 +1254,8 @@ export const useWorkspace = create<WorkspaceState>()(
             aiActivePersonaId: persona.aiActivePersonaId,
             // 兜底：缺失 / 非法 → "04:00"
             dayStartOffset: normalizeDayStartOffset(rawSettings.dayStartOffset),
+            // 兜底：旧存档 string[] 或坏值 → NotificationRepoConfig[]（每仓库套默认扫描类型）
+            notificationRepos: normalizeNotificationRepos(rawSettings.notificationRepos),
           },
         }
       },

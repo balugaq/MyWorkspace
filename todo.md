@@ -183,7 +183,7 @@ mindmap节点的右键contextmenu：
 TODO 17. （状态：待处理）
 给ai对话框两边内容添加文字朗读功能？（不过现在还没找到合适的api，先搁置）
 
-TODO 18. （状态：待处理）
+TODO 18. （状态：已完成）
 新增消息通知
 主要涉及github通知，每5分钟扫一遍指定仓库的新commit/issue/pr/release（从 这个工作台应用关机时间或当前时间（前者优先，没有数据就后者） 开始算的就算新，然后注意更新最新时间）（可以指定扫的范围：选择commit, issue, pr, release的其中几个）
 然后扫描commit的话，如果committer和用户设置的本地名称一致，则认为这是一个contribution，1个commit计1个contribution，加入到profile的热力图中。
@@ -192,7 +192,7 @@ issue/pr同理，committer一致的话，就计2个contribution/每issue或pr
 TODO 19. （状态：已完成）
 接下来，你需要给sidebar里的内置模板增加一个折叠，默认不展开
 
-TODO 20. （状态：待处理）
+TODO 20. （状态：已完成）
 工具下面新增一个通知，用于自动收集各方通知（如 TODO 18 的 github 通知）
 目前只需要支持内置的sender，如 TODO 18 的 github 通知，内容显示上参考AI对话页面即可，但去掉头像且用户不可回复，如有需要可以抽象接口等操作
 未来sender会更多样，需要做好可拓展性。
@@ -209,3 +209,14 @@ TODO 21. （状态：待处理）
 然后这个预览卡片里显示了未知和NaN 未知是什么， NaN的原因是？
 
 然后我想 b站的预览和github的预览是，文字在上，图片在文字下方，顺序要改改。
+
+TODO 22. （状态：待处理）
+通知方式（通道 / notifier）可配置：目前 sender 产生消息后只有「内置右下角弹窗」一种投递方式。
+未来会新增 QQ 互联等通道，通知方式将包括内置通知和 QQ 通知两种或更多。
+需要把投递层抽象成统一的 notifier 接口（sender → 事件 → 按 用户配置 分发给启用的 notifier），
+弹窗（内置通知）只是其中一种 notifier 实现；通知方式的选择 UI 放设置页「通知」分区。
+
+TODO 23. （状态：待处理）
+通知中心多 sender 支持：当前数据源只有内置的 GitHub sender，未来可能接入更多消息源
+（如新闻页：定时获取新闻并推送为通知）。sender 抽象已预留 senderId（lib/notifications/senders.ts 有展示注册表），
+需要完善：多 sender 的注册与启停管理、通知中心按 sender 筛选/分组展示、每个 sender 各自的配置分区等。

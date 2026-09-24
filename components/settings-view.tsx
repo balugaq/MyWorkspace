@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, ArrowUpRight } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, ArrowUpRight, Trash2 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import {
   exportBackupZip,
@@ -17,10 +17,12 @@ import {
 } from "@/lib/backup"
 import {
   SHORTCUT_META,
+  DEFAULT_NOTIFICATION_SCAN_TYPES,
   type ShortcutBinding,
   type DefaultView,
   type ThemePreference,
   type UIFontFamily,
+  type NotificationScanTypes,
 } from "@/lib/types"
 import {
   Dialog,
@@ -93,6 +95,17 @@ function compressAvatar(file: File): Promise<string> {
   })
 }
 
+// 仓库格式：owner/name（允许字母数字 . - _）
+const REPO_RE = /^[\w.-]+\/[\w.-]+$/
+
+// 扫描类型开关元信息（键对应 NotificationScanTypes；label 用于仓库行内的紧凑勾选）
+const SCAN_TYPE_META: { key: keyof NotificationScanTypes; label: string }[] = [
+  { key: "commits", label: "提交" },
+  { key: "issues", label: "Issue" },
+  { key: "prs", label: "PR" },
+  { key: "releases", label: "发布" },
+]
+
 // 分区容器：小标题 + 分隔线 + 内容块
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -119,6 +132,30 @@ export function SettingsView() {
   const [modelsOpen, setModelsOpen] = useState(false)
   const [personasOpen, setPersonasOpen] = useState(false)
   const [skillsOpen, setSkillsOpen] = useState(false)
+  // 通知：仓库输入框暂存文本 + 格式错误提示（落库走 updateSettings）
+  const [repoInput, setRepoInput] = useState("")
+  const [repoError, setRepoError] = useState("")
+
+  function addNotificationRepo() {
+    const v = repoInput.trim()
+    if (!v) return
+    if (!REPO_RE.test(v)) {
+      setRepoError("格式应为 owner/name（仅限字母数字与 . - _）")
+      return
+    }
+    if (settings.notificationRepos.some((r) => r.repo === v)) {
+      setRepoError("该仓库已在列表中")
+      return
+    }
+    setRepoError("")
+    setRepoInput("")
+    updateSettings({
+      notificationRepos: [
+        ...settings.notificationRepos,
+        { repo: v, scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES } },
+      ],
+    })
+  }
 
   const activeModelEntry =
     settings.aiModels.find((m) => m.id === settings.aiActiveModelId) ?? settings.aiModels[0]
@@ -649,6 +686,101 @@ export function SettingsView() {
               />
               <p className="text-xs text-muted-foreground">
                 GitHub 预览卡的 API 限额令牌（仅本机明文存储于 localStorage，请勿在共享环境使用）。留空则匿名访问（60 次/小时/IP）。
+              </p>
+            </section>
+          </Section>
+
+          {/* ===== 6. 通知（TODO 20 / 18：通知中心 + GitHub sender 配置） ===== */}
+          <Section title="通知">
+            <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">Git 本地名称</Label>
+              <Input
+                value={settings.gitUserName}
+                placeholder="与 commit 的 committer/author 名比对"
+                onChange={(e) => updateSettings({ gitUserName: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                扫描到的 commit / Issue / PR 若作者与该名称一致，会计入个人主页贡献热力图（commit 计 1，Issue / PR 各计 2）。与个人主页的昵称互相独立。
+              </p>
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">扫描仓库</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={repoInput}
+                  placeholder="owner/name，如 torvalds/linux"
+                  spellCheck={false}
+                  className="font-mono"
+                  onChange={(e) => {
+                    setRepoInput(e.target.value)
+                    if (repoError) setRepoError("")
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) addNotificationRepo()
+                  }}
+                />
+                <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={addNotificationRepo}>
+                  添加
+                </Button>
+              </div>
+              {repoError && <p className="text-xs text-destructive">{repoError}</p>}
+              {settings.notificationRepos.length > 0 && (
+                <div className="flex flex-col gap-1 rounded-lg border bg-muted/40 p-2">
+                  {settings.notificationRepos.map((r) => (
+                    <div
+                      key={r.repo}
+                      className="flex items-center gap-2 rounded px-2 py-1 transition-colors hover:bg-muted/70"
+                    >
+                      <span className="min-w-0 flex-1 truncate font-mono text-xs" title={r.repo}>
+                        {r.repo}
+                      </span>
+                      {/* 每仓库独立的扫描类型开关（新增默认：提交关，其余开） */}
+                      <div className="flex shrink-0 items-center gap-2">
+                        {SCAN_TYPE_META.map((t) => (
+                          <label
+                            key={t.key}
+                            className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            <input
+                              type="checkbox"
+                              className="accent-primary"
+                              checked={r.scanTypes[t.key]}
+                              onChange={(e) =>
+                                updateSettings({
+                                  notificationRepos: settings.notificationRepos.map((cfg) =>
+                                    cfg.repo === r.repo
+                                      ? {
+                                          ...cfg,
+                                          scanTypes: { ...cfg.scanTypes, [t.key]: e.target.checked },
+                                        }
+                                      : cfg
+                                  ),
+                                })
+                              }
+                            />
+                            {t.label}
+                          </label>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={`移除 ${r.repo}`}
+                        className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() =>
+                          updateSettings({
+                            notificationRepos: settings.notificationRepos.filter((x) => x.repo !== r.repo),
+                          })
+                        }
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；改动在下一轮扫描（5 分钟内）生效。
               </p>
             </section>
           </Section>

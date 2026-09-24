@@ -124,6 +124,9 @@ export type ContributionType =
   | "mindmap-node-done"
   | "check-in" // 签到（TODO 9 已实现）
   | "focus" // 专注钟（TODO 10 已实现）
+  | "github-commit" // GitHub commit（TODO 18：committer/author 与「Git 本地名称」一致计 1）
+  | "github-issue" // GitHub issue（TODO 18：作者与「Git 本地名称」一致计 2）
+  | "github-pr" // GitHub PR（TODO 18：作者与「Git 本地名称」一致计 2）
 
 /**
  * 一条贡献记录（**真账本，非派生**）。
@@ -148,6 +151,32 @@ export const CONTRIBUTION_AMOUNT: Record<ContributionType, number> = {
   "mindmap-node-done": 1,
   "check-in": 2,
   "focus": 0,
+  "github-commit": 1,
+  "github-issue": 2,
+  "github-pr": 2,
+}
+
+// ---- 站内通知（TODO 20 / TODO 18：通知中心 + GitHub sender）----
+
+export type NotificationKind = "commit" | "issue" | "pr" | "release"
+
+export interface NotificationItem {
+  /** 幂等去重键：gh:commit:{owner}/{repo}:{sha} | gh:issue:{owner}/{repo}:{number} | gh:pr:{owner}/{repo}:{number} | gh:release:{owner}/{repo}:{id} */
+  id: string
+  /** 内置 sender 标识，固定 "github"；未来扩展新 sender 用 */
+  senderId: string
+  kind: NotificationKind
+  /** 仓库，格式 owner/name */
+  repo: string
+  title: string
+  /** 正文/描述摘要 */
+  brief: string
+  /** 跳转用的 html_url */
+  url: string
+  /** committer/author/login */
+  actor: string
+  /** 发生时间（ISO 字符串） */
+  createdAt: string
 }
 
 // 全局搜索结果
@@ -249,7 +278,13 @@ export interface Conversation {
 // 避免像此前「密码保险库」那样漏改状态栏导致显示成「工作台」。
 // （workspace 视图的显示名是动态的——当前分类名或「工作台」，故不在此列出。）
 export const VIEW_LABEL: Record<
-  "calendar" | "contacts" | "vault" | "ai-chat" | "profile" | "settings",
+  | "calendar"
+  | "contacts"
+  | "vault"
+  | "ai-chat"
+  | "profile"
+  | "settings"
+  | "notifications",
   string
 > = {
   calendar: "日历",
@@ -258,6 +293,7 @@ export const VIEW_LABEL: Record<
   "ai-chat": "AI 助手",
   profile: "个人主页",
   settings: "设置",
+  notifications: "通知",
 }
 
 // 可持久化的系统设置
@@ -307,6 +343,66 @@ export interface Settings {
   /** 每天几点「翻篇」（HH:mm，用户本地时区）。默认 "04:00"：04:00 之前仍算前一天。
    *  影响贡献热力图按日分桶（见 lib/contributions.ts）；后续签到类功能亦复用同一 offset。 */
   dayStartOffset: string
+  // 通知（TODO 20 / TODO 18）：Git 本地名称，与 commit 的 committer/author 名比对，
+  // 命中则按 CONTRIBUTION_AMOUNT 计入贡献热力图。与 profile 的 userName 互相独立。
+  gitUserName: string
+  // 通知 sender 要扫描的仓库列表，每个仓库带自己的扫描类型开关（TODO 18 反馈：按仓库单独配置）。
+  notificationRepos: NotificationRepoConfig[]
+}
+
+// ---- 通知扫描配置（TODO 18 / 20）----
+
+/** 单仓库的扫描类型开关 */
+export interface NotificationScanTypes {
+  commits: boolean
+  issues: boolean
+  prs: boolean
+  releases: boolean
+}
+
+/** 通知扫描的仓库配置：owner/name + 该仓库独立的扫描类型 */
+export interface NotificationRepoConfig {
+  repo: string // "owner/name"
+  scanTypes: NotificationScanTypes
+}
+
+/** 新增仓库的默认扫描类型：commit 默认关，其余默认开（主人指定） */
+export const DEFAULT_NOTIFICATION_SCAN_TYPES: NotificationScanTypes = {
+  commits: false,
+  issues: true,
+  prs: true,
+  releases: true,
+}
+
+/**
+ * 规范化仓库配置列表：兼容旧存档的 string[]（每个仓库套默认扫描类型），
+ * 对象条目逐键兜底（commits 缺省视为关，其余缺省视为开，与默认值语义一致）。
+ * persist merge 与备份导入（importData）两处组装 settings 时都要过一遍。
+ */
+export function normalizeNotificationRepos(value: unknown): NotificationRepoConfig[] {
+  if (!Array.isArray(value)) return []
+  const out: NotificationRepoConfig[] = []
+  for (const raw of value) {
+    if (typeof raw === "string") {
+      out.push({ repo: raw, scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES } })
+      continue
+    }
+    if (raw && typeof raw === "object") {
+      const r = raw as Partial<NotificationRepoConfig>
+      if (typeof r.repo !== "string" || !r.repo) continue
+      const s = (r.scanTypes ?? {}) as Partial<NotificationScanTypes>
+      out.push({
+        repo: r.repo,
+        scanTypes: {
+          commits: s.commits === true,
+          issues: s.issues !== false,
+          prs: s.prs !== false,
+          releases: s.releases !== false,
+        },
+      })
+    }
+  }
+  return out
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -331,5 +427,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiActivePersonaId: null,
   // 与 lib/contributions.ts 的 DEFAULT_DAY_START_OFFSET 保持一致（此处写字面量避免循环依赖）
   dayStartOffset: "04:00",
+  gitUserName: "",
+  notificationRepos: [],
 }
 

@@ -399,6 +399,40 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       }
     },
   },
+
+  // 11. 查询最近的站内通知（TODO 20：通知中心，当前数据源为 GitHub sender）
+  {
+    name: "wb_get_recent_notifications",
+    description:
+      "查询通知中心最近的站内通知（GitHub 仓库的 commit / issue / PR / release 动态）。hours=24 查最近 24 小时，hours=168 查最近 7 天。返回纯 JSON 数组，按时间倒序，每条含 sender/kind/repo/title/brief/url/actor/createdAt。",
+    parameters: z.object({
+      hours: z
+        .union([z.literal(24), z.literal(168)])
+        .describe("24=最近24小时，168=最近7天"),
+    }),
+    execute: async (args) => {
+      const hours = args.hours === 168 ? 168 : 24
+      const since = Date.now() - hours * 60 * 60 * 1000
+      const items = useWorkspace
+        .getState()
+        .notifications.filter((n) => {
+          const at = Date.parse(n.createdAt)
+          return Number.isFinite(at) && at > since
+        })
+        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+        .map((n) => ({
+          sender: n.senderId,
+          kind: n.kind,
+          repo: n.repo,
+          title: n.title,
+          brief: n.brief,
+          url: n.url,
+          actor: n.actor,
+          createdAt: n.createdAt,
+        }))
+      return { count: items.length, hours, items }
+    },
+  },
 ]
 
 /** 给 UI 展示用的内置技能清单（名称 + 描述）。 */
