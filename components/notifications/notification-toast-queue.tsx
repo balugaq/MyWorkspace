@@ -13,6 +13,9 @@ import { subscribeNotificationToasts } from "@/lib/notifications/toast-bus"
 import { senderDisplayName } from "@/lib/notifications/senders"
 
 const DWELL_MS = 5000
+/** 滑出动画时长（与下方 transition-transform duration-300 对应）+ 兜底余量 */
+const SLIDE_MS = 300
+const EJECT_MS = 50
 
 /** 每行超 20 字截断为前 19 字 + "…"。 */
 function clip(text: string, max = 20): string {
@@ -43,30 +46,50 @@ export function NotificationToastQueue() {
     }
   }, [])
 
-  // 队列泵：空闲且队列非空 → 取下一条，下一帧滑入，5 秒后滑出
+  // 泵：空闲且队列非空 → 取下一条。只负责取，不碰定时器/动画
+  // （此前取件与展示生命周期挤在同一个 effect 里且依赖 queue，取件引发的 queue
+  //   变化会先触发 cleanup，把刚排的 5 秒定时器与滑入 rAF 一并取消 → 永不自动滑出）。
   useEffect(() => {
     if (current || queue.length === 0) return
     const [next, ...rest] = queue
     setQueue(rest)
     setCurrent(next)
+  }, [current, queue])
+
+  // 展示生命周期：只依赖 current——挂载后双 rAF 滑入，停留 5 秒滑出；
+  // 另设兜底 eject 定时器（transitionend 在后台标签页可能不触发），保证队列持续推进。
+  useEffect(() => {
+    if (!current) return
     setVisible(false)
-    // 双 rAF 等待挂载后触发 transition（translateX 滑入）
+    let alive = true
     let raf2 = 0
     const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => setVisible(true))
+      raf2 = requestAnimationFrame(() => {
+        if (alive) setVisible(true)
+      })
     })
-    dismissTimer.current = window.setTimeout(() => setVisible(false), DWELL_MS)
+    const hideTimer = window.setTimeout(() => {
+      if (alive) setVisible(false)
+    }, DWELL_MS)
+    const ejectTimer = window.setTimeout(() => {
+      if (alive) setCurrent(null)
+    }, DWELL_MS + SLIDE_MS + EJECT_MS)
+    dismissTimer.current = hideTimer
     return () => {
+      alive = false
       cancelAnimationFrame(raf1)
       cancelAnimationFrame(raf2)
-      clearDismissTimer()
+      window.clearTimeout(hideTimer)
+      window.clearTimeout(ejectTimer)
+      dismissTimer.current = null
     }
-  }, [current, queue, clearDismissTimer])
+  }, [current])
 
-  // 滑出动画结束 → 卸载当前条，泵自动取下一条
+  // 滑出动画结束（或手动提前滑出）→ 卸载当前条，泵自动取下一条
   const onTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget || e.propertyName !== "transform") return
     if (!visible) {
+      clearDismissTimer()
       setCurrent(null)
     }
   }

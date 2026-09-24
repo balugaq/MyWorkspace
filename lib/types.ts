@@ -364,6 +364,11 @@ export interface NotificationScanTypes {
 export interface NotificationRepoConfig {
   repo: string // "owner/name"
   scanTypes: NotificationScanTypes
+  /**
+   * 仅监听 commit：该仓库的 commit 仍会被扫描并按 committer 匹配计贡献（热力图），
+   * 但**不产生通知、不弹弹窗**。issue/PR/release 不受影响，照常通知。
+   */
+  commitMonitorOnly: boolean
 }
 
 /** 新增仓库的默认扫描类型：commit 默认关，其余默认开（主人指定） */
@@ -384,7 +389,7 @@ export function normalizeNotificationRepos(value: unknown): NotificationRepoConf
   const out: NotificationRepoConfig[] = []
   for (const raw of value) {
     if (typeof raw === "string") {
-      out.push({ repo: raw, scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES } })
+      out.push({ repo: raw, scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES }, commitMonitorOnly: false })
       continue
     }
     if (raw && typeof raw === "object") {
@@ -399,6 +404,7 @@ export function normalizeNotificationRepos(value: unknown): NotificationRepoConf
           prs: s.prs !== false,
           releases: s.releases !== false,
         },
+        commitMonitorOnly: r.commitMonitorOnly === true,
       })
     }
   }

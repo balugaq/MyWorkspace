@@ -66,9 +66,17 @@ export async function scanNow(): Promise<void> {
 
     const state = useWorkspace.getState()
     const existingIds = new Set(state.notifications.map((n) => n.id))
-    const fresh = items.filter((n) => !existingIds.has(n.id))
 
-    state.addNotifications(items)
+    // 「仅监听」的仓库：commit 仍被扫描（计贡献用），但不入库通知、不弹弹窗
+    const monitorOnlyRepos = new Set(
+      repos.filter((r) => r.commitMonitorOnly).map((r) => r.repo.trim())
+    )
+    const notifyItems = items.filter(
+      (n) => !(n.kind === "commit" && monitorOnlyRepos.has(n.repo))
+    )
+    const fresh = notifyItems.filter((n) => !existingIds.has(n.id))
+
+    state.addNotifications(notifyItems)
     // 限流轮不推进水位：未扫到的仓库/时间窗下轮重扫（store 内按 id 去重，重扫无副作用）
     if (!rateLimited) {
       state.setNotificationWatermark(Date.now())
@@ -77,11 +85,12 @@ export async function scanNow(): Promise<void> {
     // 新条目推给右下角弹窗（仅本轮新入库的，去重条目不重复弹）
     if (fresh.length > 0) emitNotificationToasts(fresh)
 
-    // 贡献入账：commit/issue/pr 且 actor 与「Git 本地名称」一致（名称非空才比对）；
-    // 贡献 id 取通知 id 去 "gh:" 前缀加 "github-" 前缀（确定性 id 天然防重）。
+    // 贡献入账：commit/issue/pr 且 actor 与「Git 本地名称」一致（名称非空才比对）。
+    // 注意：从**本轮扫到的全部条目**计算（而非仅 fresh）——「仅监听」的 commit 不入库通知，
+    // 但贡献照记；贡献 id 是确定性的（github-{...}），appendContributions 内按 id 去重防重计。
     const gitName = state.settings.gitUserName.trim()
     if (gitName) {
-      const entries = fresh
+      const entries = items
         .filter((n): n is NotificationItem & { kind: "commit" | "issue" | "pr" } =>
           n.kind === "commit" || n.kind === "issue" || n.kind === "pr"
         )

@@ -6,7 +6,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, ArrowUpRight, Trash2 } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, ArrowUpRight, Trash2, ChevronRight, Check } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/store"
 import {
   exportBackupZip,
@@ -35,6 +36,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { normalizeDayStartOffset } from "@/lib/contributions"
 import { LicenseDialog } from "@/components/license-dialog"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
@@ -152,7 +159,7 @@ export function SettingsView() {
     updateSettings({
       notificationRepos: [
         ...settings.notificationRepos,
-        { repo: v, scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES } },
+        { repo: v, scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES }, commitMonitorOnly: false },
       ],
     })
   }
@@ -737,6 +744,46 @@ export function SettingsView() {
                       </span>
                       {/* 每仓库独立的扫描类型开关（新增默认：提交关，其余开） */}
                       <div className="flex shrink-0 items-center gap-2">
+                        {/* 「仅监听 commit」下拉：commit 照扫并计贡献，但不产生通知/弹窗 */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <button
+                                type="button"
+                                aria-label={`${r.repo} 的 commit 监听方式`}
+                                title={
+                                  r.commitMonitorOnly
+                                    ? "仅监听：commit 计贡献但不弹通知（点击更改）"
+                                    : "commit 监听方式（点击设置仅监听）"
+                                }
+                                className={cn(
+                                  "flex size-5 items-center justify-center rounded transition-colors hover:bg-muted",
+                                  r.commitMonitorOnly
+                                    ? "text-primary"
+                                    : "text-muted-foreground hover:text-foreground",
+                                )}
+                              />
+                            }
+                          >
+                            <ChevronRight className="size-3.5" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="min-w-32">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                updateSettings({
+                                  notificationRepos: settings.notificationRepos.map((cfg) =>
+                                    cfg.repo === r.repo
+                                      ? { ...cfg, commitMonitorOnly: !cfg.commitMonitorOnly }
+                                      : cfg
+                                  ),
+                                })
+                              }
+                            >
+                              {r.commitMonitorOnly ? <Check className="text-primary" /> : <span className="size-4" aria-hidden />}
+                              仅监听
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         {SCAN_TYPE_META.map((t) => (
                           <label
                             key={t.key}
@@ -780,7 +827,7 @@ export function SettingsView() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；改动在下一轮扫描（5 分钟内）生效。
+                通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。改动在下一轮扫描（5 分钟内）生效。
               </p>
             </section>
           </Section>

@@ -22,29 +22,6 @@ query bar支持上下滑动。
 title默认颜色都是灰色。
 query bar里的title均可点击，点击后自动0.5s动画移动到对应的对话开头，鼠标hover在title上可将颜色transition 0.1s改为白色显示。（除当前title外）离开hover再transition 0.1s改回灰色。
 
-TODO 5. （状态：已完成）
-终止了 AI Chat 回复后出现了
-## Error Type
-Runtime AbortError
-
-## Error Message
-signal is aborted without reason
-
-
-    at stopConversation (lib/ai/request-queue.ts:163:20)
-    at useAIChat.useCallback[stop] (lib/ai/use-ai-chat.ts:47:21)
-
-## Code Frame
-  161 |   const job = activeJobs.get(conversationId)
-  162 |   if (job) {
-> 163 |     job.controller.abort()
-      |                    ^
-  164 |   }
-  165 |   const idx = pendingQueue.findIndex((j) => j.conversationId === conversationId)
-  166 |   if (idx >= 0) {
-
-Next.js version: 16.2.6 (Turbopack)
-
 TODO 6. （状态：已完成）
 AI Chat 里，没有对用户输入内容框/AI输出内容框做单行显示长度限制（最大对话页面的3分之2长度，超出应强制换行）
 
