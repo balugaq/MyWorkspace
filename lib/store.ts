@@ -123,6 +123,8 @@ interface WorkspaceState {
   addCategoryOpen: boolean
   configEditorOpen: boolean
   imagesOpen: boolean
+  // 侧边栏「内置模板」折叠状态（持久化，默认收起）
+  builtinTemplatesExpanded: boolean
 
   // 日历 / DayDetail 分隔条宽度（px），持久化以便刷新后保留用户拖动结果
   calendarDetailWidth: number
@@ -185,6 +187,8 @@ interface WorkspaceState {
   setAddCategoryOpen: (v: boolean) => void
   setConfigEditorOpen: (v: boolean) => void
   setImagesOpen: (v: boolean) => void
+  // 侧边栏「内置模板」折叠状态（持久化）
+  setBuiltinTemplatesExpanded: (v: boolean) => void
 
   // 日历 / DayDetail 分隔条宽度（持久化）
   setCalendarDetailWidth: (w: number) => void
@@ -264,6 +268,8 @@ export const useWorkspace = create<WorkspaceState>()(
       addCategoryOpen: false,
       configEditorOpen: false,
       imagesOpen: false,
+      // 侧边栏「内置模板」默认收起
+      builtinTemplatesExpanded: false,
 
       // 日历 / DayDetail 分隔条默认宽度（px），与原 w-96 一致
       calendarDetailWidth: 384,
@@ -302,6 +308,7 @@ export const useWorkspace = create<WorkspaceState>()(
       setAddCategoryOpen: (v) => set({ addCategoryOpen: v }),
       setConfigEditorOpen: (v) => set({ configEditorOpen: v }),
       setImagesOpen: (v) => set({ imagesOpen: v }),
+      setBuiltinTemplatesExpanded: (v) => set({ builtinTemplatesExpanded: v }),
 
       setCalendarDetailWidth: (w) => set({ calendarDetailWidth: w }),
 

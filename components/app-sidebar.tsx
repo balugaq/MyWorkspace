@@ -71,7 +71,6 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
 
       <ScrollArea className="mt-3 min-h-0 flex-1 overflow-hidden px-2">
         <nav className="flex flex-col gap-1 pb-6">
-          <SectionLabel>内置模板</SectionLabel>
           <TemplateQuickAdd />
 
           <SectionLabel className="mt-3">我的分类</SectionLabel>
@@ -128,8 +127,17 @@ function SectionLabel({ children, className }: { children: React.ReactNode; clas
 }
 
 // 内置模板快捷创建：点击任意模板即以合理默认值新建一个分类并立即激活。
+// 整块包进可折叠容器，标题行（含 ChevronRight）作为触发器，状态持久化到 store。
 function TemplateQuickAdd() {
   const addCategory = useWorkspace((s) => s.addCategory)
+  // 折叠态用本地受控 state：Base UI 要求 Collapsible 全生命周期受控/非受控二选一，
+  // 响应式 store 值喂给 open/defaultOpen 都会触发 controlled 切换警告。
+  // 首帧播种一次持久化值（zustand persist 对 localStorage 是同步水合，getState() 即已就绪），
+  // 开合时经 onOpenChange 回写 store 持久化，刷新后仍记住上次选择。
+  const setPersistedExpanded = useWorkspace((s) => s.setBuiltinTemplatesExpanded)
+  const [open, setOpen] = useState(
+    () => useWorkspace.getState().builtinTemplatesExpanded === true
+  )
 
   const labelOf = (t: TemplateType) => TEMPLATES.find((x) => x.type === t)?.label ?? t
   const defaultName = (t: TemplateType) => `新${labelOf(t)}`
@@ -150,23 +158,34 @@ function TemplateQuickAdd() {
   }
 
   return (
-    <div className="flex flex-col gap-0.5 px-1">
-      {TEMPLATES.filter((t) => t.type !== "custom").map((t) => {
-        const Icon = getIcon(t.icon)
-        return (
-          <button
-            key={t.type}
-            type="button"
-            onClick={() => create(t.type)}
-            title={t.description}
-            className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-          >
-            <Icon className="size-3.5 shrink-0 text-muted-foreground/70" />
-            <span className="truncate">{t.label}</span>
-          </button>
-        )
-      })}
-    </div>
+    <Collapsible open={open} onOpenChange={(v) => { setOpen(v); setPersistedExpanded(v) }}>
+      <CollapsibleTrigger className="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
+        <ChevronRight
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-90",
+          )}
+        />
+        <span>内置模板</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="flex flex-col gap-0.5 px-1 pt-0.5">
+        {TEMPLATES.filter((t) => t.type !== "custom").map((t) => {
+          const Icon = getIcon(t.icon)
+          return (
+            <button
+              key={t.type}
+              type="button"
+              onClick={() => create(t.type)}
+              title={t.description}
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            >
+              <Icon className="size-3.5 shrink-0 text-muted-foreground/70" />
+              <span className="truncate">{t.label}</span>
+            </button>
+          )
+        })}
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 

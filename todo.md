@@ -189,10 +189,46 @@ TODO 18. （状态：待处理）
 然后扫描commit的话，如果committer和用户设置的本地名称一致，则认为这是一个contribution，1个commit计1个contribution，加入到profile的热力图中。
 issue/pr同理，committer一致的话，就计2个contribution/每issue或pr
 
-TODO 19. （状态：待处理）
+TODO 19. （状态：已完成）
 接下来，你需要给sidebar里的内置模板增加一个折叠，默认不展开
 
 TODO 20. （状态：待处理）
 工具下面新增一个通知，用于自动收集各方通知（如 TODO 18 的 github 通知）
 目前只需要支持内置的sender，如 TODO 18 的 github 通知，内容显示上参考AI对话页面即可，但去掉头像且用户不可回复，如有需要可以抽象接口等操作
+未来sender会更多样，需要做好可拓展性。
 
+TODO 21. （状态：已完成）
+## Error Type
+Console Error
+
+## Error Message
+Base UI: A component is changing the uncontrolled open state of Collapsible to be controlled.
+Elements should not switch from uncontrolled to controlled (or vice versa).
+Decide between using a controlled or uncontrolled Collapsible element for the lifetime of the component.
+The nature of the state is determined during the first render. It's considered controlled if the value is not `undefined`.
+More info: https://fb.me/react-controlled-components
+
+
+    at Collapsible (components/ui/collapsible.tsx:6:10)
+    at TemplateQuickAdd (components/app-sidebar.tsx:155:5)
+    at AppSidebar (components/app-sidebar.tsx:74:11)
+    at Page (app/page.tsx:128:15)
+
+## Code Frame
+  4 |
+  5 | function Collapsible({ ...props }: CollapsiblePrimitive.Root.Props) {
+> 6 |   return <CollapsiblePrimitive.Root data-slot="collapsible" {...props} />
+    |          ^
+  7 | }
+  8 |
+  9 | function CollapsibleTrigger({ ...props }: CollapsiblePrimitive.Trigger.Props) {
+
+Next.js version: 16.2.6 (Turbopack)
+
+TODO 22. （状态：待处理）
+目前来看，github预览略微能用，但是这个 opengraph
+怎么抓了个仓库的，我想抓 issue / pr / release 等的本身
+然后这个 未知是什么， NaN的原因是？
+
+然后我想 b站的预览和github的预览是，文字在上，图片在文字下方，顺序要改改。
+另外这个github预览图片在我很久没有再看过之后失效了不显示图片了，是不是需要做一个opengraph图片alive检测或者别的给他恢复一下？
