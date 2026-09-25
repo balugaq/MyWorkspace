@@ -358,6 +358,9 @@ export interface Settings {
   aiEnabledSkills: string[] | null
   aiUserAvatar: string // 用户头像（data URL，压缩后存储）；留空则用默认用户图标
   aiAssistantAvatar: string // AI 头像（data URL，压缩后存储）；留空则用默认机器人图标
+  // 联网搜索 API Key（百度千帆 AI 搜索，wb_web_search 技能）；留空则该技能不可用。
+  // Key 仅存本机 localStorage，经本地代理转发到千帆。
+  baiduAiSearchApiKey: string
   // 用户自定义「所在地区」标签（Profile 头像下方展示）；留空则默认显示「中国」
   location: string
   // 用户昵称（Profile 头像下方展示）；留空则默认显示「未命名用户」
@@ -502,6 +505,7 @@ export const DEFAULT_SETTINGS: Settings = {
   aiEnabledSkills: null,
   aiUserAvatar: "",
   aiAssistantAvatar: "",
+  baiduAiSearchApiKey: "",
   location: "",
   userName: "",
   aiForceSync: false,

@@ -13,9 +13,11 @@ import { spawn } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { resolve } from "node:path"
 import { startWeatherProxy } from "./weather-proxy-lib.mjs"
+import { startAiSearchProxy } from "./ai-search-proxy-lib.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const WEATHER_PORT = Number(process.env.WEATHER_PROXY_PORT) || 3005
+const AI_SEARCH_PORT = Number(process.env.AI_SEARCH_PROXY_PORT) || 3007
 const NEXT_PORT = Number(process.env.PORT) || 3000
 
 // 开发期 next dev 无法托管 /api/weather（静态导出禁用 Route Handler），
@@ -30,6 +32,14 @@ weatherServer.on("error", (e) => {
   console.error(`[天气代理] 启动失败:`, e.message)
 })
 
+// 1.5) AI 联网搜索代理（百度千帆 AI 搜索）：源站无 CORS 头，独立 :3007 转发
+process.env.NEXT_PUBLIC_AI_SEARCH_PROXY =
+  process.env.NEXT_PUBLIC_AI_SEARCH_PROXY || `http://127.0.0.1:${AI_SEARCH_PORT}`
+const aiSearchServer = startAiSearchProxy(AI_SEARCH_PORT)
+aiSearchServer.on("error", (e) => {
+  console.error(`[AI 搜索代理] 启动失败:`, e.message)
+})
+
 // 2) next dev（直接调用 next 的 bin，避免依赖 npx 解析）
 const nextBin = resolve(ROOT, "node_modules/next/dist/bin/next")
 const next = spawn(process.execPath, [nextBin, "dev", "-p", String(NEXT_PORT)], {
@@ -40,6 +50,9 @@ const next = spawn(process.execPath, [nextBin, "dev", "-p", String(NEXT_PORT)], 
 function shutdown(code) {
   try {
     weatherServer.close()
+  } catch {}
+  try {
+    aiSearchServer.close()
   } catch {}
   try {
     next.kill()

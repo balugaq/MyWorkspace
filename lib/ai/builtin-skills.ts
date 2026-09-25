@@ -433,6 +433,57 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       return { count: items.length, hours, items }
     },
   },
+
+  // 联网搜索（TODO：百度千帆 AI 搜索）：需要实时信息时由模型主动调用。
+  // 经本地代理 /api/ai-search 转发（scripts/ai-search-proxy-lib.mjs）——
+  // qianfan.baidubce.com 无 CORS 头，浏览器直连会被拦；Key 存在 settings 里随请求带给本机代理。
+  {
+    name: "wb_web_search",
+    description:
+      "联网搜索：查询互联网上的实时信息（新闻、近期事件、行情价格、政策资料等）。返回 AI 整理的答案与带链接的参考来源列表。凡涉及「今天/最新/现在」等时效性问题且本地数据无法回答时调用。",
+    parameters: z.object({
+      query: z.string().describe("搜索问题或关键词（中文/英文均可）"),
+      recency: z
+        .enum(["week", "month", "semiyear", "year"])
+        .optional()
+        .describe("时间范围筛选：week=一周内，month=一月内，semiyear=半年内，year=一年内"),
+    }),
+    execute: async (args) => {
+      const query = String(args.query ?? "").trim()
+      if (!query) throw new Error("query 不能为空")
+      const key = useWorkspace
+        .getState()
+        .settings.baiduAiSearchApiKey?.trim()
+      if (!key) {
+        throw new Error(
+          "未配置联网搜索：请到 设置 → AI 助手 填写「联网搜索 API Key（百度千帆）」后再使用"
+        )
+      }
+      const proxyBase = process.env.NEXT_PUBLIC_AI_SEARCH_PROXY?.replace(/\/+$/, "") || ""
+      const res = await fetch(`${proxyBase}/api/ai-search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key,
+          query,
+          recency: typeof args.recency === "string" ? args.recency : undefined,
+        }),
+        signal: AbortSignal.timeout(60_000),
+      })
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "")
+        if (res.status === 404) {
+          // 404 = 请求打到了 next dev 本身：代理未拉起（通常是 dev 进程早于 dev.mjs
+          // 的代理改动启动，NEXT_PUBLIC_AI_SEARCH_PROXY 被编译成空 → 走了相对路径）
+          throw new Error(
+            "联网搜索代理未启动（404）：请重启 npm run dev，启动日志应出现「AI 搜索代理已启动 http://127.0.0.1:3007」"
+          )
+        }
+        throw new Error(detail || `联网搜索失败（${res.status}）`)
+      }
+      return await res.json()
+    },
+  },
 ]
 
 /** 给 UI 展示用的内置技能清单（名称 + 描述）。 */

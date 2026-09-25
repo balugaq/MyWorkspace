@@ -418,16 +418,25 @@ export function AIChatWorkspace() {
                     ) : null}
                     {m.tools && m.tools.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1 border-t border-border/50 pt-1.5">
-                        {m.tools.map((t, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
-                            title={t.name}
-                          >
-                            <Wrench className="size-3" />
-                            {t.display ?? t.name}
-                          </span>
-                        ))}
+                        {/* 相同工具的多次调用合并为一条，右上角 ×N 标注次数（保持首次出现顺序） */}
+                        {(() => {
+                          const groups = new Map<string, number>()
+                          for (const t of m.tools) {
+                            const key = t.display ?? t.name
+                            groups.set(key, (groups.get(key) ?? 0) + 1)
+                          }
+                          return [...groups.entries()].map(([name, count]) => (
+                            <span
+                              key={name}
+                              className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                              title={count > 1 ? `${name}（调用了 ${count} 次）` : name}
+                            >
+                              <Wrench className="size-3" />
+                              {name}
+                              {count > 1 && <span className="text-primary/70">×{count}</span>}
+                            </span>
+                          ))
+                        })()}
                       </div>
                     )}
                   </div>

@@ -596,6 +596,21 @@ export function SettingsView() {
                 技能启停
               </Button>
 
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs font-medium">联网搜索 API Key（百度千帆 AI 搜索）</Label>
+                <Input
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={settings.baiduAiSearchApiKey}
+                  placeholder="bce-v3/…（可选；配置后 AI 可使用 wb_web_search 联网搜索技能）"
+                  onChange={(e) => updateSettings({ baiduAiSearchApiKey: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  配置后 AI 需要实时信息时会自动调用联网搜索技能（千帆 AI 搜索，有免费额度）。Key 仅本机存储，经本地代理转发。
+                </p>
+              </div>
+
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
                 <div className="min-w-0">
                   <Label className="text-xs font-medium">人设</Label>

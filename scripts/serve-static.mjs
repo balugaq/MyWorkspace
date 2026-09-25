@@ -16,6 +16,7 @@ import { readFile, stat } from "node:fs/promises"
 import { extname, join, normalize, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { handleWeatherRequest, startWeatherProxy } from "./weather-proxy-lib.mjs"
+import { handleAiSearchRequest } from "./ai-search-proxy-lib.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
 const root = ROOT // 项目根目录
@@ -69,6 +70,13 @@ const server = createServer(async (req, res) => {
     if ((req.url ?? "/").startsWith("/api/weather")) {
       const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
       await handleWeatherRequest(req, res, url)
+      return
+    }
+
+    // AI 联网搜索代理（百度千帆 AI 搜索）：源站无 CORS 头，同进程转发
+    if ((req.url ?? "/").startsWith("/api/ai-search")) {
+      const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
+      await handleAiSearchRequest(req, res, url)
       return
     }
 
