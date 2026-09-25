@@ -15,6 +15,6 @@ jobs:
 
       - name: Push to Gitee
         run: |
-          git remote add gitee https://guguguhello:${{ secrets.GITEE_TOKEN }}@gitee.com/guguguhello/MyWorkspace.git
+          git remote add gitee https://balugaq:${{ secrets.GITEE_TOKEN }}@gitee.com/balugaq/MyWorkspace.git
           git push gitee --all --force
           git push gitee --tags --force
