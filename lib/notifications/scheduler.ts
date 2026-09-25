@@ -7,7 +7,7 @@
 import { useWorkspace } from "@/lib/store"
 import type { ContributionType, NotificationItem } from "@/lib/types"
 import { scanGithubNotifications } from "./github-sender"
-import { emitNotificationToasts } from "./toast-bus"
+import { dispatchNotifications } from "./channels"
 
 const INTERVAL_MS = 5 * 60 * 1000
 
@@ -82,8 +82,8 @@ export async function scanNow(): Promise<void> {
       state.setNotificationWatermark(Date.now())
     }
 
-    // 新条目推给右下角弹窗（仅本轮新入库的，去重条目不重复弹）
-    if (fresh.length > 0) emitNotificationToasts(fresh)
+    // 新条目按用户勾选的通知渠道分发（仅本轮新入库的，去重条目不重复投递）
+    if (fresh.length > 0) dispatchNotifications(fresh, state.settings)
 
     // 贡献入账：commit/issue/pr 且 actor 与「Git 本地名称」一致（名称非空才比对）。
     // 注意：从**本轮扫到的全部条目**计算（而非仅 fresh）——「仅监听」的 commit 不入库通知，

@@ -26,7 +26,7 @@ import type {
   NotificationItem,
   MindmapViewport,
 } from "./types"
-import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, type AIPersona } from "./types"
+import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
 import { normalizeDayStartOffset, parseDayStartOffset, todayKey } from "./contributions"
 import { imageIdsInText } from "./image-refs"
@@ -420,6 +420,14 @@ export const useWorkspace = create<WorkspaceState>()(
               // 兜底：旧备份 string[] 或坏值 → NotificationRepoConfig[]
               notificationRepos: normalizeNotificationRepos(
                 (data.settings as Record<string, unknown> | undefined)?.notificationRepos
+              ),
+              // 兜底：备份里的渠道配置缺失 / 坏值 → 默认（builtin 开、qq 关）
+              notificationChannels: normalizeNotificationChannels(
+                (data.settings as Record<string, unknown> | undefined)?.notificationChannels
+              ),
+              // 兜底：备份里的 QQ 中转地址缺失 / 非法 → 默认地址
+              qqRelayUrl: normalizeQqRelayUrl(
+                (data.settings as Record<string, unknown> | undefined)?.qqRelayUrl
               ),
             } as Settings,
             conversations: convs ?? cur.conversations,
@@ -1256,6 +1264,10 @@ export const useWorkspace = create<WorkspaceState>()(
             dayStartOffset: normalizeDayStartOffset(rawSettings.dayStartOffset),
             // 兜底：旧存档 string[] 或坏值 → NotificationRepoConfig[]（每仓库套默认扫描类型）
             notificationRepos: normalizeNotificationRepos(rawSettings.notificationRepos),
+            // 兜底：旧存档无此字段 / 坏值 → 默认（builtin 开、qq 关）
+            notificationChannels: normalizeNotificationChannels(rawSettings.notificationChannels),
+            // 兜底：旧存档无此字段 / 非法 → 默认 QQ 中转地址
+            qqRelayUrl: normalizeQqRelayUrl(rawSettings.qqRelayUrl),
           },
         }
       },

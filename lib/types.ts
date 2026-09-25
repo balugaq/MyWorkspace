@@ -348,6 +348,11 @@ export interface Settings {
   gitUserName: string
   // 通知 sender 要扫描的仓库列表，每个仓库带自己的扫描类型开关（TODO 18 反馈：按仓库单独配置）。
   notificationRepos: NotificationRepoConfig[]
+  // 通知发送渠道（TODO 22）：勾选哪些渠道，扫描到新通知时就以哪些方式投递。
+  // builtin = 右下角弹窗；qq = 本机 QQ 中转服务（默认 localhost:18899，地址可配置）。
+  notificationChannels: { builtin: boolean; qq: boolean }
+  // QQ 互联通知的中转服务地址（POST {"text":"..."}）；留空 / 非法回落 DEFAULT_QQ_RELAY_URL
+  qqRelayUrl: string
 }
 
 // ---- 通知扫描配置（TODO 18 / 20）----
@@ -411,6 +416,23 @@ export function normalizeNotificationRepos(value: unknown): NotificationRepoConf
   return out
 }
 
+export function normalizeNotificationChannels(value: unknown): { builtin: boolean; qq: boolean } {
+  const v = (value ?? {}) as { builtin?: unknown; qq?: unknown }
+  return { builtin: v.builtin !== false, qq: v.qq === true }
+}
+
+/** QQ 中转服务默认地址（可在设置页修改；留空 / 非法时回落此值） */
+export const DEFAULT_QQ_RELAY_URL = "http://localhost:18899/send"
+
+/** 规范化 QQ 中转地址：空 / 非 http(s) 字符串回落默认值 */
+export function normalizeQqRelayUrl(value: unknown): string {
+  if (typeof value === "string") {
+    const v = value.trim()
+    if (/^https?:\/\/\S+/i.test(v)) return v
+  }
+  return DEFAULT_QQ_RELAY_URL
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   defaultView: "workspace",
@@ -435,5 +457,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dayStartOffset: "04:00",
   gitUserName: "",
   notificationRepos: [],
+  notificationChannels: { builtin: true, qq: false },
+  qqRelayUrl: DEFAULT_QQ_RELAY_URL,
 }
 

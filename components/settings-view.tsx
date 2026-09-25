@@ -19,6 +19,7 @@ import {
 import {
   SHORTCUT_META,
   DEFAULT_NOTIFICATION_SCAN_TYPES,
+  DEFAULT_QQ_RELAY_URL,
   type ShortcutBinding,
   type DefaultView,
   type ThemePreference,
@@ -43,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { normalizeDayStartOffset } from "@/lib/contributions"
+import { NOTIFICATION_CHANNELS } from "@/lib/notifications/channels"
 import { LicenseDialog } from "@/components/license-dialog"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
 import { PersonaManagerDialog } from "@/components/ai-personas-dialog"
@@ -708,6 +710,52 @@ export function SettingsView() {
               />
               <p className="text-xs text-muted-foreground">
                 扫描到的 commit / Issue / PR 若作者与该名称一致，会计入个人主页贡献热力图（commit 计 1，Issue / PR 各计 2）。与个人主页的昵称互相独立。
+              </p>
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">通知方式</Label>
+              <div className="flex flex-col gap-1.5">
+                {NOTIFICATION_CHANNELS.map((c) => (
+                  <label
+                    key={c.id}
+                    className="flex cursor-pointer items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm transition-colors hover:bg-muted/70"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 accent-primary"
+                      checked={settings.notificationChannels[c.id as keyof typeof settings.notificationChannels]}
+                      onChange={(e) =>
+                        updateSettings({
+                          notificationChannels: {
+                            ...settings.notificationChannels,
+                            [c.id]: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                    <span className="flex flex-col gap-0.5">
+                      <span>{c.name}</span>
+                      <span className="text-xs text-muted-foreground">{c.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs font-medium text-muted-foreground">QQ 中转服务地址</Label>
+                <Input
+                  value={settings.qqRelayUrl}
+                  placeholder={DEFAULT_QQ_RELAY_URL}
+                  spellCheck={false}
+                  className="font-mono"
+                  onChange={(e) => updateSettings({ qqRelayUrl: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {`本机常驻中转服务的地址（POST JSON {"text":"..."}）；留空回落默认值。QQ 通知仅在本机运行工作台且中转服务常驻时可用。`}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                两个都不勾选时，新通知仍会入库到通知中心，只是不做任何弹窗或推送。
               </p>
             </section>
 
