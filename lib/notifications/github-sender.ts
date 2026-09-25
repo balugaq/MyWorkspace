@@ -10,6 +10,7 @@
 //   gh:pr:{owner}/{repo}:{number}  | gh:release:{owner}/{repo}:{id}
 
 import type { NotificationItem, NotificationRepoConfig } from "@/lib/types"
+import { LEGACY_REPO_SCAN_SINCE } from "@/lib/types"
 
 const API_BASE = "https://api.github.com"
 const TITLE_MAX = 120
@@ -109,36 +110,58 @@ async function fetchJson(
 
 // ---- 各类型扫描 ----
 
+/**
+ * commit 扫描：**不用** since 参数过滤——committer date 是「提交完成」的时间，
+ * 不是「推送到 GitHub」的时间（先写好再 push 的 commit，committer date 会早于推送时刻，
+ * 落在水线之前被 since 过滤漏掉）。改为拉最近 50 条 + sha 去重：
+ *  - committer date > since 的（正常节奏：写完就推）→ 直接通知；
+ *  - committer date ≤ since 但 sha 未见过 → 仅当该仓库此前已有 commit 入库记录时通知
+ *    （晚推送的旧 commit）；首次扫描一个新仓库时不回溯历史，避免把旧 commit 全部当新通知刷屏。
+ * 热力图入账仍用 committer date（落在写代码那天的格子里）。
+ */
 async function scanCommits(
   repo: string,
   sinceIso: string,
   token: string,
-  state: { rateLimited: boolean }
+  state: { rateLimited: boolean },
+  knownIds: Set<string>
 ): Promise<NotificationItem[]> {
   const [owner, name] = repo.split("/")
-  const url = `${API_BASE}/repos/${owner}/${name}/commits?since=${encodeURIComponent(sinceIso)}&per_page=50`
+  const url = `${API_BASE}/repos/${owner}/${name}/commits?per_page=50`
   const data = await fetchJson(url, token, state)
   if (!Array.isArray(data)) return []
   const since = Date.parse(sinceIso)
+  // 该仓库是否已有 commit 入库过（防首次扫描回溯刷屏）
+  const commitPrefix = `gh:commit:${repo}:`
+  let hasHistory = false
+  for (const id of knownIds) {
+    if (id.startsWith(commitPrefix)) {
+      hasHistory = true
+      break
+    }
+  }
   const items: NotificationItem[] = []
   for (const raw of data) {
     const c = raw as GhCommit
     // 注意：这里用的是 **commit date**（committer.date，即最终落到 GitHub 时间线上的时间），
-    // 不是 author.date（原始撰写时间，rebase/amend 后会保留旧值）。GitHub 的 since 参数
-    // 也是按 committer date 过滤的，两者口径一致。
+    // 不是 author.date（原始撰写时间，rebase/amend 后会保留旧值）。
     const committer = c.commit?.committer
     const author = c.commit?.author
     const actor = committer?.name || author?.name || ""
     const createdAt = committer?.date || author?.date || ""
     const at = Date.parse(createdAt)
-    if (!c.sha || !createdAt || !Number.isFinite(at) || at <= since) continue
+    if (!c.sha || !createdAt || !Number.isFinite(at)) continue
+    const id = `gh:commit:${repo}:${c.sha}`
+    const seen = knownIds.has(id)
+    // 通知判定：新提交（committer date 在窗口内） 或 晚推送的未见 commit（该仓库有历史时）
+    if (at <= since && (seen || !hasHistory)) continue
     const message = c.commit?.message ?? ""
     const lines = message.split("\n")
     const title = firstLine(lines[0], TITLE_MAX)
     // brief：次行；次行为空则回落首行
     const brief = firstLine(lines.slice(1).join("\n"), BRIEF_MAX) || firstLine(message, BRIEF_MAX)
     items.push({
-      id: `gh:commit:${repo}:${c.sha}`,
+      id,
       senderId: "github",
       kind: "commit",
       repo,
@@ -303,22 +326,27 @@ async function scanReleases(
  * 扫描所有配置仓库的所有启用类型。单仓库/单请求网络错误或解析异常：
  * catch 住跳过该请求继续扫其余，不让整轮失败。
  * 限流（403/429 且 remaining=0）：立即中止剩余请求，已拿到的部分照常返回。
- * 所有条目保证 createdAt > since。
+ * issue/PR/release 条目保证 createdAt > since；commit 可能包含「晚推送」的旧 commit
+ * （committer date 早于 since 但 sha 未入库——补捞，见 scanCommits 注释）。
  */
 export async function scanGithubNotifications(
   since: number,
   opts: GithubScanOptions
 ): Promise<GithubScanResult> {
   const state = { rateLimited: false }
-  const sinceIso = new Date(since).toISOString()
   const items: NotificationItem[] = []
 
   outer: for (const repoCfg of opts.repos) {
     if (!/^[\w.-]+\/[\w.-]+$/.test(repoCfg.repo.trim())) continue
     const repoName = repoCfg.repo.trim()
+    // 每仓库自己的扫描起点 = max(仓库配置的起点（添加/启用时刻，旧配置回落 LEGACY 值）, 全局水位)。
+    // 取 max：正常轮次水位领先（只看新内容）；新启用 / 新添加的仓库从自己的起点开始，不回扫。
+    const repoSince = Math.max(repoCfg.scanSince ?? LEGACY_REPO_SCAN_SINCE, since)
+    const sinceIso = new Date(repoSince).toISOString()
     // 每仓库按自己的扫描类型开关构建任务
     const tasks: Array<() => Promise<NotificationItem[]>> = []
-    if (repoCfg.scanTypes.commits) tasks.push(() => scanCommits(repoName, sinceIso, opts.token, state))
+    if (repoCfg.scanTypes.commits)
+      tasks.push(() => scanCommits(repoName, sinceIso, opts.token, state, opts.knownIds))
     if (repoCfg.scanTypes.issues || repoCfg.scanTypes.prs)
       tasks.push(() => scanIssuesAndPrs(repoName, sinceIso, opts.token, state, opts.knownIds))
     if (repoCfg.scanTypes.releases) tasks.push(() => scanReleases(repoName, sinceIso, opts.token, state))

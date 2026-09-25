@@ -400,9 +400,16 @@ export interface NotificationScanTypes {
 }
 
 /** 通知扫描的仓库配置：owner/name + 该仓库独立的扫描类型 */
+/** 旧仓库配置没有持久化扫描起点时的兜底值：2026-09-24 02:00（GMT+8）。
+ * 早于该时间的内容不做任何回扫。 */
+export const LEGACY_REPO_SCAN_SINCE = Date.parse("2026-09-24T02:00:00+08:00")
+
 export interface NotificationRepoConfig {
   repo: string // "owner/name"
   scanTypes: NotificationScanTypes
+  /** 扫描起点（毫秒时间戳）：添加仓库 / 启用某类扫描时置为当前时间，只扫这之后的内容；
+   * 旧配置缺失时回落 LEGACY_REPO_SCAN_SINCE */
+  scanSince: number
   /**
    * 仅监听 commit：该仓库的 commit 仍会被扫描并按 committer 匹配计贡献（热力图），
    * 但**不产生通知、不弹弹窗**。issue/PR/release 不受影响，照常通知。
@@ -428,7 +435,12 @@ export function normalizeNotificationRepos(value: unknown): NotificationRepoConf
   const out: NotificationRepoConfig[] = []
   for (const raw of value) {
     if (typeof raw === "string") {
-      out.push({ repo: raw, scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES }, commitMonitorOnly: false })
+      out.push({
+        repo: raw,
+        scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES },
+        commitMonitorOnly: false,
+        scanSince: LEGACY_REPO_SCAN_SINCE,
+      })
       continue
     }
     if (raw && typeof raw === "object") {
@@ -444,6 +456,11 @@ export function normalizeNotificationRepos(value: unknown): NotificationRepoConf
           releases: s.releases !== false,
         },
         commitMonitorOnly: r.commitMonitorOnly === true,
+        // 旧配置 / 非法值 → 兜底起点（不做回扫）
+        scanSince:
+          typeof r.scanSince === "number" && Number.isFinite(r.scanSince)
+            ? r.scanSince
+            : LEGACY_REPO_SCAN_SINCE,
       })
     }
   }

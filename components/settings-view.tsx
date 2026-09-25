@@ -217,7 +217,13 @@ export function SettingsView() {
     updateSettings({
       notificationRepos: [
         ...settings.notificationRepos,
-        { repo: v, scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES }, commitMonitorOnly: false },
+        {
+          repo: v,
+          scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES },
+          commitMonitorOnly: false,
+          // 扫描起点 = 添加时刻：只扫这之后的内容，不做历史回扫
+          scanSince: Date.now(),
+        },
       ],
     })
   }
@@ -956,6 +962,11 @@ export function SettingsView() {
                                       ? {
                                           ...cfg,
                                           scanTypes: { ...cfg.scanTypes, [t.key]: e.target.checked },
+                                          // 启用（关→开）某类扫描时重置扫描起点 = 当前时刻，只扫之后的内容
+                                          scanSince:
+                                            e.target.checked && !cfg.scanTypes[t.key]
+                                              ? Date.now()
+                                              : cfg.scanSince,
                                         }
                                       : cfg
                                   ),
@@ -983,7 +994,7 @@ export function SettingsView() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。改动在下一轮扫描（5 分钟内）生效。
+                通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。改动在下一轮扫描（5 分钟内）生效。扫描起点为添加仓库 / 勾选启用某类扫描的时刻，此前产生的历史内容不做回扫。
               </p>
             </section>
             </Section>
