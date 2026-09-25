@@ -9,7 +9,7 @@ import { fetchGithubCard, getOgImageSrc, type GithubCardData } from "@/lib/gh-ca
 /**
  * GitHub 预览卡节点（QQ/Discord 式的链接预览卡）。
  * - 块级 atom 节点，承载一个 GitHub Issue/PR 链接。
- * - 渲染：左/上 OG 缩略图 + 标题 + 状态徽标 + 标签 + 「在 GitHub 打开」。
+ * - 渲染：文字（状态徽标 / 标签 / 标题 / 原始链接）在上，OG 缩略图在下（TODO 21：与 B 站卡统一）。
  * - 数据：fetchGithubCard 负责 REST 元数据 + OG 直链图，并缓存到 IndexedDB（见 lib/gh-card.ts）。
  * - 序列化：markdown 输出为裸 URL 文本（getMarkdown），由 upgradeLinkCards 在加载/粘贴时再升级回卡片，
  *   保证存量与新增内容都能呈现预览。
@@ -61,13 +61,14 @@ function GitHubCardView({ node }: NodeViewProps) {
     )
   }
 
-  const stateLabel = data.state === "open" ? "进行中" : data.state === "closed" ? "已关闭" : "未知"
-  const stateCls =
+  const stateMeta =
     data.state === "open"
-      ? "bg-emerald-500/15 text-emerald-600"
+      ? { label: "进行中", cls: "bg-emerald-500/15 text-emerald-600" }
       : data.state === "closed"
-        ? "bg-rose-500/15 text-rose-600"
-        : "bg-muted text-muted-foreground"
+        ? { label: "已关闭", cls: "bg-rose-500/15 text-rose-600" }
+        : data.state === "release"
+          ? { label: "已发布", cls: "bg-violet-500/15 text-violet-600" }
+          : { label: "未知", cls: "bg-muted text-muted-foreground" }
 
   return (
     <NodeViewWrapper className="my-2">
@@ -77,15 +78,12 @@ function GitHubCardView({ node }: NodeViewProps) {
         rel="noreferrer noopener"
         className="block overflow-hidden rounded-lg border bg-background transition-colors hover:bg-muted/40"
       >
-        {imgSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element -- OG 图来自 GitHub CDN 热链，无法走 next/image
-          <img src={imgSrc} alt="" className="h-32 w-full bg-muted object-cover" />
-        ) : (
-          <div className="flex h-32 w-full items-center justify-center bg-muted text-4xl">🐙</div>
-        )}
+        {/* 文字在上、图片在下（TODO 21：与 B 站卡统一顺序） */}
         <div className="space-y-1.5 p-3">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${stateCls}`}>{stateLabel}</span>
+            <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${stateMeta.cls}`}>
+              {stateMeta.label}
+            </span>
             {data.labels.slice(0, 3).map((l) => (
               <span
                 key={l.name}
@@ -100,6 +98,18 @@ function GitHubCardView({ node }: NodeViewProps) {
           {/* 卡片为「额外」展示：原始链接文字仍清晰可见、不被卡片取代 */}
           <p className="break-all text-xs text-primary">{url} ↗</p>
         </div>
+        {imgSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element -- OG 图来自 GitHub CDN 热链，无法走 next/image
+          <img
+            src={imgSrc}
+            alt=""
+            className="h-32 w-full bg-muted object-cover"
+            // OG 地址失效（如 release 图不被服务支持）时回落占位，避免破图
+            onError={() => setImgSrc(null)}
+          />
+        ) : (
+          <div className="flex h-32 w-full items-center justify-center bg-muted text-4xl">🐙</div>
+        )}
       </a>
     </NodeViewWrapper>
   )

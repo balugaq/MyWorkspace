@@ -3,7 +3,8 @@
 import type { Editor } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
 
-const GH_RE = /https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/\d+/i
+const GH_RE =
+  /https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/\d+|https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/releases\/(?:tag\/[^/?#]+|\d+)(?=[/?#]|$)/i
 const BILI_RE =
   /https?:\/\/(?:www\.|m\.)?bilibili\.com\/video\/(BV[0-9A-Za-z]+)(?:[\/?#].*)?|https?:\/\/b23\.tv\/[A-Za-z0-9]+/i
 
