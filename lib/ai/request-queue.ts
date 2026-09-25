@@ -73,8 +73,20 @@ const pendingQueue: Job[] = []
 
 const EMPTY: AIChatMessage[] = []
 
+// 流式期间 text-delta 频率可达每秒数百次，同步 notify 会让 React 在并发渲染的
+// yield 间隙不断收到新快照、嵌套调度更新，50 层即抛 "Maximum update depth exceeded"
+// （且每个 delta 都会触发 RichTextView 全文重渲染）。改为按帧合并：一帧内多次
+// delta 只通知一次；终态（finish / 删除会话等）的通知最多延迟一帧，无感知影响。
+// 注意：live/store 数据在 notify 之前就已写入（liveMessages / useWorkspace），这里
+// 只延迟「通知 React 来读」的时机，不存在读到旧值的问题。
+let notifyQueued = false
 function notify() {
-  for (const l of listeners) l()
+  if (notifyQueued) return
+  notifyQueued = true
+  requestAnimationFrame(() => {
+    notifyQueued = false
+    for (const l of listeners) l()
+  })
 }
 
 export function subscribeQueue(listener: () => void): () => void {
