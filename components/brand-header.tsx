@@ -1,90 +1,80 @@
-// 全局顶栏：左侧品牌区 + 右侧（头像、搜索、设置、主题切换）。
-// 原为 AppSidebar header 拆出；搜索/设置/主题按钮自 Topbar 迁入（用户要求放 avatar 右侧）。
-// 品牌区是否可点击由 page.tsx 决定：仅 ai-chat 视图下可点，用于呼出悬浮 sidebar。
+// 全局顶栏（TODO 25 打磨）：左侧 = 移动端导航按钮 + 品牌区（点击回到主界面 AI 对话）；
+// 右侧 = 搜索框 + 设置 + 头像（最右，点击弹出「打开个人主页 / 打开设置」菜单）。
+// 主题切换已移入设置页「外观主题」，顶栏不再提供。
 
 "use client"
 
 import { useEffect, useState } from "react"
-import { Search, Moon, Sun, Command, Settings as SettingsIcon, Sparkles, User } from "lucide-react"
-import { useTheme } from "next-themes"
+import { Search, Command, User, PanelLeft, UserCircle, Settings2 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
-import type { ThemePreference } from "@/lib/types"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function BrandHeader({
-  onBrandClick,
-  brandClickable = false,
+  onOpenNav,
   onOpenSearch,
 }: {
-  onBrandClick?: () => void
-  brandClickable?: boolean
+  onOpenNav: () => void
   onOpenSearch: () => void
 }) {
   const settings = useWorkspace((s) => s.settings)
+  const goAIChat = useWorkspace((s) => s.goAIChat)
   const goProfile = useWorkspace((s) => s.goProfile)
   const goSettings = useWorkspace((s) => s.goSettings)
-  const updateSettings = useWorkspace((s) => s.updateSettings)
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
   const [isMac, setIsMac] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
     setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent))
   }, [])
 
-  function toggleTheme() {
-    const next: ThemePreference = settings.theme === "dark" ? "light" : "dark"
-    updateSettings({ theme: next })
-  }
-
-  const brand = (
-    <>
-      <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <Sparkles className="size-4" />
-      </div>
-      <div className="flex flex-col leading-tight">
-        <span className="text-sm font-semibold">全能工作台</span>
-        <span className="text-[11px] text-muted-foreground">My Workspace</span>
-      </div>
-    </>
+  const avatar = settings.aiUserAvatar ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={settings.aiUserAvatar}
+      alt="用户头像"
+      className="size-full object-cover"
+    />
+  ) : (
+    <User className="size-4 text-muted-foreground" />
   )
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b bg-sidebar px-4">
-      {brandClickable ? (
+      <div className="flex items-center gap-2">
+        {/* 移动端导航按钮：呼出侧边栏 Sheet（桌面端侧边栏常驻） */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-9 md:hidden"
+          onClick={onOpenNav}
+        >
+          <PanelLeft className="size-4" />
+          <span className="sr-only">打开导航</span>
+        </Button>
+
+        {/* 品牌区：点击回到主界面（AI 对话）。图标用应用 favicon（TODO 25 打磨） */}
         <button
           type="button"
-          onClick={onBrandClick}
-          title="打开导航"
+          onClick={goAIChat}
+          title="回到主界面"
           className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
         >
-          {brand}
+          {/* eslint-disable-next-line @next/next/no-img-element -- 应用图标直接用 favicon */}
+          <img src="/favicon.ico" alt="My Workspace" className="size-8 rounded-lg" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold">全能工作台</span>
+            <span className="text-[11px] text-muted-foreground">My Workspace</span>
+          </div>
         </button>
-      ) : (
-        <div className="flex items-center gap-2">{brand}</div>
-      )}
-      <div className="flex items-center gap-2">
-        {/* 头像按钮：点击打开个人主页 Profile Dashboard；空头像回落默认 User 图标 */}
-        <button
-          type="button"
-          onClick={goProfile}
-          title="打开个人主页"
-          className="flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent transition-colors hover:bg-sidebar-accent/70"
-        >
-          {settings.aiUserAvatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={settings.aiUserAvatar}
-              alt="用户头像"
-              className="size-full object-cover"
-            />
-          ) : (
-            <User className="size-4 text-muted-foreground" />
-          )}
-        </button>
+      </div>
 
-        {/* 搜索 / 设置 / 主题切换：自 Topbar 迁入（avatar 右侧） */}
+      <div className="flex items-center gap-2">
+        {/* 搜索框 */}
         <button
           type="button"
           onClick={onOpenSearch}
@@ -99,25 +89,32 @@ export function BrandHeader({
           </kbd>
         </button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-9"
-          onClick={goSettings}
-        >
-          <SettingsIcon className="size-4" />
-          <span className="sr-only">设置</span>
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-9"
-          onClick={toggleTheme}
-        >
-          {mounted && resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          <span className="sr-only">切换主题</span>
-        </Button>
+        {/* 头像（最右）：点击弹出「打开个人主页 / 打开设置」（设置按钮与头像菜单功能重复，已移除独立按钮） */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                title="账号"
+                className="flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent transition-colors hover:bg-sidebar-accent/70"
+              >
+                {avatar}
+              </button>
+            }
+          >
+            <span className="sr-only">账号菜单</span>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={goProfile}>
+              <UserCircle className="size-4" />
+              打开个人主页
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={goSettings}>
+              <Settings2 className="size-4" />
+              打开设置
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

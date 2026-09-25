@@ -133,14 +133,17 @@ interface WorkspaceState {
   addCategoryOpen: boolean
   configEditorOpen: boolean
   imagesOpen: boolean
-  // 侧边栏「内置模板」折叠状态（持久化，默认收起）
-  builtinTemplatesExpanded: boolean
 
   // 日历 / DayDetail 分隔条宽度（px），持久化以便刷新后保留用户拖动结果
   calendarDetailWidth: number
 
   // 桌面端侧边栏宽度（px），持久化以便刷新后保留用户拖动结果（拖动分隔条调整）
   sidebarWidth: number
+
+  // 侧边栏收起状态（TODO 25）：收起后隐藏本体、贴边留悬浮展开按钮；持久化记住选择
+  sidebarCollapsed: boolean
+  // 底部工具栏收起状态（TODO 25）：收起后只剩标题行；持久化记住选择
+  toolbarCollapsed: boolean
 
   // 全局标签库：容纳从联系人 roles 等外部来源导入的标签，供 TagPicker 复用
   knownTags: string[]
@@ -183,6 +186,7 @@ interface WorkspaceState {
   setActiveCategory: (id: string) => void
   setActiveItem: (id: string | null) => void
   goCalendar: () => void
+  goWorkspace: () => void
   goContacts: () => void
   goVault: () => void
   goAIChat: () => void
@@ -207,14 +211,17 @@ interface WorkspaceState {
   setAddCategoryOpen: (v: boolean) => void
   setConfigEditorOpen: (v: boolean) => void
   setImagesOpen: (v: boolean) => void
-  // 侧边栏「内置模板」折叠状态（持久化）
-  setBuiltinTemplatesExpanded: (v: boolean) => void
 
   // 日历 / DayDetail 分隔条宽度（持久化）
   setCalendarDetailWidth: (w: number) => void
 
   // 桌面端侧边栏宽度（持久化）
   setSidebarWidth: (w: number) => void
+  setSidebarCollapsed: (v: boolean) => void
+  // 侧边栏收起后贴边悬浮开关的纵向位置（距视口顶部 px；null = 默认垂直居中），拖动后持久化
+  sidebarToggleY: number | null
+  setSidebarToggleY: (y: number) => void
+  setToolbarCollapsed: (v: boolean) => void
 
   // 天气：设置所选城市代码
   setWeatherCityCode: (code: string) => void
@@ -299,14 +306,17 @@ export const useWorkspace = create<WorkspaceState>()(
       addCategoryOpen: false,
       configEditorOpen: false,
       imagesOpen: false,
-      // 侧边栏「内置模板」默认收起
-      builtinTemplatesExpanded: false,
 
       // 日历 / DayDetail 分隔条默认宽度（px），与原 w-96 一致
       calendarDetailWidth: 384,
 
       // 桌面端侧边栏默认宽度（px），与原 w-72=18rem 一致
       sidebarWidth: 288,
+
+      // 侧边栏 / 工具栏默认展开（TODO 25）
+      sidebarCollapsed: false,
+      sidebarToggleY: null,
+      toolbarCollapsed: false,
 
       // 全局标签库默认空（角色由联系人数据加载时导入）
       knownTags: [],
@@ -344,11 +354,15 @@ export const useWorkspace = create<WorkspaceState>()(
       setAddCategoryOpen: (v) => set({ addCategoryOpen: v }),
       setConfigEditorOpen: (v) => set({ configEditorOpen: v }),
       setImagesOpen: (v) => set({ imagesOpen: v }),
-      setBuiltinTemplatesExpanded: (v) => set({ builtinTemplatesExpanded: v }),
 
       setCalendarDetailWidth: (w) => set({ calendarDetailWidth: w }),
 
       setSidebarWidth: (w) => set({ sidebarWidth: w }),
+
+      setSidebarCollapsed: (v) => set({ sidebarCollapsed: v }),
+      setSidebarToggleY: (y) => set({ sidebarToggleY: y }),
+
+      setToolbarCollapsed: (v) => set({ toolbarCollapsed: v }),
 
       setWeatherCityCode: (code) => set({ weatherCityCode: code }),
 
@@ -609,6 +623,7 @@ export const useWorkspace = create<WorkspaceState>()(
         set({ activeCategoryId: id, activeItemId: null, view: "workspace" }),
       setActiveItem: (id) => set({ activeItemId: id, view: "workspace" }),
       goCalendar: () => set({ view: "calendar", activeCategoryId: null }),
+      goWorkspace: () => set({ view: "workspace" }),
       goContacts: () => set({ view: "contacts", activeCategoryId: null }),
       goVault: () => set({ view: "vault", activeCategoryId: null }),
       goAIChat: () => set({ view: "ai-chat", activeCategoryId: null }),
@@ -1276,9 +1291,13 @@ export const useWorkspace = create<WorkspaceState>()(
 )
 
 function applyDefaultView(state: WorkspaceState) {
-  const dv: DefaultView = state.settings?.defaultView ?? "workspace"
+  const dv: DefaultView = state.settings?.defaultView ?? "ai-chat"
   // "last"：view/activeCategoryId 本身已持久化，rehydrate 出来的就是上次的视图，什么都不做即可
   if (dv === "last") return
+  if (dv === "ai-chat" && state.view !== "ai-chat") {
+    state.view = "ai-chat"
+    state.activeCategoryId = null
+  }
   if (dv === "calendar" && state.view !== "calendar") {
     state.view = "calendar"
     state.activeCategoryId = null

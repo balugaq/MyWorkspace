@@ -299,7 +299,7 @@ export const VIEW_LABEL: Record<
 // 可持久化的系统设置
 export type ThemePreference = "light" | "dark" | "system"
 /** 默认启动视图；"last" = 打开上次的视图（view/activeCategoryId 本身已持久化，rehydrate 后即为上次状态） */
-export type DefaultView = "workspace" | "calendar" | "last"
+export type DefaultView = "workspace" | "calendar" | "ai-chat" | "last"
 /** 界面字体家族：映射根元素 fontFamily 的 CSS 变量（--font-sans / --font-serif / --font-mono） */
 export type UIFontFamily = "system" | "serif" | "mono"
 
@@ -353,6 +353,14 @@ export interface Settings {
   notificationChannels: { builtin: boolean; qq: boolean }
   // QQ 互联通知的中转服务地址（POST {"text":"..."}）；留空 / 非法回落 DEFAULT_QQ_RELAY_URL
   qqRelayUrl: string
+  // 保险库侧边栏密码生成器偏好（TODO 25）：位数与启用的字符集，持久化记住
+  pwdGenerator: {
+    length: number
+    upper: boolean
+    lower: boolean
+    digits: boolean
+    symbols: boolean
+  }
 }
 
 // ---- 通知扫描配置（TODO 18 / 20）----
@@ -435,7 +443,7 @@ export function normalizeQqRelayUrl(value: unknown): string {
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
-  defaultView: "workspace",
+  defaultView: "ai-chat",
   shortcuts: Object.fromEntries(SHORTCUT_META.map((m) => [m.action, { ...m.defaults }])) as Record<
     ShortcutAction,
     ShortcutBinding
@@ -459,5 +467,6 @@ export const DEFAULT_SETTINGS: Settings = {
   notificationRepos: [],
   notificationChannels: { builtin: true, qq: false },
   qqRelayUrl: DEFAULT_QQ_RELAY_URL,
+  pwdGenerator: { length: 16, upper: true, lower: true, digits: true, symbols: true },
 }
 

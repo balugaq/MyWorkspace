@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { useWorkspace } from "@/lib/store"
 import { useGlobalShortcuts } from "@/hooks/use-shortcuts"
 import { loadAddressBook } from "@/lib/address-book"
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar, SidebarContent } from "@/components/app-sidebar"
 import { BrandHeader } from "@/components/brand-header"
-import { Topbar } from "@/components/topbar"
+import { ToolbarPanel } from "@/components/toolbar-panel"
+import { SidebarToggleFab } from "@/components/sidebar-toggle-fab"
 import { NovelWorkspace } from "@/components/novel-workspace"
 import { MindmapWorkspace } from "@/components/mindmap-workspace"
 import { CalendarWorkspace } from "@/components/calendar-workspace"
@@ -24,8 +25,7 @@ import { ImageCacheDialog } from "@/components/image-cache-dialog"
 import { StatusBar } from "@/components/status-bar"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
-import { Button } from "@/components/ui/button"
-import { LayoutGrid, PanelLeft } from "lucide-react"
+import { LayoutGrid } from "lucide-react"
 
 export default function Page() {
   const hydrated = useWorkspace((s) => s.hydrated)
@@ -44,6 +44,7 @@ export default function Page() {
   // 实时宽度用本地 state 保证拖动流畅，松手时写入 store，刷新后从 store 恢复。
   const sidebarWidth = useWorkspace((s) => s.sidebarWidth)
   const setSidebarWidth = useWorkspace((s) => s.setSidebarWidth)
+  const sidebarCollapsed = useWorkspace((s) => s.sidebarCollapsed)
   const [sidebarWidthLocal, setSidebarWidthLocal] = useState(sidebarWidth)
   const latestSidebarWidth = useRef(sidebarWidth)
   const sidebarDragging = useRef(false)
@@ -79,6 +80,12 @@ export default function Page() {
 
   // 统一的全局快捷键（Ctrl+M 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
   useGlobalShortcuts()
+
+  // 工具栏自动收展（TODO 25 打磨）：打开个人主页时收起，其他页面自动展开
+  const setToolbarCollapsed = useWorkspace((s) => s.setToolbarCollapsed)
+  useEffect(() => {
+    setToolbarCollapsed(view === "profile")
+  }, [view, setToolbarCollapsed])
 
   useEffect(() => {
     const onOpenSearch = () => setSearchOpen(true)
@@ -119,23 +126,32 @@ export default function Page() {
 
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-background">
-      {/* 全局顶栏：品牌 + 头像 + 搜索/设置/主题（avatar 右侧）；ai-chat 视图下品牌区可点呼出悬浮 sidebar */}
-      <BrandHeader
-        brandClickable={view === "ai-chat"}
-        onBrandClick={() => setMobileNav(true)}
-        onOpenSearch={() => setSearchOpen(true)}
-      />
+      {/* 全局顶栏：移动端导航 + 品牌（点击回主界面）+ 搜索/设置/头像菜单 */}
+      <BrandHeader onOpenNav={() => setMobileNav(true)} onOpenSearch={() => setSearchOpen(true)} />
 
       <div className="flex min-h-0 flex-1">
-        {/* Desktop sidebar（宽度可拖拽，持久化到 store）；ai-chat 视图下隐藏，改由悬浮 Sheet 呼出 */}
-        {view !== "ai-chat" && (
+        {/* 左列（TODO 25）双分支：
+            A. AI 对话 / 随笔 / 日历 / 保险库 且未收起 → 完整左列（border + 拖拽分隔条），
+               内容区按视图切换（会话列表 / 分类 / AI 快捷提问 / 密码生成器）+ 底部工具栏；
+            B. 其他视图（个人主页 / 设置等）或已收起 → 不渲染左列与分隔栏，
+               工具栏改为 fixed 钉在左下角，保证任何界面都有导航入口 */}
+        {(view === "ai-chat" ||
+          view === "workspace" ||
+          view === "calendar" ||
+          view === "vault") &&
+        !sidebarCollapsed ? (
           <>
             <div
               ref={sidebarHostRef}
               className="hidden shrink-0 border-r md:block"
               style={{ width: sidebarWidthLocal }}
             >
-              <AppSidebar />
+              <div className="grid h-full grid-rows-[1fr_auto]">
+                <div className="min-h-0 overflow-hidden">
+                  <SidebarContent />
+                </div>
+                <ToolbarPanel />
+              </div>
             </div>
 
             {/* 可拖拽分隔条：桌面端左右拖动调整侧边栏宽度 */}
@@ -149,9 +165,16 @@ export default function Page() {
               <div className="mx-auto my-auto h-10 w-0.5 rounded-full bg-border" />
             </div>
           </>
+        ) : (
+          <div
+            className="fixed bottom-0 left-0 z-40 hidden shrink-0 border-r border-t bg-sidebar md:block"
+            style={{ width: sidebarWidthLocal }}
+          >
+            <ToolbarPanel />
+          </div>
         )}
 
-        {/* 悬浮 sidebar：ai-chat 下点品牌区 / 移动端 PanelLeft 按钮呼出；仅保留折叠按钮 */}
+        {/* 悬浮 sidebar：移动端 PanelLeft 按钮呼出；仅保留折叠按钮 */}
         <Sheet open={mobileNav} onOpenChange={setMobileNav}>
           <SheetContent side="left" className="w-72 p-0" showCloseButton={false}>
             <SheetTitle className="sr-only">导航</SheetTitle>
@@ -160,24 +183,6 @@ export default function Page() {
         </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col">
-        {/* 标题行（含移动端导航按钮）：ai-chat 下标题已删、按钮已迁全局顶栏 → 整行隐藏 */}
-        {view !== "ai-chat" && (
-          <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="ml-2 size-9 md:hidden"
-              onClick={() => setMobileNav(true)}
-            >
-              <PanelLeft className="size-4" />
-              <span className="sr-only">打开导航</span>
-            </Button>
-            <div className="min-w-0 flex-1">
-              <Topbar />
-            </div>
-          </div>
-        )}
-
         <main className="min-h-0 flex-1 overflow-hidden">
           {!hydrated ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -223,6 +228,11 @@ export default function Page() {
         <StatusBar />
         </div>
       </div>
+
+      {/* 侧边栏收起后的贴边悬浮展开开关：可上下拖动，位置持久化 */}
+      {(view === "ai-chat" || view === "workspace") && sidebarCollapsed && (
+        <SidebarToggleFab />
+      )}
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <ConfigEditorDialog open={configEditorOpen} onOpenChange={setConfigEditorOpen} />

@@ -53,9 +53,12 @@ export function AddCategoryDialog({
     addCategory(
       name.trim(),
       template,
+      // 关系类没有条目概念：不传条目单位
       template === "novel"
         ? { autoNumber, unit: unit.trim() || "章" }
-        : { unit: unit.trim() || "章" },
+        : template === "relation"
+          ? {}
+          : { unit: unit.trim() || "章" },
       template === "novel" ? Math.max(0, Math.min(300, count)) : 0,
     )
     toast.success(`已创建分类「${name.trim()}」`)
@@ -78,7 +81,7 @@ export function AddCategoryDialog({
               id="cat-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：糖诗三百首收录"
+              placeholder="例如：我的超级无敌小说"
               autoFocus
             />
           </div>
@@ -114,22 +117,25 @@ export function AddCategoryDialog({
             </p>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="unit">条目单位（可选）</Label>
-            <div className="flex items-center gap-3">
-              <Input
-                id="unit"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                placeholder="章"
-                className="max-w-24"
-                maxLength={4}
-              />
-              <span className="text-xs text-muted-foreground">
-                如 章 / 首 / 回 / 条 / 课；留空则用「章」。同时决定底部翻页（上一X/下一X）与自动编号标题（第%X → 第一章）
-              </span>
+          {/* 条目单位仅对有「条目」概念的模板有意义；关系类（思维导图）没有条目，隐藏 */}
+          {template !== "relation" && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="unit">条目单位（可选）</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="unit"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  placeholder="章"
+                  className="max-w-24"
+                  maxLength={4}
+                />
+                <span className="text-xs text-muted-foreground">
+                  如 章 / 首 / 回 / 条 / 课；留空则用「章」。同时决定底部翻页（上一X/下一X）与自动编号标题（第%X → 第一章）
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {template === "novel" && (
             <div className="flex flex-col gap-4 rounded-lg border bg-muted/40 p-4">

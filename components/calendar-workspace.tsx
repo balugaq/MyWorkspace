@@ -224,7 +224,7 @@ export function CalendarWorkspace() {
             ref={gridRef}
             key={format(current, "yyyy-MM")}
             className={cn(
-              "grid flex-1 auto-rows-fr grid-cols-7 gap-px border-y border-border bg-border/40",
+              "grid flex-1 auto-rows-fr grid-cols-7 gap-px rounded-xl border border-border bg-border/40",
               direction === 1 ? "cal-month-anim-down" : "cal-month-anim-up"
             )}
           >
@@ -349,20 +349,21 @@ export function CalendarWorkspace() {
                   data-date={key}
                   onClick={() => setSelectedDate(key)}
                   className={cn(
-                    "relative flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-1 text-center transition-colors outline-none",
-                    selected ? "bg-primary/15" : "hover:bg-muted/60",
+                    "group relative flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-1 text-center outline-none",
                     outside && "opacity-40"
                   )}
                 >
-                  {/* 日期数字容器：角标基于日期数字定位。锚点占位等比例放大，角标可在此范围内更外探，日期数字仍居中。 */}
+                  {/* 日期数字容器：角标基于日期数字定位。锚点等比放大，角标可在此范围内外探，日期数字仍居中。
+                      选中 / hover 高亮为以数字为中心的圆形（TODO 25 打磨）：高亮挂在数字圆上而非整格 */}
                   <span className="relative inline-flex items-center justify-center">
                     {/* 笔记圆点：基于日期数字定位到其上方 */}
                     {hasNote && <span className="absolute -top-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-primary" />}
                     <span
                       className={cn(
-                        "inline-flex h-7 w-8 items-center justify-center rounded-full text-base",
+                        "inline-flex size-8 items-center justify-center rounded-full text-base transition-colors",
                         isToday(day) ? "font-bold" : "font-medium",
-                        dateNumClass
+                        dateNumClass,
+                        selected ? "bg-primary/15" : "group-hover:bg-muted/60"
                       )}
                       style={dateNumStyle}
                     >

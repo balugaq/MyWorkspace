@@ -1,38 +1,28 @@
-// AI 助手视图：侧边栏「AI 助手」入口进入。
-// 多会话架构（类似成熟 AI 网页服务）：左侧为对话列表，各自持有完整上下文，
-// 主区为所选对话的消息流。会话持久化在 store（localStorage），刷新后保留。
+// AI 助手视图：会话列表已迁至全局侧边栏（components/ai/ai-sessions-panel.tsx，TODO 25），
+// 本组件只负责主区的消息流与输入框。会话持久化在 store（localStorage），刷新后保留。
 // 流式请求由 lib/ai/request-queue 全局持有——切换会话 / 切走视图都不会中断在途请求。
 // 配置（provider / apiKey）来自 store.settings；skills 由队列内部读取。
 // 用户消息与 AI 回复统一用 RichTextView 渲染（与节点内容同管线：表格/代码高亮/卡片/内文图一致生效）。
 
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, Fragment, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import {
   Bot,
   Send,
   Square,
-  Trash2,
   Wrench,
   Sparkles,
   AlertTriangle,
   User,
-  Plus,
-  Pencil,
-  MessageSquare,
   Copy,
   RefreshCw,
-  MoreVertical,
-  Pin,
-  PinOff,
   ChevronDown,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { useWorkspace } from "@/lib/store"
-import type { Conversation } from "@/lib/types"
 import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
-import { subscribeQueue, isWorking, stopConversation } from "@/lib/ai/request-queue"
 import { RichTextView } from "@/components/richtext/rich-text-view"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
 import { SkillsToggleDialog } from "@/components/ai-skills-dialog"
@@ -40,78 +30,11 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { NativeScrollArea } from "@/components/ui/native-scroll-area"
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 
-// —— 对话列表按时间分组 ——
-// 锚点时间：以「最后一条用户消息的创建时间」为准（继续对话后自然变为最新，实现自动置顶）；
-// 旧消息/无消息时回落 updatedAt / createdAt，保证总能分组。
-function conversationAnchor(c: Conversation): number {
-  for (let i = c.messages.length - 1; i >= 0; i--) {
-    const m = c.messages[i]
-    if (m.role === "user" && m.createdAt) return m.createdAt
-  }
-  return c.updatedAt ?? c.createdAt
-}
-
-// 锚点相对「今天本地零点」的天数差（0=今天，1=昨天，负数=未来）。
-function dayDiff(anchor: number, now: number): number {
-  const a = new Date(anchor)
-  const n = new Date(now)
-  const a0 = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())
-  const n0 = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())
-  return Math.floor((n0 - a0) / 86400000)
-}
-
-// 分组 key：置顶 / today / yesterday / week(2~7天) / month30(8~30天) / ym-YYYY-MM(>30天)
-function bucketKey(c: Conversation, now: number): string {
-  if (c.pinned) return "pinned"
-  const d = dayDiff(conversationAnchor(c), now)
-  if (d <= 0) return "today"
-  if (d === 1) return "yesterday"
-  if (d <= 7) return "week"
-  if (d <= 30) return "month30"
-  const a = new Date(conversationAnchor(c))
-  return `ym-${a.getFullYear()}-${String(a.getMonth() + 1).padStart(2, "0")}`
-}
-
-const GROUP_LABEL: Record<string, string> = {
-  pinned: "置顶",
-  today: "今天",
-  yesterday: "昨天",
-  week: "7 天内",
-  month30: "30 天内",
-}
-function groupLabel(key: string): string {
-  if (key.startsWith("ym-")) return key.slice(3)
-  return GROUP_LABEL[key] ?? key
-}
-
-// 固定分组顺序：置顶最前，然后时间由近到远；ym-* 统一排在 month30 之后。
-const GROUP_ORDER = ["pinned", "today", "yesterday", "week", "month30"]
-function groupRank(key: string): number {
-  const i = GROUP_ORDER.indexOf(key)
-  return i >= 0 ? i : GROUP_ORDER.length
-}
-
 // 新对话空状态下的预置问题；第三个由我们替用户补充。
-const PRESET_QUESTIONS = [
+// （导出供日历侧边栏的「AI 快捷提问」面板复用，TODO 25。）
+export const PRESET_QUESTIONS = [
   "今天适合做什么？",
   "最近有什么新兴的开源项目？",
   "用通俗的语言给我讲讲 AI Agent 是什么？",
@@ -165,8 +88,6 @@ export function AIChatWorkspace() {
   const activeId = useWorkspace((s) => s.activeConversationId)
   const createConversation = useWorkspace((s) => s.createConversation)
   const selectConversation = useWorkspace((s) => s.selectConversation)
-  const deleteConversation = useWorkspace((s) => s.deleteConversation)
-  const togglePinConversation = useWorkspace((s) => s.togglePinConversation)
   const renameConversation = useWorkspace((s) => s.renameConversation)
   const pendingAiQuery = useWorkspace((s) => s.pendingAiQuery)
   const clearPendingAiQuery = useWorkspace((s) => s.clearPendingAiQuery)
@@ -215,60 +136,8 @@ export function AIChatWorkspace() {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState("")
-  const [railOpen, setRailOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingTitle, setEditingTitle] = useState("")
   const [skillsOpen, setSkillsOpen] = useState(false)
   const [modelsOpen, setModelsOpen] = useState(false)
-  // 待删除的对话 id（非空时弹出确认弹窗）；用项目自带 AlertDialog 替代原生 confirm
-  const [delTarget, setDelTarget] = useState<string | null>(null)
-
-  // 对话列表宽度（可拖拽分隔线调整，持久化到 localStorage）
-  const RAIL_MIN = 180
-  const RAIL_MAX = 480
-  const containerRef = useRef<HTMLDivElement>(null)
-  const draggingRef = useRef(false)
-  const latestWidthRef = useRef(256)
-  const [railWidth, setRailWidth] = useState(256)
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem("ai-rail-width")
-      if (v) {
-        const n = Number(v)
-        if (!Number.isNaN(n)) setRailWidth(Math.min(RAIL_MAX, Math.max(RAIL_MIN, n)))
-      }
-    } catch {
-      /* SSR / 隐私模式下忽略 */
-    }
-  }, [])
-  const startDragRail = (e: ReactPointerEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    draggingRef.current = true
-    document.body.style.cursor = "col-resize"
-    document.body.style.userSelect = "none"
-    const clamp = (w: number) => Math.min(RAIL_MAX, Math.max(RAIL_MIN, w))
-    const move = (ev: PointerEvent) => {
-      if (!draggingRef.current || !containerRef.current) return
-      const rect = containerRef.current.getBoundingClientRect()
-      const w = clamp(ev.clientX - rect.left)
-      latestWidthRef.current = w
-      setRailWidth(w)
-    }
-    const up = () => {
-      draggingRef.current = false
-      document.body.style.cursor = ""
-      document.body.style.userSelect = ""
-      window.removeEventListener("pointermove", move)
-      window.removeEventListener("pointerup", up)
-      try {
-        localStorage.setItem("ai-rail-width", String(latestWidthRef.current))
-      } catch {
-        /* 忽略 */
-      }
-    }
-    window.addEventListener("pointermove", move)
-    window.addEventListener("pointerup", up)
-  }
 
   const modelLabel = activeModel?.label ?? "未配置模型"
   const hasKey = !!activeModel && activeModel.apiKey.trim().length > 0
@@ -382,54 +251,6 @@ export function AIChatWorkspace() {
     animateScrollTop(scroller, scroller.scrollHeight, 500, scrollAnimRafRef)
   }
 
-  const startEdit = (c: { id: string; title: string }) => {
-    setEditingId(c.id)
-    setEditingTitle(c.title)
-  }
-  const commitEdit = () => {
-    if (editingId) renameConversation(editingId, editingTitle)
-    setEditingId(null)
-  }
-  const onDelete = (id: string) => {
-    // 若该对话正在生成，先中断其请求（其余对话不受影响）
-    stopConversation(id)
-    deleteConversation(id)
-    setRailOpen(false)
-  }
-  // 对话列表分组：置顶最前，其余按锚点时间落入 今天/昨天/7天内/30天内/YYYY-MM；
-  // 每组内部按锚点时间倒序（最新在上）。继续对话后锚点更新，自动提到对应时间段顶部。
-  const groups = useMemo(() => {
-    const now = Date.now()
-    const byKey = new Map<string, Conversation[]>()
-    for (const c of conversations) {
-      const k = bucketKey(c, now)
-      if (!byKey.has(k)) byKey.set(k, [])
-      byKey.get(k)!.push(c)
-    }
-    const list = [...byKey.entries()].map(([key, items]) => ({
-      key,
-      items: [...items].sort((a, b) => conversationAnchor(b) - conversationAnchor(a)),
-    }))
-    list.sort((a, b) => {
-      const ra = groupRank(a.key)
-      const rb = groupRank(b.key)
-      if (ra !== rb) return ra - rb
-      // 同为 ym-* 月份组时，近的（key 字典序大）排在前
-      return b.key.localeCompare(a.key)
-    })
-    return list
-  }, [conversations])
-  const onSelect = (id: string) => {
-    if (id === activeId) {
-      setRailOpen(false)
-      return
-    }
-    // 注意：不再中断进行中的流——请求在后台继续，切回时可看到其回复
-    // （"正常中断应当保持对话请求"：切换会话 / 视图都不杀掉在途请求）。
-    selectConversation(id)
-    setRailOpen(false)
-  }
-
   const submit = () => {
     const text = input
     if (!text.trim() || isLoading || !active || !hasKey) return
@@ -479,200 +300,10 @@ export function AIChatWorkspace() {
   }, [pendingAiQuery])
 
   return (
-    <div ref={containerRef} className="relative flex h-full min-h-0">
-      {/* 移动端遮罩 */}
-      {railOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/40 md:hidden"
-          onClick={() => setRailOpen(false)}
-        />
-      )}
-
-      {/* 左侧：对话列表 */}
-      <aside
-        style={{ width: railWidth }}
-        className={cn(
-          "z-30 flex shrink-0 flex-col border-r bg-muted/30",
-          "max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:shadow-xl max-md:transition-transform",
-          railOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full",
-        )}
-      >
-        <div className="flex items-center gap-2 border-b px-3 py-2">
-          <Bot className="size-4 text-primary" />
-          <span className="text-sm font-semibold">对话</span>
-          <span className="text-xs text-muted-foreground">{conversations.length}</span>
-        </div>
-        <Button
-          variant="default"
-          className="mx-3 my-2 w-[calc(100%-1.5rem)] justify-start gap-2"
-          onClick={() => {
-            // 已存在「空对话」（无任何消息记录）则直接切换过去，不重复创建
-            const empty = conversations.find((c) => c.messages.length === 0)
-            if (empty) selectConversation(empty.id)
-            else createConversation()
-            setRailOpen(false)
-          }}
-          title="开启新对话"
-        >
-          <Plus className="size-4" />
-          开启新对话
-        </Button>
-        <ScrollArea className="min-h-0 flex-1 overflow-hidden">
-          <ul className="flex flex-col gap-0.5 p-2">
-            {groups.map((g) => (
-              <Fragment key={g.key}>
-                <li className="px-2 pb-1 pt-3 text-xs font-medium text-muted-foreground first:pt-0">
-                  {groupLabel(g.key)}
-                </li>
-                {g.items.map((c) => (
-                  <li key={c.id}>
-                    <div
-                      className={cn(
-                        "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm",
-                        c.id === activeId
-                          ? "bg-accent text-accent-foreground"
-                          : "cursor-pointer hover:bg-accent/50",
-                      )}
-                      onClick={() => c.id !== activeId && onSelect(c.id)}
-                    >
-                  {editingId === c.id ? (
-                    <input
-                      autoFocus
-                      maxLength={10}
-                      value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value.slice(0, 10))}
-                      onBlur={commitEdit}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") commitEdit()
-                        if (e.key === "Escape") setEditingId(null)
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="min-w-0 flex-1 rounded bg-background px-1 py-0.5 text-sm outline-none ring-1 ring-ring/40"
-                    />
-                  ) : (
-                    <span
-                      className="min-w-0 flex-1 truncate"
-                      onDoubleClick={() => startEdit(c)}
-                    >
-                      {c.title}
-                    </span>
-                  )}
-                  {c.pinned && (
-                    <Pin className="size-3 shrink-0 text-muted-foreground" />
-                  )}
-                  <StreamingDot id={c.id} />
-                  {editingId !== c.id && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        className="shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 data-[popup-open]:opacity-100 focus-visible:opacity-100"
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label="更多操作"
-                      >
-                        <MoreVertical className="size-3.5" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" side="bottom">
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            togglePinConversation(c.id)
-                          }}
-                        >
-                          {c.pinned ? (
-                            <>
-                              <PinOff className="size-4" />
-                              取消置顶
-                            </>
-                          ) : (
-                            <>
-                              <Pin className="size-4" />
-                              置顶
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            startEdit(c)
-                          }}
-                        >
-                          <Pencil className="size-4" />
-                          重命名
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setDelTarget(c.id)
-                          }}
-                        >
-                          <Trash2 className="size-4" />
-                          删除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-              </li>
-                ))}
-              </Fragment>
-            ))}
-          </ul>
-        </ScrollArea>
-      </aside>
-
-      {/* 删除对话确认弹窗：项目自带 AlertDialog，替代原生 confirm */}
-      <AlertDialog
-        open={delTarget !== null}
-        onOpenChange={(o) => {
-          if (!o) setDelTarget(null)
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>删除这个对话？</AlertDialogTitle>
-            <AlertDialogDescription>
-              删除后不可恢复，该对话的所有消息都会丢失。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() => {
-                if (delTarget) onDelete(delTarget)
-                setDelTarget(null)
-              }}
-            >
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* 拖拽分隔线（仅桌面端）：左右拖动调整对话列表宽度 */}
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        onPointerDown={startDragRail}
-        className="group hidden w-1.5 shrink-0 cursor-col-resize md:block"
-        title="拖动调整对话列表宽度"
-      >
-        <div className="mx-auto h-full w-px bg-border/40 transition-colors group-hover:bg-primary/60" />
-      </div>
-
+    <div className="relative flex h-full min-h-0 flex-col">
       {/* 主区 */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <header className="flex items-center gap-2 border-b px-4 py-2">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="md:hidden"
-            onClick={() => setRailOpen(true)}
-            title="对话列表"
-          >
-            <MessageSquare />
-          </Button>
           <Bot className="size-4 text-primary" />
           <h2 className="truncate text-sm font-semibold">{active?.title ?? "AI 助手"}</h2>
           <span className="text-xs text-muted-foreground">{modelLabel}</span>
@@ -867,7 +498,7 @@ export function AIChatWorkspace() {
                   : "请先在「模型」中配置 API Key"
               }
               disabled={!active || !hasKey}
-              className="max-h-40 min-h-9 w-full resize-none"
+              className="max-h-40 min-h-14 w-full resize-none"
               rows={1}
             />
           </NativeScrollArea>
@@ -955,17 +586,5 @@ export function AIChatWorkspace() {
         </div>
       </aside>
     </div>
-  )
-}
-
-// 对话列表中某个会话是否正在生成（流式或排队中）——订阅全局队列，仅在状态变化时重渲染该小圆点。
-function StreamingDot({ id }: { id: string }) {
-  const working = useSyncExternalStore(subscribeQueue, () => isWorking(id), () => false)
-  if (!working) return null
-  return (
-    <span
-      className="ml-1 size-1.5 shrink-0 animate-pulse rounded-full bg-primary"
-      title="正在生成…"
-    />
   )
 }

@@ -66,7 +66,8 @@ const THEMES: { value: ThemePreference; label: string }[] = [
 ]
 
 const DEFAULT_VIEWS: { value: DefaultView; label: string }[] = [
-  { value: "workspace", label: "工作台" },
+  { value: "ai-chat", label: "AI 对话" },
+  { value: "workspace", label: "随笔" },
   { value: "calendar", label: "日历" },
   { value: "last", label: "打开上次的视图" },
 ]
@@ -115,6 +116,16 @@ const SCAN_TYPE_META: { key: keyof NotificationScanTypes; label: string }[] = [
   { key: "releases", label: "发布" },
 ]
 
+// 设置分类清单（TODO 25 打磨）：左侧导航按钮按此渲染，右侧只显示选中分类的内容
+const SETTINGS_SECTIONS = [
+  { id: "general", label: "通用 / 基础" },
+  { id: "shortcuts", label: "快捷键 / 键位" },
+  { id: "account", label: "账户与同步" },
+  { id: "ai", label: "AI 助手" },
+  { id: "advanced", label: "高级" },
+  { id: "notifications", label: "通知" },
+] as const
+
 // 分区容器：小标题 + 分隔线 + 内容块
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -144,6 +155,10 @@ export function SettingsView() {
   // 通知：仓库输入框暂存文本 + 格式错误提示（落库走 updateSettings）
   const [repoInput, setRepoInput] = useState("")
   const [repoError, setRepoError] = useState("")
+  // 设置分类导航（TODO 25 打磨）：左侧分类按钮 + 右侧只显示选中分类的内容；默认打开第一个分类
+  const [activeSectionId, setActiveSectionId] = useState<(typeof SETTINGS_SECTIONS)[number]["id"]>(
+    SETTINGS_SECTIONS[0].id,
+  )
 
   function addNotificationRepo() {
     const v = repoInput.trim()
@@ -235,10 +250,32 @@ export function SettingsView() {
         <h1 className="text-2xl font-bold leading-tight text-foreground">设置</h1>
       </header>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-8 pb-8">
-          {/* ===== 1. 通用 / 基础 ===== */}
-          <Section title="通用 / 基础">
+      {/* 分类导航 + 内容区（TODO 25 打磨）：左侧分类按钮，右侧只显示选中分类的设置内容 */}
+      <div className="flex min-h-0 flex-1">
+        <nav className="w-44 shrink-0 border-r px-2 py-3">
+          <div className="flex flex-col gap-0.5">
+            {SETTINGS_SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActiveSectionId(s.id)}
+                className={cn(
+                  "rounded-md px-3 py-2 text-left text-sm transition-colors",
+                  activeSectionId === s.id
+                    ? "bg-accent font-medium text-accent-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-8 pb-8">
+            {activeSectionId === "general" && (
+              <Section title="通用 / 基础">
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">主题</Label>
               <Select
@@ -340,10 +377,11 @@ export function SettingsView() {
               </Select>
               <p className="text-xs text-muted-foreground">应用每次打开时默认进入的界面。</p>
             </section>
-          </Section>
+            </Section>
+            )}
 
-          {/* ===== 2. 快捷键 / 键位 ===== */}
-          <Section title="快捷键 / 键位">
+            {activeSectionId === "shortcuts" && (
+              <Section title="快捷键 / 键位">
             <section className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5">
                 <Keyboard className="size-3.5 text-muted-foreground" />
@@ -363,10 +401,11 @@ export function SettingsView() {
                 ))}
               </div>
             </section>
-          </Section>
+            </Section>
+            )}
 
-          {/* ===== 3. 账户与同步 ===== */}
-          <Section title="账户与同步">
+            {activeSectionId === "account" && (
+              <Section title="账户与同步">
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">登录信息</Label>
               <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2">
@@ -473,10 +512,11 @@ export function SettingsView() {
                 查看开源软件许可证
               </Button>
             </section>
-          </Section>
+            </Section>
+            )}
 
-          {/* ===== 4. AI 助手 ===== */}
-          <Section title="AI 助手">
+            {activeSectionId === "ai" && (
+              <Section title="AI 助手">
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
                 <div className="min-w-0">
@@ -659,10 +699,11 @@ export function SettingsView() {
                 />
               </div>
             </section>
-          </Section>
+            </Section>
+            )}
 
-          {/* ===== 5. 高级 ===== */}
-          <Section title="高级">
+            {activeSectionId === "advanced" && (
+              <Section title="高级">
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">图片缓存</Label>
               <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setImagesOpen(true)}>
@@ -697,10 +738,11 @@ export function SettingsView() {
                 GitHub 预览卡的 API 限额令牌（仅本机明文存储于 localStorage，请勿在共享环境使用）。留空则匿名访问（60 次/小时/IP）。
               </p>
             </section>
-          </Section>
+            </Section>
+            )}
 
-          {/* ===== 6. 通知（TODO 20 / 18：通知中心 + GitHub sender 配置） ===== */}
-          <Section title="通知">
+            {activeSectionId === "notifications" && (
+              <Section title="通知">
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">Git 本地名称</Label>
               <Input
@@ -878,7 +920,8 @@ export function SettingsView() {
                 通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。改动在下一轮扫描（5 分钟内）生效。
               </p>
             </section>
-          </Section>
+            </Section>
+            )}
 
           <ModelManagerDialog open={modelsOpen} onOpenChange={setModelsOpen} />
           <PersonaManagerDialog open={personasOpen} onOpenChange={setPersonasOpen} />
@@ -905,8 +948,9 @@ export function SettingsView() {
               </div>
             </DialogContent>
           </Dialog>
-        </div>
-      </ScrollArea>
+          </div>
+        </ScrollArea>
+      </div>
     </div>
   )
 }
