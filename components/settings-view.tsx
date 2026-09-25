@@ -347,6 +347,19 @@ export function SettingsView() {
             </section>
 
             <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">生日</Label>
+              <Input
+                type="date"
+                value={settings.birthday}
+                onChange={(e) => updateSettings({ birthday: e.target.value })}
+                className="max-w-48"
+              />
+              <p className="text-xs text-muted-foreground">
+                用于日历侧栏的「人生进度条」（按 30000 天 ≈ 82 年计）。
+              </p>
+            </section>
+
+            <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">语言</Label>
               <Select value="zh-CN" disabled>
                 <SelectTrigger className="w-full">

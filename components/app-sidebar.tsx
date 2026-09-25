@@ -101,6 +101,26 @@ function PanelHeader({
 // 日历侧边栏面板：预设的 3 个 AI 问题，点击后自动跳转到 AI 对话并发送（走 store.askAiAbout 链路）。
 function CalendarSidePanel() {
   const askAiAbout = useWorkspace((s) => s.askAiAbout)
+  const goSettings = useWorkspace((s) => s.goSettings)
+
+  // 人生进度条（主人需求）：生日（设置）→ 今天的天数 / 30000 天（≈82 年）。
+  const birthday = useWorkspace((s) => s.settings.birthday)
+  const LIFE_TOTAL_DAYS = 30000
+  let lifeText = ""
+  if (/^\d{4}-\d{2}-\d{2}$/.test(birthday)) {
+    const birth = new Date(birthday + "T00:00:00")
+    const today = new Date()
+    const birthMid = new Date(birth.getFullYear(), birth.getMonth(), birth.getDate()).getTime()
+    const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+    const days = Math.max(0, Math.floor((todayMid - birthMid) / 86400000))
+    const pct = ((days / LIFE_TOTAL_DAYS) * 100).toFixed(2)
+    lifeText = `人生进度条（${days}/${LIFE_TOTAL_DAYS}）${pct}%`
+  }
+  const copyLifeText = () => {
+    if (!lifeText) return
+    navigator.clipboard.writeText(lifeText)
+    toast.success("已复制人生进度条")
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -120,6 +140,35 @@ function CalendarSidePanel() {
       <p className="px-3 text-xs text-muted-foreground">
         点击任意问题，自动开启一段新对话并发送。
       </p>
+
+      {/* 人生进度条：按设置里的生日计算「出生至今天」的天数占 30000 天（≈82 年）的比例 */}
+      <div className="mx-3 mt-auto mb-3 rounded-lg border bg-muted/30 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-muted-foreground">人生进度条</span>
+          {lifeText && (
+            <button
+              type="button"
+              aria-label="复制人生进度条"
+              title="复制"
+              onClick={copyLifeText}
+              className="flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Copy className="size-3.5" />
+            </button>
+          )}
+        </div>
+        {lifeText ? (
+          <p className="mt-1 font-mono text-sm leading-relaxed">{lifeText}</p>
+        ) : (
+          <button
+            type="button"
+            onClick={goSettings}
+            className="mt-1 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            先到 设置 → 通用 / 基础 中填写生日，这里就会显示你的进度 →
+          </button>
+        )}
+      </div>
     </div>
   )
 }

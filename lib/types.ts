@@ -365,6 +365,8 @@ export interface Settings {
   location: string
   // 用户昵称（Profile 头像下方展示）；留空则默认显示「未命名用户」
   userName: string
+  // 用户生日（yyyy-MM-dd，日历侧栏「人生进度条」使用）；留空表示未设置
+  birthday: string
   // AI 对话强制同步：开启后所有对话的用户请求统一进入单队列串行处理；
   // 关闭则允许并发（同一会话仍不会重复发起）。两种模式下切换会话/视图都不会中断在途请求。
   aiForceSync: boolean
@@ -508,6 +510,7 @@ export const DEFAULT_SETTINGS: Settings = {
   baiduAiSearchApiKey: "",
   location: "",
   userName: "",
+  birthday: "",
   aiForceSync: false,
   aiPersonas: [],
   aiActivePersonaId: null,
