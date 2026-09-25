@@ -19,6 +19,7 @@ import { GlobalSearch } from "@/components/global-search"
 import { SettingsView } from "@/components/settings-view"
 import { NotificationsWorkspace } from "@/components/notifications/notifications-workspace"
 import { NotificationToastQueue } from "@/components/notifications/notification-toast-queue"
+import { HealthReminderToasts } from "@/components/notifications/health-reminder-toasts"
 import { startNotificationScheduler } from "@/lib/notifications/scheduler"
 import { ConfigEditorDialog } from "@/components/config-editor-dialog"
 import { ImageCacheDialog } from "@/components/image-cache-dialog"
@@ -238,6 +239,7 @@ export default function Page() {
       <ConfigEditorDialog open={configEditorOpen} onOpenChange={setConfigEditorOpen} />
       <ImageCacheDialog open={imagesOpen} onOpenChange={setImagesOpen} />
       <NotificationToastQueue />
+      <HealthReminderToasts />
     </div>
   )
 }
