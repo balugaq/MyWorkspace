@@ -198,6 +198,45 @@ function patchAssistant(
   )
 }
 
+// GLM 兼容归一化（保守，正常请求为 no-op）：
+// 1) 剥掉 message 上的 reasoning_content —— 智谱等供应商视其为响应侧字段，
+//    多步续步时原样回传会被 400；
+// 2) assistant 消息带 tool_calls 且 content 为 null 时置 "" —— GLM 对 content:null 报参数错误，
+//    OpenAI 对两种写法均接受。
+// 请求体由 provider-utils postToApi 以 JSON 字符串传入（见 init.body），解析失败则原样透传。
+function patchProviderRequestBody(init?: RequestInit): RequestInit | undefined {
+  try {
+    if (!init || typeof init.body !== "string") return init
+    const trimmed = init.body.trim()
+    if (!trimmed.startsWith("{")) return init
+    const j = JSON.parse(trimmed) as { messages?: unknown }
+    if (!Array.isArray(j.messages)) return init
+    let changed = false
+    const messages = (j.messages as Record<string, unknown>[]).map((m) => {
+      if (!m || typeof m !== "object") return m
+      const next = { ...m }
+      if ("reasoning_content" in next) {
+        delete next.reasoning_content
+        changed = true
+      }
+      if (
+        next.role === "assistant" &&
+        Array.isArray(next.tool_calls) &&
+        next.tool_calls.length > 0 &&
+        next.content === null
+      ) {
+        next.content = ""
+        changed = true
+      }
+      return next
+    })
+    if (!changed) return init
+    return { ...init, body: JSON.stringify({ ...j, messages }) }
+  } catch {
+    return init
+  }
+}
+
 async function runJob(job: Job) {
   const { conversationId, config, assistantId, history, userMsg, controller } = job
   let text = ""
@@ -212,7 +251,7 @@ async function runJob(job: Job) {
 
   // 诊断用 fetch：在 abort 时把 fetch 的 AbortError reject 转成空响应，避免 unhandled rejection。
   const diagFetch = (input: RequestInfo | URL, init?: RequestInit) =>
-    fetch(input, init)
+    fetch(input, patchProviderRequestBody(init))
       .then(async (res) => {
         httpStatus = res.status
         httpStatusText = res.statusText
@@ -328,11 +367,25 @@ async function runJob(job: Job) {
     }
     let finalContent: string
     if (body) {
-      finalContent =
-        body +
-        (sawError
-          ? "\n\n⚠️ 响应被提前结束（未收到 finish_reason），以上内容可能不完整。"
-          : "")
+      // 诊断透出：此前只给模板话术，errorMsg / httpStatus / 供应商响应全被丢弃，
+      // 导致 GLM 等供应商在工具结果回传（多步续步）阶段报错时无从定位根因。
+      let diag = ""
+      if (sawError) {
+        const parts: string[] = []
+        if (errorMsg) parts.push(`错误：${errorMsg}`)
+        if (httpStatus != null && httpStatus !== 200)
+          parts.push(`HTTP ${httpStatus} ${httpStatusText}`)
+        const providerErr = extractProviderError(rawBody)
+        if (providerErr) {
+          parts.push(`供应商返回：${providerErr}`)
+        } else if (httpStatus != null && httpStatus !== 200 && rawBody && rawBody.trim()) {
+          parts.push(
+            `服务器原始响应：\n\`\`\`text\n${rawBody.trim().slice(0, 500).replace(/```/g, "'''")}\n\`\`\``,
+          )
+        }
+        if (parts.length > 0) diag = `：\n${parts.join("\n")}`
+      }
+      finalContent = body + (sawError ? `\n\n⚠️ 响应被提前结束（未收到 finish_reason）${diag}` : "")
     } else {
       const providerErr = extractProviderError(rawBody)
       const reason =
