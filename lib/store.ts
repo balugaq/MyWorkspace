@@ -251,6 +251,9 @@ interface WorkspaceState {
 
   // 思维导图
   addNode: (catId: string, position?: { x: number; y: number }, title?: string) => string
+  /** 添加子节点（统一入口）：以「父标题 序号」避重命名、置于父节点右侧并自动连线，
+   *  末尾显式 setActiveItem(childId) 保证详情面板切到新节点。返回子节点 id（失败为 null）。 */
+  addChildNode: (catId: string, parentId: string) => string | null
   updateNode: (catId: string, nodeId: string, patch: Partial<MindNode>) => void
   removeNode: (catId: string, nodeId: string) => void
   /** 一次性存量补算：为账本中缺失的节点补 created/done 记录（幂等），返回新增条数。
@@ -791,6 +794,26 @@ export const useWorkspace = create<WorkspaceState>()(
           }
         })
         return id
+      },
+
+      // 添加子节点统一入口（原 NodeInspector.handleAddChild 与右键菜单两处重复逻辑合并）：
+      // 末尾显式 setActiveItem(childId)——仅靠 addNode 内部的 activeItemId 赋值，
+      // 在右键菜单路径下会被菜单关闭后的焦点/点击时序覆盖，详情面板不切换。
+      addChildNode: (catId, parentId) => {
+        const s = get()
+        const cat = s.categories.find((c) => c.id === catId)
+        if (!cat || !cat.relation) return null
+        const parent = cat.relation.nodes.find((n) => n.id === parentId)
+        if (!parent) return null
+        const base = parent.title?.trim() || "新节点"
+        const existing = new Set(cat.relation.nodes.map((n) => (n.title ?? "").trim()))
+        let seq = 1
+        while (existing.has(`${base} ${seq}`)) seq++
+        const pos = parent.position ?? { x: 200, y: 120 }
+        const childId = s.addNode(catId, { x: pos.x + 300, y: pos.y }, `${base} ${seq}`)
+        s.connectNodes(catId, parentId, childId, "flow")
+        s.setActiveItem(childId)
+        return childId
       },
 
       updateNode: (catId, nodeId, patch) =>

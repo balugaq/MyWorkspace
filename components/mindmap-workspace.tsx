@@ -110,6 +110,7 @@ function Canvas({ category }: { category: Category }) {
   const activeItemId = useWorkspace((s) => s.activeItemId)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const addNode = useWorkspace((s) => s.addNode)
+  const addChildNode = useWorkspace((s) => s.addChildNode)
   const updateNode = useWorkspace((s) => s.updateNode)
   const connectNodes = useWorkspace((s) => s.connectNodes)
   const removeEdge = useWorkspace((s) => s.removeEdge)
@@ -222,17 +223,14 @@ function Canvas({ category }: { category: Category }) {
       const n = relation.nodes.find((x) => x.id === nodeId)
       if (!n) return
       if (action === "add-child") {
-        // 与 NodeInspector.handleAddChild 同逻辑：以「父标题 序号」命名避重，置于父节点右侧并自动连线
-        if (!category.relation) return
-        const base = n.title?.trim() || "新节点"
-        const existing = new Set(
-          category.relation.nodes.map((m) => (m.title ?? "").trim()),
-        )
-        let seq = 1
-        while (existing.has(`${base} ${seq}`)) seq++
-        const pos = n.position ?? { x: 200, y: 120 }
-        const childId = addNode(category.id, { x: pos.x + 300, y: pos.y }, `${base} ${seq}`)
-        connectNodes(category.id, nodeId, childId, "flow")
+        // 走 store 统一入口（与 NodeInspector.handleAddChild 同一逻辑）
+        const childId = addChildNode(category.id, nodeId)
+        if (childId) {
+          // 右键菜单关闭时 base-ui 会把焦点还给节点触发器，随后的点击/选区时序可能
+          // 把 addNode 里设置的 activeItemId 覆盖掉（这正是「添加后不切详情」的根因），
+          // 延后一拍重新断言，确保详情面板稳定切到新节点。
+          window.setTimeout(() => setActiveItem(childId), 0)
+        }
         return
       }
       if (action === "toggle-done") {
@@ -270,7 +268,7 @@ function Canvas({ category }: { category: Category }) {
         return
       }
     },
-    [relation.nodes, category, addNode, connectNodes, updateNode],
+    [relation.nodes, category, addChildNode, setActiveItem, updateNode],
   )
 
   // 按 Delete / Backspace 请求删除当前选中的节点（弹出确认，避开文本输入框）

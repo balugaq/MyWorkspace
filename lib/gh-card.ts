@@ -79,8 +79,10 @@ function ogImageUrl(ref: GithubRef): string {
 }
 
 const CACHE_MS = 6 * 60 * 60 * 1000
-// 缓存键版本：v1 缓存里存着 num=NaN 时期的降级数据与非法 ogImage，直接作废不读
-const CARD_KEY_PREFIX = "v2:"
+// 缓存键版本：v1 存着 num=NaN 时期的坏数据；v2 存着「API 失败降级数据」（限流窗口里
+// 首拉的 issue 卡会以「未知」形态缓存 6 小时，PR 在别的时间首拉则正常——正是
+// 「PR 能显示、issue 无效」的根因）。v3 起降级数据不再入库（见 fetchGithubCard catch）。
+const CARD_KEY_PREFIX = "v3:"
 
 let dbp: Promise<IDBDatabase> | null = null
 function openDB(): Promise<IDBDatabase> {
@@ -217,8 +219,9 @@ export async function fetchGithubCard(url: string, token?: string): Promise<Gith
       }
     }
   } catch {
-    // 降级：仅图，无元数据
-    data = {
+    // 降级：仅图，无元数据。**不写缓存**——限流 / 网络抖动窗口里的失败若被缓存 6 小时，
+    // 该链接会持续「未知」到过期才自愈（匿名 60 次/时极易在批量测试后触发）。
+    return {
       url,
       title:
         ref.type === "release"

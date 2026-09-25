@@ -55,8 +55,7 @@ export function NodeInspector({
   const updateNode = useWorkspace((s) => s.updateNode)
   const removeNode = useWorkspace((s) => s.removeNode)
   const setNodeSolution = useWorkspace((s) => s.setNodeSolution)
-  const addNode = useWorkspace((s) => s.addNode)
-  const connectNodes = useWorkspace((s) => s.connectNodes)
+  const addChildNode = useWorkspace((s) => s.addChildNode)
 
   const patch = (p: Partial<MindNode>) => updateNode(category.id, node.id, p)
   const solStatus = node.solution?.status ?? "doing"
@@ -65,24 +64,10 @@ export function NodeInspector({
   // 删除确认弹窗：ESC 视为取消关闭（与其它弹窗行为一致）
   useEscapeClose(confirmDel, () => setConfirmDel(false))
 
-  // 添加子节点：以「当前节点名 + 空格 + 序号」命名，序号自动避开已存在标题；
-  // 新节点直接置于父节点右侧同一高度（不再按子节点数量向下错开），自动连线（flow），并打开其详情。
+  // 添加子节点：走 store 统一入口 addChildNode（避重命名 / 右置 / 自动连线 / 切换详情）。
   function handleAddChild() {
     if (!category.relation) return
-    const base = node.title?.trim() || "新节点"
-    const existing = new Set(
-      category.relation.nodes.map((n) => (n.title ?? "").trim()),
-    )
-    let seq = 1
-    while (existing.has(`${base} ${seq}`)) seq++
-    const childTitle = `${base} ${seq}`
-
-    const pos = node.position ?? { x: 200, y: 120 }
-    const childPos = { x: pos.x + 300, y: pos.y }
-
-    const childId = addNode(category.id, childPos, childTitle)
-    connectNodes(category.id, node.id, childId, "flow")
-    // addNode 已将 activeItemId 设为新节点，节点详情面板会随之切换到新节点
+    addChildNode(category.id, node.id)
   }
 
   // 标签（由共享 TagPicker 编辑）
