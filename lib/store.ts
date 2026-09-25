@@ -174,6 +174,9 @@ interface WorkspaceState {
   lastActiveAt: number | null
   // 已读水位（epoch ms）：createdAt 晚于它的通知计为未读（工具栏徽标）；进通知页即更新
   lastReadNotificationsAt: number | null
+  // 健康提醒上次触发时间（epoch ms，TODO 26）：持久化 + 按墙钟对表，重启/后台冻结不丢计时
+  lastWaterRemindAt: number | null
+  lastStandRemindAt: number | null
 
   // 关系类思维图视口存档（key = category.id）：保存上次浏览的 scale 及 x,y，重挂载后恢复
   mindmapViewports: Record<string, MindmapViewport>
@@ -278,6 +281,9 @@ interface WorkspaceState {
   setLastActiveAt: (ms: number) => void
   /** 标记通知全部已读（更新已读水位为当前时间）。 */
   markNotificationsRead: () => void
+  /** 健康提醒触发时间记账（TODO 26）。 */
+  setLastWaterRemindAt: (ms: number) => void
+  setLastStandRemindAt: (ms: number) => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -351,6 +357,8 @@ export const useWorkspace = create<WorkspaceState>()(
       notificationWatermark: null,
       lastActiveAt: null,
       lastReadNotificationsAt: null,
+      lastWaterRemindAt: null,
+      lastStandRemindAt: null,
 
       // 关系图视口存档：默认空（首次进入画布走 fitView 自适应）
       mindmapViewports: {},
@@ -1039,6 +1047,9 @@ export const useWorkspace = create<WorkspaceState>()(
 
       // 通知全部已读：进入通知页时调用（工具栏未读徽标随之清零）
       markNotificationsRead: () => set({ lastReadNotificationsAt: Date.now() }),
+
+      setLastWaterRemindAt: (ms) => set({ lastWaterRemindAt: ms }),
+      setLastStandRemindAt: (ms) => set({ lastStandRemindAt: ms }),
 
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({
