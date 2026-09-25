@@ -24,6 +24,7 @@ import type {
   Contribution,
   ContributionType,
   NotificationItem,
+  NotificationLogEntry,
   MindmapViewport,
 } from "./types"
 import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, type AIPersona } from "./types"
@@ -163,6 +164,9 @@ interface WorkspaceState {
   // 通知中心（TODO 20 / TODO 18）：GitHub sender 等产生的站内通知，持久化，按 createdAt
   // 降序，上限 200 条（超出截断最旧）
   notifications: NotificationItem[]
+  // 通知系统日志（TODO 27）：每轮扫描检查了哪些仓库/发现哪些新内容、是否发送通知提示，
+  // 持久化，按 at 降序，上限 500 条（超出截断最旧）
+  notificationLogs: NotificationLogEntry[]
   // 扫描水位（epoch ms）：上一轮成功扫描的时间，作为下轮起算点；null = 从未扫过
   notificationWatermark: number | null
   // 最近活跃时间（epoch ms）：调度器心跳维护；pagehide 时的更新 ≈「关机时间」，
@@ -261,6 +265,8 @@ interface WorkspaceState {
   ) => void
   /** 通知入库（TODO 20 / 18）：按 id 去重合并，按 createdAt 降序，上限 200 条截断最旧。 */
   addNotifications: (items: NotificationItem[]) => void
+  // 追加通知系统日志（TODO 27）：按 id 去重、at 降序、上限 500 条
+  appendNotificationLogs: (entries: NotificationLogEntry[]) => void
   /** 扫描水位：上一轮成功扫描时间（epoch ms）。 */
   setNotificationWatermark: (ms: number) => void
   /** 最近活跃时间（epoch ms）：调度器心跳 / pagehide 更新。 */
@@ -334,6 +340,7 @@ export const useWorkspace = create<WorkspaceState>()(
 
       // 通知中心：默认空（GitHub sender 由调度器入库）；水位 / 活跃时间初始 null
       notifications: [],
+      notificationLogs: [],
       notificationWatermark: null,
       lastActiveAt: null,
 
@@ -986,6 +993,17 @@ export const useWorkspace = create<WorkspaceState>()(
         }),
 
       setNotificationWatermark: (ms) => set({ notificationWatermark: ms }),
+
+      // 通知系统日志入库（TODO 27）：按 id 去重合并，按 at 降序，上限 500 条（超出截断最旧）。
+      appendNotificationLogs: (entries) =>
+        set((s) => {
+          if (entries.length === 0) return {}
+          const map = new Map<string, NotificationLogEntry>()
+          for (const e of s.notificationLogs) map.set(e.id, e)
+          for (const e of entries) map.set(e.id, e)
+          const merged = [...map.values()].sort((a, b) => b.at - a.at).slice(0, 500)
+          return { notificationLogs: merged }
+        }),
 
       setLastActiveAt: (ms) => set({ lastActiveAt: ms }),
 

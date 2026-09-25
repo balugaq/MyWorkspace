@@ -296,6 +296,17 @@ export const VIEW_LABEL: Record<
   notifications: "通知",
 }
 
+// 通知系统日志（TODO 27）：记录每轮扫描检查了哪些仓库、发现哪些新内容，以及是否发送了通知提示。
+export interface NotificationLogEntry {
+  id: string
+  at: number
+  /** scan = 一轮扫描摘要；item = 单个新发现的 commit/issue/pr/release */
+  kind: "scan" | "item"
+  message: string
+  /** 该条内容是否发送了通知提示（按渠道勾选与仅监听规则判定） */
+  notified: boolean
+}
+
 // 可持久化的系统设置
 export type ThemePreference = "light" | "dark" | "system"
 /** 默认启动视图；"last" = 打开上次的视图（view/activeCategoryId 本身已持久化，rehydrate 后即为上次状态） */

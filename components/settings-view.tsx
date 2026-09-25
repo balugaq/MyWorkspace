@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, ArrowUpRight, Trash2, ChevronRight, Check } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, ArrowUpRight, Trash2, ChevronRight, Check, Braces } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/store"
 import {
@@ -25,6 +25,7 @@ import {
   type ThemePreference,
   type UIFontFamily,
   type NotificationScanTypes,
+  type NotificationLogEntry,
 } from "@/lib/types"
 import {
   Dialog,
@@ -126,6 +127,45 @@ const SETTINGS_SECTIONS = [
   { id: "notifications", label: "通知" },
 ] as const
 
+// 通知日志导出（TODO 27 配套）：把 store 里持久化的扫描/条目日志落成文件下载。
+// txt = 人类可读的时间线；json = 原始结构化数据（便于程序处理或归档）。
+function stamp(at: number): string {
+  const d = new Date(at)
+  const p = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+function exportNotificationLogs(logs: NotificationLogEntry[], format: "txt" | "json"): void {
+  if (logs.length === 0) {
+    toast.info("暂无日志可导出")
+    return
+  }
+  const ts = stamp(Date.now()).replace(/[-: ]/g, "")
+  let content: string
+  let mime: string
+  if (format === "json") {
+    content = JSON.stringify(logs, null, 2)
+    mime = "application/json;charset=utf-8"
+  } else {
+    content = logs
+      .map((e) => {
+        const kind = e.kind === "scan" ? "扫描" : "条目"
+        const flag = e.kind === "item" ? (e.notified ? "已通知" : "未通知") : ""
+        return `[${stamp(e.at)}] [${kind}]${flag ? ` [${flag}]` : ""} ${e.message}`
+      })
+      .join("\n")
+    mime = "text/plain;charset=utf-8"
+  }
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `notification-logs-${ts}.${format}`
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.success(`已导出 ${logs.length} 条日志`)
+}
+
 // 分区容器：小标题 + 分隔线 + 内容块
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -138,6 +178,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function SettingsView() {
   const settings = useWorkspace((s) => s.settings)
+  const notificationLogs = useWorkspace((s) => s.notificationLogs)
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setShortcut = useWorkspace((s) => s.setShortcut)
   const goProfile = useWorkspace((s) => s.goProfile)
@@ -720,6 +761,31 @@ export function SettingsView() {
               </Button>
               <p className="text-xs text-muted-foreground">
                 直接查看/编辑持久化 JSON（分类/日历/设置/脚本）。高风险，仅供高级用户。
+              </p>
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">日志导出</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 justify-start gap-2"
+                  onClick={() => exportNotificationLogs(notificationLogs, "txt")}
+                >
+                  <Download className="size-4" />
+                  导出为文本（.txt）
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 justify-start gap-2"
+                  onClick={() => exportNotificationLogs(notificationLogs, "json")}
+                >
+                  <Braces className="size-4" />
+                  导出为 JSON
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                导出通知系统的扫描与内容日志（每轮扫描检查了哪些仓库、发现了哪些新 commit / Issue / PR / 发布、是否发送了通知提示）。按时间倒序，上限 500 条。
               </p>
             </section>
 

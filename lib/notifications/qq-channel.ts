@@ -8,7 +8,8 @@ import type { NotificationItem } from "@/lib/types"
 import { DEFAULT_QQ_RELAY_URL } from "@/lib/types"
 import { senderDisplayName } from "./senders"
 
-const KIND_LABEL: Record<NotificationItem["kind"], string> = {
+/** 通知类型中文名（日志/推送共用） */
+export const KIND_LABEL: Record<NotificationItem["kind"], string> = {
   commit: "提交",
   issue: "Issue",
   pr: "PR",

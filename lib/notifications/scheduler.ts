@@ -5,9 +5,10 @@
 // 幂等：startNotificationScheduler 模块级 flag，重复调用直接 return。
 
 import { useWorkspace } from "@/lib/store"
-import type { ContributionType, NotificationItem } from "@/lib/types"
+import type { ContributionType, NotificationItem, NotificationLogEntry } from "@/lib/types"
 import { scanGithubNotifications } from "./github-sender"
 import { dispatchNotifications } from "./channels"
+import { KIND_LABEL } from "./qq-channel"
 
 const INTERVAL_MS = 5 * 60 * 1000
 
@@ -84,6 +85,37 @@ export async function scanNow(): Promise<void> {
 
     // 新条目按用户勾选的通知渠道分发（仅本轮新入库的，去重条目不重复投递）
     if (fresh.length > 0) dispatchNotifications(fresh, state.settings)
+
+    // 日志存储（TODO 27）：记录本轮检查的仓库、发现的新内容，以及是否发送了通知提示。
+    // scan 汇总条目 + 逐条 item 条目（含「仅监听」的 commit——检查过但按规则不通知）。
+    const channelsEnabled =
+      state.settings.notificationChannels.builtin || state.settings.notificationChannels.qq
+    const scanAt = Date.now()
+    const logs: NotificationLogEntry[] = []
+    if (repos.length > 0) {
+      logs.push({
+        id: `scan:${scanAt}`,
+        at: scanAt,
+        kind: "scan",
+        message: `已扫描 ${repos.length} 个仓库：新增通知 ${fresh.length} 条${
+          rateLimited ? "（本轮触发限流，水位未推进）" : ""
+        }`,
+        notified: fresh.length > 0 && channelsEnabled,
+      })
+    }
+    for (const n of items) {
+      const monitorOnly = n.kind === "commit" && monitorOnlyRepos.has(n.repo)
+      logs.push({
+        id: `item:${n.id}`,
+        at: scanAt,
+        kind: "item",
+        message: `发现 ${n.repo} 的新${KIND_LABEL[n.kind]}「${n.title}」${
+          monitorOnly ? "（仅监听，未通知）" : ""
+        }`,
+        notified: channelsEnabled && !monitorOnly,
+      })
+    }
+    state.appendNotificationLogs(logs)
 
     // 贡献入账：commit/issue/pr 且 actor 与「Git 本地名称」一致（名称非空才比对）。
     // 注意：从**本轮扫到的全部条目**计算（而非仅 fresh）——「仅监听」的 commit 不入库通知，
