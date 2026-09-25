@@ -56,31 +56,59 @@ export function NotificationToastQueue() {
     setCurrent(next)
   }, [current, queue])
 
-  // 展示生命周期：只依赖 current——挂载后双 rAF 滑入，停留 5 秒滑出；
-  // 另设兜底 eject 定时器（transitionend 在后台标签页可能不触发），保证队列持续推进。
+  // 展示生命周期：只依赖 current——挂载后短暂延迟滑入（用 setTimeout 而非 rAF：
+  // 后台标签页 rAF 被浏览器暂停，滑入永不触发，而 eject 兜底定时器照跑，
+  // 会把队列无声消耗掉——这正是「QQ 收到了但内置弹窗没看到」的根因），
+  // 停留 5 秒滑出，另设兜底 eject（transitionend 在后台标签页可能不触发）。
+  // 若当前标签页在后台（document.hidden）：不启动任何计时，等回到前台再展示，
+  // 队列原地等待不丢失。
   useEffect(() => {
     if (!current) return
+    // 复位上一条的滑入态，确保本条从隐藏位重新滑入
     setVisible(false)
     let alive = true
-    let raf2 = 0
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        if (alive) setVisible(true)
-      })
-    })
-    const hideTimer = window.setTimeout(() => {
-      if (alive) setVisible(false)
-    }, DWELL_MS)
-    const ejectTimer = window.setTimeout(() => {
-      if (alive) setCurrent(null)
-    }, DWELL_MS + SLIDE_MS + EJECT_MS)
-    dismissTimer.current = hideTimer
+    const timers: number[] = []
+
+    const arm = () => {
+      if (!alive) return
+      timers.push(
+        window.setTimeout(() => {
+          if (alive) setVisible(true)
+        }, 60)
+      )
+      timers.push(
+        window.setTimeout(() => {
+          if (alive) setVisible(false)
+        }, DWELL_MS)
+      )
+      timers.push(
+        window.setTimeout(() => {
+          if (alive) setCurrent(null)
+        }, DWELL_MS + SLIDE_MS + EJECT_MS)
+      )
+      // dismiss()（手动提前滑出）要清的是「滑出」定时器
+      dismissTimer.current = timers[1]
+    }
+
+    let onVis: (() => void) | null = null
+    if (document.hidden) {
+      const handler = () => {
+        if (!document.hidden && alive) {
+          document.removeEventListener("visibilitychange", handler)
+          onVis = null
+          arm()
+        }
+      }
+      onVis = handler
+      document.addEventListener("visibilitychange", handler)
+    } else {
+      arm()
+    }
+
     return () => {
       alive = false
-      cancelAnimationFrame(raf1)
-      cancelAnimationFrame(raf2)
-      window.clearTimeout(hideTimer)
-      window.clearTimeout(ejectTimer)
+      if (onVis) document.removeEventListener("visibilitychange", onVis)
+      for (const t of timers) window.clearTimeout(t)
       dismissTimer.current = null
     }
   }, [current])

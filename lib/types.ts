@@ -181,6 +181,9 @@ export interface NotificationItem {
   kind: NotificationKind
   /** 事件类型；缺省视为 open（兼容旧存档） */
   event?: NotificationEvent
+  /** 扫描器首次发现并入库的时间（epoch ms）。晚推送的 commit 等场景下与 createdAt
+   * （事件发生时间）不同；通知页按它排序，保证刚收到的永远在最上面。旧档缺省回落 createdAt */
+  foundAt?: number
   /** 仓库，格式 owner/name */
   repo: string
   title: string

@@ -20,8 +20,7 @@ const KIND_META: Record<NotificationKind, { label: string; className: string }> 
 }
 
 /** 相对时间：N 分钟前 / N 小时前 / N 天前；超 30 天回落绝对日期。 */
-function relativeTime(iso: string): string {
-  const at = Date.parse(iso)
+function relativeTimeMs(at: number): string {
   if (!Number.isFinite(at)) return ""
   const diff = Date.now() - at
   const minutes = Math.floor(diff / 60_000)
@@ -51,7 +50,9 @@ function NotificationCard({ item }: { item: NotificationItem }) {
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
         <span className="truncate text-muted-foreground">{item.repo}</span>
-        <span className="ml-auto shrink-0 text-muted-foreground/70">{relativeTime(item.createdAt)}</span>
+        <span className="ml-auto shrink-0 text-muted-foreground/70">
+          {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
+        </span>
       </div>
       <p className="truncate text-sm font-medium text-foreground" title={item.title}>
         {item.title || "（无标题）"}
@@ -78,12 +79,6 @@ export function NotificationsWorkspace() {
 
       <div className="min-h-0 flex-1 overflow-auto px-8">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-8">
-          {/* 状态行（sender 未来会更多样，文案不绑定 GitHub） */}
-          <p className="text-xs text-muted-foreground">
-            已配置 {repos.length} 个仓库 · 每 5 分钟自动扫描一次新动态
-            {repos.length > 0 && `（${repos.map((r) => r.repo).join("、")}）`}
-          </p>
-
           {repos.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
               <Bell className="size-8 text-muted-foreground/60" />
@@ -106,9 +101,16 @@ export function NotificationsWorkspace() {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {notifications.map((n) => (
-                <NotificationCard key={n.id} item={n} />
-              ))}
+              {/* 按「发现时间」降序：晚推送的旧 commit createdAt 很早，按发生时间排会被压到深处 */}
+              {[...notifications]
+                .sort(
+                  (a, b) =>
+                    (b.foundAt ?? (Date.parse(b.createdAt) || 0)) -
+                    (a.foundAt ?? (Date.parse(a.createdAt) || 0))
+                )
+                .map((n) => (
+                  <NotificationCard key={n.id} item={n} />
+                ))}
             </div>
           )}
         </div>

@@ -172,6 +172,8 @@ interface WorkspaceState {
   // 最近活跃时间（epoch ms）：调度器心跳维护；pagehide 时的更新 ≈「关机时间」，
   // 作为首次扫描（无水位时）的兜底起算点
   lastActiveAt: number | null
+  // 已读水位（epoch ms）：createdAt 晚于它的通知计为未读（工具栏徽标）；进通知页即更新
+  lastReadNotificationsAt: number | null
 
   // 关系类思维图视口存档（key = category.id）：保存上次浏览的 scale 及 x,y，重挂载后恢复
   mindmapViewports: Record<string, MindmapViewport>
@@ -271,6 +273,8 @@ interface WorkspaceState {
   setNotificationWatermark: (ms: number) => void
   /** 最近活跃时间（epoch ms）：调度器心跳 / pagehide 更新。 */
   setLastActiveAt: (ms: number) => void
+  /** 标记通知全部已读（更新已读水位为当前时间）。 */
+  markNotificationsRead: () => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -343,6 +347,7 @@ export const useWorkspace = create<WorkspaceState>()(
       notificationLogs: [],
       notificationWatermark: null,
       lastActiveAt: null,
+      lastReadNotificationsAt: null,
 
       // 关系图视口存档：默认空（首次进入画布走 fitView 自适应）
       mindmapViewports: {},
@@ -636,7 +641,8 @@ export const useWorkspace = create<WorkspaceState>()(
       goAIChat: () => set({ view: "ai-chat", activeCategoryId: null }),
       goProfile: () => set({ view: "profile", activeCategoryId: null }),
       goSettings: () => set({ view: "settings", activeCategoryId: null }),
-      goNotifications: () => set({ view: "notifications", activeCategoryId: null }),
+      goNotifications: () =>
+        set({ view: "notifications", activeCategoryId: null, lastReadNotificationsAt: Date.now() }),
 
       // ---- AI 助手：多会话（各自持有上下文） ----
       createConversation: () => {
@@ -986,9 +992,10 @@ export const useWorkspace = create<WorkspaceState>()(
           const map = new Map<string, NotificationItem>()
           for (const n of s.notifications) map.set(n.id, n)
           for (const n of items) map.set(n.id, n)
-          const merged = [...map.values()]
-            .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-            .slice(0, 200)
+          // 按「发现时间」排序/截断（foundAt 缺省回落 createdAt）：晚推送的旧 commit
+          // createdAt 很早，若按 createdAt 排会被压到列表深处甚至截断掉
+          const key = (n: NotificationItem) => n.foundAt ?? (Date.parse(n.createdAt) || 0)
+          const merged = [...map.values()].sort((a, b) => key(b) - key(a)).slice(0, 200)
           return { notifications: merged }
         }),
 
@@ -1006,6 +1013,9 @@ export const useWorkspace = create<WorkspaceState>()(
         }),
 
       setLastActiveAt: (ms) => set({ lastActiveAt: ms }),
+
+      // 通知全部已读：进入通知页时调用（工具栏未读徽标随之清零）
+      markNotificationsRead: () => set({ lastReadNotificationsAt: Date.now() }),
 
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({

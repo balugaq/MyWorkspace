@@ -38,6 +38,13 @@ export function ToolbarPanel() {
   const goContacts = useWorkspace((s) => s.goContacts)
   const goVault = useWorkspace((s) => s.goVault)
   const goNotifications = useWorkspace((s) => s.goNotifications)
+  // 通知未读数（工具栏「通知」卡片徽标）：createdAt 晚于已读水位的条数；
+  // 进通知页（goNotifications）即标记已读，徽标清零
+  const notifications = useWorkspace((s) => s.notifications)
+  const lastReadNotificationsAt = useWorkspace((s) => s.lastReadNotificationsAt)
+  const unreadCount = notifications.filter(
+    (n) => Date.parse(n.createdAt) > (lastReadNotificationsAt ?? 0)
+  ).length
 
   const activate = (id: (typeof TOOL_CARDS)[number]["id"]) => {
     // 点「AI 对话 / 随笔」时自动展开内容区（收起状态下切回来不至于看不到列表）
@@ -96,6 +103,7 @@ export function ToolbarPanel() {
             {TOOL_CARDS.map((t) => {
               const Icon = t.icon
               const active = view === t.id
+              const showBadge = t.id === "notifications" && unreadCount > 0
               return (
                 <button
                   key={t.id}
@@ -103,7 +111,7 @@ export function ToolbarPanel() {
                   onClick={() => activate(t.id)}
                   title={t.name}
                   className={cn(
-                    "flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[11px] transition-colors",
+                    "relative flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[11px] transition-colors",
                     active
                       ? "border-primary/40 bg-primary/10 text-primary"
                       : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -111,6 +119,11 @@ export function ToolbarPanel() {
                 >
                   <Icon className="size-4 shrink-0" />
                   <span className="w-full truncate text-center">{t.name}</span>
+                  {showBadge && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </button>
               )
             })}

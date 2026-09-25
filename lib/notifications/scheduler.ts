@@ -82,7 +82,12 @@ export async function scanNow(): Promise<void> {
     )
     const fresh = notifyItems.filter((n) => !existingIds.has(n.id))
 
-    state.addNotifications(notifyItems)
+    // foundAt = 本轮扫描发现时刻（epoch ms）：晚推送的 commit 等场景下，事件发生时间
+    // （createdAt）可能远早于发现时刻，通知页按 foundAt 排序才能保证刚收到的在最上面
+    const foundAt = Date.now()
+    state.addNotifications(
+      notifyItems.map((n) => (n.foundAt ? n : { ...n, foundAt }))
+    )
     // 限流轮不推进水位：未扫到的仓库/时间窗下轮重扫（store 内按 id 去重，重扫无副作用）
     if (!rateLimited) {
       state.setNotificationWatermark(Date.now())
