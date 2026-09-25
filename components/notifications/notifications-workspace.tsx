@@ -6,6 +6,7 @@
 
 import { useWorkspace } from "@/lib/store"
 import type { NotificationKind, NotificationItem } from "@/lib/types"
+import { GH_EVENT_LABEL } from "@/lib/types"
 import { senderDisplayName } from "@/lib/notifications/senders"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -43,7 +44,11 @@ function NotificationCard({ item }: { item: NotificationItem }) {
       className="flex w-full flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/70"
     >
       <div className="flex items-center gap-2 text-xs">
-        <span className={cn("rounded px-1.5 py-0.5 font-medium", meta.className)}>{meta.label}</span>
+        <span className={cn("rounded px-1.5 py-0.5 font-medium", meta.className)}>
+          {(item.event ?? "open") === "open"
+            ? meta.label
+            : `${meta.label} · ${GH_EVENT_LABEL[item.event ?? "open"]}`}
+        </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
         <span className="truncate text-muted-foreground">{item.repo}</span>
         <span className="ml-auto shrink-0 text-muted-foreground/70">{relativeTime(item.createdAt)}</span>

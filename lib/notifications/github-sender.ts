@@ -19,6 +19,8 @@ export interface GithubScanOptions {
   /** 每仓库独立配置：owner/name + 该仓库自己的扫描类型开关 */
   repos: NotificationRepoConfig[]
   token: string // PAT；空串 = 匿名
+  /** 已入库的通知 id 集合：用于 issue/PR 状态变化事件的判定（如 reopen 需要「见过关闭」） */
+  knownIds: Set<string>
 }
 
 export interface GithubScanResult {
@@ -44,8 +46,14 @@ interface GhIssue {
   html_url: string
   user: { login: string } | null
   created_at: string
+  updated_at: string
+  /** issue/PR 当前状态（列表 API 只给当前态，不给事件流） */
+  state: "open" | "closed"
+  /** 关闭时间（issue 与 PR 都有；重新打开后再次关闭会更新） */
+  closed_at: string | null
   body?: string | null
-  pull_request?: Record<string, unknown>
+  /** 有此字段即为 PR（列表 API 的 PR 复用 issue 条目）；merged_at 非空表示已合并 */
+  pull_request?: { merged_at: string | null } | null
 }
 
 interface GhRelease {
@@ -115,6 +123,9 @@ async function scanCommits(
   const items: NotificationItem[] = []
   for (const raw of data) {
     const c = raw as GhCommit
+    // 注意：这里用的是 **commit date**（committer.date，即最终落到 GitHub 时间线上的时间），
+    // 不是 author.date（原始撰写时间，rebase/amend 后会保留旧值）。GitHub 的 since 参数
+    // 也是按 committer date 过滤的，两者口径一致。
     const committer = c.commit?.committer
     const author = c.commit?.author
     const actor = committer?.name || author?.name || ""
@@ -141,13 +152,23 @@ async function scanCommits(
   return items
 }
 
-/** issues 一个请求两类共用：有 pull_request 字段 → pr，否则 issue。since 按 updated 过滤，
- *  但「新」以 created_at > since 为准（必须再过滤一次）。 */
+/** issues 一个请求两类共用：有 pull_request 字段 → pr，否则 issue。since 按 updated 过滤。
+ *
+ * 事件判定（列表 API 只给「当前态」，不给事件流，因此按当前态 + 时间戳推断）：
+ *  - created_at > since                       → open（新建）
+ *  - closed_at > since（未合并）              → close（关闭；closed_at 稳定，id 不带时间戳 → 同次转换只通知一次）
+ *  - PR 且 merged_at > since                  → merge（合并）
+ *  - state=open 且曾关闭（closed_at 非空）且 knownIds 见过 :closed/:merged → reopen（重新打开；
+ *    无此条件的话，普通评论也会让 updated_at 前进，会把没关过的老 issue 误判成 reopen）
+ *
+ * 已知限制：issue 的 closed→open→closed 二次循环时 :closed id 已存在，第二次关闭不再通知。
+ */
 async function scanIssuesAndPrs(
   repo: string,
   sinceIso: string,
   token: string,
-  state: { rateLimited: boolean }
+  state: { rateLimited: boolean },
+  knownIds: Set<string>
 ): Promise<NotificationItem[]> {
   const [owner, name] = repo.split("/")
   const url = `${API_BASE}/repos/${owner}/${name}/issues?since=${encodeURIComponent(sinceIso)}&state=all&per_page=50`
@@ -157,20 +178,89 @@ async function scanIssuesAndPrs(
   const items: NotificationItem[] = []
   for (const raw of data) {
     const it = raw as GhIssue
-    const at = Date.parse(it.created_at ?? "")
-    if (!it.number || !it.created_at || !Number.isFinite(at) || at <= since) continue
+    if (!it.number) continue
     const isPr = !!it.pull_request
-    items.push({
-      id: `gh:${isPr ? "pr" : "issue"}:${repo}:${it.number}`,
-      senderId: "github",
-      kind: isPr ? "pr" : "issue",
-      repo,
-      title: firstLine(it.title, TITLE_MAX),
-      brief: firstLine(it.body, BRIEF_MAX),
-      url: it.html_url,
-      actor: it.user?.login ?? "",
-      createdAt: it.created_at,
-    })
+    const kindBase = isPr ? "pr" : "issue"
+    const createdAt = Date.parse(it.created_at ?? "")
+    if (!Number.isFinite(createdAt)) continue
+    const updatedAt = Date.parse(it.updated_at ?? "")
+    const closedAt = it.closed_at ? Date.parse(it.closed_at) : NaN
+    const mergedAt = it.pull_request?.merged_at ? Date.parse(it.pull_request.merged_at) : NaN
+
+    // 新建：open 事件，id 与旧版一致（不带后缀）
+    if (createdAt > since) {
+      items.push({
+        id: `gh:${kindBase}:${repo}:${it.number}`,
+        senderId: "github",
+        kind: isPr ? "pr" : "issue",
+        event: "open",
+        repo,
+        title: firstLine(it.title, TITLE_MAX),
+        brief: firstLine(it.body, BRIEF_MAX),
+        url: it.html_url,
+        actor: it.user?.login ?? "",
+        createdAt: it.created_at,
+      })
+      continue
+    }
+
+    if (!Number.isFinite(updatedAt) || updatedAt <= since) continue
+    const actor = it.user?.login ?? ""
+
+    // PR 合并：merged_at 是每次合并的稳定时间戳（id 稳定 → 去重天然生效）
+    if (isPr && Number.isFinite(mergedAt) && mergedAt > since) {
+      items.push({
+        id: `gh:pr:${repo}:${it.number}:merged`,
+        senderId: "github",
+        kind: "pr",
+        event: "merge",
+        repo,
+        title: firstLine(it.title, TITLE_MAX),
+        brief: `由 ${actor} 合并`,
+        url: it.html_url,
+        actor,
+        createdAt: it.pull_request!.merged_at!,
+      })
+      continue
+    }
+
+    // 关闭：closed_at > since 才算本轮窗口内发生的关闭（老 issue 收到新评论不会误报）
+    if (it.state === "closed" && Number.isFinite(closedAt) && closedAt > since) {
+      items.push({
+        id: `gh:${kindBase}:${repo}:${it.number}:closed`,
+        senderId: "github",
+        kind: isPr ? "pr" : "issue",
+        event: "close",
+        repo,
+        title: firstLine(it.title, TITLE_MAX),
+        brief: `由 ${actor} 关闭`,
+        url: it.html_url,
+        actor,
+        createdAt: it.closed_at!,
+      })
+      continue
+    }
+
+    // 重新打开：当前 open、曾关闭过、且我们见过它的关闭（避免把普通评论误判为 reopen）
+    if (
+      it.state === "open" &&
+      Number.isFinite(closedAt) &&
+      (knownIds.has(`gh:${kindBase}:${repo}:${it.number}:closed`) ||
+        knownIds.has(`gh:pr:${repo}:${it.number}:merged`))
+    ) {
+      items.push({
+        id: `gh:${kindBase}:${repo}:${it.number}:open`,
+        senderId: "github",
+        kind: isPr ? "pr" : "issue",
+        event: "reopen",
+        repo,
+        title: firstLine(it.title, TITLE_MAX),
+        brief: `由 ${actor} 重新打开`,
+        url: it.html_url,
+        actor,
+        createdAt: it.updated_at,
+      })
+    }
   }
   return items
 }
@@ -230,7 +320,7 @@ export async function scanGithubNotifications(
     const tasks: Array<() => Promise<NotificationItem[]>> = []
     if (repoCfg.scanTypes.commits) tasks.push(() => scanCommits(repoName, sinceIso, opts.token, state))
     if (repoCfg.scanTypes.issues || repoCfg.scanTypes.prs)
-      tasks.push(() => scanIssuesAndPrs(repoName, sinceIso, opts.token, state))
+      tasks.push(() => scanIssuesAndPrs(repoName, sinceIso, opts.token, state, opts.knownIds))
     if (repoCfg.scanTypes.releases) tasks.push(() => scanReleases(repoName, sinceIso, opts.token, state))
 
     for (const task of tasks) {

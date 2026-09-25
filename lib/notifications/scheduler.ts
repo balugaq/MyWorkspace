@@ -5,7 +5,8 @@
 // 幂等：startNotificationScheduler 模块级 flag，重复调用直接 return。
 
 import { useWorkspace } from "@/lib/store"
-import type { ContributionType, NotificationItem, NotificationLogEntry } from "@/lib/types"
+import type { ContributionType, NotificationLogEntry } from "@/lib/types"
+import { GH_EVENT_LABEL } from "@/lib/types"
 import { scanGithubNotifications } from "./github-sender"
 import { dispatchNotifications } from "./channels"
 import { KIND_LABEL } from "./qq-channel"
@@ -63,10 +64,14 @@ export async function scanNow(): Promise<void> {
     // 起算时间：水位优先，没有数据（首次）用关机/活跃时间，再没有用当前时间
     const since = s.notificationWatermark ?? s.lastActiveAt ?? Date.now()
 
-    const { items, rateLimited } = await scanGithubNotifications(since, { repos, token })
-
     const state = useWorkspace.getState()
     const existingIds = new Set(state.notifications.map((n) => n.id))
+
+    const { items, rateLimited } = await scanGithubNotifications(since, {
+      repos,
+      token,
+      knownIds: existingIds,
+    })
 
     // 「仅监听」的仓库：commit 仍被扫描（计贡献用），但不入库通知、不弹弹窗
     const monitorOnlyRepos = new Set(
@@ -105,31 +110,43 @@ export async function scanNow(): Promise<void> {
     }
     for (const n of items) {
       const monitorOnly = n.kind === "commit" && monitorOnlyRepos.has(n.repo)
+      const ev = n.event ?? "open"
+      // open = 新建（原文案）；其余状态变化用「已关闭/已合并/重新打开」文案
+      const message =
+        ev === "open"
+          ? `发现 ${n.repo} 的新${KIND_LABEL[n.kind]}「${n.title}」`
+          : `${n.repo} 的${KIND_LABEL[n.kind]}「${n.title}」${GH_EVENT_LABEL[ev]}`
       logs.push({
         id: `item:${n.id}`,
         at: scanAt,
         kind: "item",
-        message: `发现 ${n.repo} 的新${KIND_LABEL[n.kind]}「${n.title}」${
-          monitorOnly ? "（仅监听，未通知）" : ""
-        }`,
+        message: `${message}${monitorOnly ? "（仅监听，未通知）" : ""}`,
         notified: channelsEnabled && !monitorOnly,
       })
     }
     state.appendNotificationLogs(logs)
 
-    // 贡献入账：commit/issue/pr 且 actor 与「Git 本地名称」一致（名称非空才比对）。
+    // 贡献入账（按主人定的规则）：commit 全记；issue 仅 open；PR 仅 open / merge。
+    // actor 与「Git 本地名称」一致（名称非空才比对）。
     // 注意：从**本轮扫到的全部条目**计算（而非仅 fresh）——「仅监听」的 commit 不入库通知，
     // 但贡献照记；贡献 id 是确定性的（github-{...}），appendContributions 内按 id 去重防重计。
+    // 旧存档条目无 event 字段 → 视为 open（历史上入库的都是新建事件）。
     const gitName = state.settings.gitUserName.trim()
     if (gitName) {
       const entries = items
-        .filter((n): n is NotificationItem & { kind: "commit" | "issue" | "pr" } =>
-          n.kind === "commit" || n.kind === "issue" || n.kind === "pr"
-        )
+        .filter((n) => {
+          if (n.kind === "commit") return true
+          if (n.kind === "issue") return (n.event ?? "open") === "open"
+          if (n.kind === "pr") {
+            const ev = n.event ?? "open"
+            return ev === "open" || ev === "merge"
+          }
+          return false
+        })
         .filter((n) => n.actor === gitName)
         .map((n) => ({
           id: `github-${n.id.slice("gh:".length)}`,
-          type: KIND_TO_CONTRIB[n.kind],
+          type: KIND_TO_CONTRIB[n.kind as "commit" | "issue" | "pr"],
           at: Date.parse(n.createdAt),
           content: `${n.repo}: ${n.title}`,
         }))

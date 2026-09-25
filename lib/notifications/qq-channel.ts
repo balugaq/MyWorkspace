@@ -5,7 +5,7 @@
 // 约束：正文以 [MyWorkspace] 开头标注来源；消息保持简短（机器人每日额度有限）；
 //       超时 20 秒（服务转发较慢，短超时会误判失败）；失败静默（不打扰、不重试）。
 import type { NotificationItem } from "@/lib/types"
-import { DEFAULT_QQ_RELAY_URL } from "@/lib/types"
+import { DEFAULT_QQ_RELAY_URL, GH_EVENT_LABEL } from "@/lib/types"
 import { senderDisplayName } from "./senders"
 
 /** 通知类型中文名（日志/推送共用） */
@@ -25,9 +25,13 @@ function clip(text: string, max = 60): string {
 /** 推送一条通知到 QQ 私信；返回是否成功（失败由调用方静默处理） */
 export async function sendQqNotification(item: NotificationItem, relayUrl: string): Promise<boolean> {
   const url = relayUrl.trim() || DEFAULT_QQ_RELAY_URL
+  // 状态变化事件在类型后标注（如「Issue（关闭）」）；open 不标注
+  const ev = item.event ?? "open"
+  const kindText =
+    ev === "open" ? KIND_LABEL[item.kind] : `${KIND_LABEL[item.kind]}（${GH_EVENT_LABEL[ev]}）`
   const text =
     `[MyWorkspace] 通知中心 · ${senderDisplayName(item.senderId)}\n` +
-    `${KIND_LABEL[item.kind]} · ${item.repo}\n` +
+    `${kindText} · ${item.repo}\n` +
     `${clip(item.title)}\n` +
     item.url
   try {

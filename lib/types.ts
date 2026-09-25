@@ -160,12 +160,27 @@ export const CONTRIBUTION_AMOUNT: Record<ContributionType, number> = {
 
 export type NotificationKind = "commit" | "issue" | "pr" | "release"
 
+/** 通知事件类型：open = 新建（issue/PR 创建、commit、release 均视为 open）；
+ * close / reopen = issue/PR 状态变化；merge = PR 合并。旧存档条目无此字段，按 open 处理。 */
+export type NotificationEvent = "open" | "close" | "reopen" | "merge"
+
+/** 事件中文标签（通知中心胶囊 / QQ 消息拼接用） */
+export const GH_EVENT_LABEL: Record<NotificationEvent, string> = {
+  open: "开启",
+  close: "关闭",
+  reopen: "重新打开",
+  merge: "合并",
+}
+
 export interface NotificationItem {
-  /** 幂等去重键：gh:commit:{owner}/{repo}:{sha} | gh:issue:{owner}/{repo}:{number} | gh:pr:{owner}/{repo}:{number} | gh:release:{owner}/{repo}:{id} */
+  /** 幂等去重键：gh:commit:{owner}/{repo}:{sha} | gh:issue:{owner}/{repo}:{number} | gh:pr:{owner}/{repo}:{number} | gh:release:{owner}/{repo}:{id}；
+   * 状态变化事件带状态后缀：gh:issue:{owner}/{repo}:{number}:closed 等（同一次转换只通知一次） */
   id: string
   /** 内置 sender 标识，固定 "github"；未来扩展新 sender 用 */
   senderId: string
   kind: NotificationKind
+  /** 事件类型；缺省视为 open（兼容旧存档） */
+  event?: NotificationEvent
   /** 仓库，格式 owner/name */
   repo: string
   title: string
