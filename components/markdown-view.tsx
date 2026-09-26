@@ -2,6 +2,12 @@
 
 import { createElement, useMemo, type ReactNode } from "react"
 import { marked } from "marked"
+import {
+  FORMAT_COLOR_MAP,
+  FORMAT_COLOR_TAG_AT,
+  FORMAT_COLOR_TAG_RE,
+  stripFormatColorTags,
+} from "@/lib/format-colors"
 import { cn } from "@/lib/utils"
 import { StoredImg, MarkdownImg } from "@/components/rich-text"
 
@@ -77,12 +83,71 @@ function splitImg(text: string, fullSize?: boolean): ReactNode[] {
   return out
 }
 
-function renderInline(tokens: MdToken[], fullSize?: boolean): ReactNode[] {
+/**
+ * 按 16 色标签（TODO 32）渲染一段文本：扫描到 <色名> / </色名> 时维护 colorStack，
+ * 中间段落按栈顶颜色包 span 输出，段落内容再交给 renderSeg（继续拆图片等）。
+ * colorStack 由调用方持有并在同一 inline 块内跨 token 共享（marked 会把标签拆成
+ * 独立 html token，开/闭标记因此分散在相邻 token 里）。
+ */
+function renderTextWithColors(
+  text: string,
+  colorStack: string[],
+  keyPrefix: string,
+  renderSeg: (seg: string) => ReactNode,
+): ReactNode[] {
+  const out: ReactNode[] = []
+  let last = 0
+  let k = 0
+  const flush = (end: number) => {
+    if (end <= last) return
+    const seg = text.slice(last, end)
+    const hex = colorStack.length
+      ? FORMAT_COLOR_MAP[colorStack[colorStack.length - 1]]
+      : undefined
+    out.push(
+      <span key={`${keyPrefix}-${k++}`} style={hex ? { color: hex } : undefined}>
+        {renderSeg(seg)}
+      </span>,
+    )
+  }
+  FORMAT_COLOR_TAG_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = FORMAT_COLOR_TAG_RE.exec(text))) {
+    flush(m.index)
+    if (m[1]) colorStack.pop()
+    else colorStack.push(m[2]!)
+    last = m.index + m[0].length
+  }
+  flush(text.length)
+  return out.length ? out : [<span key={`${keyPrefix}-0`}>{renderSeg(text)}</span>]
+}
+
+function renderInline(
+  tokens: MdToken[],
+  fullSize?: boolean,
+  colorStack: string[] = [],
+): ReactNode[] {
   return tokens.map((t, i) => {
     switch (t.type) {
       case "text":
       case "escape":
-        return <span key={i}>{splitImg(t.text ?? "", fullSize)}</span>
+        return (
+          <span key={i}>
+            {renderTextWithColors(t.text ?? "", colorStack, `i${i}`, (seg) =>
+              splitImg(seg, fullSize),
+            )}
+          </span>
+        )
+      case "html": {
+        // 16 色标签被 marked 拆成独立 html token：消费掉并维护颜色栈；
+        // 其余原始 HTML 仍不渲染（XSS 防线不变）
+        const m = FORMAT_COLOR_TAG_AT.exec((t.text ?? "").trim())
+        if (m) {
+          if (m[1]) colorStack.pop()
+          else colorStack.push(m[2]!)
+        }
+        return null
+      }
       case "codespan":
         return (
           <code key={i} className={INLINE_CODE_CLS}>
@@ -90,16 +155,16 @@ function renderInline(tokens: MdToken[], fullSize?: boolean): ReactNode[] {
           </code>
         )
       case "strong":
-        return <strong key={i}>{renderInline(inlineOf(t), fullSize)}</strong>
+        return <strong key={i}>{renderInline(inlineOf(t), fullSize, colorStack)}</strong>
       case "em":
-        return <em key={i}>{renderInline(inlineOf(t), fullSize)}</em>
+        return <em key={i}>{renderInline(inlineOf(t), fullSize, colorStack)}</em>
       case "del":
-        return <del key={i}>{renderInline(inlineOf(t), fullSize)}</del>
+        return <del key={i}>{renderInline(inlineOf(t), fullSize, colorStack)}</del>
       case "link": {
         const href = safeHref(t.href)
         return (
           <a key={i} href={href} target="_blank" rel="noreferrer noopener" className={LINK_CLS}>
-            {renderInline(inlineOf(t), fullSize)}
+            {renderInline(inlineOf(t), fullSize, colorStack)}
           </a>
         )
       }
@@ -107,11 +172,14 @@ function renderInline(tokens: MdToken[], fullSize?: boolean): ReactNode[] {
         return <MarkdownImg key={i} url={t.href ?? ""} fullSize={fullSize} />
       case "br":
         return <br key={i} />
-      case "html":
-        // 不渲染原始 HTML，避免 XSS
-        return null
       default:
-        return <span key={i}>{splitImg(t.text ?? "", fullSize)}</span>
+        return (
+          <span key={i}>
+            {renderTextWithColors(t.text ?? "", colorStack, `d${i}`, (seg) =>
+              splitImg(seg, fullSize),
+            )}
+          </span>
+        )
     }
   })
 }
@@ -233,8 +301,10 @@ function renderClamped(tokens: MdToken[], keyPrefix: string): ReactNode {
       const key = `${prefix}-${k++}`
       if (!t.type) continue
       if (t.type === "text" || t.type === "escape") {
-        // 已由 stripImageTokens 去除图片 token，这里按纯文本输出
-        const s = (t.text ?? "").replace(/\s+/g, " ").trim()
+        // 已由 stripImageTokens 去除图片 token，这里按纯文本输出（色标签一并剥离）
+        const s = stripFormatColorTags(t.text ?? "")
+          .replace(/\s+/g, " ")
+          .trim()
         if (s) parts.push(<span key={key}>{s} </span>)
       } else if (t.type === "codespan") {
         parts.push(
@@ -253,7 +323,9 @@ function renderClamped(tokens: MdToken[], keyPrefix: string): ReactNode {
       } else if (t.items && t.items.length) {
         for (const it of t.items) walk(it.tokens ?? [], key)
       } else if (t.text) {
-        const s = t.text.replace(/\s+/g, " ").trim()
+        const s = stripFormatColorTags(t.text)
+          .replace(/\s+/g, " ")
+          .trim()
         if (s) parts.push(<span key={key}>{s} </span>)
       }
     }

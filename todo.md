@@ -288,7 +288,7 @@ github issue 卡片预览无效，但pr预览却可以显示，调查原因
 TODO 31. （状态：已修复）
 仅监听应当仅针对 commit 有效，不对issue/pr生效
 
-TODO 32. （状态：待处理）
+TODO 32. （状态：已完成，待目视核验）
 使rich-text支持文本颜色更改范式？并将这个写成skill放built-in里，再在系统提示词里引导ai使用这些格式代码（还有markdown的斜体粗体等更多功能不需重复实现，引导ai即可）
 如
 <blue>蓝色的字</blue>
@@ -378,3 +378,15 @@ main().catch((err) => {
 
 TODO 35. （状态：待处理）
 B 站视频预览不应主动播放视频
+
+TODO 36. （状态：待处理）
+写一个 issue/pr queue（类似github那样的我觉得不错），悬挂各种issue上去（显示提交者，标题，）。 Urgent Issue/PR，Assigned Issue/PR，Completed Issue/PR等
+issue由用户自己添加，可以添加一整个仓库全部issue/pr（单次最多100条防止github限制，超出则弹窗提示），也可以只添加assign到自己的issue/pr，
+Github监听也可以联动一下这里的queue
+另外写成skill，ai可以获取里面信息，或访问issue里面内容（访问可能得看看行不行？）
+
+TODO 37. （状态：待处理）
+文档很久没有更新过了，是需要更新一下（todo 11）
+
+TODO 38. （状态：待处理）
+现在Tiptap代码块渲染部分有点小了呢，字号调大点，然后加上显示行数，语言的功能

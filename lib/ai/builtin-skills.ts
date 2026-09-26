@@ -13,6 +13,7 @@ import { z } from "zod"
 import { format, isSameDay, isSameMonth } from "date-fns"
 
 import { useWorkspace } from "@/lib/store"
+import { FORMAT_COLORS } from "@/lib/format-colors"
 import { loadAddressBook, type Person } from "@/lib/address-book"
 import { loadPublicYaml } from "@/lib/fetch-data"
 import {
@@ -483,6 +484,34 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       }
       return await res.json()
     },
+  },
+
+  // 富文本格式指南（TODO 32）：只读回传 16 色标签调色板与 Markdown 语法规范，
+  // 供 AI 在需要排版富文本时按规范输出（正文渲染管线已支持这些格式）。
+  {
+    name: "wb_format_guide",
+    description:
+      "获取富文本格式规范：16 色文本标签（<blue>…</blue> 等）的完整调色板，以及回复可用的全部 Markdown 格式（粗体/斜体/删除线/标题/列表/任务列表/表格/代码高亮/引用/链接）。需要在回复中排版富文本或用户问「怎么变颜色/加粗」时调用。",
+    parameters: z.object({}),
+    execute: async () => ({
+      color_tags: {
+        usage:
+          "用 <色名>文字</色名> 包裹要染色的文字，可与粗体/斜体等 Markdown 标记嵌套（如 <blue>**重要**</blue>）；共 16 色，标签名必须是下表之一。",
+        palette: FORMAT_COLORS.map((c) => ({ tag: c.tag, label: c.label, hex: c.hex })),
+      },
+      markdown: {
+        bold: "**粗体**",
+        italic: "*斜体*",
+        strikethrough: "~~删除线~~",
+        headings: "# 一级 / ## 二级 / ### 三级 …",
+        lists: "- 无序列表；1. 有序列表；- [ ] 任务列表（可勾选）",
+        table: "| 列A | 列B |\n| --- | --- |\n| 1 | 2 |",
+        code: "`行内代码`；```语言 开头的围栏代码块（常见语言带语法高亮）",
+        quote: "> 引用",
+        link: "[文字](https://…)",
+        line_break: "单个换行即换行；不要输出 HTML 标签",
+      },
+    }),
   },
 ]
 

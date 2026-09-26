@@ -162,7 +162,8 @@
 
 | 功能 | 入口点 |
 | --- | --- |
-| 共享扩展集 | `components/richtext/extensions.ts`：`richTextExtensions` = `StarterKit` + `StoredImage`（重写 image 节点，渲染 `imgref:`，NodeView 走 IndexedDB）+ `TaskList` + `TaskItem` + `GitHubCard`（atom 节点）+ `BilibiliCard`（atom 节点）+ `Markdown`（`html:false`/`breaks:true`/`transformPastedText`） |
+| 共享扩展集 | `components/richtext/extensions.ts`：`richTextExtensions` = `StarterKit` + `StoredImage`（重写 image 节点，渲染 `imgref:`，NodeView 走 IndexedDB）+ `TaskList` + `TaskItem` + `GitHubCard`（atom 节点）+ `BilibiliCard`（atom 节点）+ `FormatColor`（16 色文本标签 mark，见下）+ `Markdown`（`html:false`/`breaks:true`/`transformPastedText`） |
+| 16 色文本标签 | `lib/format-colors.ts`：`FORMAT_COLORS`（Minecraft §0–§f 调色板）+ `FORMAT_COLOR_TAG_AT/_RE` + `stripFormatColorTags`；`components/richtext/format-color.ts`：`FormatColor` mark——markdown-it 内联规则把 `<blue>…</blue>` 等拆 token 渲染为 `<span data-format-color>`（经 parseHTML 归 mark），`storage.markdown.serialize` 序列化回标签，往返无损；`MarkdownView` 的 `renderInline` 用颜色栈消费 html token 同步支持（原始 HTML 仍不渲染）。AI 侧引导：系统提示词（`request-queue.ts` `SYSTEM_BASE`）+ `wb_format_guide` 内置技能 |
 | 编辑器（受控） | `components/richtext/rich-text-editor.tsx`：`RichTextEditor`（`value`=Markdown 串、`onChange`→`getEditorMarkdown(editor)`）；**默认源码模式**（可编辑处一律显示原始 Markdown），右上角「源码/可视化」切换；`immediatelyRender:false`，`onCreate`/`useEffect` 运行 `upgradeLinkCards`；`handlePaste` 拦截 GitHub/B 站链接（插入卡片）与图片 blob（落库插入 `imgref:` 节点）；**外部 `value` 同步在源码模式下跳过**（否则升级卡会经 `onChange` 回写，把刚输入的回车/空格等被 markdown 规范掉的空白抹掉） |
 | 只读预览 | `components/richtext/rich-text-view.tsx`：`RichTextView`（`editable:false`，同一扩展集），用于节点卡片/概览 |
 | 选区气泡工具条 | `components/richtext/selection-toolbar.tsx`：`SelectionToolbar`（`BubbleMenu`，复制纯文本 / X 复制富文本 HTML / 全选 / 引用；`shouldShow` 对 image/githubCard/bilibiliCard 选区隐藏） |
@@ -235,7 +236,7 @@
 | 功能 | 入口点 |
 | --- | --- |
 | 说明型技能（用户自定义） | `lib/ai/skills.ts`：`loadSkills()` 读 `public/skills/manifest.json` 再并发取各 `.md`；文件名 slug 作 tool 名、`# 标题` 作展示名、标题后首段作描述、**全文作说明书正文**（AI 调用时回传给模型）；任何失败安全降级为 `[]` |
-| 内置可执行技能 | `lib/ai/builtin-skills.ts`：`BUILTIN_SKILLS`（`BUILTIN_SKILL_DISPLAY` 为展示用），tool 名 `wb_` 前缀，**纯只读查询**；当前含 `wb_get_day_note` / `wb_get_dates_with_notes` / `wb_get_day_calendar_data` / `wb_get_contact_names` / `wb_get_contact` / `wb_get_categories` / `wb_get_chapters` / `wb_get_chapter_content` / `wb_get_mindmap_graph` / `wb_get_mindmap_node`；新增须保持只读且返回可 JSON 序列化的结果 |
+| 内置可执行技能 | `lib/ai/builtin-skills.ts`：`BUILTIN_SKILLS`（`BUILTIN_SKILL_DISPLAY` 为展示用），tool 名 `wb_` 前缀，**纯只读查询**；当前含 `wb_get_day_note` / `wb_get_dates_with_notes` / `wb_get_day_calendar_data` / `wb_get_contact_names` / `wb_get_contact` / `wb_get_categories` / `wb_get_chapters` / `wb_get_chapter_content` / `wb_get_mindmap_graph` / `wb_get_mindmap_node` / `wb_format_guide`（富文本 16 色标签 + Markdown 格式规范，TODO 32）；新增须保持只读且返回可 JSON 序列化的结果 |
 | 技能启停 | `settings.aiEnabledSkills`（`null` = 全部启用）；UI `SkillsToggleDialog`；队列内 `isSkillEnabled` 同时过滤说明型与内置技能 |
 | 工具调用与展示 | 队列用 AI SDK 的 `streamText` + `tool()` + `stepCountIs`；调用过的技能记入 `AIChatMessage.tools`（UI 以 `Wrench` 徽标展示），token 记入 `AIChatMessage.tokens` |
 | 跨视图提问 | store `askAiAbout(text)`：新建会话 → 切 `ai-chat` → 挂起 `pendingAiQuery`，由 `AIChatWorkspace` 在会话就绪后消费并 `clearPendingAiQuery`；日历 `DayDetail` 的「问 AI」（`askFestival` / `askNote`）走此路径 |

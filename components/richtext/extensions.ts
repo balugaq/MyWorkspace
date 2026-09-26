@@ -10,6 +10,7 @@ import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table
 import { StoredImage } from "./stored-image"
 import { GitHubCard } from "./github-card"
 import { BilibiliCard } from "./bilibili-card"
+import { FormatColor } from "./format-color"
 
 // 语法高亮引擎：lowlight（基于 highlight.js），common 含约 37 种常用语言。
 const lowlight = createLowlight(common)
@@ -41,6 +42,8 @@ export const richTextExtensions = [
   TableCell,
   GitHubCard,
   BilibiliCard,
+  // 16 色文本标签 mark（TODO 32）：<blue>…</blue> 等，解析与序列化见 format-color.ts
+  FormatColor,
   Markdown.configure({
     html: false, // 不解析原始 HTML（XSS 防护，沿用原 safeHref 思路）
     tightLists: true,
