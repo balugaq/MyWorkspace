@@ -15,7 +15,6 @@ import { createServer } from "node:http"
 import { readFile, stat } from "node:fs/promises"
 import { extname, join, normalize, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { handleWeatherRequest, startWeatherProxy } from "./weather-proxy-lib.mjs"
 import { handleAiSearchRequest } from "./ai-search-proxy-lib.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
@@ -64,16 +63,8 @@ function safePath(urlPathname, baseDir) {
 
 const server = createServer(async (req, res) => {
   try {
-    // 天气 API：与静态站点同源（output:"export" 不支持 Next Route Handler，
-    // 故在此由同一服务器进程直接处理 /api/weather*，免去独立代理进程与 127.0.0.1 写死，
-    // 跨设备/局域网访问也能正常工作）。
-    if ((req.url ?? "/").startsWith("/api/weather")) {
-      const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
-      await handleWeatherRequest(req, res, url)
-      return
-    }
-
     // AI 联网搜索代理（百度千帆 AI 搜索）：源站无 CORS 头，同进程转发
+    // （天气数据 TODO 34 起由前端直连 uapis.cn，不再有 /api/weather 同源接口）
     if ((req.url ?? "/").startsWith("/api/ai-search")) {
       const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
       await handleAiSearchRequest(req, res, url)
@@ -132,18 +123,6 @@ const server = createServer(async (req, res) => {
     console.error(err)
   }
 })
-
-// 兼容旧构建：部分已导出的 out/ 仍把天气基址写死为 http://127.0.0.1:3005，
-// 故这里并行启动独立代理（同源接口已内置上方，新构建走同源即可，代理仅作兜底）。
-try {
-  const weatherPort = Number(process.env.WEATHER_PROXY_PORT) || 3005
-  const weatherServer = startWeatherProxy(weatherPort)
-  weatherServer.on("error", (e) => {
-    console.error(`[天气代理] 启动失败（端口 ${weatherPort} 可能被占用）:`, e.message)
-  })
-} catch (e) {
-  console.error(`[天气代理] 未能启动:`, e)
-}
 
 server.listen(port, () => {
   console.log(`✔ 已启动本地静态服务器`)

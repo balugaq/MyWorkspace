@@ -351,6 +351,9 @@ export interface Settings {
   // 界面字体家族：映射根元素 fontFamily（system → var(--font-sans) 等，见 components/theme-provider.tsx）
   uiFontFamily: UIFontFamily
   githubToken: string // GitHub 个人访问令牌（PAT），用于提升 GitHub 预览卡的 API 限额；留空则匿名（60 次/小时/IP）
+  // UAPI（uapis.cn）令牌：天气接口（/api/v1/misc/weather）的可选 Bearer 令牌；
+  // 留空则匿名调用（免费基础数据，限流较紧，429 时前端冷却 10 分钟）。
+  uapiToken: string
   // AI 助手：支持配置多个模型，可随时切换当前使用的模型。
   aiModels: AIModelEntry[]
   aiActiveModelId: string | null // 当前选中的模型 id；为空表示尚未配置任何模型
@@ -499,6 +502,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fontSize: 16,
   uiFontFamily: "system",
   githubToken: "",
+  uapiToken: "",
   aiModels: [],
   aiActiveModelId: null,
   aiEnabledSkills: null,

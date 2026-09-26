@@ -787,6 +787,22 @@ export function SettingsView() {
             </section>
 
             <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">UAPI 令牌</Label>
+              <input
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                value={settings.uapiToken}
+                placeholder="UAPI（uapis.cn）访问令牌，可选"
+                onChange={(e) => updateSettings({ uapiToken: e.target.value })}
+                className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              />
+              <p className="text-xs text-muted-foreground">
+                天气接口（uapis.cn）的可选 Bearer 令牌，以 Authorization 头携带。留空也可调用（匿名限流较紧，触发 429 后前端会冷却 10 分钟）。仅本机明文存储于 localStorage，请勿在共享环境使用。
+              </p>
+            </section>
+
+            <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">日志导出</Label>
               <div className="flex gap-2">
                 <Button

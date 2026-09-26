@@ -149,9 +149,6 @@ interface WorkspaceState {
   // 全局标签库：容纳从联系人 roles 等外部来源导入的标签，供 TagPicker 复用
   knownTags: string[]
 
-  // 天气：用户所选城市代码（9 位市级码），持久化以便刷新后保留；实时数据本身不持久化
-  weatherCityCode: string
-
   // AI 助手：多会话（各自持有上下文，持久化到 localStorage）
   conversations: Conversation[]
   activeConversationId: string | null
@@ -231,9 +228,6 @@ interface WorkspaceState {
   sidebarToggleY: number | null
   setSidebarToggleY: (y: number) => void
   setToolbarCollapsed: (v: boolean) => void
-
-  // 天气：设置所选城市代码
-  setWeatherCityCode: (code: string) => void
 
   // 全局标签库（导入联系人 roles 等）：并入去重后的标签，已存在则忽略
   addKnownTags: (tags: string[]) => void
@@ -402,9 +396,6 @@ export const useWorkspace = create<WorkspaceState>()(
       // 全局标签库默认空（角色由联系人数据加载时导入）
       knownTags: [],
 
-      // 天气：默认无城市，需用户在天气卡片中手动选择
-      weatherCityCode: "",
-
       // AI 助手：默认无会话（视图挂载时若无会话则创建一个），不预置 activeConversationId
       conversations: [],
       activeConversationId: null,
@@ -448,8 +439,6 @@ export const useWorkspace = create<WorkspaceState>()(
       setSidebarToggleY: (y) => set({ sidebarToggleY: y }),
 
       setToolbarCollapsed: (v) => set({ toolbarCollapsed: v }),
-
-      setWeatherCityCode: (code) => set({ weatherCityCode: code }),
 
       addKnownTags: (tags) =>
         set((s) => {

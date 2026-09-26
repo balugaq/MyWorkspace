@@ -252,12 +252,12 @@
 | 视图外壳 | `ProfileWorkspace`（`app/page.tsx` 按 `view === "profile"` 渲染）；占满主区，内部 `overflow-auto` |
 | 导航与分发 | 侧边栏头像按钮（`goProfile`）→ `view: "profile"` → `ProfileWorkspace`；`VIEW_LABEL` 补 `"profile": "个人主页"` |
 | 头像来源 | 复用 `settings.aiUserAvatar`（与 AI 对话头像同源；空回落默认 `User` 图标），256×256 圆角容器 |
-| 天气 / 地区 / 诗歌 / 签到 | 天气卡（温度+`CloudSun`+描述）、地区（1 行）、每日诗歌（右下角小字）为**占位**；签到按钮**已实现**：点击 toast 成功提示 + 写 `check-in` 贡献（amount 2）+ 当天禁用 / 暗色图层，`04:00`（同一 `dayStartOffset`）重置；状态由账本按 dayKey 推导 |
+| 天气 / 地区 / 诗歌 / 签到 | 天气卡**已接真实数据**（TODO 34）：`components/weather-widget.tsx` + `lib/weather.ts` 直连 UAPI `https://uapis.cn/api/v1/misc/weather`（客户端 IP 自动定位，无城市选择；可选 Bearer 令牌存 `settings.uapiToken`，设置 → 高级）；结果缓存 2 小时（localStorage `mw:weather-cache`），仅手动刷新绕过缓存；429 后前端冷却 10 分钟（`mw:weather-cooldown`），期间禁用刷新并提示。地区（1 行）、每日诗歌（右下角小字）为**占位**；签到按钮**已实现**：点击 toast 成功提示 + 写 `check-in` 贡献（amount 2）+ 当天禁用 / 暗色图层，`04:00`（同一 `dayStartOffset`）重置；状态由账本按 dayKey 推导 |
 | 日期 / 星期 | 实时 `new Date()` 计算（非占位） |
 | 贡献热力图（真实数据） | `ProfileWorkspace`：`lib/contributions.ts` 的 `buildHeatmapGrid` / `buildMonthLabels` / `aggregateByDay` / `contributionLevel` + store `contributions`；53 周 × 7 天、周日起始；颜色按「当日 amount 之和」走 0/(0,1]/(1,3]/(3,6]/>6，右上角总数按**条数**（`contributions.length`），tooltip 显示「yyyy-MM-dd · N 条 · X 贡献值」（X **四舍五入取整**，`< 0.5` 显示 `0`）/「yyyy-MM-dd · 无记录」 |
 | 存量贡献补算（临时） | 热力图卡片头部「补算历史」按钮（`ScanLine` 图标）→ store `scanLegacyContributions()`（幂等，toast 报新增条数）；**临时功能，主人用完会要求连同按钮整块删除** |
 
-> 约定：天气 / 诗歌仍为占位；贡献热力图已接真实账本（store `contributions`）；签到已落地（store `checkIn()`，复用同一 `dayStartOffset`，04:00 重置）。
+> 约定：天气已接 UAPI 真实数据（TODO 34，原中国天气网本地代理 scripts/weather-proxy*.mjs 已删除）；诗歌仍为占位；贡献热力图已接真实账本（store `contributions`）；签到已落地（store `checkIn()`，复用同一 `dayStartOffset`，04:00 重置）。
 
 ## 8.16 贡献账本 / 热力图（`lib/contributions.ts` + `lib/store.ts` + `components/profile-workspace.tsx`）
 
