@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Trash2, X, Lightbulb, Tag, CalendarClock, Plus, Shuffle, RotateCcw, Palette } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
@@ -61,6 +61,71 @@ export function NodeInspector({
   const solStatus = node.solution?.status ?? "doing"
   const [confirmDel, setConfirmDel] = useState(false)
 
+  // ---- 内容打字链路防抖（300ms）----
+  // 受控 textarea 每键直写 store 会触发：全量 persist 序列化 + 画布同步 → 打字极卡。
+  // 改为打字先落本地 live state（仅本面板重渲染，不写 store、不动画布），
+  // 停顿 300ms（或切换节点 / 卸载 / pagehide）才把最终内容一次性提交 updateNode。
+  const liveContentRef = useRef<{ id: string; value: string } | null>(null)
+  const [liveContent, setLiveContent] = useState<string | null>(null)
+  const contentTimerRef = useRef<number | undefined>(undefined)
+
+  // 只提交、不碰 React state（卸载 / pagehide 场景安全复用）
+  const commitLive = useCallback(() => {
+    const live = liveContentRef.current
+    if (!live) return
+    liveContentRef.current = null
+    updateNode(category.id, live.id, { content: live.value })
+  }, [updateNode, category.id])
+
+  const flushContent = useCallback(() => {
+    if (contentTimerRef.current !== undefined) {
+      window.clearTimeout(contentTimerRef.current)
+      contentTimerRef.current = undefined
+    }
+    commitLive()
+    setLiveContent(null)
+  }, [commitLive])
+
+  const handleContentChange = (v: string) => {
+    liveContentRef.current = { id: node.id, value: v }
+    setLiveContent(v)
+    if (contentTimerRef.current !== undefined) window.clearTimeout(contentTimerRef.current)
+    contentTimerRef.current = window.setTimeout(() => {
+      contentTimerRef.current = undefined
+      commitLive()
+      setLiveContent(null)
+    }, 300)
+  }
+
+  // 切换节点：先把上一个节点未提交的内容冲掉（live 里捕获了来源 nodeId，提交目标正确）
+  const prevNodeIdRef = useRef(node.id)
+  useEffect(() => {
+    if (prevNodeIdRef.current !== node.id) {
+      flushContent()
+      prevNodeIdRef.current = node.id
+    }
+  }, [node.id, flushContent])
+
+  // 卸载 / 页面隐藏：冲掉未提交内容，防丢字
+  useEffect(() => {
+    return () => {
+      if (contentTimerRef.current !== undefined) window.clearTimeout(contentTimerRef.current)
+      commitLive()
+    }
+  }, [commitLive])
+  useEffect(() => {
+    const onHide = () => commitLive()
+    window.addEventListener("pagehide", onHide)
+    return () => window.removeEventListener("pagehide", onHide)
+  }, [commitLive])
+
+  // 展示值：本节点有未提交草稿用草稿；否则用 store 真值。
+  // id 守卫防止切换节点后的首帧把上个节点的草稿带进新节点。
+  const contentValue =
+    liveContent !== null && liveContentRef.current?.id === node.id
+      ? liveContent
+      : node.content
+
   // 删除确认弹窗：ESC 视为取消关闭（与其它弹窗行为一致）
   useEscapeClose(confirmDel, () => setConfirmDel(false))
 
@@ -116,8 +181,8 @@ export function NodeInspector({
 
           <Field label="内容">
             <RichTextEditor
-              value={node.content}
-              onChange={(v) => patch({ content: v })}
+              value={contentValue}
+              onChange={handleContentChange}
               forceSource
               minHeight="min-h-48"
             />

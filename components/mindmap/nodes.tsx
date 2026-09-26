@@ -62,6 +62,25 @@ interface TodoNodeData {
   onMenuAction?: (action: string) => void
 }
 
+// 自定义 memo 比较器：只有「本节点数据 / 折叠态 / 选中态」变化才重渲染。
+// 回调闭包（onToggleCollapse 等）每次画布重算都会拿到新引用，不参与比较——
+// 旧闭包按 nodeId 派发动作，最多滞后一个快照，对本节点操作语义无影响。
+function todoNodeAreEqual(a: NodeProps, b: NodeProps): boolean {
+  const ad = a.data as unknown as TodoNodeData
+  const bd = b.data as unknown as TodoNodeData
+  return (
+    ad.node === bd.node &&
+    !!ad.collapsed === !!bd.collapsed &&
+    a.selected === b.selected
+  )
+}
+
+function solutionNodeAreEqual(a: NodeProps, b: NodeProps): boolean {
+  return (
+    (a.data as { node: MindNode }).node === (b.data as { node: MindNode }).node
+  )
+}
+
 export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
   const {
     node,
@@ -299,7 +318,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
       </ContextMenuContent>
     </ContextMenu>
   )
-})
+}, todoNodeAreEqual)
 
 /** 右键菜单色板：12 预置色 + 「清除」格（空值 = 回落主题默认）；当前选中色加 ring 高亮。 */
 function PaletteGrid({
@@ -369,7 +388,7 @@ export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
       </span>
     </div>
   )
-})
+}, solutionNodeAreEqual)
 
 /**
  * 单图节点内的可缩放图片：ctrl + 滚轮 调整缩放（10%–400%）。

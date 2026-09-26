@@ -298,35 +298,82 @@ function Canvas({ category }: { category: Category }) {
     return () => window.removeEventListener("keydown", onKey)
   }, [activeItemId, relation.nodes])
 
+  // ---- 渲染防风暴缓存：只改 1 个节点不再重建整张画布 ----
+  // rfNode 逐节点缓存：node 引用 / 折叠态 / 选中态都没变就复用同一对象（含回调闭包），
+  // 让 React Flow 的逐节点 memo 生效。回调按 nodeId 派发，旧闭包最多滞后一个快照，语义无影响。
+  const rfNodeCacheRef = useRef(
+    new Map<string, { node: MindNode; collapsed: boolean; selected: boolean; rf: Node }>()
+  )
+  const lastRfNodesRef = useRef<Node[] | null>(null)
+  // edge 逐边缓存：源 edge/node 引用与 animated 标志没变就复用同一对象
+  const edgeCacheRef = useRef(
+    new Map<string, { key: unknown; animated: boolean | undefined; edge: Edge }>()
+  )
+  const lastRfEdgesRef = useRef<Edge[] | null>(null)
+
   const rfNodes: Node[] = useMemo(() => {
+    const cache = rfNodeCacheRef.current
     const list: Node[] = []
+    const seen = new Set<string>()
     for (const n of relation.nodes) {
       if (hidden.has(n.id)) continue
       if (n.hidden) continue // 用户隐藏：不在画布显示
-      list.push({
-        id: n.id,
-        type: "todo",
-        position: n.position,
-        data: {
-          node: n,
-          collapsed: collapsed.has(n.id),
-          onToggleCollapse: () => toggleCollapse(n.id),
-          onImageZoom: (v: number) => handleImageZoom(n.id, v),
-          onMenuAction: (a: string) => handleMenuAction(n.id, a),
-        },
-        selected: n.id === activeItemId,
-      })
+      seen.add(n.id)
+      const selected = n.id === activeItemId
+      const isCollapsed = collapsed.has(n.id)
+      const hit = cache.get(n.id)
+      let rf: Node
+      if (hit && hit.node === n && hit.selected === selected && hit.collapsed === isCollapsed) {
+        rf = hit.rf
+      } else {
+        rf = {
+          id: n.id,
+          type: "todo",
+          position: n.position,
+          data: {
+            node: n,
+            collapsed: isCollapsed,
+            onToggleCollapse: () => toggleCollapse(n.id),
+            onImageZoom: (v: number) => handleImageZoom(n.id, v),
+            onMenuAction: (a: string) => handleMenuAction(n.id, a),
+          },
+          selected,
+        }
+        cache.set(n.id, { node: n, collapsed: isCollapsed, selected, rf })
+      }
+      list.push(rf)
       if (n.solution && n.solution.content.trim()) {
-        list.push({
-          id: `sol-${n.id}`,
-          type: "solution",
-          position: n.solutionPosition ?? { x: n.position.x + 20, y: n.position.y + 190 },
-          data: { node: n },
-          draggable: true,
-          selectable: false,
-        })
+        const solKey = `sol-${n.id}`
+        seen.add(solKey)
+        const solHit = cache.get(solKey)
+        if (solHit && solHit.node === n) {
+          list.push(solHit.rf)
+        } else {
+          const solRf: Node = {
+            id: solKey,
+            type: "solution",
+            position: n.solutionPosition ?? { x: n.position.x + 20, y: n.position.y + 190 },
+            data: { node: n },
+            draggable: true,
+            selectable: false,
+          }
+          cache.set(solKey, { node: n, collapsed: false, selected: false, rf: solRf })
+          list.push(solRf)
+        }
       }
     }
+    // 清理已删除节点的缓存，避免长会话下 Map 无限增长
+    if (cache.size > seen.size) {
+      for (const key of cache.keys()) {
+        if (!seen.has(key)) cache.delete(key)
+      }
+    }
+    // 全部复用且结构未变：返回旧数组引用，下游同步 effect 直接跳过
+    const prev = lastRfNodesRef.current
+    if (prev && prev.length === list.length && prev.every((p, i) => p === list[i])) {
+      return prev
+    }
+    lastRfNodesRef.current = list
     return list
   }, [
     relation.nodes,
@@ -339,37 +386,68 @@ function Canvas({ category }: { category: Category }) {
   ])
 
   const rfEdges: Edge[] = useMemo(() => {
+    const cache = edgeCacheRef.current
     const list: Edge[] = []
+    const seen = new Set<string>()
     // 用户隐藏的节点 id（用于过滤连线）
     const hiddenIds = new Set(relation.nodes.filter((n) => n.hidden).map((n) => n.id))
     for (const e of relation.edges) {
       if (hidden.has(e.source) || hidden.has(e.target)) continue
       if (hiddenIds.has(e.source) || hiddenIds.has(e.target)) continue
-      list.push({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        animated: e.kind === "flow" && !isConnecting,
-        style:
-          e.kind === "sub"
-            ? { stroke: "var(--muted-foreground)", strokeDasharray: "5 5" }
-            : { stroke: "var(--primary)", strokeWidth: 2 },
-      })
+      const animated = e.kind === "flow" && !isConnecting
+      seen.add(e.id)
+      const hit = cache.get(e.id)
+      if (hit && hit.key === e && hit.animated === animated) {
+        list.push(hit.edge)
+      } else {
+        const edge: Edge = {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          animated,
+          style:
+            e.kind === "sub"
+              ? { stroke: "var(--muted-foreground)", strokeDasharray: "5 5" }
+              : { stroke: "var(--primary)", strokeWidth: 2 },
+        }
+        cache.set(e.id, { key: e, animated, edge })
+        list.push(edge)
+      }
     }
-    // 解决方案绿线
+    // 解决方案绿线（按节点引用缓存）
     for (const n of relation.nodes) {
       if (hidden.has(n.id)) continue
       if (n.hidden) continue
       if (n.solution && n.solution.content.trim()) {
-        list.push({
-          id: `sol-edge-${n.id}`,
-          source: n.id,
-          target: `sol-${n.id}`,
-          style: { stroke: "var(--solution)", strokeWidth: 2.5 },
-          selectable: false,
-        })
+        const id = `sol-edge-${n.id}`
+        seen.add(id)
+        const hit = cache.get(id)
+        if (hit && hit.key === n) {
+          list.push(hit.edge)
+        } else {
+          const edge: Edge = {
+            id,
+            source: n.id,
+            target: `sol-${n.id}`,
+            style: { stroke: "var(--solution)", strokeWidth: 2.5 },
+            selectable: false,
+          }
+          cache.set(id, { key: n, animated: false, edge })
+          list.push(edge)
+        }
       }
     }
+    // 清理已删除连线/节点的缓存
+    if (cache.size > seen.size) {
+      for (const key of cache.keys()) {
+        if (!seen.has(key)) cache.delete(key)
+      }
+    }
+    const prev = lastRfEdgesRef.current
+    if (prev && prev.length === list.length && prev.every((p, i) => p === list[i])) {
+      return prev
+    }
+    lastRfEdgesRef.current = list
     return list
   }, [relation.edges, relation.nodes, hidden, isConnecting])
 
@@ -384,27 +462,48 @@ function Canvas({ category }: { category: Category }) {
     const se = new Map(rfEdges.map((e) => [e.id, e]))
 
     setNodes((curr) => {
-      // 1) 通过 store 但保留本地位置（拖拽不被打断）
+      let mutated = false
+      // 1) 通过 store 但保留本地位置（拖拽不被打断）；快照与当前对象一致时直接复用引用，
+      //    让 React Flow 只重渲染真正变化的节点
       let next = curr.map((n) => {
         const s = sn.get(n.id)
         if (!s) return n // 交由下方“移除”处理
+        if (n.data === s.data && n.selected === s.selected) return n
+        mutated = true
         return { ...s, position: n.position, selected: s.selected }
       })
       // 2) 补入 store 新增的节点
       for (const [id, s] of sn) {
-        if (!next.some((n) => n.id === id)) next = [...next, s]
+        if (!next.some((n) => n.id === id)) {
+          next = [...next, s]
+          mutated = true
+        }
       }
       // 3) 移除已不存在的节点（排除拖拽临时线，它会由 dragLine 状态重新加入）
-      next = next.filter((n) => sn.has(n.id))
-      return next
+      const filtered = next.filter((n) => sn.has(n.id))
+      if (filtered.length !== next.length) mutated = true
+      next = filtered
+      return mutated ? next : curr
     })
 
     setEdges((curr) => {
-      let next = curr.filter((e) => se.has(e.id))
+      let mutated = false
+      let next = curr.map((e) => {
+        const s = se.get(e.id)
+        if (!s || e === s) return e
+        mutated = true
+        return s
+      })
       for (const [id, e] of se) {
-        if (!next.some((x) => x.id === id)) next = [...next, e]
+        if (!next.some((x) => x.id === id)) {
+          next = [...next, e]
+          mutated = true
+        }
       }
-      return next
+      const filtered = next.filter((e) => se.has(e.id))
+      if (filtered.length !== next.length) mutated = true
+      next = filtered
+      return mutated ? next : curr
     })
   }, [rfNodes, rfEdges, setNodes, setEdges])
 

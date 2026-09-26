@@ -1,7 +1,7 @@
 "use client"
 
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { persist, type PersistStorage, type StorageValue } from "zustand/middleware"
 import { format } from "date-fns"
 import type {
   Category,
@@ -309,6 +309,62 @@ interface WorkspaceState {
   removeCalendarTodo: (date: string, todoId: string) => void
   addCalendarEvent: (date: string, time: string, content: string) => void
   removeCalendarEvent: (date: string, eventId: string) => void
+}
+
+const STORAGE_NAME = "my-omni-workspace"
+const STORAGE_FLUSH_MS = 800
+
+/**
+ * 防抖持久化存储：zustand 每次 set() 都会调 setItem——默认实现意味着每敲一个字
+ * 都要 JSON.stringify 整个状态 + 同步写 localStorage（大状态下单次几十 ms）。
+ * 这里 setItem 只暂存状态对象（O(1)），静止 800ms 后才序列化落盘；
+ * pagehide / 切后台立即 flush，最多丢最后 800ms 的变更。
+ */
+function createDebouncedStorage(): PersistStorage<WorkspaceState> {
+  let pending: StorageValue<WorkspaceState> | null = null
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const flush = () => {
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      timer = undefined
+    }
+    if (!pending) return
+    try {
+      localStorage.setItem(STORAGE_NAME, JSON.stringify(pending))
+      pending = null
+    } catch {
+      // 配额满等写失败：保留 pending，下次 set 重试
+    }
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("pagehide", flush)
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flush()
+    })
+  }
+  return {
+    getItem: () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_NAME)
+        return raw ? (JSON.parse(raw) as StorageValue<WorkspaceState>) : null
+      } catch {
+        return null
+      }
+    },
+    setItem: (_name, value) => {
+      pending = value
+      if (timer !== undefined) clearTimeout(timer)
+      timer = setTimeout(flush, STORAGE_FLUSH_MS)
+    },
+    removeItem: () => {
+      pending = null
+      if (timer !== undefined) {
+        clearTimeout(timer)
+        timer = undefined
+      }
+      localStorage.removeItem(STORAGE_NAME)
+    },
+  }
 }
 
 export const useWorkspace = create<WorkspaceState>()(
@@ -1270,7 +1326,8 @@ export const useWorkspace = create<WorkspaceState>()(
         }),
     }),
     {
-      name: "my-omni-workspace",
+      name: STORAGE_NAME,
+      storage: createDebouncedStorage(),
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.hydrated = true
