@@ -198,21 +198,59 @@ TODO 23. （状态：待处理）
 （如新闻页：定时获取新闻并推送为通知）。sender 抽象已预留 senderId（lib/notifications/senders.ts 有展示注册表），
 需要完善：多 sender 的注册与启停管理、通知中心按 sender 筛选/分组展示、每个 sender 各自的配置分区等。
 
-接下来，我想在通知里增加一个自动新闻获取，每天最多触发一次，这个触发是自动开启一个ai对话，让ai选择合适的文章总结
-AI 需要自己通过联网搜索skill去获取最新新闻，至少获取10个内容不同的新闻
+接下来，我想在通知里增加一个自动新闻获取，每天最多触发一次。（18:00之后为分隔这里的1天）
 新闻获取可以在设置里开关，默认开启。
-为了让ai能够发送通知，你需要写一个新的内置skill，让ai去填充一则新闻通知需要的内容并发送（注意以下示例不是所有元素都要，你需要判断哪些是可选的，哪些是必须的，在skill里说明）
-另外，ai的提示词你需要给出并预设到设置里。
-以下是一个结果示例，你需要根据示例给出模板供ai使用（注意有哪些元素内容，每个段落句子数量）让ai通过新的skill来生成一则通知
-国内 ① 西藏吉隆冰崩泥石流灾害：冰湖溃决冲击边境口岸
-时间 2026年8月27日—9月上旬
-地点 西藏日喀则市吉隆县·吉隆口岸（G216国道），灾害源头在尼泊尔一侧万年冰川
-人物 受灾群众与边境建设者；西藏消防、武警、交通抢险力量；科研团队
-事件经过 尼泊尔一侧冰川发生冰岩崩，融水裹挟泥沙形成冰川洪流，冲击中尼边境的吉隆口岸；G216国道被冲毁中断，抢险在峭壁与急流之间展开——水中"填"路、爆破清障。至9月3日确认21人遇难，遇难者中暂未发现外国人遗体。
-影响 全国重点实验室公布灾害初步研判报告。专家提醒：全球变暖正加速冰川消融，而现有冰湖预警体系无法监控冰川崩塌，"冰冻圈灾害"成为全人类必须共同面对的新风险。
-体现的精神 迎难而上、不畏艰险的抢险担当，以及敬畏自然、守望相助的人类命运共同体意识。
-作文使用示例 当万年冰川在暖化中崩裂，冰川洪流冲毁G216国道，西藏消防、武警与交通抢险力量却在峭壁与急流之间，以水中"填"路、爆破清障的决绝，为边境群众和建设者打通生命通道。吉隆口岸的这场灾害警示我们：全球变暖之下，"冰冻圈灾害"正成为全人类必须共同面对的新风险——面对自然，人类既要有迎难而上的勇气，更要有携手同行的清醒。
-相关链接 https://search.bilibili.com/all?keyword=西藏吉隆口岸冰岩崩
+这个触发是自动开启一个ai对话，让ai选择合适的文章总结.
+工作流如下：
+首先需要从5个 type（bilibili/zhihu/zhihu-daily/douyin/thepaper） 获取基本的 response，
+(以下是一个示例，见todo34)
+import { UapiClient } from 'uapi-sdk-typescript';
+async function main() {
+  const client = new UapiClient('https://uapis.cn');
+  const payload = {
+    type: "weibo",
+  };
+  const response = await client.misc.getMiscHotboard(payload);
+  console.log(response);
+}
+main().catch((err) => {
+  console.error('Failed:', err);
+  process.exit(1);
+});
+返回格式：
+{
+  "type": "weibo",
+  // 热榜更新时间，UTC 时间（ISO 8601 格式，以 Z 结尾）。时光机模式下对应返回快照的更新时间。
+  "update_time": "2026-03-20T21:39:16.000Z",
+  // 时光机模式返回的快照实际时间戳（毫秒）。当前热榜模式下通常不返回。
+  "snapshot_time": 1700000000000,
+  // 热榜条目列表。
+  "list": [
+    {
+      // 额外信息，不同平台该字段内容不同，例如微博热搜的标签（如“新”“爆”）。
+      "extra": {},
+      "hot_value": "1234567",
+      "index": 1,
+      "title": "今天天气真好",
+      "url": "https://s.weibo.com/weibo?q=%23%E4%BB%8A%E5%A4%A9%E5%A4%A9%E6%B0%94%E7%9C%9F%E5%A5%BD%23",
+      // 封面图 URL，音乐类热榜返回专辑封面，其他平台一般不返回。
+      "cover": "https://p1.music.126.net/xxx/109951170483249998.jpg"
+    }
+  ]
+}
+提取所有的 title,url,hot_value,extra 后，数据提供给ai，并让ai选择10个（在精不在多，可以不足10个）最有价值的以类似以下的形式返回 json，并由程序本体读取json生成若干则通知
+{
+  "field": "国内/国外",
+  "title": "西藏吉隆冰崩泥石流灾害：冰湖溃决冲击边境口岸",
+  "time": "2026年8月27日—9月上旬",
+  "place": "西藏日喀则市吉隆县·吉隆口岸（G216国道），灾害源头在尼泊尔一侧万年冰川",
+  "individuals": "受灾群众与边境建设者；西藏消防、武警、交通抢险力量；科研团队",
+  "throughout": "尼泊尔一侧冰川发生冰岩崩，融水裹挟泥沙形成冰川洪流，冲击中尼边境的吉隆口岸；G216国道被冲毁中断，抢险在峭壁与急流之间展开——水中"填"路、爆破清障。至9月3日确认21人遇难，遇难者中暂未发现外国人遗体。",
+  "effect": "全国重点实验室公布灾害初步研判报告。专家提醒：全球变暖正加速冰川消融，而现有冰湖预警体系无法监控冰川崩塌，"冰冻圈灾害"成为全人类必须共同面对的新风险。",
+  "spirit": "迎难而上、不畏艰险的抢险担当，以及敬畏自然、守望相助的人类命运共同体意识。",
+  "essay_example": "当万年冰川在暖化中崩裂，冰川洪流冲毁G216国道，西藏消防、武警与交通抢险力量却在峭壁与急流之间，以水中"填"路、爆破清障的决绝，为边境群众和建设者打通生命通道。吉隆口岸的这场灾害警示我们：全球变暖之下，"冰冻圈灾害"正成为全人类必须共同面对的新风险——面对自然，人类既要有迎难而上的勇气，更要有携手同行的清醒。",
+  "link": ["https://search.bilibili.com/all?keyword=西藏吉隆口岸冰岩崩", "https://s.weibo.com/weibo?q=%23%E4%BB%8A%E5%A4%A9%E5%A4%A9%E6%B0%94%E7%9C%9F%E5%A5%BD%23"]
+}
 
 TODO 24. （状态：已完成）
 设置页面改版
@@ -261,7 +299,7 @@ TODO 33. （状态：已完成）
 5. Git 本地名称直接用名称，不用再单开一个，旧数据不再保留。
 
 TODO 34. （状态：待处理）
-authorization Bearer 在设置中设置（UAPI 令牌）
+authorization Bearer 在设置中设置（UAPI 令牌） // 没有 Bearer 时也可以访问，可选的
 更换天气接口：（2小时获取1次或用户手动点击刷新时获取）
 官方sdk接口：
 https://github.com/AxT-Team/uapi-sdk-typescript
@@ -285,4 +323,286 @@ main().catch((err) => {
   console.error('Failed:', err);
   process.exit(1);
 });
+返回格式：
+{
+  // 省份
+  "province": "北京市",
+  // 城市名
+  "city": "北京",
+  // 区县或更细一级的行政区名称。自动按 IP 定位时更常见。
+  "district": "海淀区",
+  // 行政区划代码（部分数据源可能为空）
+  "adcode": "",
+  // 天气状况描述。默认返回中文，传 `lang=en` 时返回英文。非固定枚举。
+  "weather": "晴",
+  // 天气图标代码。请从[天气图标代码表](#enum-list)中查看所有可能的值。
+  "weather_icon": "100",
+  // 当前温度 °C
+  "temperature": 18.3,
+  // 风向
+  "wind_direction": "西南风",
+  // 风力等级
+  "wind_power": "微风",
+  // 相对湿度 %
+  "humidity": 20,
+  // 数据更新时间
+  "report_time": "2026-02-19 15:25:58",
+  // 体感温度 °C（extended=true 时返回）
+  "feels_like": 6,
+  // 能见度 km（extended=true 时返回）
+  "visibility": 11.3,
+  // 气压 hPa（extended=true 时返回）
+  "pressure": 1017.5,
+  // 紫外线指数（extended=true 时返回）
+  "uv": 2.9,
+  // 当前降水量 mm（extended=true 时返回）
+  "precipitation": 0,
+  // 云量 %（extended=true 时返回）
+  "cloud": 75,
+  // 空气质量指数 0-500（extended=true 时返回）
+  "aqi": 56,
+  // AQI 等级 1-6（extended=true 时返回）
+  "aqi_level": 2,
+  // AQI 等级描述（优/良/轻度污染/中度污染/重度污染/严重污染）（extended=true 时返回）
+  "aqi_category": "良",
+  // 主要污染物（如 PM2.5、PM10、O3 等）（extended=true 时返回）
+  "aqi_primary": "PM10",
+  // 空气污染物分项数据（extended=true 时返回，部分数据源可能不返回）
+  "air_pollutants": {
+    // PM2.5 μg/m³
+    "pm25": 33,
+    // PM10 μg/m³
+    "pm10": 69,
+    // 臭氧 μg/m³
+    "o3": 91,
+    // 二氧化氮 μg/m³
+    "no2": 13,
+    // 二氧化硫 μg/m³
+    "so2": 7,
+    // 一氧化碳 mg/m³
+    "co": 0.4
+  },
+  // 官方气象预警列表（存在有效预警时返回）
+  "alerts": [
+    {
+      // 预警标题
+      "title": "string",
+      // 预警类型，如雷电、暴雨
+      "type": "string",
+      // 预警级别，如蓝色、黄色、橙色、红色
+      "level": "string",
+      // 预警正文
+      "text": "string",
+      // 预警发布时间
+      "publish_time": "string",
+      // 发布单位
+      "publisher": "string",
+      // 防御指引列表
+      "guidance": [
+        "string"
+      ]
+    }
+  ],
+  // 当天最高温 °C（forecast=true 时返回）
+  "temp_max": 14,
+  // 当天最低温 °C（forecast=true 时返回）
+  "temp_min": -1,
+  // 多天天气预报，最多7天（forecast=true 时返回）
+  "forecast": [
+    {
+      // 日期 YYYY-MM-DD
+      "date": "2026-02-19",
+      // 星期几（`lang=en` 时返回英文星期）
+      "week": "星期四",
+      // 最高温度 °C
+      "temp_max": 14,
+      // 最低温度 °C
+      "temp_min": -1,
+      // 白天天气（`lang=en` 时返回英文）
+      "weather_day": "晴",
+      // 夜间天气（`lang=en` 时返回英文）
+      "weather_night": "晴",
+      // 白天风向（可选，`lang=en` 时返回英文）
+      "wind_dir_day": "西南风",
+      // 夜间风向（可选，`lang=en` 时返回英文）
+      "wind_dir_night": "北风",
+      // 白天风力（可选，`lang=en` 时返回英文）
+      "wind_scale_day": "微风",
+      // 夜间风力（可选，`lang=en` 时返回英文）
+      "wind_scale_night": "微风",
+      // 白天风速 km/h（可选）
+      "wind_speed_day": 17,
+      // 湿度 %（可选）
+      "humidity": 40,
+      // 降水量 mm（可选）
+      "precip": 0,
+      // 能见度 km（可选）
+      "visibility": 25,
+      // 紫外线指数（可选）
+      "uv_index": 5,
+      // 日出时间 HH:MM（可选）
+      "sunrise": "06:52",
+      // 日落时间 HH:MM（可选）
+      "sunset": "17:56"
+    }
+  ],
+  // 逐小时预报，最多24小时（hourly=true 时返回）
+  "hourly_forecast": [
+    {
+      // 预报时间（ISO8601 或 YYYY-MM-DD HH:MM）
+      "time": "2026-02-19T17:00:00+0900",
+      // 温度 °C
+      "temperature": 8,
+      // 天气状况
+      "weather": "晴",
+      // 风向（可选）
+      "wind_direction": "北北西",
+      // 风速 km/h（可选）
+      "wind_speed": 17,
+      // 风力等级（可选）
+      "wind_scale": "3级",
+      // 湿度 %（可选）
+      "humidity": 25,
+      // 降水量 mm（可选）
+      "precip": 0,
+      // 体感温度 °C（可选）
+      "feels_like": 6,
+      // 能见度 km（可选）
+      "visibility": 14,
+      // 降水概率 %（可选）
+      "pop": 0,
+      // 紫外线指数（可选，国内城市通常不返回）
+      "uv_index": 0
+    }
+  ],
+  // 分钟级降水预报（minutely=true 时返回，仅国内城市可用，精确到2分钟）
+  "minutely_precip": {
+    // 降水描述
+    "summary": "未来2小时无降水",
+    // 更新时间
+    "update_time": "2026-02-19T15:30:00+08:00",
+    // 精确到2分钟的数据点
+    "data": [
+      {
+        // 预报时间 ISO8601
+        "time": "2026-02-19T15:30:00+08:00",
+        // 该时间点的降水量 mm
+        "precip": 0,
+        // 降水类型：rain / snow
+        "type": "rain"
+      }
+    ]
+  },
+  // 18项生活指数（indices=true 时返回），每项包含 level（等级名称）、brief（简短描述）、advice（详细建议）
+  "life_indices": {
+    // 穿衣指数
+    "clothing": {
+      "level": "较舒适",
+      "brief": "微凉",
+      "advice": "建议穿薄外套、卫衣或长袖衬衫"
+    },
+    // 紫外线指数
+    "uv": {
+      "level": "高",
+      "brief": "较强",
+      "advice": "紫外线较强，减少10-14点户外活动，涂抹SPF30+防晒霜，戴帽子和墨镜"
+    },
+    // 洗车指数
+    "car_wash": {
+      "level": "非常适宜",
+      "brief": "极佳",
+      "advice": "天气晴好，非常适合洗车"
+    },
+    // 晾晒指数
+    "drying": {
+      "level": "适宜",
+      "brief": "较好",
+      "advice": "天气较好，适合晾晒"
+    },
+    // 空调开启指数
+    "air_conditioner": {
+      "level": "建议制热",
+      "brief": "寒冷",
+      "advice": "建议开启空调制热"
+    },
+    // 感冒指数
+    "cold_risk": {
+      "level": "较低",
+      "brief": "较少发",
+      "advice": "感冒风险较低"
+    },
+    // 运动指数
+    "exercise": {
+      "level": "适宜",
+      "brief": "较好",
+      "advice": "天气适合运动"
+    },
+    // 舒适度指数
+    "comfort": {
+      "level": "冷",
+      "brief": "偏冷",
+      "advice": "体感偏冷，适当添加衣物"
+    },
+    // 出行指数
+    "travel": {
+      "level": "适宜",
+      "brief": "较好",
+      "advice": "天气较好，适合出行"
+    },
+    // 钓鱼指数
+    "fishing": {
+      "level": "适宜",
+      "brief": "较好",
+      "advice": "天气适合钓鱼"
+    },
+    // 过敏指数
+    "allergy": {
+      "level": "较低",
+      "brief": "不易发",
+      "advice": "过敏风险较低"
+    },
+    // 防晒指数
+    "sunscreen": {
+      "level": "中等",
+      "brief": "需防晒",
+      "advice": "建议涂抹防晒霜"
+    },
+    // 心情指数
+    "mood": {
+      "level": "较好",
+      "brief": "愉悦",
+      "advice": "天气不错，心情愉悦"
+    },
+    // 啤酒指数
+    "beer": {
+      "level": "适宜",
+      "brief": "较好",
+      "advice": "适合来一杯冰啤酒"
+    },
+    // 雨伞指数
+    "umbrella": {
+      "level": "不需要",
+      "brief": "无需",
+      "advice": "天气晴好，无需带伞"
+    },
+    // 交通指数
+    "traffic": {
+      "level": "良好",
+      "brief": "较好",
+      "advice": "天气对交通无明显影响"
+    },
+    // 空气净化器指数
+    "air_purifier": {
+      "level": "建议开启",
+      "brief": "一般",
+      "advice": "空气质量一般，建议开启空气净化器"
+    },
+    // 花粉扩散指数
+    "pollen": {
+      "level": "较低",
+      "brief": "不易发",
+      "advice": "花粉浓度较低"
+    }
+  }
+}
 （收到429时，即访问过快，需要前端内部限制并提示10分钟后再调用访问）
