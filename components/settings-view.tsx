@@ -125,6 +125,7 @@ const SETTINGS_SECTIONS = [
   { id: "ai", label: "AI 助手" },
   { id: "advanced", label: "高级" },
   { id: "notifications", label: "GitHub 集成" },
+  { id: "news", label: "新闻精选" },
 ] as const
 
 // 通知日志导出（TODO 27 配套）：把 store 里持久化的扫描/条目日志落成文件下载。
@@ -1015,6 +1016,33 @@ export function SettingsView() {
               )}
               <p className="text-xs text-muted-foreground">
                 通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。扫描到的 commit / Issue / PR 若作者与「账户与同步 → 名称」一致，会计入个人主页贡献热力图（commit 计 1，Issue / PR 各计 2）。改动在下一轮扫描（5 分钟内）生效。扫描起点为添加仓库 / 勾选启用某类扫描的时刻，此前产生的历史内容不做回扫。
+              </p>
+            </section>
+            </Section>
+            )}
+
+            {activeSectionId === "news" && (
+              <Section title="新闻精选">
+            <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="min-w-0">
+                <Label className="text-xs font-medium">自动获取新闻</Label>
+                <p className="text-xs text-muted-foreground">
+                  开启后每天最多自动触发一次（18:00 为一天分界，周期内首次满足即拉取）。
+                </p>
+              </div>
+              <Switch
+                checked={settings.newsEnabled}
+                onCheckedChange={(v) => updateSettings({ newsEnabled: v })}
+              />
+            </div>
+
+            <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">工作流说明</Label>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                触发时自动从哔哩哔哩 / 知乎 / 知乎日报 / 抖音 / 澎湃新闻 5 个平台拉取实时热榜（uapis.cn 聚合接口，复用「高级 → UAPI 令牌」，可选），汇总后在 AI 助手里静默新建一个「新闻精选」会话，由当前选中的 AI 模型挑选最多 10 条最有价值的新闻并生成解读，解析后逐条生成通知（走「GitHub 集成 → 通知方式」勾选的渠道投递）。热榜拉取或 AI 输出失败时本轮跳过，稍后自动重试。
+              </p>
+              <p className="text-xs text-muted-foreground">
+                前提：已在「AI 助手」中配置至少一个可用模型（含 API Key）。AI 会话可在 AI 页随时回看，通知在通知中心按「新闻精选」来源筛选查看。
               </p>
             </section>
             </Section>

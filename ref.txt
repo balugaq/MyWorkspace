@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新闻卡片复刻 - 完整素材版</title>
+    <style>
+        :root {
+            /* 核心色彩配置 */
+            --bg-body: #0f0f11;          /* 网页背景 */
+            --bg-card: #151517;          /* 卡片背景 */
+            --bg-box: #1c1c20;           /* 素材框背景 */
+            
+            /* 文字颜色 */
+            --text-primary: #e8e8e8;     /* 主要正文 */
+            --text-secondary: #88898c;   /* 标签与次要信息 */
+            
+            /* 强调色 */
+            --accent-orange: #e86c3a;    /* 暖橙色（标签底色、高亮字） */
+            --accent-blue: #5c9ce6;      /* 蓝色高亮 */
+            --accent-red: #d93838;       /* 左侧引导边框的红色 */
+            
+            /* 边框与分隔线 */
+            --border-card: #2a2a2d;      /* 卡片外边框 */
+            --border-box: #2e2e33;       /* 素材框边框 */
+            --card-radius: 16px;         /* 统一卡片圆角大小，方便调整 */
+        }
+
+        body {
+            background-color: var(--bg-body);
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: var(--text-primary);
+            box-sizing: border-box;
+        }
+
+        /* 卡片主体容器 */
+        .card {
+            background-color: var(--bg-card);
+            width: 100%;
+            max-width: 900px;
+            /* 使用变量控制大圆角 */
+            border-radius: var(--card-radius); 
+            padding: 24px 28px;
+            border: 1px solid var(--border-card);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+            box-sizing: border-box;
+            position: relative; 
+        }
+
+        /* 左侧红色引导边框 (圆角跟随卡片) */
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 5px; /* 红线的宽度稍微加粗 */
+            background-color: var(--accent-red);
+            /* 匹配卡片圆角 */
+            border-radius: var(--card-radius) 0 0 var(--card-radius); 
+        }
+
+        /* --- 顶部头部区域 --- */
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            gap: 16px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        /* 标签 */
+        .tag-domestic {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background-color: var(--accent-orange);
+            color: #ffffff;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        .tag-domestic svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        /* 主标题 */
+        .main-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+            line-height: 1.4;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+        }
+
+        /* 右侧日期范围胶囊 */
+        .time-range {
+            background-color: #1c1c1f;
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            border: 1px solid #26262a;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        /* --- 信息表格区域 --- */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 70px 1fr;
+            gap: 18px 24px;
+            font-size: 15px;
+            margin-bottom: 24px; /* 与下方素材框留出间距 */
+        }
+
+        .label {
+            color: var(--text-secondary);
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+
+        .value {
+            color: var(--text-primary);
+            line-height: 1.6;
+            text-align: justify;
+        }
+
+        /* --- 底部作文素材框 --- */
+        .essay-box {
+            background-color: var(--bg-box);
+            border: 1px solid var(--border-box);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .essay-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .essay-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            font-weight: 500;
+            text-align: justify;
+        }
+
+        /* --- 底部相关链接区域 --- */
+        .footer-links {
+            display: flex;
+            gap: 12px;
+            border-top: 1px solid var(--border-card);
+            padding-top: 20px;
+        }
+
+        .link-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: #1e1e22;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-card);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .link-btn:hover {
+            background-color: #2a2a30;
+            color: var(--text-primary);
+            border-color: #44444a;
+        }
+
+        .link-icon {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        /* --- 文字内高亮样式 --- */
+        .highlight-orange {
+            color: var(--accent-orange);
+            font-weight: 600;
+        }
+
+        .highlight-blue {
+            color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <!-- 顶部头部 -->
+        <div class="card-header">
+            <div class="header-left">
+                <span class="tag-domestic">
+                    <!-- 保留原本的“国外”标识，此处修改文字为"国外" -->
+                    国外
+                </span>
+                <h1 class="main-title">中美同意共同构建基于尊重、公平、对等的建设性战略稳定关系</h1>
+            </div>
+            <div class="time-range">2026年9月</div>
+        </div>
+
+        <!-- 信息网格 -->
+        <div class="info-grid">
+            <div class="label">时间</div>
+            <div class="value">2026年9月</div>
+
+            <div class="label">地点</div>
+            <div class="value">中美</div>
+
+            <div class="label">人物</div>
+            <div class="value">中美两国元首</div>
+
+            <div class="label">经过</div>
+            <div class="value">中美两国元首在访美期间同意共同构建基于尊重、公平、对等的<span class="highlight-blue">建设性战略稳定关系</span></div>
+
+            <div class="label">影响</div>
+            <div class="value">这一定位有助于缓解中美紧张关系，为两国关系注入稳定因素</div>
+
+            <!-- 加回了“精神”模块 -->
+            <div class="label">精神</div>
+            <div class="value">尊重、公平、对等是国际交往的基本准则</div>
+        </div>
+
+        <!-- 加回了“作文素材”模块 -->
+        <div class="essay-box">
+            <span class="essay-label">作文素材</span>
+            <div class="essay-text">
+                尊重与公平是国际关系中的基石，<span class="highlight-orange">唯有基于对等的战略稳定，才能实现共赢</span>
+            </div>
+        </div>
+
+        <!-- 加回了底部相关链接 -->
+        <div class="footer-links">
+            <a href="#" class="link-btn">
+                <svg class="link-icon" viewBox="0 0 24 24">
+                    <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+                </svg>
+                相关链接 1
+            </a>
+            <a href="#" class="link-btn">
+                <svg class="link-icon" viewBox="0 0 24 24">
+                    <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>
+                </svg>
+                相关链接 2
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>

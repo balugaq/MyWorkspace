@@ -8,6 +8,7 @@ import { useWorkspace } from "@/lib/store"
 import type { ContributionType, NotificationLogEntry } from "@/lib/types"
 import { GH_EVENT_LABEL } from "@/lib/types"
 import { scanGithubNotifications } from "./github-sender"
+import { maybeRunNewsCycle } from "./news-sender"
 import { dispatchNotifications } from "./channels"
 import { KIND_LABEL } from "./qq-channel"
 
@@ -29,9 +30,12 @@ export function startNotificationScheduler(): void {
 
   // 1. 启动立即扫一轮
   void scanNow()
+  // 1.5 新闻精选（TODO 23）：随轮询检查 18:00 周期，本周期未拉过则触发（内部自带条件判断与防重入）
+  void maybeRunNewsCycle()
 
   // 2. 每 5 分钟扫一轮
   window.setInterval(() => void scanNow(), INTERVAL_MS)
+  window.setInterval(() => void maybeRunNewsCycle(), INTERVAL_MS)
 
   // 3. 活跃心跳：启动 / 每 5 分钟 / pagehide（≈关机时间）各更新一次 lastActiveAt
   useWorkspace.getState().setLastActiveAt(Date.now())

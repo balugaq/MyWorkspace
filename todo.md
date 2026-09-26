@@ -193,7 +193,7 @@ TODO 22. （状态：已完成）
 需要把投递层抽象成统一的 notifier 接口（sender → 事件 → 按 用户配置 分发给启用的 notifier），
 弹窗（内置通知）只是其中一种 notifier 实现；通知方式的选择 UI 放设置页「通知」分区。
 
-TODO 23. （状态：待处理）
+TODO 23. （状态：已完成，待目视核验）
 通知中心多 sender 支持：当前数据源只有内置的 GitHub sender，未来可能接入更多消息源
 （如新闻页：定时获取新闻并推送为通知）。sender 抽象已预留 senderId（lib/notifications/senders.ts 有展示注册表），
 需要完善：多 sender 的注册与启停管理、通知中心按 sender 筛选/分组展示、每个 sender 各自的配置分区等。
@@ -289,7 +289,12 @@ TODO 31. （状态：已修复）
 仅监听应当仅针对 commit 有效，不对issue/pr生效
 
 TODO 32. （状态：待处理）
-使rich-text支持文本颜色更改范式？
+使rich-text支持文本颜色更改范式？并将这个写成skill放built-in里，再在系统提示词里引导ai使用这些格式代码（还有markdown的斜体粗体等更多功能不需重复实现，引导ai即可）
+如
+<blue>蓝色的字</blue>
+需要有基础的16色
+参考：
+https://zh.minecraft.wiki/w/%E6%A0%BC%E5%BC%8F%E5%8C%96%E4%BB%A3%E7%A0%81#%E9%A2%9C%E8%89%B2%E4%BB%A3%E7%A0%81
 
 TODO 33. （状态：已完成）
 1. 设置里有个生日没有被持久化的，然后这个设置应该放到账户里面去
@@ -347,41 +352,6 @@ main().catch((err) => {
   "humidity": 20,
   // 数据更新时间
   "report_time": "2026-02-19 15:25:58",
-  // 体感温度 °C（extended=true 时返回）
-  "feels_like": 6,
-  // 能见度 km（extended=true 时返回）
-  "visibility": 11.3,
-  // 气压 hPa（extended=true 时返回）
-  "pressure": 1017.5,
-  // 紫外线指数（extended=true 时返回）
-  "uv": 2.9,
-  // 当前降水量 mm（extended=true 时返回）
-  "precipitation": 0,
-  // 云量 %（extended=true 时返回）
-  "cloud": 75,
-  // 空气质量指数 0-500（extended=true 时返回）
-  "aqi": 56,
-  // AQI 等级 1-6（extended=true 时返回）
-  "aqi_level": 2,
-  // AQI 等级描述（优/良/轻度污染/中度污染/重度污染/严重污染）（extended=true 时返回）
-  "aqi_category": "良",
-  // 主要污染物（如 PM2.5、PM10、O3 等）（extended=true 时返回）
-  "aqi_primary": "PM10",
-  // 空气污染物分项数据（extended=true 时返回，部分数据源可能不返回）
-  "air_pollutants": {
-    // PM2.5 μg/m³
-    "pm25": 33,
-    // PM10 μg/m³
-    "pm10": 69,
-    // 臭氧 μg/m³
-    "o3": 91,
-    // 二氧化氮 μg/m³
-    "no2": 13,
-    // 二氧化硫 μg/m³
-    "so2": 7,
-    // 一氧化碳 mg/m³
-    "co": 0.4
-  },
   // 官方气象预警列表（存在有效预警时返回）
   "alerts": [
     {
@@ -402,207 +372,9 @@ main().catch((err) => {
         "string"
       ]
     }
-  ],
-  // 当天最高温 °C（forecast=true 时返回）
-  "temp_max": 14,
-  // 当天最低温 °C（forecast=true 时返回）
-  "temp_min": -1,
-  // 多天天气预报，最多7天（forecast=true 时返回）
-  "forecast": [
-    {
-      // 日期 YYYY-MM-DD
-      "date": "2026-02-19",
-      // 星期几（`lang=en` 时返回英文星期）
-      "week": "星期四",
-      // 最高温度 °C
-      "temp_max": 14,
-      // 最低温度 °C
-      "temp_min": -1,
-      // 白天天气（`lang=en` 时返回英文）
-      "weather_day": "晴",
-      // 夜间天气（`lang=en` 时返回英文）
-      "weather_night": "晴",
-      // 白天风向（可选，`lang=en` 时返回英文）
-      "wind_dir_day": "西南风",
-      // 夜间风向（可选，`lang=en` 时返回英文）
-      "wind_dir_night": "北风",
-      // 白天风力（可选，`lang=en` 时返回英文）
-      "wind_scale_day": "微风",
-      // 夜间风力（可选，`lang=en` 时返回英文）
-      "wind_scale_night": "微风",
-      // 白天风速 km/h（可选）
-      "wind_speed_day": 17,
-      // 湿度 %（可选）
-      "humidity": 40,
-      // 降水量 mm（可选）
-      "precip": 0,
-      // 能见度 km（可选）
-      "visibility": 25,
-      // 紫外线指数（可选）
-      "uv_index": 5,
-      // 日出时间 HH:MM（可选）
-      "sunrise": "06:52",
-      // 日落时间 HH:MM（可选）
-      "sunset": "17:56"
-    }
-  ],
-  // 逐小时预报，最多24小时（hourly=true 时返回）
-  "hourly_forecast": [
-    {
-      // 预报时间（ISO8601 或 YYYY-MM-DD HH:MM）
-      "time": "2026-02-19T17:00:00+0900",
-      // 温度 °C
-      "temperature": 8,
-      // 天气状况
-      "weather": "晴",
-      // 风向（可选）
-      "wind_direction": "北北西",
-      // 风速 km/h（可选）
-      "wind_speed": 17,
-      // 风力等级（可选）
-      "wind_scale": "3级",
-      // 湿度 %（可选）
-      "humidity": 25,
-      // 降水量 mm（可选）
-      "precip": 0,
-      // 体感温度 °C（可选）
-      "feels_like": 6,
-      // 能见度 km（可选）
-      "visibility": 14,
-      // 降水概率 %（可选）
-      "pop": 0,
-      // 紫外线指数（可选，国内城市通常不返回）
-      "uv_index": 0
-    }
-  ],
-  // 分钟级降水预报（minutely=true 时返回，仅国内城市可用，精确到2分钟）
-  "minutely_precip": {
-    // 降水描述
-    "summary": "未来2小时无降水",
-    // 更新时间
-    "update_time": "2026-02-19T15:30:00+08:00",
-    // 精确到2分钟的数据点
-    "data": [
-      {
-        // 预报时间 ISO8601
-        "time": "2026-02-19T15:30:00+08:00",
-        // 该时间点的降水量 mm
-        "precip": 0,
-        // 降水类型：rain / snow
-        "type": "rain"
-      }
-    ]
-  },
-  // 18项生活指数（indices=true 时返回），每项包含 level（等级名称）、brief（简短描述）、advice（详细建议）
-  "life_indices": {
-    // 穿衣指数
-    "clothing": {
-      "level": "较舒适",
-      "brief": "微凉",
-      "advice": "建议穿薄外套、卫衣或长袖衬衫"
-    },
-    // 紫外线指数
-    "uv": {
-      "level": "高",
-      "brief": "较强",
-      "advice": "紫外线较强，减少10-14点户外活动，涂抹SPF30+防晒霜，戴帽子和墨镜"
-    },
-    // 洗车指数
-    "car_wash": {
-      "level": "非常适宜",
-      "brief": "极佳",
-      "advice": "天气晴好，非常适合洗车"
-    },
-    // 晾晒指数
-    "drying": {
-      "level": "适宜",
-      "brief": "较好",
-      "advice": "天气较好，适合晾晒"
-    },
-    // 空调开启指数
-    "air_conditioner": {
-      "level": "建议制热",
-      "brief": "寒冷",
-      "advice": "建议开启空调制热"
-    },
-    // 感冒指数
-    "cold_risk": {
-      "level": "较低",
-      "brief": "较少发",
-      "advice": "感冒风险较低"
-    },
-    // 运动指数
-    "exercise": {
-      "level": "适宜",
-      "brief": "较好",
-      "advice": "天气适合运动"
-    },
-    // 舒适度指数
-    "comfort": {
-      "level": "冷",
-      "brief": "偏冷",
-      "advice": "体感偏冷，适当添加衣物"
-    },
-    // 出行指数
-    "travel": {
-      "level": "适宜",
-      "brief": "较好",
-      "advice": "天气较好，适合出行"
-    },
-    // 钓鱼指数
-    "fishing": {
-      "level": "适宜",
-      "brief": "较好",
-      "advice": "天气适合钓鱼"
-    },
-    // 过敏指数
-    "allergy": {
-      "level": "较低",
-      "brief": "不易发",
-      "advice": "过敏风险较低"
-    },
-    // 防晒指数
-    "sunscreen": {
-      "level": "中等",
-      "brief": "需防晒",
-      "advice": "建议涂抹防晒霜"
-    },
-    // 心情指数
-    "mood": {
-      "level": "较好",
-      "brief": "愉悦",
-      "advice": "天气不错，心情愉悦"
-    },
-    // 啤酒指数
-    "beer": {
-      "level": "适宜",
-      "brief": "较好",
-      "advice": "适合来一杯冰啤酒"
-    },
-    // 雨伞指数
-    "umbrella": {
-      "level": "不需要",
-      "brief": "无需",
-      "advice": "天气晴好，无需带伞"
-    },
-    // 交通指数
-    "traffic": {
-      "level": "良好",
-      "brief": "较好",
-      "advice": "天气对交通无明显影响"
-    },
-    // 空气净化器指数
-    "air_purifier": {
-      "level": "建议开启",
-      "brief": "一般",
-      "advice": "空气质量一般，建议开启空气净化器"
-    },
-    // 花粉扩散指数
-    "pollen": {
-      "level": "较低",
-      "brief": "不易发",
-      "advice": "花粉浓度较低"
-    }
-  }
+  ]
 }
 （收到429时，即访问过快，需要前端内部限制并提示10分钟后再调用访问）
+
+TODO 35. （状态：待处理）
+B 站视频预览不应主动播放视频

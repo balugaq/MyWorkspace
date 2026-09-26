@@ -174,6 +174,9 @@ interface WorkspaceState {
   // 健康提醒上次触发时间（epoch ms，TODO 26）：持久化 + 按墙钟对表，重启/后台冻结不丢计时
   lastWaterRemindAt: number | null
   lastStandRemindAt: number | null
+  // 新闻精选上次触发时刻（epoch ms，TODO 23）：与 18:00 周期起点比对判断本周期是否已拉取；
+  // null = 从未拉过
+  newsLastFetchedAt: number | null
 
   // 关系类思维图视口存档（key = category.id）：保存上次浏览的 scale 及 x,y，重挂载后恢复
   mindmapViewports: Record<string, MindmapViewport>
@@ -202,6 +205,8 @@ interface WorkspaceState {
 
   // AI 助手：多会话管理（各自持有上下文）
   createConversation: () => string
+  /** 后台静默新建会话（TODO 23 新闻精选用）：不切换 activeConversationId，不打断当前会话 */
+  createConversationSilent: (title: string) => string
   selectConversation: (id: string) => void
   deleteConversation: (id: string) => void
   renameConversation: (id: string, title: string) => void
@@ -278,6 +283,7 @@ interface WorkspaceState {
   /** 健康提醒触发时间记账（TODO 26）。 */
   setLastWaterRemindAt: (ms: number) => void
   setLastStandRemindAt: (ms: number) => void
+  setNewsLastFetchedAt: (ms: number) => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -412,6 +418,8 @@ export const useWorkspace = create<WorkspaceState>()(
       lastReadNotificationsAt: null,
       lastWaterRemindAt: null,
       lastStandRemindAt: null,
+      // 新闻精选：从未拉过
+      newsLastFetchedAt: null,
 
       // 关系图视口存档：默认空（首次进入画布走 fitView 自适应）
       mindmapViewports: {},
@@ -724,6 +732,20 @@ export const useWorkspace = create<WorkspaceState>()(
         return id
       },
       selectConversation: (id) => set({ activeConversationId: id }),
+      // 后台静默建会话（TODO 23 新闻精选）：不切换 activeConversationId、不切视图
+      createConversationSilent: (title) => {
+        const id = uid()
+        const now = Date.now()
+        const conv: Conversation = {
+          id,
+          title,
+          messages: [],
+          createdAt: now,
+          updatedAt: now,
+        }
+        set((s) => ({ conversations: [conv, ...s.conversations] }))
+        return id
+      },
       deleteConversation: (id) =>
         set((s) => {
           const conversations = s.conversations.filter((c) => c.id !== id)
@@ -1101,6 +1123,7 @@ export const useWorkspace = create<WorkspaceState>()(
 
       setLastWaterRemindAt: (ms) => set({ lastWaterRemindAt: ms }),
       setLastStandRemindAt: (ms) => set({ lastStandRemindAt: ms }),
+      setNewsLastFetchedAt: (ms) => set({ newsLastFetchedAt: ms }),
 
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({

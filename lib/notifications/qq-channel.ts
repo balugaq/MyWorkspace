@@ -14,6 +14,7 @@ export const KIND_LABEL: Record<NotificationItem["kind"], string> = {
   issue: "Issue",
   pr: "PR",
   release: "发布",
+  news: "新闻",
 }
 
 /** 单条超长截断（QQ 消息保持精简） */
@@ -29,9 +30,13 @@ export async function sendQqNotification(item: NotificationItem, relayUrl: strin
   const ev = item.event ?? "open"
   const kindText =
     ev === "open" ? KIND_LABEL[item.kind] : `${KIND_LABEL[item.kind]}（${GH_EVENT_LABEL[ev]}）`
+  // 新闻条目 repo 为空，改标领域（国内/国外）；第二行空段跳过
+  const line2 = [kindText, item.kind === "news" ? (item.news?.field ?? "") : item.repo]
+    .filter(Boolean)
+    .join(" · ")
   const text =
     `[MyWorkspace] 通知中心 · ${senderDisplayName(item.senderId)}\n` +
-    `${kindText} · ${item.repo}\n` +
+    `${line2}\n` +
     `${clip(item.title)}\n` +
     item.url
   try {

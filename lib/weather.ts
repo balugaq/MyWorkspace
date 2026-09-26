@@ -7,8 +7,11 @@
 //   仅用户手动点击刷新（force）时绕过缓存重新获取
 // - 429 限流：命中后进入 10 分钟前端冷却（mw:weather-cooldown 持久化，刷新页面不绕过），
 //   冷却期内所有请求直接抛 RateLimitedError，由 UI 提示「10 分钟后再调用」
+//
+// 请求底座（Bearer / 错误归一）复用 lib/uapi.ts（TODO 23 抽取，与新闻热榜共用）。
 
-const UAPI_WEATHER_URL = "https://uapis.cn/api/v1/misc/weather"
+import { uapiGet, UapiError, UapiRateLimitedError } from "./uapi"
+
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000 // 2 小时获取 1 次
 const COOLDOWN_MS = 10 * 60 * 1000 // 429 后 10 分钟内不再发起请求
 const CACHE_KEY = "mw:weather-cache"
@@ -124,24 +127,20 @@ function normalize(payload: UapiWeatherResponse): WeatherNow {
 }
 
 async function requestWeather(token: string): Promise<WeatherNow> {
-  const headers: Record<string, string> = {}
-  const t = token.trim()
-  if (t) headers.Authorization = `Bearer ${t}`
-  let res: Response
+  let payload: UapiWeatherResponse
   try {
-    res = await fetch(UAPI_WEATHER_URL, { headers })
-  } catch {
-    throw new Error("天气服务连接失败")
+    payload = await uapiGet<UapiWeatherResponse>("/api/v1/misc/weather", token)
+  } catch (e) {
+    if (e instanceof UapiRateLimitedError) {
+      enterCooldown()
+      throw new RateLimitedError("天气接口访问过于频繁，请 10 分钟后再调用")
+    }
+    if (e instanceof UapiError) {
+      throw new Error(e.status === 0 ? "天气服务连接失败" : `天气请求失败（${e.status}）`)
+    }
+    throw e
   }
-  if (res.status === 429) {
-    enterCooldown()
-    throw new RateLimitedError("天气接口访问过于频繁，请 10 分钟后再调用")
-  }
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "")
-    throw new Error(detail ? `天气请求失败（${res.status}）` : `天气请求失败（${res.status}）`)
-  }
-  return normalize((await res.json()) as UapiWeatherResponse)
+  return normalize(payload)
 }
 
 /**

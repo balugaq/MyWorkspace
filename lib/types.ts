@@ -158,7 +158,7 @@ export const CONTRIBUTION_AMOUNT: Record<ContributionType, number> = {
 
 // ---- 站内通知（TODO 20 / TODO 18：通知中心 + GitHub sender）----
 
-export type NotificationKind = "commit" | "issue" | "pr" | "release"
+export type NotificationKind = "commit" | "issue" | "pr" | "release" | "news"
 
 /** 通知事件类型：open = 新建（issue/PR 创建、commit、release 均视为 open）；
  * close / reopen = issue/PR 状态变化；merge = PR 合并。旧存档条目无此字段，按 open 处理。 */
@@ -195,6 +195,31 @@ export interface NotificationItem {
   actor: string
   /** 发生时间（ISO 字符串） */
   createdAt: string
+  /** 新闻精选（TODO 23）专有：AI 精选解读的富字段。仅 kind === "news" 的条目携带 */
+  news?: NewsDetail
+}
+
+/** 新闻精选单条解读（TODO 23）：由 AI 从多平台热榜中精选后按固定 schema 返回，
+ * 程序解析该 JSON 生成通知。字段名与 todo 23 给定的 JSON 口径一致（camelCase 转写）。 */
+export interface NewsDetail {
+  /** 领域：「国内」/「国外」 */
+  field: string
+  /** 事件时间描述，如「2026年8月27日—9月上旬」 */
+  time: string
+  /** 地点 */
+  place: string
+  /** 相关人物 / 群体 */
+  individuals: string
+  /** 事件经过 */
+  throughout: string
+  /** 影响 */
+  effect: string
+  /** 精神启示 */
+  spirit: string
+  /** 作文素材示例 */
+  essayExample: string
+  /** 相关链接（来自热榜原始条目 url） */
+  link: string[]
 }
 
 // 全局搜索结果
@@ -385,6 +410,8 @@ export interface Settings {
   // 通知发送渠道（TODO 22）：勾选哪些渠道，扫描到新通知时就以哪些方式投递。
   // builtin = 右下角弹窗；qq = 本机 QQ 中转服务（默认 localhost:18899，地址可配置）。
   notificationChannels: { builtin: boolean; qq: boolean }
+  // 新闻精选 sender 开关（TODO 23）：关闭后调度器不再自动拉取热榜生成新闻通知。默认开启。
+  newsEnabled: boolean
   // QQ 互联通知的中转服务地址（POST {"text":"..."}）；留空 / 非法回落 DEFAULT_QQ_RELAY_URL
   qqRelayUrl: string
   // 保险库侧边栏密码生成器偏好（TODO 25）：位数与启用的字符集，持久化记住
@@ -519,6 +546,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dayStartOffset: "04:00",
   notificationRepos: [],
   notificationChannels: { builtin: true, qq: false },
+  newsEnabled: true,
   qqRelayUrl: DEFAULT_QQ_RELAY_URL,
   pwdGenerator: { length: 16, upper: true, lower: true, digits: true, symbols: true },
 }
