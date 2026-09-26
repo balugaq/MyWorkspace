@@ -323,6 +323,7 @@ const STORAGE_FLUSH_MS = 800
 function createDebouncedStorage(): PersistStorage<WorkspaceState> {
   let pending: StorageValue<WorkspaceState> | null = null
   let timer: ReturnType<typeof setTimeout> | undefined
+  let quotaWarned = false
   const flush = () => {
     if (timer !== undefined) {
       clearTimeout(timer)
@@ -332,8 +333,13 @@ function createDebouncedStorage(): PersistStorage<WorkspaceState> {
     try {
       localStorage.setItem(STORAGE_NAME, JSON.stringify(pending))
       pending = null
-    } catch {
-      // 配额满等写失败：保留 pending，下次 set 重试
+    } catch (err) {
+      // 配额满等写失败：保留 pending，下次 set 重试；只告警一次（此前静默吞错，
+      // 曾导致「设置里的生日没持久化」这类问题无法定位）。
+      if (!quotaWarned) {
+        quotaWarned = true
+        console.warn("[MyWorkspace] localStorage 写入失败，本轮变更暂缓落盘（可能是配额超限，请检查头像等大对象或导出备份后清理）", err)
+      }
     }
   }
   if (typeof window !== "undefined") {

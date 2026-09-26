@@ -124,9 +124,9 @@ export type ContributionType =
   | "mindmap-node-done"
   | "check-in" // 签到（TODO 9 已实现）
   | "focus" // 专注钟（TODO 10 已实现）
-  | "github-commit" // GitHub commit（TODO 18：committer/author 与「Git 本地名称」一致计 1）
-  | "github-issue" // GitHub issue（TODO 18：作者与「Git 本地名称」一致计 2）
-  | "github-pr" // GitHub PR（TODO 18：作者与「Git 本地名称」一致计 2）
+  | "github-commit" // GitHub commit（TODO 18：committer/author 与「账户与同步 → 名称」一致计 1）
+  | "github-issue" // GitHub issue（TODO 18：作者与「账户与同步 → 名称」一致计 2）
+  | "github-pr" // GitHub PR（TODO 18：作者与「账户与同步 → 名称」一致计 2）
 
 /**
  * 一条贡献记录（**真账本，非派生**）。
@@ -377,9 +377,6 @@ export interface Settings {
   /** 每天几点「翻篇」（HH:mm，用户本地时区）。默认 "04:00"：04:00 之前仍算前一天。
    *  影响贡献热力图按日分桶（见 lib/contributions.ts）；后续签到类功能亦复用同一 offset。 */
   dayStartOffset: string
-  // 通知（TODO 20 / TODO 18）：Git 本地名称，与 commit 的 committer/author 名比对，
-  // 命中则按 CONTRIBUTION_AMOUNT 计入贡献热力图。与 profile 的 userName 互相独立。
-  gitUserName: string
   // 通知 sender 要扫描的仓库列表，每个仓库带自己的扫描类型开关（TODO 18 反馈：按仓库单独配置）。
   notificationRepos: NotificationRepoConfig[]
   // 通知发送渠道（TODO 22）：勾选哪些渠道，扫描到新通知时就以哪些方式投递。
@@ -516,7 +513,6 @@ export const DEFAULT_SETTINGS: Settings = {
   aiActivePersonaId: null,
   // 与 lib/contributions.ts 的 DEFAULT_DAY_START_OFFSET 保持一致（此处写字面量避免循环依赖）
   dayStartOffset: "04:00",
-  gitUserName: "",
   notificationRepos: [],
   notificationChannels: { builtin: true, qq: false },
   qqRelayUrl: DEFAULT_QQ_RELAY_URL,

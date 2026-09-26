@@ -244,11 +244,45 @@ TODO 28. （状态：待处理）
 TODO 29. （状态：已完成）
 AI 接入联网搜索
 
-TODO 30. （状态：已修复）
+TODO 30. （状态：已完成）
 github issue 卡片预览无效，但pr预览却可以显示，调查原因
 
-TODO 31. （状态：已完成——核对确认现有实现已满足，无需改动）
+TODO 31. （状态：已修复）
 仅监听应当仅针对 commit 有效，不对issue/pr生效
 
 TODO 32. （状态：待处理）
 使rich-text支持文本颜色更改范式？
+
+TODO 33. （状态：已完成）
+1. 设置里有个生日没有被持久化的，然后这个设置应该放到账户里面去
+2. 将设置里的通知改为 GitHub 集成，高级里的Github令牌放到这里第一个。
+3. 允许在账户与同步里更改名称，头像，地理位置（原有在个人主页的修改头像和地理位置的功能删除）
+4. AI 助手中的用户头像放到账户与同步里，不再需要
+5. Git 本地名称直接用名称，不用再单开一个，旧数据不再保留。
+
+TODO 34. （状态：待处理）
+authorization Bearer 在设置中设置（UAPI 令牌）
+更换天气接口：（2小时获取1次或用户手动点击刷新时获取）
+官方sdk接口：
+https://github.com/AxT-Team/uapi-sdk-typescript
+import { UapiClient } from 'uapi-sdk-typescript';
+async function main() {
+  const client = new UapiClient('https://uapis.cn');
+  const payload = {
+    city: "", // 不要提供，接口会自动获取
+    adcode: "",
+    extended: false,
+    forecast: false,
+    hourly: false,
+    minutely: false,
+    indices: false,
+    lang: "zh",
+  };
+  const response = await client.misc.getMiscWeather(payload);
+  console.log(response);
+}
+main().catch((err) => {
+  console.error('Failed:', err);
+  process.exit(1);
+});
+（收到429时，即访问过快，需要前端内部限制并提示10分钟后再调用访问）

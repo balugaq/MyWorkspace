@@ -1,12 +1,12 @@
 "use client"
 
 // 设置工作区（独立 view，由顶栏设置按钮经 goSettings() 进入；原 settings-dialog 弹窗改造而来）。
-// 分区：通用/基础 → 快捷键/键位 → 账户与同步 → AI 助手 → 高级。
+// 分区：通用/基础 → 快捷键/键位 → 账户与同步 → AI 助手 → 高级 → GitHub 集成。
 // 各块业务逻辑自旧弹窗原样迁移，仅重排分组；子弹窗（模型/人设/技能/许可证/导入方式）随迁。
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, ArrowUpRight, Trash2, ChevronRight, Check, Braces } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, Trash2, ChevronRight, Check, Braces } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/store"
 import {
@@ -124,7 +124,7 @@ const SETTINGS_SECTIONS = [
   { id: "account", label: "账户与同步" },
   { id: "ai", label: "AI 助手" },
   { id: "advanced", label: "高级" },
-  { id: "notifications", label: "通知" },
+  { id: "notifications", label: "GitHub 集成" },
 ] as const
 
 // 通知日志导出（TODO 27 配套）：把 store 里持久化的扫描/条目日志落成文件下载。
@@ -181,7 +181,6 @@ export function SettingsView() {
   const notificationLogs = useWorkspace((s) => s.notificationLogs)
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setShortcut = useWorkspace((s) => s.setShortcut)
-  const goProfile = useWorkspace((s) => s.goProfile)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const aiAvatarInputRef = useRef<HTMLInputElement>(null)
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
@@ -347,19 +346,6 @@ export function SettingsView() {
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">生日</Label>
-              <Input
-                type="date"
-                value={settings.birthday}
-                onChange={(e) => updateSettings({ birthday: e.target.value })}
-                className="max-w-48"
-              />
-              <p className="text-xs text-muted-foreground">
-                用于日历侧栏的「人生进度条」（按 30000 天 ≈ 82 年计）。
-              </p>
-            </section>
-
-            <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">语言</Label>
               <Select value="zh-CN" disabled>
                 <SelectTrigger className="w-full">
@@ -468,7 +454,7 @@ export function SettingsView() {
               <Section title="账户与同步">
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">登录信息</Label>
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="flex items-center gap-3">
                 <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">
                   {settings.aiUserAvatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -481,27 +467,86 @@ export function SettingsView() {
                     <User className="size-5" />
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {settings.userName || "未命名用户"}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {settings.location || "中国"}
-                  </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    <ImageIcon className="size-3.5" />
+                    {settings.aiUserAvatar ? "更换头像" : "上传头像"}
+                  </Button>
+                  {settings.aiUserAvatar && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-muted-foreground"
+                      onClick={() => updateSettings({ aiUserAvatar: "" })}
+                    >
+                      清除
+                    </Button>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                  onClick={goProfile}
-                >
-                  在个人主页编辑
-                  <ArrowUpRight className="size-3.5" />
-                </Button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = ""
+                    if (!f) return
+                    try {
+                      const dataUrl = await compressAvatar(f)
+                      updateSettings({ aiUserAvatar: dataUrl })
+                    } catch {
+                      toast.error("头像读取失败，请换一张图片")
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="account-name" className="text-xs font-medium text-muted-foreground">名称</Label>
+                <Input
+                  id="account-name"
+                  value={settings.userName}
+                  placeholder="未命名用户"
+                  onChange={(e) => updateSettings({ userName: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  个人主页展示的昵称；留空显示「未命名用户」。GitHub 贡献比对也使用该名称。
+                </p>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="account-location" className="text-xs font-medium text-muted-foreground">地理位置</Label>
+                <Input
+                  id="account-location"
+                  value={settings.location}
+                  placeholder="中国"
+                  onChange={(e) => updateSettings({ location: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  个人主页头像下方展示的所在地区标签；留空显示「中国」。
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">
                 登录信息仅作本地展示，无实际账号体系。
+              </p>
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">生日</Label>
+              <Input
+                type="date"
+                value={settings.birthday}
+                onChange={(e) => updateSettings({ birthday: e.target.value })}
+                className="max-w-48"
+              />
+              <p className="text-xs text-muted-foreground">
+                用于日历侧栏的「人生进度条」（按 30000 天 ≈ 82 年计）。
               </p>
             </section>
 
@@ -644,63 +689,6 @@ export function SettingsView() {
                   管理人设
                 </Button>
               </div>
-              <div className="mt-1 flex items-center gap-3">
-                <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">
-                  {settings.aiUserAvatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={settings.aiUserAvatar}
-                      alt="用户头像"
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    <User className="size-5" />
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">用户头像</span>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-1"
-                      onClick={() => avatarInputRef.current?.click()}
-                    >
-                      <ImageIcon className="size-3.5" />
-                      {settings.aiUserAvatar ? "更换" : "上传"}
-                    </Button>
-                    {settings.aiUserAvatar && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1 text-muted-foreground"
-                        onClick={() => updateSettings({ aiUserAvatar: "" })}
-                      >
-                        清除
-                      </Button>
-                    )}
-                  </div>
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const f = e.target.files?.[0]
-                      e.target.value = ""
-                      if (!f) return
-                      try {
-                        const dataUrl = await compressAvatar(f)
-                        updateSettings({ aiUserAvatar: dataUrl })
-                      } catch {
-                        toast.error("头像读取失败，请换一张图片")
-                      }
-                    }}
-                  />
-                </div>
-              </div>
               <div className="mt-2 flex items-center gap-3">
                 <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary ring-1 ring-border">
                   {settings.aiAssistantAvatar ? (
@@ -822,9 +810,13 @@ export function SettingsView() {
                 导出通知系统的扫描与内容日志（每轮扫描检查了哪些仓库、发现了哪些新 commit / Issue / PR / 发布、是否发送了通知提示）。按时间倒序，上限 500 条。
               </p>
             </section>
+            </Section>
+            )}
 
+            {activeSectionId === "notifications" && (
+              <Section title="GitHub 集成">
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">GitHub 集成</Label>
+              <Label className="text-xs font-medium text-muted-foreground">GitHub 令牌</Label>
               <input
                 type="password"
                 autoComplete="off"
@@ -835,23 +827,7 @@ export function SettingsView() {
                 className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               />
               <p className="text-xs text-muted-foreground">
-                GitHub 预览卡的 API 限额令牌（仅本机明文存储于 localStorage，请勿在共享环境使用）。留空则匿名访问（60 次/小时/IP）。
-              </p>
-            </section>
-            </Section>
-            )}
-
-            {activeSectionId === "notifications" && (
-              <Section title="通知">
-            <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">Git 本地名称</Label>
-              <Input
-                value={settings.gitUserName}
-                placeholder="与 commit 的 committer/author 名比对"
-                onChange={(e) => updateSettings({ gitUserName: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                扫描到的 commit / Issue / PR 若作者与该名称一致，会计入个人主页贡献热力图（commit 计 1，Issue / PR 各计 2）。与个人主页的昵称互相独立。
+                GitHub 预览卡与仓库扫描共用的 API 限额令牌（仅本机明文存储于 localStorage，请勿在共享环境使用）。留空则匿名访问（60 次/小时/IP）。
               </p>
             </section>
 
@@ -1022,7 +998,7 @@ export function SettingsView() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。改动在下一轮扫描（5 分钟内）生效。扫描起点为添加仓库 / 勾选启用某类扫描的时刻，此前产生的历史内容不做回扫。
+                通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。扫描到的 commit / Issue / PR 若作者与「账户与同步 → 名称」一致，会计入个人主页贡献热力图（commit 计 1，Issue / PR 各计 2）。改动在下一轮扫描（5 分钟内）生效。扫描起点为添加仓库 / 勾选启用某类扫描的时刻，此前产生的历史内容不做回扫。
               </p>
             </section>
             </Section>

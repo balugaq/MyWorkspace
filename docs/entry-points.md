@@ -172,7 +172,7 @@
 | B 站预览卡 | `lib/bilibili.ts`：`parseBilibiliUrl`（提取 BV 号；`b23.tv/xxx` 短链无法解析 BV 则降级）/ `isBilibiliUrl` / `bilibiliEmbedSrc`（官方嵌入播放器 `player.bilibili.com`，`autoplay=0&danmaku=0`）；`components/richtext/bilibili-card.tsx`：`BilibiliCard`（atom 节点，attrs `url`），渲染 iframe 预览 + 原始链接文字。注：B 站无浏览器可直接取的 OG 缩略图（跨域），故用嵌入播放器作视觉预览而非静态图 |
 | 链接升级 | `components/richtext/upgrade.ts`：`upgradeLinkCards(editor)` 扫描文档裸 `github.com/.../(issues|pull)/\d+` 与 `bilibili.com/video/BV…`、`b23.tv/…` 文本，替换为 `githubCard` / `bilibiliCard` 节点（带 guard 上限，防死循环；本环境 prosemirror `Node` 推断异常，回调形参桥接为 `any`；替换内容须用 `JSONContent[]` 而非 Node 实例） |
 | 图片协议重构 | 旧 `{{img:<id>}}` → 标准 Markdown `![alt](imgref:<id>)`（`imgref` scheme 指向 IndexedDB）；读取时 `normalizeLegacyImg` 兼容，无需批量迁移 |
-| 设置项 | `components/settings-dialog.tsx` 新增「GitHub 集成」区：`settings.githubToken`（明文存 localStorage，仅本地预览用途，已注明风险）；`lib/types.ts` 的 `Settings.githubToken` / `DEFAULT_SETTINGS.githubToken` |
+| 设置项 | `components/settings-view.tsx`（原 settings-dialog 弹窗已改造为独立 view）「GitHub 集成」分区：`settings.githubToken`（明文存 localStorage，预览卡与仓库扫描共用，已注明风险）；`lib/types.ts` 的 `Settings.githubToken` / `DEFAULT_SETTINGS.githubToken`。贡献比对名称统一用 `settings.userName`（「账户与同步 → 名称」，原独立 `gitUserName` 字段已删除，不做旧数据迁移） |
 
 > 注：`components/markdown-view.tsx`（`MarkdownView`，基于 `marked` lexer 的手工渲染）仍保留，供列表卡片 `clamp` 两行截断预览使用；思维图节点卡片 `components/mindmap/nodes.tsx` 已改用 `RichTextView`，以便节点卡片也能呈现 GitHub/B 站预览卡（代价是每个可见节点一个只读编辑器实例，节点极多时留意性能）。`components/image-rich-input.tsx`、`components/rich-text.tsx` 中 `DebouncedTextarea` 已删除，富文本入口统一为 `RichTextEditor`。
 

@@ -328,31 +328,11 @@ export function ProfileWorkspace() {
   const day = now.getDate()
   const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()]
 
-  // 所在地区：用户可双击编辑（不可留空，空则回退上一值）；未设置时默认展示「中国」
-  const updateSettings = useWorkspace((s) => s.updateSettings)
-  const storedLocation = useWorkspace((s) => s.settings.location)
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState("")
-  const displayLocation = storedLocation.trim() || "中国"
-
-  const startEdit = () => {
-    setDraft(displayLocation)
-    setEditing(true)
-  }
-  // 提交：空值不保存（回退上一值并提示），否则写入
-  const commitEdit = () => {
-    const next = draft.trim()
-    if (!next) {
-      toast.error("所在地区不能为空")
-      setEditing(false)
-      return
-    }
-    updateSettings({ location: next })
-    setEditing(false)
-  }
-  const cancelEdit = () => setEditing(false)
+  // 所在地区：仅展示（编辑入口统一收口到「设置 → 账户与同步」）；未设置时默认展示「中国」
+  const displayLocation = settings.location.trim() || "中国"
 
   // 用户名：同款双击编辑（不可留空，空则回退上一值）；未设置时默认展示「未命名用户」
+  const updateSettings = useWorkspace((s) => s.updateSettings)
   const storedName = useWorkspace((s) => s.settings.userName)
   const [nameEditing, setNameEditing] = useState(false)
   const [nameDraft, setNameDraft] = useState("")
@@ -502,35 +482,11 @@ export function ProfileWorkspace() {
               </span>
             )}
 
-            {/* 所在地区：双击编辑（不可留空，空则回退上一值） */}
-            {editing ? (
-              <input
-                autoFocus
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onBlur={commitEdit}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    commitEdit()
-                  } else if (e.key === "Escape") {
-                    e.preventDefault()
-                    cancelEdit()
-                  }
-                }}
-                placeholder="所在地区"
-                className="w-40 rounded border border-border bg-background px-1 text-sm text-muted-foreground outline-none focus:border-primary"
-              />
-            ) : (
-              <span
-                title="双击编辑所在地区"
-                onDoubleClick={startEdit}
-                className="flex w-fit cursor-text items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-              >
-                <span aria-hidden>📍</span>
-                {displayLocation}
-              </span>
-            )}
+            {/* 所在地区：仅展示，编辑入口在「设置 → 账户与同步」 */}
+            <span className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
+              <span aria-hidden>📍</span>
+              {displayLocation}
+            </span>
           </div>
 
           {/* 签到功能：点击 toast 成功 + 写 check-in 贡献（进热力图）+ 当天禁用 / 暗色图层仅覆盖按钮 */}

@@ -132,11 +132,11 @@ export async function scanNow(): Promise<void> {
     state.appendNotificationLogs(logs)
 
     // 贡献入账（按主人定的规则）：commit 全记；issue 仅 open；PR 仅 open / merge。
-    // actor 与「Git 本地名称」一致（名称非空才比对）。
+    // actor 与「账户与同步 → 名称」（settings.userName）一致（名称非空才比对）。
     // 注意：从**本轮扫到的全部条目**计算（而非仅 fresh）——「仅监听」的 commit 不入库通知，
     // 但贡献照记；贡献 id 是确定性的（github-{...}），appendContributions 内按 id 去重防重计。
     // 旧存档条目无 event 字段 → 视为 open（历史上入库的都是新建事件）。
-    const gitName = state.settings.gitUserName.trim()
+    const gitName = state.settings.userName.trim()
     if (gitName) {
       const entries = items
         .filter((n) => {

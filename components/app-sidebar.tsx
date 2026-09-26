@@ -165,7 +165,7 @@ function CalendarSidePanel() {
             onClick={goSettings}
             className="mt-1 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            先到 设置 → 通用 / 基础 中填写生日，这里就会显示你的进度 →
+            先到 设置 → 账户与同步 中填写生日，这里就会显示你的进度 →
           </button>
         )}
       </div>
