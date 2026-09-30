@@ -327,7 +327,8 @@ export const VIEW_LABEL: Record<
   | "ai-chat"
   | "profile"
   | "settings"
-  | "notifications",
+  | "notifications"
+  | "github-queue",
   string
 > = {
   calendar: "日历",
@@ -337,6 +338,7 @@ export const VIEW_LABEL: Record<
   profile: "个人主页",
   settings: "设置",
   notifications: "通知",
+  "github-queue": "GitHub 队列",
 }
 
 // 通知系统日志（TODO 27）：记录每轮扫描检查了哪些仓库、发现哪些新内容，以及是否发送了通知提示。
@@ -549,5 +551,33 @@ export const DEFAULT_SETTINGS: Settings = {
   newsEnabled: true,
   qqRelayUrl: DEFAULT_QQ_RELAY_URL,
   pwdGenerator: { length: 16, upper: true, lower: true, digits: true, symbols: true },
+}
+
+// ---- GitHub Issue/PR 看板队列（TODO 36）----
+// 看板按列分组；卡片由用户从 GitHub 仓库拉取，或「从监听同步」导入监控仓库中 assign 给自己的条目。
+
+export type IssueQueueColumn = "urgent" | "assigned" | "completed" | "backlog"
+
+export interface IssueQueueItem {
+  /** 去重键：`iq:{repo}:{kind}:{number}`（issue 与 PR 可能同 number，故拼 kind） */
+  id: string
+  kind: "issue" | "pr"
+  /** "owner/name" */
+  repo: string
+  number: number
+  title: string
+  /** 正文首行截取 */
+  bodySnippet: string
+  /** 提交者（user.login） */
+  actor: string
+  htmlUrl: string
+  state: "open" | "closed"
+  /** 仅 PR：是否已合并 */
+  merged: boolean
+  /** 是否 assign 给当前登录用户（仅 Mine 模式或比对 login 后判定） */
+  assigneeMe: boolean
+  column: IssueQueueColumn
+  createdAt: string
+  updatedAt: string
 }
 

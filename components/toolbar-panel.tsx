@@ -12,6 +12,7 @@ import {
   PenLine,
   Users,
   Bell,
+  GitPullRequest,
 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -24,6 +25,7 @@ const TOOL_CARDS = [
   { id: "contacts", name: "联系人", icon: Users },
   { id: "vault", name: "密码保险库", icon: KeyRound },
   { id: "notifications", name: "通知", icon: Bell },
+  { id: "github-queue", name: "GitHub 队列", icon: GitPullRequest },
 ] as const
 
 export function ToolbarPanel() {
@@ -38,6 +40,7 @@ export function ToolbarPanel() {
   const goContacts = useWorkspace((s) => s.goContacts)
   const goVault = useWorkspace((s) => s.goVault)
   const goNotifications = useWorkspace((s) => s.goNotifications)
+  const goGithubQueue = useWorkspace((s) => s.goGithubQueue)
   // 通知未读数（工具栏「通知」卡片徽标）：createdAt 晚于已读水位的条数；
   // 进通知页（goNotifications）即标记已读，徽标清零
   const notifications = useWorkspace((s) => s.notifications)
@@ -69,6 +72,9 @@ export function ToolbarPanel() {
         break
       case "notifications":
         goNotifications()
+        break
+      case "github-queue":
+        goGithubQueue()
         break
     }
   }

@@ -26,6 +26,8 @@ import type {
   NotificationItem,
   NotificationLogEntry,
   MindmapViewport,
+  IssueQueueItem,
+  IssueQueueColumn,
 } from "./types"
 import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
@@ -125,6 +127,7 @@ interface WorkspaceState {
     | "profile"
     | "settings"
     | "notifications"
+    | "github-queue"
   selectedDate: string
   hydrated: boolean
 
@@ -181,6 +184,9 @@ interface WorkspaceState {
   // 关系类思维图视口存档（key = category.id）：保存上次浏览的 scale 及 x,y，重挂载后恢复
   mindmapViewports: Record<string, MindmapViewport>
 
+  // GitHub Issue/PR 看板队列（TODO 36）：用户从仓库拉取 / 监听同步进来的卡片
+  issueQueue: IssueQueueItem[]
+
   // 分类
   addCategory: (
     name: string,
@@ -202,6 +208,7 @@ interface WorkspaceState {
   goProfile: () => void
   goSettings: () => void
   goNotifications: () => void
+  goGithubQueue: () => void
 
   // AI 助手：多会话管理（各自持有上下文）
   createConversation: () => string
@@ -284,6 +291,16 @@ interface WorkspaceState {
   setLastWaterRemindAt: (ms: number) => void
   setLastStandRemindAt: (ms: number) => void
   setNewsLastFetchedAt: (ms: number) => void
+
+  // GitHub 队列（TODO 36）
+  /** 拉取到的 issue/PR 加入队列：按 id 去重（已存在则覆盖，保留其当前所在列） */
+  addToIssueQueue: (items: IssueQueueItem[]) => void
+  /** 移动某卡片到指定列 */
+  moveIssueQueueItem: (id: string, column: IssueQueueColumn) => void
+  /** 从队列移除某卡片 */
+  removeIssueQueueItem: (id: string) => void
+  /** 清空整个队列 */
+  clearIssueQueue: () => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -423,6 +440,9 @@ export const useWorkspace = create<WorkspaceState>()(
 
       // 关系图视口存档：默认空（首次进入画布走 fitView 自适应）
       mindmapViewports: {},
+
+      // GitHub 队列（TODO 36）：默认空
+      issueQueue: [],
 
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
@@ -713,6 +733,7 @@ export const useWorkspace = create<WorkspaceState>()(
       goSettings: () => set({ view: "settings", activeCategoryId: null }),
       goNotifications: () =>
         set({ view: "notifications", activeCategoryId: null, lastReadNotificationsAt: Date.now() }),
+      goGithubQueue: () => set({ view: "github-queue", activeCategoryId: null }),
 
       // ---- AI 助手：多会话（各自持有上下文） ----
       createConversation: () => {
@@ -1125,6 +1146,28 @@ export const useWorkspace = create<WorkspaceState>()(
       setLastStandRemindAt: (ms) => set({ lastStandRemindAt: ms }),
       setNewsLastFetchedAt: (ms) => set({ newsLastFetchedAt: ms }),
 
+      // ---- GitHub 队列（TODO 36） ----
+      addToIssueQueue: (items) =>
+        set((s) => {
+          if (!items.length) return {}
+          const byId = new Map(s.issueQueue.map((it) => [it.id, it]))
+          for (const it of items) {
+            const prev = byId.get(it.id)
+            // 已存在 → 覆盖数据但保留其当前所在列（用户手动移动过的列不被拉取覆盖）
+            byId.set(it.id, prev ? { ...it, column: prev.column } : it)
+          }
+          return { issueQueue: [...byId.values()] }
+        }),
+      moveIssueQueueItem: (id, column) =>
+        set((s) => ({
+          issueQueue: s.issueQueue.map((it) =>
+            it.id === id ? { ...it, column } : it
+          ),
+        })),
+      removeIssueQueueItem: (id) =>
+        set((s) => ({ issueQueue: s.issueQueue.filter((it) => it.id !== id) })),
+      clearIssueQueue: () => set({ issueQueue: [] }),
+
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({
           categories: s.categories.map((c) =>
@@ -1405,6 +1448,10 @@ export const useWorkspace = create<WorkspaceState>()(
           mindmapViewports:
             (p.mindmapViewports as Record<string, MindmapViewport> | undefined) ??
             {},
+          // GitHub 队列：旧存档无此字段 → 空数组
+          issueQueue: Array.isArray(p.issueQueue)
+            ? (p.issueQueue as IssueQueueItem[])
+            : [],
           settings: {
             ...DEFAULT_SETTINGS,
             ...(rawSettings as Partial<Settings>),

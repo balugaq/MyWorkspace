@@ -379,11 +379,11 @@ main().catch((err) => {
 TODO 35. （状态：已完成，待目视核验）
 B 站视频预览不应主动播放视频
 
-TODO 36. （状态：待处理）
-写一个 issue/pr queue（类似github那样的我觉得不错），悬挂各种issue上去（显示提交者，标题，）。 Urgent Issue/PR，Assigned Issue/PR，Completed Issue/PR等
-issue由用户自己添加，可以添加一整个仓库全部issue/pr（单次最多100条防止github限制，超出则弹窗提示），也可以只添加assign到自己的issue/pr，
+TODO 36. （状态：已完成，待目视核验）
+写一个 issue/pr queue（类似github那样的我觉得不错），悬挂各种issue上去（显示提交者，标题，内容截取）。然后分 Urgent Issue/PR，Assigned Issue/PR，Completed Issue/PR 等列。
+issue由用户自己添加，可以添加一整个仓库全部issue/pr（单次最多100条防止github限制，超出则弹窗提示），也可以只添加assign到自己的指定仓库的issue/pr，
 Github监听也可以联动一下这里的queue
-另外写成skill，ai可以获取里面信息，或访问issue里面内容（访问可能得看看行不行？）
+另外写成skill，ai可以获取里面信息，或访问issue里面内容（访问可能得看看行不行？当然这个ai功能暂时不重要，开个新的todo以后再做）
 
 TODO 37. （状态：已完成）
 文档规范整改已完成：新增 `docs/data-storage.md`（持久化字段总表，按存储后端划分，含数据链路/See also/Notice）；移除所有行数标记（`ui-conventions.md`/`remote-image-cache-design.md`）；`entry-points.md` 内嵌长括号解释拆为「字段说明」表并补数据链路/See also/Notice（§8.1/§8.8/§8.10/§8.13）；修正陈旧引用（`settings-dialog`→`settings-view`、日历纯月视图、备份为 ZIP）；精简 `lib/image-store.ts` 头注释。

@@ -334,3 +334,26 @@
 | 持久化兼容 | `store.merge`：`contributions` 缺失 / 非数组 → `[]`（旧存档）；且已纳入 `exportData` / `importData` / `mergeData` —— 导入旧备份（不含该字段）时**保留**现有账本，不清空；合并模式按 `id` 合并 |
 | 备份格式 | ZIP 备份经 `store.exportData()` 自动携带账本；`lib/backup.ts` 的 `manifest.version` 升至 **4**（v4 = `workspace.json` 增加 `contributions`） |
 
+## 8.17 GitHub 队列（Issue/PR 看板，`components/github-queue-workspace.tsx` + `lib/github-queue.ts`）
+
+> TODO 36：类 GitHub Project 的 issue/PR 看板。四列 Urgent / Assigned / Completed / Backlog；卡片由用户从仓库拉取，或「从监听同步」导入监控仓库中 assign 给自己的条目。AI 读取队列内容的能力（skill）本题未做，留待后续 TODO。
+
+| 功能 | 入口点 |
+| --- | --- |
+| 导航 | 底部工具栏 `toolbar-panel.tsx` 的 `TOOL_CARDS` 新增 `{ id: "github-queue", ... }`；`activate` 的 `case "github-queue"` → `goGithubQueue()` |
+| 视图分发 | `app/page.tsx`：`view === "github-queue"` → `<GithubQueueWorkspace />` |
+| 视图切换 | store `goGithubQueue()`（`set({ view: "github-queue", activeCategoryId: null })`） |
+| 状态 | store `issueQueue: IssueQueueItem[]`（持久化，键 `my-omni-workspace`；`merge` 缺字段 → `[]`）；见 `docs/data-storage.md` §1 |
+| 拉取逻辑 | `lib/github-queue.ts`：`fetchRepoIssues(repo, { onlyMine?, token, perPage?, currentLogin? })`（issues API 同时返回 PR，`pull_request` 字段区分；`perPage` 默认 100，达上限置 `truncated`）、`fetchCurrentLogin(token)`（取当前用户名用于判定 assignee） |
+| 去重 / 归类 | `toQueueItem`：`id = iq:{repo}:{kind}:{number}`；默认列 = closed/merged → completed、assignee 是当前用户 → assigned、否则 backlog；Urgent 由用户手动标 |
+| 添加对话框 | `GithubQueueWorkspace`：输入 `owner/repo`（支持完整 URL 解析）；模式「全部 / 仅分配给我的」（`assignee=@me`，需已填 `settings.githubToken`）；超 100 条弹提示 |
+| 卡片操作 | `QueueCard`：移动到其它列（`moveIssueQueueItem`）、删除（`removeIssueQueueItem`）、清空队列（`clearIssueQueue`）；卡片展示标题（外链）、提交者、正文首行截取、kind 标签、@me / 已合并 / 已关闭 |
+| 监听联动 | 「从监听同步」按钮：遍历 `settings.notificationRepos`，对每个仓库 `fetchRepoIssues({ onlyMine: true })` 拉 assign 给自己的 issue/PR 加入 Assigned 列 |
+
+- **数据链路**：用户输入 → `GithubQueueWorkspace` → `fetchRepoIssues`（→ GitHub REST `repos/{o}/{r}/issues`）→ `addToIssueQueue`（按 id 去重，保留已存在的列）→ `issueQueue` 落盘 → 看板按 `column` 分组渲染。
+- **See also**：[`docs/data-storage.md`](./data-storage.md) §1（`issueQueue` 持久化字段）；[`lib/notifications/github-sender.ts`](../lib/notifications/github-sender.ts)（既有 GitHub 扫描链路，`ghHeaders`/`fetchJson` 思路被 `github-queue.ts` 复用）。
+- **Notice**：
+  - `lib/github-queue.ts` 是**独立模块**，不复用 `github-sender.ts` 的内部函数（其 `ghHeaders`/`fetchJson` 为 module-private），以避免改动既有通知扫描；认证 / 限流思路一致。
+  - 「仅分配给我的」与「从监听同步」都依赖 `settings.githubToken` 取当前登录用户（`GET /user`）；匿名时前者不可用，后者直接提示填 Token。
+  - 拉取受 GitHub 限流（403/429 + `x-ratelimit-remaining: 0`）约束，触发时 `fetchRepoIssues` 抛 `RATE_LIMITED`，UI 提示稍后重试。
+

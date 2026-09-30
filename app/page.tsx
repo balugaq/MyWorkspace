@@ -18,6 +18,7 @@ import { ProfileWorkspace } from "@/components/profile-workspace"
 import { GlobalSearch } from "@/components/global-search"
 import { SettingsView } from "@/components/settings-view"
 import { NotificationsWorkspace } from "@/components/notifications/notifications-workspace"
+import { GithubQueueWorkspace } from "@/components/github-queue-workspace"
 import { NotificationToastQueue } from "@/components/notifications/notification-toast-queue"
 import { HealthReminderToasts } from "@/components/notifications/health-reminder-toasts"
 import { startNotificationScheduler } from "@/lib/notifications/scheduler"
@@ -203,6 +204,8 @@ export default function Page() {
             <SettingsView />
           ) : view === "notifications" ? (
             <NotificationsWorkspace />
+          ) : view === "github-queue" ? (
+            <GithubQueueWorkspace />
           ) : activeCategory ? (
             activeCategory.template === "relation" ? (
               <MindmapWorkspace key={activeCategory.id} category={activeCategory} />
