@@ -151,3 +151,56 @@ export function buildMonthLabels(grid: HeatmapCell[][]): string[] {
   }
   return labels
 }
+
+/**
+ * 软件使用时长：首个贡献的发生时刻（账本里 `at` 最小的那条）。
+ * 无贡献时返回 null。
+ *
+ * 设计要点：使用时长**完全派生自贡献账本**，不另存独立字段——
+ * 因此导入/导出备份时它不会随数据流动（备份只含 contributions 本身），
+ * 天然避免「把别的设备/安装的时间线带进来污染本机数据」。
+ */
+export function firstContributionAt(items: Contribution[]): number | null {
+  if (items.length === 0) return null
+  let min = items[0].at
+  for (let i = 1; i < items.length; i++) {
+    if (items[i].at < min) min = items[i].at
+  }
+  return min
+}
+
+/**
+ * 把「起始到现在」的毫秒差格式化为中文时长。
+ * 用日历精确差值（年/月/日按真实月长滚动相减），短时长降级到「天+小时」「小时+分钟」。
+ *
+ * @param ms   时长毫秒（负数按 0 处理）
+ * @param now  当前时刻（epoch ms），由调用方传入以便随时间实时刷新
+ */
+export function formatUsageDuration(ms: number, now: number = Date.now()): string {
+  if (!(ms > 0)) return "0 分钟"
+  const start = new Date(now - ms)
+  const end = new Date(now)
+  let years = end.getFullYear() - start.getFullYear()
+  let months = end.getMonth() - start.getMonth()
+  let days = end.getDate() - start.getDate()
+  if (days < 0) {
+    months--
+    const prevMonth = end.getMonth() === 0 ? 11 : end.getMonth() - 1
+    const prevYear = end.getMonth() === 0 ? end.getFullYear() - 1 : end.getFullYear()
+    days += new Date(prevYear, prevMonth + 1, 0).getDate()
+  }
+  if (months < 0) {
+    years--
+    months += 12
+  }
+  const totalHours = Math.floor(ms / 3_600_000)
+  const hours = totalHours % 24
+  const totalMinutes = Math.floor(ms / 60_000)
+  const minutes = totalMinutes % 60
+
+  if (years > 0) return `${years} 年 ${months} 个月 ${days} 天`
+  if (months > 0) return `${months} 个月 ${days} 天`
+  if (days > 0) return `${days} 天 ${hours} 小时`
+  if (totalHours > 0) return `${totalHours} 小时 ${minutes} 分钟`
+  return `${minutes} 分钟`
+}

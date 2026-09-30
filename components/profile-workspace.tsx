@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import { CalendarDays, CalendarCheck, User, Feather, RefreshCw, ScanLine, Timer } from "lucide-react"
+import { CalendarDays, CalendarCheck, User, Feather, RefreshCw, ScanLine, Timer, Clock } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { WeatherWidget } from "@/components/weather-widget"
@@ -13,6 +13,8 @@ import {
   buildHeatmapGrid,
   buildMonthLabels,
   contributionLevel,
+  firstContributionAt,
+  formatUsageDuration,
   parseDayStartOffset,
   todayKey,
 } from "@/lib/contributions"
@@ -328,6 +330,18 @@ export function ProfileWorkspace() {
   const day = now.getDate()
   const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()]
 
+  // 软件使用时长：从首个贡献到现在的日历差值（实时刷新，每 30s 重算）。
+  // 纯派生值：只依赖 contributions，不落存储字段，因此导入/导出备份时不会随数据流动，
+  // 天然避免把别的设备/安装的时间线带进来污染本机数据。
+  const [usageNow, setUsageNow] = useState(() => Date.now())
+  useEffect(() => {
+    const iv = setInterval(() => setUsageNow(Date.now()), 30_000)
+    return () => clearInterval(iv)
+  }, [])
+  const firstAt = useMemo(() => firstContributionAt(contributions), [contributions])
+  const usageMs = firstAt == null ? null : usageNow - firstAt
+  const usageText = usageMs == null ? null : formatUsageDuration(usageMs, usageNow)
+
   // 所在地区：仅展示（编辑入口统一收口到「设置 → 账户与同步」）；未设置时默认展示「中国」
   const displayLocation = settings.location.trim() || "中国"
 
@@ -532,6 +546,27 @@ export function ProfileWorkspace() {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">今日暂无待办事项</p>
             </div>
+
+            {/* 软件使用时长：自首次贡献起（纯派生值，不入备份/导入，避免跨设备污染） */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Clock className="size-4 text-sky-400" />
+                软件使用时长
+              </div>
+              {usageText ? (
+                <>
+                  <div className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
+                    {usageText}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    自 {format(new Date(firstAt!), "yyyy-MM-dd")} 首次贡献起
+                  </p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">暂无贡献记录</p>
+              )}
+            </div>
+
             {/* 专注钟（TODO 10） */}
             <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
