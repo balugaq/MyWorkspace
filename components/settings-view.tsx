@@ -16,6 +16,8 @@ import {
   importBackupZip,
   type ImportMode,
 } from "@/lib/backup"
+import { clearAllImages } from "@/lib/image-store"
+import { clearVault } from "@/lib/vault-store"
 import {
   SHORTCUT_META,
   DEFAULT_NOTIFICATION_SCAN_TYPES,
@@ -44,7 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { normalizeDayStartOffset } from "@/lib/contributions"
+import { normalizeDayStartOffset, firstContributionAt, formatUsageDuration } from "@/lib/contributions"
 import { NOTIFICATION_CHANNELS } from "@/lib/notifications/channels"
 import { LicenseDialog } from "@/components/license-dialog"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
@@ -180,6 +182,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function SettingsView() {
   const settings = useWorkspace((s) => s.settings)
   const notificationLogs = useWorkspace((s) => s.notificationLogs)
+  const contributions = useWorkspace((s) => s.contributions)
+  // 软件使用时长：复用贡献账本派生（lib/contributions.ts），不另存字段（与 Profile 页同源）
+  const usageFirstAt = firstContributionAt(contributions)
+  const usageText =
+    usageFirstAt == null
+      ? "暂无记录"
+      : formatUsageDuration(Date.now() - usageFirstAt, Date.now())
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setShortcut = useWorkspace((s) => s.setShortcut)
   const avatarInputRef = useRef<HTMLInputElement>(null)
@@ -193,6 +202,10 @@ export function SettingsView() {
   const [modelsOpen, setModelsOpen] = useState(false)
   const [personasOpen, setPersonasOpen] = useState(false)
   const [skillsOpen, setSkillsOpen] = useState(false)
+  // 删除全部数据：两步确认弹窗（确认 → 二次输入名字确认）
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteStep, setDeleteStep] = useState<"confirm" | "verify">("confirm")
+  const [confirmName, setConfirmName] = useState("")
   // 通知：仓库输入框暂存文本 + 格式错误提示（落库走 updateSettings）
   const [repoInput, setRepoInput] = useState("")
   const [repoError, setRepoError] = useState("")
@@ -288,6 +301,28 @@ export function SettingsView() {
     } catch {
       toast.error("导入失败：文件格式不正确")
     }
+  }
+
+  // 删除全部数据：清空 IndexedDB（图片库 + 保险库）与持久化状态，再重载以默认状态重置。
+  async function wipeAllData() {
+    try {
+      await clearVault()
+    } catch {
+      /* 保险库可能本就不存在，忽略 */
+    }
+    try {
+      await clearAllImages()
+    } catch {
+      /* 图片库可能本就不存在，忽略 */
+    }
+    try {
+      useWorkspace.persist.clearStorage()
+    } catch {
+      /* 忽略清理失败 */
+    }
+    toast.success("数据已删除，正在重置…")
+    // 重载后 store 以默认状态重新初始化；页面卸载前待刷新的持久化定时器不会触发
+    window.location.reload()
   }
 
   return (
@@ -616,6 +651,26 @@ export function SettingsView() {
               <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setLicenseOpen(true)}>
                 <Scale className="size-4" />
                 查看开源软件许可证
+              </Button>
+            </section>
+
+            <section className="flex flex-col gap-2 border-t border-destructive/30 pt-4">
+              <Label className="text-xs font-medium text-destructive">删除数据</Label>
+              <p className="text-xs text-muted-foreground">
+                删除将清空全部分类、笔记、日历、思维图、AI 对话、图片与密码保险库等全部本地数据，且不可恢复。
+              </p>
+              <Button
+                type="button"
+                variant="destructive"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setDeleteStep("confirm")
+                  setConfirmName("")
+                  setDeleteOpen(true)
+                }}
+              >
+                <Trash2 className="size-4" />
+                删除全部数据
               </Button>
             </section>
             </Section>
@@ -1071,6 +1126,117 @@ export function SettingsView() {
                   取消
                 </Button>
               </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* 删除全部数据：两步确认（确认 → 输入用户名二次确认；未设置用户名则直接删除） */}
+          <Dialog
+            open={deleteOpen}
+            onOpenChange={(v) => {
+              if (!v) {
+                setDeleteOpen(false)
+                setDeleteStep("confirm")
+                setConfirmName("")
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-md">
+              {deleteStep === "confirm" ? (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>删除全部数据？</DialogTitle>
+                    <DialogDescription>
+                      此操作不可恢复，将清空你在本机存储的全部数据。
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex flex-col gap-3">
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
+                      你已经使用本软件{" "}
+                      <span className="font-semibold text-destructive">
+                        {usageText}
+                      </span>
+                      。
+                    </div>
+                    {settings.userName.trim() ? (
+                      <p className="text-xs text-muted-foreground">
+                        为防止误删，下一步需要输入你的名字「
+                        <span className="font-medium text-foreground">{settings.userName}</span>
+                        」进行二次确认。
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        你尚未设置用户名，点击「继续删除」将直接进入删除（无二次确认）。
+                      </p>
+                    )}
+                    <Button variant="outline" className="w-full gap-2" onClick={onExport}>
+                      <Download className="size-4" />
+                      先导出备份（建议）
+                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" className="flex-1" onClick={() => setDeleteOpen(false)}>
+                        取消
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={() => {
+                          if (settings.userName.trim()) {
+                            setDeleteStep("verify")
+                          } else {
+                            void wipeAllData()
+                          }
+                        }}
+                      >
+                        继续删除
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>二次确认：输入名字以删除</DialogTitle>
+                    <DialogDescription>
+                      请输入你的名字{" "}
+                      <span className="font-semibold text-foreground">{settings.userName}</span>{" "}
+                      以确认删除全部数据。
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex flex-col gap-3">
+                    <Input
+                      autoFocus
+                      value={confirmName}
+                      placeholder={settings.userName}
+                      onChange={(e) => setConfirmName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          confirmName.trim() === settings.userName.trim()
+                        ) {
+                          void wipeAllData()
+                        }
+                      }}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        className="flex-1"
+                        onClick={() => setDeleteStep("confirm")}
+                      >
+                        返回
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        className="flex-1"
+                        disabled={confirmName.trim() !== settings.userName.trim()}
+                        onClick={() => void wipeAllData()}
+                      >
+                        确认删除
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </DialogContent>
           </Dialog>
           </div>

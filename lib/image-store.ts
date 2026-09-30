@@ -136,6 +136,19 @@ export async function deleteImage(id: string): Promise<void> {
   })
 }
 
+/**
+ * 清空全部图片（销毁所有图片二进制）。用于「删除全部数据」时连带清理 IndexedDB 图片库。
+ */
+export async function clearAllImages(): Promise<void> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite")
+    tx.objectStore(STORE).clear()
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
 /** 列出全部图片（用于扫描引用/暂存区管理）。默认只列出未暂存的；stagedOnly 列出暂存区 */
 export async function listImages(stagedOnly = false): Promise<StoredImage[]> {
   const db = await openDB()
