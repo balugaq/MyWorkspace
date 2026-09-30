@@ -14,6 +14,8 @@ import {
   importBackup,
   parseBackupFile,
   importBackupZip,
+  BACKUP_SECTION_META,
+  DEFAULT_EXPORT_SECTIONS,
   type ImportMode,
 } from "@/lib/backup"
 import { clearAllImages } from "@/lib/image-store"
@@ -28,6 +30,7 @@ import {
   type UIFontFamily,
   type NotificationScanTypes,
   type NotificationLogEntry,
+  type BackupSections,
 } from "@/lib/types"
 import {
   Dialog,
@@ -198,6 +201,9 @@ export function SettingsView() {
   const fileRef = useRef<HTMLInputElement>(null)
   // 待导入的已解包 ZIP 文件映射（选中 zip 后、弹出替换/合并选择前暂存）
   const [pendingFiles, setPendingFiles] = useState<Record<string, Uint8Array> | null>(null)
+  // 导出分区选择弹窗（TODO 41）：勾选要携带的数据分区，敏感分区默认不勾选
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportSel, setExportSel] = useState<BackupSections>(DEFAULT_EXPORT_SECTIONS)
   const [licenseOpen, setLicenseOpen] = useState(false)
   const [modelsOpen, setModelsOpen] = useState(false)
   const [personasOpen, setPersonasOpen] = useState(false)
@@ -246,8 +252,13 @@ export function SettingsView() {
   const modelLabel = activeModelEntry?.label ?? "未配置"
 
   async function onExport() {
+    // 一个分区都没勾 → 不产出空备份
+    if (!BACKUP_SECTION_META.some((m) => exportSel[m.id] === true)) {
+      toast.error("请至少勾选一个要导出的内容分区")
+      return
+    }
     try {
-      const blob = await exportBackupZip()
+      const blob = await exportBackupZip(exportSel)
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
@@ -257,7 +268,8 @@ export function SettingsView() {
       a.download = `workplace-backup-${stamp}.zip`
       a.click()
       URL.revokeObjectURL(url)
-      toast.success("已导出备份（ZIP：含分类/日历/设置与全部图片）")
+      setExportOpen(false)
+      toast.success("已导出备份（ZIP：按所选分区携带数据与全部图片）")
     } catch {
       toast.error("导出失败")
     }
@@ -597,7 +609,7 @@ export function SettingsView() {
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">数据备份（含图片）</Label>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 gap-2" onClick={onExport}>
+                <Button variant="outline" className="flex-1 gap-2" onClick={() => setExportOpen(true)}>
                   <Download className="size-4" />
                   导出备份
                 </Button>
@@ -621,7 +633,7 @@ export function SettingsView() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                导出为 ZIP（含分类/日历/设置与全部图片）。导入时可选「替换」或「合并」。
+                导出为 ZIP，可勾选携带的数据分区（联系人 / 密码保险库默认不携带）。导入时可选「替换」或「合并」，仅恢复备份携带的分区。
               </p>
             </section>
 
@@ -1108,13 +1120,67 @@ export function SettingsView() {
           <SkillsToggleDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
           <LicenseDialog open={licenseOpen} onOpenChange={setLicenseOpen} />
 
+          {/* 导出分区选择（TODO 41）：勾选要携带的数据分区，敏感分区默认不勾选 */}
+          <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>选择导出内容</DialogTitle>
+                <DialogDescription>
+                  勾选备份要携带的数据分区（应用设置与图片始终携带）。联系人 / 密码保险库属敏感数据，默认不携带。
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-1.5">
+                {BACKUP_SECTION_META.map((m) => (
+                  <label
+                    key={m.id}
+                    className={cn(
+                      "flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm transition-colors",
+                      m.available ? "cursor-pointer hover:bg-muted/70" : "cursor-not-allowed opacity-50",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 accent-primary"
+                      disabled={!m.available}
+                      checked={exportSel[m.id] === true}
+                      onChange={(e) =>
+                        setExportSel((prev) => ({ ...prev, [m.id]: e.target.checked }))
+                      }
+                    />
+                    <span className="flex flex-col gap-0.5">
+                      <span>
+                        {m.label}
+                        {!m.available && (
+                          <span className="ml-2 text-xs text-muted-foreground">（暂不可导出）</span>
+                        )}
+                        {m.sensitive && m.available && (
+                          <span className="ml-2 text-xs text-muted-foreground">（敏感，默认不携带）</span>
+                        )}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{m.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button className="flex-1" onClick={onExport}>
+                  <Download className="size-4" />
+                  导出
+                </Button>
+                <Button variant="ghost" onClick={() => setExportOpen(false)}>
+                  取消
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* 导入模式选择：替换 / 合并 */}
           <Dialog open={!!pendingFiles} onOpenChange={(v) => { if (!v) setPendingFiles(null) }}>
             <DialogContent className="sm:max-w-sm">
               <DialogHeader>
                 <DialogTitle>选择导入方式</DialogTitle>
                 <DialogDescription>
-                  备份包含分类、日历、设置与图片。替换会覆盖当前全部数据；合并则按 id / 日期合并、保留现有数据。
+                  备份按分区携带数据（含设置与图片）。替换会以备份内容覆盖对应分区；合并则按 id / 日期合并、保留现有数据。备份未携带的分区不受影响。
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-2">

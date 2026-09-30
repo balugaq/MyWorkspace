@@ -83,6 +83,7 @@
   - persist **未配置 `partialize`**，故 `WorkspaceState` 顶层所有非函数字段都会被 `JSON.stringify` 落盘（上表 30 项），动作函数自然被跳过。
   - `merge` 对旧存档缺字段均有回落默认值（如 `contributions→[]`、`mindmapViewports→{}`、`dayStartOffset→"04:00"`、`notificationRepos` 旧 `string[]` 兼容）；新增已发布字段须在 `merge` 兼容，否则旧 localStorage 读崩（红线第 1 条）。
   - `hydrated` 与 `pendingAiQuery` 虽被序列化，但 `onRehydrateStorage` 会**强制覆盖**（`hydrated=true`、`pendingAiQuery=null`），不依赖其持久化值；前者是运行时水合标志、后者刷新后不应重发。
+  - **备份导出分区（TODO 41）**：`exportData(sections)` 按分区从上表取数（`notes`=categories、`calendar`、`ai`=conversations+activeConversationId、`contributions`、`notifications`=notifications+notificationLogs+notificationWatermark、`githubQueue`=issueQueue）；`settings` 始终携带，`contacts` 数据源为只读 yml（§5）不输出，`vault` 走 ZIP 内 `vault.json`（§3）。分区表与扩展规范见 [`docs/entry-points.md`](./entry-points.md) §8.8。
 
 ---
 

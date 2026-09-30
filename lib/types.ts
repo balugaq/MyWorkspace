@@ -583,3 +583,20 @@ export interface IssueQueueItem {
   updatedAt: string
 }
 
+
+// ---- 备份导出分区（TODO 41）----
+// 导出备份时可按分区选择性携带数据；联系人 / 密码保险库属敏感数据，默认不导出。
+// 未来新增可导出数据时，在此扩充 id 并同步 lib/backup.ts 的 BACKUP_SECTION_META 与 docs/entry-points.md。
+
+export type BackupSectionId =
+  | "notes" // 随笔数据（categories）
+  | "calendar" // 日历数据（calendar）
+  | "ai" // AI 对话数据（conversations + activeConversationId）
+  | "contributions" // 贡献账本（contributions）
+  | "notifications" // 通知数据（notifications + notificationLogs + notificationWatermark）
+  | "githubQueue" // GitHub 队列数据（issueQueue）
+  | "contacts" // 联系人数据（TODO 48 持久化前暂不可导出）
+  | "vault" // 密码保险库（ZIP 内 vault.json，AES-256 加密 blob）
+
+/** 各分区是否导出；缺省 = 不导出（由调用方填默认值） */
+export type BackupSections = Partial<Record<BackupSectionId, boolean>>

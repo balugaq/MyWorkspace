@@ -8,22 +8,50 @@ import {
 } from "./image-store"
 import { exportVault, importVault } from "./vault-store"
 import { collectReferencedImageIds } from "./image-refs"
+import type { BackupSectionId, BackupSections } from "./types"
 
 /**
  * 备份 / 恢复（ZIP，读写均由 fflate 完成）。
  *
  * 导出（`exportBackupZip`）：
  *   workplace-backup-YYYY-MM-DD.zip
- *   ├── manifest.json      # 元信息（app / version / exportedAt）
- *   ├── workspace.json     # store 快照（分类/日历/设置/AI 对话，等同 localStorage 持久化数据）
- *   ├── vault.json         # 保险库加密数据（salt/iv/ciphertext 的 base64，主密码无关，可直接搬运）
+ *   ├── manifest.json      # 元信息（app / version / exportedAt / sections）
+ *   ├── workspace.json     # store 快照（按所选分区携带；settings 始终携带，等同 localStorage 持久化数据）
+ *   ├── vault.json         # 保险库加密数据（仅勾选 vault 分区时打包；salt/iv/ciphertext 的 base64，主密码无关，可直接搬运）
  *   └── images/<id>.<ext>  # 全部用户图片（含暂存区；已是压缩格式，level 0 直存）
  *
+ * 分区（TODO 41）：随笔 / 日历 / AI 对话 / 贡献账本 / 通知 / GitHub 队列 / 联系人 / 密码保险库；
+ * 联系人与密码保险库为敏感分区，默认不导出（联系人待 TODO 48 持久化前暂不可导出）。
  * 导入：`parseBackupFile` 识别 ZIP / 旧版纯 JSON；ZIP 经 `importBackupZip`
- * 按「替换 / 合并」两种模式恢复数据与图片；旧版 JSON 仍走 `importBackup`（替换）。
+ * 按「替换 / 合并」两种模式恢复——两种模式都只处理备份携带的分区，未携带的分区保留当前数据。
  */
 
 const APP_KEY = "my-omni-workspace"
+
+/** 分区元信息（TODO 41）：设置页导出弹窗按此渲染勾选项 */
+export const BACKUP_SECTION_META: {
+  id: BackupSectionId
+  label: string
+  description: string
+  /** 敏感分区：默认不勾选（联系人 / 密码保险库） */
+  sensitive: boolean
+  /** 联系人数据尚未持久化（TODO 48），导出入口暂不可用 */
+  available: boolean
+}[] = [
+  { id: "notes", label: "随笔数据", description: "全部分类、章节与思维图节点", sensitive: false, available: true },
+  { id: "calendar", label: "日历数据", description: "按日期聚合的笔记 / 待办 / 事件", sensitive: false, available: true },
+  { id: "ai", label: "AI 对话数据", description: "全部会话与消息上下文", sensitive: false, available: true },
+  { id: "contributions", label: "贡献记录", description: "Profile 热力图与活动记录账本", sensitive: false, available: true },
+  { id: "notifications", label: "通知数据", description: "通知中心条目、扫描日志与水位", sensitive: false, available: true },
+  { id: "githubQueue", label: "GitHub 队列数据", description: "Issue / PR 看板队列卡片", sensitive: false, available: true },
+  { id: "contacts", label: "联系人数据", description: "通讯录（待持久化改造后开放导出）", sensitive: true, available: false },
+  { id: "vault", label: "密码保险库", description: "加密 blob（AES-256-GCM），恢复需主密码", sensitive: true, available: true },
+]
+
+/** 导出分区默认勾选：敏感分区（联系人 / 保险库）默认不携带 */
+export const DEFAULT_EXPORT_SECTIONS: BackupSections = Object.fromEntries(
+  BACKUP_SECTION_META.filter((m) => m.available).map((m) => [m.id, !m.sensitive]),
+) as BackupSections
 
 function mimeToExt(kind: string): string {
   const map: Record<string, string> = {
@@ -60,31 +88,37 @@ function asBlobPart(bytes: Uint8Array): ArrayBuffer {
   return ab
 }
 
-/** 导出为 ZIP（含 store 快照与全部用户图片） */
-export async function exportBackupZip(): Promise<Blob> {
+/** 导出为 ZIP（含所选分区数据与全部用户图片）；sections 缺省 = 除敏感分区外全部分区 */
+export async function exportBackupZip(sections?: BackupSections): Promise<Blob> {
   const s = useWorkspace.getState()
-  const workspaceJson = s.exportData() ?? "{}"
+  const workspaceJson = s.exportData(sections)
+  const wanted: BackupSectionId[] = sections
+    ? BACKUP_SECTION_META.filter((m) => sections[m.id] === true).map((m) => m.id)
+    : BACKUP_SECTION_META.filter((m) => m.available && !m.sensitive).map((m) => m.id)
   const enc = new TextEncoder()
   const manifest = {
     app: APP_KEY,
-    // v4：workspace.json 增加 contributions（贡献账本）
-    version: 4,
+    // v5：分区导出（TODO 41）—— workspace.json 按所选分区携带数据，vault.json 仅勾选保险库分区时打包
+    version: 5,
     exportedAt: new Date().toISOString(),
+    sections: wanted,
   }
   // JSON 走默认 deflate（压缩率高）；图片本身已是压缩格式，用 level 0 直存避免无谓 CPU
   const files: Record<string, Uint8Array | [Uint8Array, { level: 0 }]> = {
     "manifest.json": enc.encode(JSON.stringify(manifest, null, 2)),
-    "workspace.json": enc.encode(workspaceJson),
+    "workspace.json": enc.encode(workspaceJson ?? "{}"),
   }
   const all = await listImages(false)
   for (const img of all) {
     const bytes = new Uint8Array(await img.blob.arrayBuffer())
     files[`images/${img.id}.${mimeToExt(img.kind)}`] = [bytes, { level: 0 }]
   }
-  // 保险库：加密数据整体打包（base64）；不存在则跳过
-  const vault = await exportVault()
-  if (vault) {
-    files["vault.json"] = new TextEncoder().encode(JSON.stringify(vault, null, 2))
+  // 保险库：仅勾选 vault 分区时打包加密数据（base64）；不存在则跳过
+  if (sections?.vault === true) {
+    const vault = await exportVault()
+    if (vault) {
+      files["vault.json"] = new TextEncoder().encode(JSON.stringify(vault, null, 2))
+    }
   }
   const zip = zipSync(files)
   return new Blob([asBlobPart(zip)], { type: "application/zip" })

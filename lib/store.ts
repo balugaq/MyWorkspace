@@ -28,6 +28,8 @@ import type {
   MindmapViewport,
   IssueQueueItem,
   IssueQueueColumn,
+  BackupSections,
+  BackupSectionId,
 } from "./types"
 import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
@@ -245,7 +247,8 @@ interface WorkspaceState {
   addKnownTags: (tags: string[]) => void
 
   // 数据备份
-  exportData: () => string | null
+  /** 导出 store 快照为 JSON；sections 指定导出分区（TODO 41），缺省导出除 vault 外全部分区 */
+  exportData: (sections?: BackupSections) => string | null
   importData: (json: string) => boolean
   mergeData: (json: string) => boolean
 
@@ -477,24 +480,33 @@ export const useWorkspace = create<WorkspaceState>()(
           return { knownTags: [...s.knownTags, ...additions] }
         }),
 
-      exportData: () => {
+      // 分区导出（TODO 41）：sections 指明各分区是否携带；缺省（未传）= 除 vault / contacts 外全部分区
+      // （兼容旧调用方如 ConfigEditorDialog 的全量快照语义）。settings 始终携带（应用配置，恢复必需）。
+      exportData: (sections) => {
         const s = get()
+        const want = (id: BackupSectionId) =>
+          sections ? sections[id] === true : id !== "vault" && id !== "contacts"
         try {
-          return JSON.stringify(
-            {
-              version: 1,
-              exportedAt: new Date().toISOString(),
-              categories: s.categories,
-              calendar: s.calendar,
-              settings: s.settings,
-              conversations: s.conversations,
-              activeConversationId: s.activeConversationId,
-              // 贡献账本（v4 起纳入备份；旧备份无此字段 → 导入时保留当前账本）
-              contributions: s.contributions,
-            },
-            null,
-            2
-          )
+          const payload: Record<string, unknown> = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            settings: s.settings,
+          }
+          if (want("notes")) payload.categories = s.categories
+          if (want("calendar")) payload.calendar = s.calendar
+          if (want("ai")) {
+            payload.conversations = s.conversations
+            payload.activeConversationId = s.activeConversationId
+          }
+          if (want("contributions")) payload.contributions = s.contributions
+          if (want("notifications")) {
+            payload.notifications = s.notifications
+            payload.notificationLogs = s.notificationLogs
+            payload.notificationWatermark = s.notificationWatermark
+          }
+          if (want("githubQueue")) payload.issueQueue = s.issueQueue
+          // contacts：数据源为 public/address_book.yml（只读，TODO 48 持久化前无库可导），不输出
+          return JSON.stringify(payload, null, 2)
         } catch {
           return null
         }
@@ -503,47 +515,60 @@ export const useWorkspace = create<WorkspaceState>()(
       importData: (json) => {
         try {
           const data = JSON.parse(json)
-          if (
-            !data ||
-            !Array.isArray(data.categories) ||
-            typeof data.calendar !== "object"
-          )
+          if (!data || typeof data !== "object") return false
+          // 分区备份兼容（TODO 41）：按「字段是否出现」识别分区；至少含一个数据分区才合法。
+          // 替换语义 = 只替换备份携带的分区，未携带的分区保留当前数据（向后兼容旧版全量备份）。
+          const hasNotes = Array.isArray(data.categories)
+          const hasCalendar = typeof data.calendar === "object" && data.calendar !== null
+          const hasAi = Array.isArray(data.conversations)
+          const hasContribs = Array.isArray(data.contributions)
+          const hasNotifications = Array.isArray(data.notifications)
+          const hasQueue = Array.isArray(data.issueQueue)
+          if (!hasNotes && !hasCalendar && !hasAi && !hasContribs && !hasNotifications && !hasQueue)
             return false
-          // AI 对话：仅当备份显式包含 conversations 时才覆盖（旧版无此字段则保留当前对话）。
-          const convs = Array.isArray(data.conversations)
-            ? (data.conversations as Conversation[])
-            : null
-          // 贡献账本：仅当备份显式包含数组时才覆盖（旧备份无此字段 → 保留当前账本，不清空）
-          const bContribs = Array.isArray(data.contributions)
-            ? (data.contributions as Contribution[])
-            : null
           const cur = get()
-          const persona = migratePersona((data.settings ?? {}) as Record<string, unknown>)
+          // AI 对话：仅当备份显式包含 conversations 时才覆盖（旧版无此字段则保留当前对话）。
+          const convs = hasAi ? (data.conversations as Conversation[]) : null
+          // 贡献账本：仅当备份显式包含数组时才覆盖（旧备份无此字段 → 保留当前账本，不清空）
+          const bContribs = hasContribs ? (data.contributions as Contribution[]) : null
+          // settings：备份携带才覆盖（分区导出始终携带 settings；防御旧备份缺失时保留现值）
+          const bSettings =
+            data.settings && typeof data.settings === "object" ? (data.settings as object) : null
+          const persona = migratePersona((bSettings ?? {}) as Record<string, unknown>)
           set({
-            categories: normalizeCategoryNodes(data.categories as Category[]),
-            calendar: data.calendar as CalendarData,
-            settings: {
-              ...DEFAULT_SETTINGS,
-              ...(data.settings ?? {}),
-              aiPersonas: persona.aiPersonas,
-              aiActivePersonaId: persona.aiActivePersonaId,
-              // 兜底：备份里的 dayStartOffset 缺失 / 非法 → "04:00"
-              dayStartOffset: normalizeDayStartOffset(
-                (data.settings as Record<string, unknown> | undefined)?.dayStartOffset
-              ),
-              // 兜底：旧备份 string[] 或坏值 → NotificationRepoConfig[]
-              notificationRepos: normalizeNotificationRepos(
-                (data.settings as Record<string, unknown> | undefined)?.notificationRepos
-              ),
-              // 兜底：备份里的渠道配置缺失 / 坏值 → 默认（builtin 开、qq 关）
-              notificationChannels: normalizeNotificationChannels(
-                (data.settings as Record<string, unknown> | undefined)?.notificationChannels
-              ),
-              // 兜底：备份里的 QQ 中转地址缺失 / 非法 → 默认地址
-              qqRelayUrl: normalizeQqRelayUrl(
-                (data.settings as Record<string, unknown> | undefined)?.qqRelayUrl
-              ),
-            } as Settings,
+            // 随笔分区：出现才替换；未出现保留当前分类与选中态
+            ...(hasNotes
+              ? {
+                  categories: normalizeCategoryNodes(data.categories as Category[]),
+                  activeCategoryId: (data.categories as Category[])[0]?.id ?? null,
+                  activeItemId: null,
+                }
+              : {}),
+            ...(hasCalendar ? { calendar: data.calendar as CalendarData } : {}),
+            settings: bSettings
+              ? ({
+                  ...DEFAULT_SETTINGS,
+                  ...bSettings,
+                  aiPersonas: persona.aiPersonas,
+                  aiActivePersonaId: persona.aiActivePersonaId,
+                  // 兜底：备份里的 dayStartOffset 缺失 / 非法 → "04:00"
+                  dayStartOffset: normalizeDayStartOffset(
+                    (bSettings as Record<string, unknown>).dayStartOffset
+                  ),
+                  // 兜底：旧备份 string[] 或坏值 → NotificationRepoConfig[]
+                  notificationRepos: normalizeNotificationRepos(
+                    (bSettings as Record<string, unknown>).notificationRepos
+                  ),
+                  // 兜底：备份里的渠道配置缺失 / 坏值 → 默认（builtin 开、qq 关）
+                  notificationChannels: normalizeNotificationChannels(
+                    (bSettings as Record<string, unknown>).notificationChannels
+                  ),
+                  // 兜底：备份里的 QQ 中转地址缺失 / 非法 → 默认地址
+                  qqRelayUrl: normalizeQqRelayUrl(
+                    (bSettings as Record<string, unknown>).qqRelayUrl
+                  ),
+                } as Settings)
+              : cur.settings,
             conversations: convs ?? cur.conversations,
             activeConversationId: convs
               ? (convs.find((c) => c.id === data.activeConversationId)
@@ -552,9 +577,23 @@ export const useWorkspace = create<WorkspaceState>()(
               : cur.activeConversationId,
             // 账本：备份显式包含则覆盖，否则保留当前（向后兼容旧备份）
             contributions: bContribs ?? cur.contributions,
-            activeCategoryId: data.categories[0]?.id ?? null,
-            activeItemId: null,
-            view: "workspace",
+            // 通知分区：列表整体替换；日志 / 水位出现才覆盖
+            ...(hasNotifications
+              ? {
+                  notifications: data.notifications as NotificationItem[],
+                  ...(Array.isArray(data.notificationLogs)
+                    ? { notificationLogs: data.notificationLogs as NotificationLogEntry[] }
+                    : {}),
+                  ...(data.notificationWatermark === null ||
+                  typeof data.notificationWatermark === "number"
+                    ? { notificationWatermark: data.notificationWatermark as number | null }
+                    : {}),
+                }
+              : {}),
+            // GitHub 队列分区：整体替换
+            ...(hasQueue ? { issueQueue: data.issueQueue as IssueQueueItem[] } : {}),
+            // 有随笔分区才跳工作区（与旧版全量导入行为一致）；部分备份停留在当前视图
+            ...(hasNotes ? { view: "workspace" as const } : {}),
           })
           return true
         } catch {
@@ -562,62 +601,90 @@ export const useWorkspace = create<WorkspaceState>()(
         }
       },
 
-      // 合并导入：分类按 id、日历按日期合并，保留当前 settings 与视图状态。
+      // 合并导入：分类按 id、日历按日期、账本 / 对话 / 通知 / 队列按 id 合并；
+      // 仅处理备份携带的分区（TODO 41），未携带的分区完全不碰；settings 与视图状态保留当前值。
       mergeData: (json) => {
         try {
           const data = JSON.parse(json)
-          if (
-            !data ||
-            !Array.isArray(data.categories) ||
-            typeof data.calendar !== "object"
-          )
+          if (!data || typeof data !== "object") return false
+          const hasNotes = Array.isArray(data.categories)
+          const hasCalendar = typeof data.calendar === "object" && data.calendar !== null
+          const hasAi = Array.isArray(data.conversations)
+          const hasContribs = Array.isArray(data.contributions)
+          const hasNotifications = Array.isArray(data.notifications)
+          const hasQueue = Array.isArray(data.issueQueue)
+          if (!hasNotes && !hasCalendar && !hasAi && !hasContribs && !hasNotifications && !hasQueue)
             return false
           const cur = get()
+          const patch: Record<string, unknown> = {}
           // 分类：按 id 合并（备份覆盖同 id，新 id 追加）
-          const catMap = new Map<string, Category>()
-          for (const c of cur.categories) catMap.set(c.id, c)
-          for (const c of data.categories as Category[]) catMap.set(c.id, c)
-          const categories = normalizeCategoryNodes([...catMap.values()])
-          // 日历：按日期合并
-          const calendar: CalendarData = { ...cur.calendar }
-          const bCal = data.calendar as CalendarData
-          for (const date of Object.keys(bCal)) {
-            const bDay = bCal[date]
-            const cDay = calendar[date]
-            calendar[date] = cDay ? mergeCalendarDay(cDay, bDay) : bDay
+          if (hasNotes) {
+            const catMap = new Map<string, Category>()
+            for (const c of cur.categories) catMap.set(c.id, c)
+            for (const c of data.categories as Category[]) catMap.set(c.id, c)
+            patch.categories = normalizeCategoryNodes([...catMap.values()])
           }
-          // 贡献账本：仅当备份包含 contributions 时按 id 合并（同 id 覆盖，新 id 追加），否则完全不碰。
-          const bContribs = Array.isArray(data.contributions)
-            ? (data.contributions as Contribution[])
-            : null
-          // 分类 + 日历 +（可选）账本：合并模式下的公共载荷，两个分支共用
-          const base: {
-            categories: Category[]
-            calendar: CalendarData
-            contributions?: Contribution[]
-          } = { categories, calendar }
-          if (bContribs) {
+          // 日历：按日期合并
+          if (hasCalendar) {
+            const calendar: CalendarData = { ...cur.calendar }
+            const bCal = data.calendar as CalendarData
+            for (const date of Object.keys(bCal)) {
+              const bDay = bCal[date]
+              const cDay = calendar[date]
+              calendar[date] = cDay ? mergeCalendarDay(cDay, bDay) : bDay
+            }
+            patch.calendar = calendar
+          }
+          // 贡献账本：按 id 合并（同 id 覆盖，新 id 追加）
+          if (hasContribs) {
             const contribMap = new Map<string, Contribution>()
             for (const x of cur.contributions) contribMap.set(x.id, x)
-            for (const x of bContribs) contribMap.set(x.id, x)
-            base.contributions = [...contribMap.values()]
+            for (const x of data.contributions as Contribution[]) contribMap.set(x.id, x)
+            patch.contributions = [...contribMap.values()]
           }
-          // AI 对话：仅当备份包含 conversations 时按 id 合并（同 id 覆盖，新 id 追加），
-          // 否则保留当前对话；合并模式不改动当前选中的会话（若仍存在于结果中）。
-          const bConvs = data.conversations as Conversation[] | undefined
-          if (Array.isArray(bConvs)) {
+          // AI 对话：按 id 合并；合并模式不改动当前选中的会话（若仍存在于结果中）。
+          if (hasAi) {
             const convMap = new Map<string, Conversation>()
             for (const c of cur.conversations) convMap.set(c.id, c)
-            for (const c of bConvs) convMap.set(c.id, c)
+            for (const c of data.conversations as Conversation[]) convMap.set(c.id, c)
             const conversations = [...convMap.values()]
-            const activeConversationId =
+            patch.conversations = conversations
+            patch.activeConversationId =
               cur.activeConversationId && convMap.has(cur.activeConversationId)
                 ? cur.activeConversationId
                 : (conversations[0]?.id ?? null)
-            set({ ...base, conversations, activeConversationId })
-          } else {
-            set(base)
           }
+          // 通知分区：通知 / 日志按 id 合并；水位取两边的较大值（避免回退导致重复扫描）
+          if (hasNotifications) {
+            const nMap = new Map<string, NotificationItem>()
+            for (const n of cur.notifications) nMap.set(n.id, n)
+            for (const n of data.notifications as NotificationItem[]) nMap.set(n.id, n)
+            patch.notifications = [...nMap.values()]
+            if (Array.isArray(data.notificationLogs)) {
+              const lMap = new Map<string, NotificationLogEntry>()
+              for (const e of cur.notificationLogs) lMap.set(e.id, e)
+              for (const e of data.notificationLogs as NotificationLogEntry[]) lMap.set(e.id, e)
+              patch.notificationLogs = [...lMap.values()]
+            }
+            if (
+              data.notificationWatermark === null ||
+              typeof data.notificationWatermark === "number"
+            ) {
+              const bWm = data.notificationWatermark as number | null
+              patch.notificationWatermark =
+                bWm === null
+                  ? cur.notificationWatermark
+                  : Math.max(cur.notificationWatermark ?? 0, bWm)
+            }
+          }
+          // GitHub 队列分区：按 id 合并
+          if (hasQueue) {
+            const qMap = new Map<string, IssueQueueItem>()
+            for (const it of cur.issueQueue) qMap.set(it.id, it)
+            for (const it of data.issueQueue as IssueQueueItem[]) qMap.set(it.id, it)
+            patch.issueQueue = [...qMap.values()]
+          }
+          set(patch)
           return true
         } catch {
           return false

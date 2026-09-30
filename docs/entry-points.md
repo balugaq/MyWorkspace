@@ -161,8 +161,9 @@
 | 快捷键编辑 | `ShortcutRow`（录音捕获 → `setShortcut`） |
 | 配置源文本编辑 | 入口 `setConfigEditorOpen` → `ConfigEditorDialog`（`exportData` / `importData`） |
 | 图片缓存 / 暂存 | 入口 `setImagesOpen` → `ImageCacheDialog`（`getImageInventory`） |
-| 备份（含图 + 保险库） | `exportBackupZip()` / `importBackupZip()`（`lib/backup.ts`） |
+| 备份（含图 + 保险库） | `exportBackupZip(sections?)` / `importBackupZip()`（`lib/backup.ts`）；导出前由 `SettingsView` 的「选择导出内容」弹窗勾选分区 |
 | 备份 ZIP 实现 | `lib/backup.ts` 使用 `fflate`（`zipSync` / `unzipSync`），**禁止手写 ZIP 读写** |
+| 备份分区元信息 | `BACKUP_SECTION_META` / `DEFAULT_EXPORT_SECTIONS`（`lib/backup.ts`）；分区类型 `BackupSectionId` / `BackupSections`（`lib/types.ts`） |
 | 开源许可证页面 | 入口按钮（`Scale` 图标）→ `LicenseDialog`；数据在 `lib/licenses.ts` 的 `THIRD_PARTY_LICENSES` |
 
 ### 字段说明
@@ -175,6 +176,7 @@
 | `settings.dayStartOffset` | 每天翻篇时间（HH:mm，默认 "04:00"）；`lib/contributions.ts` 的 `normalizeDayStartOffset` 兜底非法值 |
 | `settings.shortcuts` | 快捷键绑定（`SHORTCUT_META`） |
 | 备份 ZIP 内容 | `workspace.json` / `images/*` / `vault.json`（AES-256 加密 blob，替换模式下恢复）；导入按「替换 / 合并」两种模式 |
+| 备份分区（v5） | `notes`=categories、`calendar`、`ai`=conversations+activeConversationId、`contributions`、`notifications`=notifications+notificationLogs+notificationWatermark、`githubQueue`=issueQueue、`contacts`（TODO 48 持久化前不可导出）、`vault`=ZIP 内 vault.json；`settings` 与 `images/*` 始终携带。**联系人 / 密码保险库为敏感分区，默认不导出**；导入（替换 / 合并）只处理备份携带的分区，未携带的分区保留当前数据。**新增可导出数据时：扩 `BackupSectionId` + `BACKUP_SECTION_META` + `exportData` / `importData` / `mergeData` 对应分支，并同步本表** |
 | `THIRD_PARTY_LICENSES` | 名称 / 作者 / 描述 / 许可证链接，按 `--------<名称> / 作者: / 描述: / 许可证:` 格式渲染 |
 
 - **数据链路**：设置项 UI → `updateSettings` → `useWorkspace` → 防抖 `setItem` → localStorage（详见 [`docs/data-storage.md`](./data-storage.md) §1）。
@@ -333,7 +335,7 @@
 | 存量补算 | store `scanLegacyContributions()`：遍历所有 `relation.nodes`，按现有账本 id 的 Set 幂等补 created（`createdAt` 为 number）/ done（`completedAt != null`，含迁移写入的 `LEGACY_NODE_TIME`），返回新增条数 |
 | 设置 | `Settings.dayStartOffset`（HH:mm，默认 "04:00"）；`store.merge` / `importData` 对缺失 / 非法值兜底为 "04:00" |
 | 持久化兼容 | `store.merge`：`contributions` 缺失 / 非数组 → `[]`（旧存档）；且已纳入 `exportData` / `importData` / `mergeData` —— 导入旧备份（不含该字段）时**保留**现有账本，不清空；合并模式按 `id` 合并 |
-| 备份格式 | ZIP 备份经 `store.exportData()` 自动携带账本；`lib/backup.ts` 的 `manifest.version` 升至 **4**（v4 = `workspace.json` 增加 `contributions`） |
+| 备份格式 | ZIP 备份经 `store.exportData(sections)` 按 `contributions` 分区携带账本；`lib/backup.ts` 的 `manifest.version` 升至 **5**（v5 = 分区导出，见 §8.8 备份分区表；v4 = `workspace.json` 增加 `contributions`） |
 
 ## 8.17 GitHub 队列（Issue/PR 看板，`components/github-queue-workspace.tsx` + `lib/github-queue.ts`）
 
