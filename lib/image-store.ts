@@ -1,9 +1,4 @@
-/**
- * 图片存储层（IndexedDB）。
- *
- * 用于存放「粘贴/上传」的图片二进制，正文里用引用 token `{{img:<id>}}` 指向某张图。
- * 这样正文保持纯文本，图片可独立管理（缓存查看、无引用进暂存区、导出导入打包）。
- */
+// 图片存储层（IndexedDB）：存放「粘贴/上传」的图片二进制，正文用 `imgref:<id>` 引用（旧 `{{img:<id>}}` 读取时归一）。
 
 const DB_NAME = "workspace-images"
 const STORE = "images"

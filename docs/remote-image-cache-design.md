@@ -24,7 +24,7 @@
 | --- | --- |
 | `components/rich-text.tsx` → `MarkdownImg` | `imgref:` 协议转 `StoredImg`（走 IndexedDB）；**其余一律 `<img src={url}>` 裸热链，无任何缓存逻辑** |
 | `components/richtext/stored-image.tsx` | TipTap 节点视图，`isImgref(src)` 决定走内文图还是外链图 |
-| `components/markdown-view.tsx:107` | 列表卡片两行截断预览，也调 `MarkdownImg` |
+| `components/markdown-view.tsx` | 列表卡片两行截断预览，也调 `MarkdownImg` |
 
 → 也就是说：**同一篇正文里，内文图吃 IndexedDB 缓存，外链图裸奔。**
 
@@ -158,7 +158,7 @@ MarkdownImg 挂载
 
 1. 新增 `lib/remote-image-cache.ts`：`getRemoteImageSrc(url)` / `clearRemoteImageCache()` / `remoteImageCacheStats()`；内部含 LRU 淘汰与 TTL 判断
 2. 改造 `components/rich-text.tsx` 的 `MarkdownImg`：接缓存，保留 `<img src=url>` 作为加载中与失败时的兜底
-3. 新增设置项 `settings.remoteImageCache`（`off | auto | fallbackOnly`）与容量上限，落到 `lib/types.ts` + `lib/store.ts` + `settings-dialog.tsx`
+3. 新增设置项 `settings.remoteImageCache`（`off | auto | fallbackOnly`）与容量上限，落到 `lib/types.ts` + `lib/store.ts` + `settings-view.tsx`
 4. `components/image-cache-dialog.tsx` 增加「外链缓存」分区：条数 / 占用 / 清空按钮
 5. 同步更新 `docs/entry-points.md` §8.9（图片系统）
 

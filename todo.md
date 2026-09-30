@@ -385,7 +385,8 @@ issue由用户自己添加，可以添加一整个仓库全部issue/pr（单次�
 Github监听也可以联动一下这里的queue
 另外写成skill，ai可以获取里面信息，或访问issue里面内容（访问可能得看看行不行？）
 
-TODO 37. （状态：待处理）
+TODO 37. （状态：已完成）
+文档规范整改已完成：新增 `docs/data-storage.md`（持久化字段总表，按存储后端划分，含数据链路/See also/Notice）；移除所有行数标记（`ui-conventions.md`/`remote-image-cache-design.md`）；`entry-points.md` 内嵌长括号解释拆为「字段说明」表并补数据链路/See also/Notice（§8.1/§8.8/§8.10/§8.13）；修正陈旧引用（`settings-dialog`→`settings-view`、日历纯月视图、备份为 ZIP）；精简 `lib/image-store.ts` 头注释。
 文档（docs/和AGENTS.md）很久没有更新过了，是需要更新一下（todo 11）
 需要说明规范是
 1. 禁止一切行数标记，只能以文件名，字段名，方法名，库名为索引。

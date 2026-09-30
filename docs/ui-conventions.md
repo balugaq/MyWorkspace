@@ -25,17 +25,15 @@
 
 | 文件 | 位置 / 用途 |
 | --- | --- |
-| `components/ai-chat.tsx` | 输入框 `textarea`（L732） |
-| `components/global-search.tsx` | 搜索结果列表容器（L113） |
-| `components/config-editor-dialog.tsx` | 配置源文本编辑区（L77） |
-| `components/ai-skills-dialog.tsx` | 技能列表（L91） |
-| `components/ai-personas-dialog.tsx` | 弹窗体 / 人设列表 / 系统提示编辑（L71、L111、L205） |
-| `components/ai-models-dialog.tsx` | 模型列表（L101） |
-| `components/vault/vault-workspace.tsx` | 保险库多行输入（L278、L365） |
-| `components/markdown-view.tsx` | 代码块（L141） |
-| `components/richtext/rich-text-editor.tsx` | 编辑器内容区 / 源码编辑区（L200、L210） |
-
-> 行号会随代码演进漂移，以 `grep -rn "native-scroll"` 的实际结果为准。
+| `components/ai-chat.tsx` | 输入框 `textarea` |
+| `components/global-search.tsx` | 搜索结果列表容器 |
+| `components/config-editor-dialog.tsx` | 配置源文本编辑区 |
+| `components/ai-skills-dialog.tsx` | 技能列表 |
+| `components/ai-personas-dialog.tsx` | 弹窗体 / 人设列表 / 系统提示编辑 |
+| `components/ai-models-dialog.tsx` | 模型列表 |
+| `components/vault/vault-workspace.tsx` | 保险库多行输入 |
+| `components/markdown-view.tsx` | 代码块 |
+| `components/richtext/rich-text-editor.tsx` | 编辑器内容区 / 源码编辑区 |
 
 ---
 

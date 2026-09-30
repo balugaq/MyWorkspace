@@ -7,14 +7,31 @@
 
 | 功能 | 入口点 |
 | --- | --- |
-| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`/`VaultWorkspace`/`AIChatWorkspace`、`StatusBar`、`GlobalSearch`、`SettingsDialog`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()`；`VaultProvider` 在 `app/layout.tsx` 包裹 `children`（保险库会话状态/密钥驻留内存） |
+| 主布局与工作区分发 | `app/page.tsx` 的 `Page`：渲染 `AppSidebar`、`Topbar`、`NovelWorkspace`/`MindmapWorkspace`/`CalendarWorkspace`/`ContactsWorkspace`/`VaultWorkspace`/`AIChatWorkspace`/`SettingsView`、`StatusBar`、`GlobalSearch`、`ConfigEditorDialog`、`ImageCacheDialog`；调用 `useGlobalShortcuts()` |
 | 根布局 / 主题 / 字号 / Toaster | `app/layout.tsx` 的 `RootLayout`；`components/theme-provider.tsx` 的 `ThemeProvider` / `ThemeFromStore` / `FontSizeSetter` |
 | 全局快捷键 | `hooks/use-shortcuts.ts`：`useGlobalShortcuts()`、`matchShortcut(e, binding)`；绑定在 `settings.shortcuts`（`SHORTCUT_META`） |
-| 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`（订阅 store 算统计）；右下角视图名取自 `lib/types.ts` 的 `VIEW_LABEL`（新增视图须在此补一项，否则状态栏会显示成「工作台」） |
-| 桌面端侧边栏宽度（可拖拽） | `app/page.tsx` 的 `Page`：desktop sidebar 容器 `style={{ width: sidebarWidthLocal }}`，右侧 `role="separator"` 分隔条 `onMouseDown={startResizeSidebar}`（min 200 / max 420 px）；实时宽度本地 `sidebarWidthLocal` state，松手写入 store `sidebarWidth` / `setSidebarWidth`（`lib/store.ts`，刷新后保留；旧存档缺字段自动回落默认 288）。**sidebar 与分隔条仅在 `view !== "ai-chat"` 时条件渲染**（ai-chat 下经悬浮 Sheet 呼出） |
-| 全局顶栏（品牌 + 头像 + 搜索/设置/主题） | `components/brand-header.tsx` 的 `BrandHeader`：左侧品牌区（`brandClickable` 为 true 时渲染为可点按钮，点击 `onBrandClick`；由 `app/page.tsx` 仅在 `view === "ai-chat"` 时传 true）；右侧依次为 头像按钮（读 `settings.aiUserAvatar`，空回落 `User` 图标；点击 `goProfile`，`cursor-pointer`）、搜索按钮（`onOpenSearch`，带快捷键 kbd）、设置按钮（`setSettingsOpen`）、主题切换（`useTheme` + `settings.theme`）——搜索/设置/主题自 Topbar 迁入，置于 avatar 右侧 |
-| 顶栏标题行（仅非 ai-chat 视图） | `components/topbar.tsx` 的 `Topbar`：仅显示 title/subtitle（日历/分类名等），按钮已全部迁至 `BrandHeader`；ai-chat 下 title 为空且整行由 `app/page.tsx` 条件隐藏（含移动端 PanelLeft 导航按钮） |
-| ai-chat 悬浮侧边栏 | `app/page.tsx` 的 `mobileNav` Sheet（`SheetContent showCloseButton={false}`，仅保留 sidebar 顶部折叠按钮）：ai-chat 下点 BrandHeader 品牌区、移动端 PanelLeft 按钮呼出；`AppSidebar onCollapse` 关闭；`view`/`activeCategoryId` 变化时 `useEffect` 自动关闭 |
+| 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`；右下角视图名取自 `lib/types.ts` 的 `VIEW_LABEL` |
+| 桌面端侧边栏宽度（可拖拽） | `app/page.tsx` 的 `Page`：容器 `style={{ width: sidebarWidthLocal }}`，右侧 `role="separator"` 分隔条 `onMouseDown={startResizeSidebar}` |
+| 全局顶栏 | `components/brand-header.tsx` 的 `BrandHeader` |
+| 顶栏标题行 | `components/topbar.tsx` 的 `Topbar`：仅显示 title/subtitle |
+| ai-chat 悬浮侧边栏 | `app/page.tsx` 的 `mobileNav` Sheet：ai-chat 下呼出侧边栏 |
+
+### 字段说明
+
+| 字段 / 方法 | 说明 |
+| --- | --- |
+| `VaultProvider` | 在 `app/layout.tsx` 包裹 `children`（保险库会话状态 / 密钥驻留内存） |
+| `sidebarWidthLocal` | 侧边栏实时宽度本地 state（min 200 / max 420 px），松手写入 `sidebarWidth` / `setSidebarWidth`（`lib/store.ts`，刷新保留；旧存档缺字段回落默认 288） |
+| `sidebar` 与分隔条条件渲染 | 仅 `view !== "ai-chat"` 时渲染（ai-chat 下经悬浮 Sheet 呼出） |
+| `BrandHeader` 品牌区 | `brandClickable` 为 true 时渲染为可点按钮（`onBrandClick`）；由 `app/page.tsx` 仅在 `view === "ai-chat"` 时传 true |
+| `BrandHeader` 右侧按钮 | 头像（`goProfile`）/ 搜索（`onOpenSearch`）/ 设置（`goSettings`）/ 主题（`useTheme` + `settings.theme`）；搜索 / 设置 / 主题自 Topbar 迁入 |
+| 头像来源 | 读 `settings.aiUserAvatar`，空回落 `User` 图标 |
+| `Topbar` 隐藏 | ai-chat 下 title 为空且整行由 `app/page.tsx` 条件隐藏（含移动端 PanelLeft 按钮） |
+| `mobileNav` 自动关闭 | `view` / `activeCategoryId` 变化时 `useEffect` 自动关闭 |
+
+- **数据链路**：布局组件从 `useWorkspace` 订阅 `view` / `settings` / `activeCategoryId`；导航动作（`goXxx`）→ `set` → 重渲染。
+- **See also**：[`docs/entry-points.md`](./entry-points.md) §8.2（侧边栏）、§8.15（个人主页）。
+- **Notice**：新增视图须同时在 `lib/types.ts` 的 `VIEW_LABEL` 补一项，否则状态栏显示成「工作台」；`view` 联合类型 + `goXxx` action 见 `lib/store.ts`。
 
 ## 8.2 侧边栏（`components/app-sidebar.tsx`）
 
@@ -132,19 +149,37 @@
 | 搜索逻辑 | `lib/search.ts` 的 `runSearch(categories, calendar, query, scope, activeCategoryId)` |
 | 搜索 UI + 跳转 | `components/global-search.tsx` 的 `GlobalSearch`（`TYPE_ICON`、`Highlight`、`jump`） |
 
-## 8.8 设置（`components/settings-dialog.tsx`）
+## 8.8 设置（`components/settings-view.tsx`）
+
+> 设置已从弹窗改造为独立 view；分区顺序：通用 / 基础 → 快捷键 / 键位 → 账户与同步 → AI 助手 → 高级 → GitHub 集成。打开入口为 `goSettings()`（`lib/store.ts` → `set({ view: "settings" })`）。
 
 | 功能 | 入口点 |
 | --- | --- |
-| 默认视图 / 主题 | `SettingsDialog` 的 `Select`（`updateSettings({ defaultView | theme })`） |
-| 字体大小滑块 | `SettingsDialog` 的 range → `updateSettings({ fontSize })` |
-| 每天翻篇时间 | `SettingsDialog` 的 `Input type="time"`（`updateSettings({ dayStartOffset })`，HH:mm；`lib/contributions.ts` 的 `normalizeDayStartOffset` 兜底非法值 → "04:00"） |
+| 默认视图 / 主题 | `SettingsView` 的 `Select`（`updateSettings({ defaultView | theme })`） |
+| 字体大小滑块 | `SettingsView` 的 range → `updateSettings({ fontSize })` |
+| 每天翻篇时间 | `SettingsView` 的 `Input type="time"`（`updateSettings({ dayStartOffset })`，HH:mm） |
 | 快捷键编辑 | `ShortcutRow`（录音捕获 → `setShortcut`） |
-| 配置源文本编辑 | 入口 `setConfigEditorOpen` → `ConfigEditorDialog`（`exportData`/`importData`） |
-| 图片缓存/暂存 | 入口 `setImagesOpen` → `ImageCacheDialog`（`getImageInventory`） |
-| 备份（含图 + 保险库） | `exportBackupZip()` / `importBackupZip()`（`lib/backup.ts`）；ZIP 内含 `vault.json`（AES-256 加密 blob，替换模式下恢复） |
-| 备份 ZIP 实现 | `lib/backup.ts` 使用 `fflate`（`zipSync`/`unzipSync`），**禁止手写 ZIP 读写**；`exportBackupZip` 产出含 `workspace.json` / `images/*` / `vault.json` 的 Blob，导入按「替换 / 合并」两种模式 |
-| 开源许可证页面 | 底部入口按钮（`Scale` 图标）→ `LicenseDialog`（`components/license-dialog.tsx`）；数据在 `lib/licenses.ts` 的 `THIRD_PARTY_LICENSES`（名称/作者/描述/许可证链接），按 `--------<名称> / 作者: / 描述: / 许可证:` 格式渲染 |
+| 配置源文本编辑 | 入口 `setConfigEditorOpen` → `ConfigEditorDialog`（`exportData` / `importData`） |
+| 图片缓存 / 暂存 | 入口 `setImagesOpen` → `ImageCacheDialog`（`getImageInventory`） |
+| 备份（含图 + 保险库） | `exportBackupZip()` / `importBackupZip()`（`lib/backup.ts`） |
+| 备份 ZIP 实现 | `lib/backup.ts` 使用 `fflate`（`zipSync` / `unzipSync`），**禁止手写 ZIP 读写** |
+| 开源许可证页面 | 入口按钮（`Scale` 图标）→ `LicenseDialog`；数据在 `lib/licenses.ts` 的 `THIRD_PARTY_LICENSES` |
+
+### 字段说明
+
+| 持久化字段 | 说明 |
+| --- | --- |
+| `settings.defaultView` | 启动默认视图（`workspace` / `calendar` / `ai-chat` / `last`） |
+| `settings.theme` | 浅色 / 深色 / 跟随系统 |
+| `settings.fontSize` | 全局基础字号 |
+| `settings.dayStartOffset` | 每天翻篇时间（HH:mm，默认 "04:00"）；`lib/contributions.ts` 的 `normalizeDayStartOffset` 兜底非法值 |
+| `settings.shortcuts` | 快捷键绑定（`SHORTCUT_META`） |
+| 备份 ZIP 内容 | `workspace.json` / `images/*` / `vault.json`（AES-256 加密 blob，替换模式下恢复）；导入按「替换 / 合并」两种模式 |
+| `THIRD_PARTY_LICENSES` | 名称 / 作者 / 描述 / 许可证链接，按 `--------<名称> / 作者: / 描述: / 许可证:` 格式渲染 |
+
+- **数据链路**：设置项 UI → `updateSettings` → `useWorkspace` → 防抖 `setItem` → localStorage（详见 [`docs/data-storage.md`](./data-storage.md) §1）。
+- **See also**：[`docs/data-storage.md`](./data-storage.md) §1（设置持久化）、§3（保险库 blob）。
+- **Notice**：`merge` 对旧存档缺字段兜底（如 `dayStartOffset→"04:00"`、`notificationChannels` 默认）；新增设置项须同步 `lib/types.ts` 的 `Settings` 与 `DEFAULT_SETTINGS`。
 
 ## 8.9 图片系统
 
@@ -173,7 +208,14 @@
 | B 站预览卡 | `lib/bilibili.ts`：`parseBilibiliUrl`（提取 BV 号；`b23.tv/xxx` 短链无法解析 BV 则降级）/ `isBilibiliUrl` / `fetchBilibiliCover`（api.bilibili.com 公开视频信息接口取封面，按 BV 模块级缓存、失败负缓存）/ `getCachedBilibiliCover`；`components/richtext/bilibili-card.tsx`：`BilibiliCard`（atom 节点，attrs `url`），渲染封面占位（失败降级 ▶ 占位图）+ 原始链接文字，整卡新标签页跳转 B 站——TODO 35 起**不再内嵌播放器 iframe**（避免常驻加载视频流占 GPU/内存） |
 | 链接升级 | `components/richtext/upgrade.ts`：`upgradeLinkCards(editor)` 扫描文档裸 `github.com/.../(issues|pull)/\d+` 与 `bilibili.com/video/BV…`、`b23.tv/…` 文本，替换为 `githubCard` / `bilibiliCard` 节点（带 guard 上限，防死循环；本环境 prosemirror `Node` 推断异常，回调形参桥接为 `any`；替换内容须用 `JSONContent[]` 而非 Node 实例） |
 | 图片协议重构 | 旧 `{{img:<id>}}` → 标准 Markdown `![alt](imgref:<id>)`（`imgref` scheme 指向 IndexedDB）；读取时 `normalizeLegacyImg` 兼容，无需批量迁移 |
-| 设置项 | `components/settings-view.tsx`（原 settings-dialog 弹窗已改造为独立 view）「GitHub 集成」分区：`settings.githubToken`（明文存 localStorage，预览卡与仓库扫描共用，已注明风险）；`lib/types.ts` 的 `Settings.githubToken` / `DEFAULT_SETTINGS.githubToken`。贡献比对名称统一用 `settings.userName`（「账户与同步 → 名称」，原独立 `gitUserName` 字段已删除，不做旧数据迁移） |
+| 设置项（GitHub 集成 / 账户与同步） | `components/settings-view.tsx` 的「GitHub 集成」「账户与同步」分区；对应 `lib/types.ts` 的 `Settings.githubToken` / `DEFAULT_SETTINGS.githubToken` 与 `settings.userName` |
+
+### 字段说明
+
+| 持久化字段 | 说明 |
+| --- | --- |
+| `settings.githubToken` | GitHub Token，明文存 localStorage，预览卡与仓库扫描共用（有泄露风险，已注明） |
+| `settings.userName` | 贡献比对名称（「账户与同步 → 名称」）；原独立 `gitUserName` 字段已删除，不做旧数据迁移 |
 
 > 注：`components/markdown-view.tsx`（`MarkdownView`，基于 `marked` lexer 的手工渲染）仍保留，供列表卡片 `clamp` 两行截断预览使用；思维图节点卡片 `components/mindmap/nodes.tsx` 已改用 `RichTextView`，以便节点卡片也能呈现 GitHub/B 站预览卡（代价是每个可见节点一个只读编辑器实例，节点极多时留意性能）。`components/image-rich-input.tsx`、`components/rich-text.tsx` 中 `DebouncedTextarea` 已删除，富文本入口统一为 `RichTextEditor`。
 
@@ -243,6 +285,22 @@
 | 容错 | 队列自定义 `fetch` 在 abort 时把 reject 转为空响应以避免 unhandled rejection；用户点「停止」视为预期行为，静默收尾不报错 |
 
 > 相关类型集中在 `lib/types.ts`：`AIProviderId`、`AIPersona`、`AIChatMessage`、`Conversation`（含 `pinned?`），以及 `Settings` 的 `aiModels` / `aiActiveModelId` / `aiEnabledSkills` / `aiUserAvatar` / `aiAssistantAvatar` / `aiForceSync` / `aiPersonas` / `aiActivePersonaId`。
+
+### 字段说明
+
+| 持久化字段 | 说明 |
+| --- | --- |
+| `settings.aiModels` / `aiActiveModelId` | 供应商模型列表与当前选中（旧单一配置由同级迁移为数组） |
+| `settings.aiPersonas` / `aiActivePersonaId` | 多套人设与当前选中（旧单一 `aiPersona` 字符串由 `lib/store.ts` 的 `migratePersona` 升级） |
+| `settings.aiEnabledSkills` | 技能启停（null = 全部启用） |
+| `settings.aiUserAvatar` / `aiAssistantAvatar` | 头像 data URL（设置里压缩至最长边 256px，避免撑爆 localStorage） |
+| `settings.aiForceSync` | true = 所有会话串行（单队列），false = 允许并发 |
+| `conversations` / `activeConversationId` | 会话列表与当前选中（持久化） |
+| `pendingAiQuery` | **不持久化**：`onRehydrateStorage` 强制置空，刷新不重发 |
+
+- **数据链路**：UI 动作 → `createConversation` / `selectConversation` 等 store action → 防抖 `setItem`；流式请求经 `lib/ai/request-queue.ts` 全局队列，跨会话 / 切视图不中断。
+- **See also**：[`docs/data-storage.md`](./data-storage.md) §1（会话持久化）。
+- **Notice**：`migratePersona` 在 `merge` 内把旧 `aiPersona` 升级为多人人设，新增人设字段须向后兼容。
 
 ---
 
