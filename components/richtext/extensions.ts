@@ -3,8 +3,8 @@
 import StarterKit from "@tiptap/starter-kit"
 import TaskList from "@tiptap/extension-task-list"
 import TaskItem from "@tiptap/extension-task-item"
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight"
 import { createLowlight, common } from "lowlight"
+import { CodeBlockEnhanced } from "./code-block"
 import { Markdown } from "tiptap-markdown"
 import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table"
 import { StoredImage } from "./stored-image"
@@ -20,6 +20,7 @@ const lowlight = createLowlight(common)
  *
  * 组成：
  *  - StarterKit：段落/标题/列表/引用/代码块/hr/链接/撤销等（v3 已内置 Link/Underline）。
+ *  - CodeBlockEnhanced：代码块（CodeBlockLowlight 扩展）+ 行号 gutter + 语言角标（TODO 38）。
  *  - StoredImage：自研图片节点，支持 imgref:<id>（IndexedDB 内文图）与远程图。
  *  - TaskList / TaskItem：任务列表（checkbox）。
  *  - GitHubCard：GitHub Issue/PR 预览卡节点。
@@ -35,7 +36,8 @@ export const richTextExtensions = [
   StoredImage,
   TaskList,
   TaskItem.configure({ nested: true }),
-  CodeBlockLowlight.configure({ lowlight }),
+  // 代码块增强（TODO 38）：行号 gutter + 语言角标，高亮仍走 lowlight decoration
+  CodeBlockEnhanced.configure({ lowlight }),
   Table.configure({ resizable: false }),
   TableRow,
   TableHeader,
