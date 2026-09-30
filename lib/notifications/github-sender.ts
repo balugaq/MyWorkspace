@@ -53,6 +53,8 @@ interface GhIssue {
   /** 关闭时间（issue 与 PR 都有；重新打开后再次关闭会更新） */
   closed_at: string | null
   body?: string | null
+  /** assignee 登录名列表（「自动入 GitHub 队列」判定 assign 给自己用） */
+  assignees?: { login: string }[] | null
   /** 有此字段即为 PR（列表 API 的 PR 复用 issue 条目）；merged_at 非空表示已合并 */
   pull_request?: { merged_at: string | null } | null
 }
@@ -222,6 +224,7 @@ async function scanIssuesAndPrs(
         brief: firstLine(it.body, BRIEF_MAX),
         url: it.html_url,
         actor: it.user?.login ?? "",
+        assignees: (it.assignees ?? []).map((a) => a.login),
         createdAt: it.created_at,
       })
       continue

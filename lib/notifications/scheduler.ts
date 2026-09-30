@@ -5,9 +5,10 @@
 // 幂等：startNotificationScheduler 模块级 flag，重复调用直接 return。
 
 import { useWorkspace } from "@/lib/store"
-import type { ContributionType, NotificationLogEntry } from "@/lib/types"
+import type { ContributionType, IssueQueueItem, NotificationItem, NotificationLogEntry } from "@/lib/types"
 import { GH_EVENT_LABEL } from "@/lib/types"
 import { scanGithubNotifications } from "./github-sender"
+import { fetchCurrentLogin } from "@/lib/github-queue"
 import { maybeRunNewsCycle } from "./news-sender"
 import { dispatchNotifications } from "./channels"
 import { KIND_LABEL } from "./qq-channel"
@@ -22,6 +23,34 @@ const KIND_TO_CONTRIB: Record<"commit" | "issue" | "pr", ContributionType> = {
   commit: "github-commit",
   issue: "github-issue",
   pr: "github-pr",
+}
+
+/**
+ * 通知条目 → GitHub 队列卡片（Backlog 列，TODO 36 补充的「监听自动入队」）。
+ * number 从通知的 html_url 提取（.../issues/123 或 .../pull/123）；
+ * id 与手动拉取路径一致（iq:{repo}:{kind}:{number}），addToIssueQueue 按 id 去重且
+ * 保留用户手动移动过的列，重复触发无副作用。
+ */
+function notificationToBacklogItem(n: NotificationItem): IssueQueueItem {
+  const m = /\/(?:issues|pull)\/(\d+)/.exec(n.url)
+  const number = m ? Number(m[1]) : 0
+  const ev = n.event ?? "open"
+  return {
+    id: `iq:${n.repo}:${n.kind}:${number}`,
+    kind: n.kind === "pr" ? "pr" : "issue",
+    repo: n.repo,
+    number,
+    title: n.title,
+    bodySnippet: n.brief,
+    actor: n.actor,
+    htmlUrl: n.url,
+    state: ev === "close" || ev === "merge" ? "closed" : "open",
+    merged: ev === "merge",
+    assigneeMe: true,
+    column: "backlog",
+    createdAt: n.createdAt,
+    updatedAt: n.createdAt,
+  }
 }
 
 export function startNotificationScheduler(): void {
@@ -99,6 +128,21 @@ export async function scanNow(): Promise<void> {
 
     // 新条目按用户勾选的通知渠道分发（仅本轮新入库的，去重条目不重复投递）
     if (fresh.length > 0) dispatchNotifications(fresh, state.settings)
+
+    // 监听自动入 GitHub 队列（TODO 36）：本轮新收到的 issue/PR 若 assign 给自己，
+    // 自动加到队列 Backlog 列。仅在确有候选时才多打一次 /user 取登录名（省 API 配额）。
+    const queueCandidates = fresh.filter(
+      (n) => (n.kind === "issue" || n.kind === "pr") && (n.assignees?.length ?? 0) > 0
+    )
+    if (queueCandidates.length > 0 && token.trim()) {
+      const login = await fetchCurrentLogin(token)
+      if (login) {
+        const autoItems = queueCandidates
+          .filter((n) => n.assignees!.includes(login))
+          .map((n) => notificationToBacklogItem(n))
+        if (autoItems.length > 0) state.addToIssueQueue(autoItems)
+      }
+    }
 
     // 日志存储（TODO 27）：记录本轮检查的仓库、发现的新内容，以及是否发送了通知提示。
     // scan 汇总条目 + 逐条 item 条目（含「仅监听」的 commit——检查过但按规则不通知）。

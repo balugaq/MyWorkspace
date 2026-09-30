@@ -337,7 +337,7 @@
 
 ## 8.17 GitHub 队列（Issue/PR 看板，`components/github-queue-workspace.tsx` + `lib/github-queue.ts`）
 
-> TODO 36：类 GitHub Project 的 issue/PR 看板。四列 Urgent / Assigned / Completed / Backlog；卡片由用户从仓库拉取，或「从监听同步」导入监控仓库中 assign 给自己的条目。AI 读取队列内容的能力（skill）本题未做，留待后续 TODO。
+> TODO 36 + 后续迭代：类 GitHub Project 的 issue/PR 看板。四列 Urgent / Assigned / Completed / Backlog；卡片由用户从仓库拉取、「从监听同步」导入，或监听收到 assign 给自己的 issue/PR 时**自动入 Backlog**。AI 可经内置技能 `wb_get_github_queue` 只读读取队列。
 
 | 功能 | 入口点 |
 | --- | --- |
@@ -347,9 +347,13 @@
 | 状态 | store `issueQueue: IssueQueueItem[]`（持久化，键 `my-omni-workspace`；`merge` 缺字段 → `[]`）；见 `docs/data-storage.md` §1 |
 | 拉取逻辑 | `lib/github-queue.ts`：`fetchRepoIssues(repo, { onlyMine?, token, perPage?, currentLogin? })`（issues API 同时返回 PR，`pull_request` 字段区分；`perPage` 默认 100，达上限置 `truncated`）、`fetchCurrentLogin(token)`（取当前用户名用于判定 assignee） |
 | 去重 / 归类 | `toQueueItem`：`id = iq:{repo}:{kind}:{number}`；默认列 = closed/merged → completed、assignee 是当前用户 → assigned、否则 backlog；Urgent 由用户手动标 |
+| 实时搜索 | 顶栏搜索框（`query` state）：按 标题 / 正文 / 仓库 / 提交者 / #编号 大小写不敏感过滤，四列只显示匹配卡片；仅过滤显示，不改数据 |
+| 滚动条 | 看板容器与每列卡片列表均为 `overflow-auto` + `.native-scroll`（`docs/ui-conventions.md` §1 细圆角胶囊规范） |
 | 添加对话框 | `GithubQueueWorkspace`：输入 `owner/repo`（支持完整 URL 解析）；模式「全部 / 仅分配给我的」（`assignee=@me`，需已填 `settings.githubToken`）；超 100 条弹提示 |
-| 卡片操作 | `QueueCard`：移动到其它列（`moveIssueQueueItem`）、删除（`removeIssueQueueItem`）、清空队列（`clearIssueQueue`）；卡片展示标题（外链）、提交者、正文首行截取、kind 标签、@me / 已合并 / 已关闭 |
-| 监听联动 | 「从监听同步」按钮：遍历 `settings.notificationRepos`，对每个仓库 `fetchRepoIssues({ onlyMine: true })` 拉 assign 给自己的 issue/PR 加入 Assigned 列 |
+| 卡片操作 | `QueueCard`：移动到其它列（`moveIssueQueueItem`）、删除（`removeIssueQueueItem`）；无整队清空入口（`clearIssueQueue` 已移除，逐卡删除为准）；卡片展示标题（外链）、提交者、正文首行截取、kind 标签、@me / 已合并 / 已关闭 |
+| 监听联动（手动） | 「从监听同步」按钮：遍历 `settings.notificationRepos`，对每个仓库 `fetchRepoIssues({ onlyMine: true })` 拉 assign 给自己的 issue/PR 加入 Assigned 列 |
+| 监听联动（自动） | `lib/notifications/scheduler.ts` 的 `scanNow()`：本轮 `fresh` 通知里的 issue/PR 若 `assignees` 含当前登录用户 → `notificationToBacklogItem` 转 `IssueQueueItem`（Backlog 列）→ `addToIssueQueue`（按 id 去重、保留手动移动过的列，幂等）；仅在确有候选时才多调一次 `GET /user` 取登录名 |
+| AI 只读访问 | 内置技能 `wb_get_github_queue`（`lib/ai/builtin-skills.ts`）：读 `issueQueue`，支持 `column` / `kind` 过滤，返回结构化 JSON |
 
 - **数据链路**：用户输入 → `GithubQueueWorkspace` → `fetchRepoIssues`（→ GitHub REST `repos/{o}/{r}/issues`）→ `addToIssueQueue`（按 id 去重，保留已存在的列）→ `issueQueue` 落盘 → 看板按 `column` 分组渲染。
 - **See also**：[`docs/data-storage.md`](./data-storage.md) §1（`issueQueue` 持久化字段）；[`lib/notifications/github-sender.ts`](../lib/notifications/github-sender.ts)（既有 GitHub 扫描链路，`ghHeaders`/`fetchJson` 思路被 `github-queue.ts` 复用）。

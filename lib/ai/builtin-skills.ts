@@ -435,6 +435,48 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
+  // 12. 获取 GitHub 队列内容（TODO 36：Issue/PR 看板队列，只读）
+  {
+    name: "wb_get_github_queue",
+    description:
+      "获取 GitHub Issue/PR 看板队列的内容（四列：Urgent/Assigned/Completed/Backlog，含监听自动入 Backlog 的 assign 给我的条目）。可按列（column）与类型（kind=issue/pr）过滤，不传则返回全部。每条含 kind/repo/number/title/body/actor/column/state/merged/assigneeMe/url。",
+    parameters: z.object({
+      column: z
+        .enum(["urgent", "assigned", "completed", "backlog"])
+        .optional()
+        .describe("限定某一列；不传返回全部列"),
+      kind: z
+        .enum(["issue", "pr"])
+        .optional()
+        .describe("限定 issue 或 PR；不传返回全部类型"),
+    }),
+    execute: async (args) => {
+      const column = typeof args.column === "string" ? args.column : null
+      const kind = typeof args.kind === "string" ? args.kind : null
+      const all = useWorkspace.getState().issueQueue
+      const items = all
+        .filter(
+          (it) => (!column || it.column === column) && (!kind || it.kind === kind),
+        )
+        .map((it) => ({
+          kind: it.kind,
+          repo: it.repo,
+          number: it.number,
+          title: it.title,
+          body: it.bodySnippet,
+          actor: it.actor,
+          column: it.column,
+          state: it.state,
+          merged: it.merged,
+          assigneeMe: it.assigneeMe,
+          url: it.htmlUrl,
+          createdAt: it.createdAt,
+          updatedAt: it.updatedAt,
+        }))
+      return { count: items.length, total: all.length, items }
+    },
+  },
+
   // 联网搜索（TODO：百度千帆 AI 搜索）：需要实时信息时由模型主动调用。
   // 经本地代理 /api/ai-search 转发（scripts/ai-search-proxy-lib.mjs）——
   // qianfan.baidubce.com 无 CORS 头，浏览器直连会被拦；Key 存在 settings 里随请求带给本机代理。

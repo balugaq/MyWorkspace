@@ -1,20 +1,21 @@
 "use client"
 
 // GitHub Issue/PR 看板队列（TODO 36）。
-// 四列：Urgent / Assigned / Completed / Backlog。卡片由用户从仓库拉取，或「从监听同步」导入。
+// 四列：Urgent / Assigned / Completed / Backlog。卡片由用户从仓库拉取，或「从监听同步」导入；
+// 监听收到 assign 给自己的 issue/PR 时也会自动入 backlog（见 lib/notifications/scheduler.ts）。
 // 拉取走 lib/github-queue.ts（复用 github-sender 的认证/限流思路，独立模块）。
-// 注意：AI 读取队列内容的能力（skill）本题不做，留待后续 TODO。
+// AI 可通过内置技能 wb_get_github_queue 只读访问队列（见 lib/ai/builtin-skills.ts）。
 
 import { useState } from "react"
 import { toast } from "sonner"
 import {
   GitPullRequest,
   AlertCircle,
-  Trash2,
   Plus,
   RefreshCw,
   ExternalLink,
   User as UserIcon,
+  Search,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/store"
@@ -53,7 +54,6 @@ export function GithubQueueWorkspace() {
   const addToIssueQueue = useWorkspace((s) => s.addToIssueQueue)
   const moveIssueQueueItem = useWorkspace((s) => s.moveIssueQueueItem)
   const removeIssueQueueItem = useWorkspace((s) => s.removeIssueQueueItem)
-  const clearIssueQueue = useWorkspace((s) => s.clearIssueQueue)
   const githubToken = useWorkspace((s) => s.settings.githubToken)
   const notificationRepos = useWorkspace((s) => s.settings.notificationRepos)
 
@@ -62,6 +62,18 @@ export function GithubQueueWorkspace() {
   const [onlyMine, setOnlyMine] = useState(false)
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [query, setQuery] = useState("")
+
+  // 实时搜索：按 标题 / 正文 / 仓库 / 提交者 / #编号 过滤四列
+  const q = query.trim().toLowerCase()
+  const visible =
+    q.length === 0
+      ? issueQueue
+      : issueQueue.filter((it) =>
+          `${it.title} ${it.bodySnippet} ${it.repo} ${it.actor} #${it.number}`
+            .toLowerCase()
+            .includes(q),
+        )
 
   async function handleAdd() {
     const repo = parseRepo(repoInput)
@@ -152,6 +164,15 @@ export function GithubQueueWorkspace() {
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <GitPullRequest className="size-5 text-primary" />
         <h1 className="text-base font-semibold">GitHub 队列</h1>
+        <div className="ml-3 flex items-center gap-2">
+          <Search className="size-4 shrink-0 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索 issue/PR（标题 / 正文 / 仓库 / 提交者）"
+            className="h-8 w-64 text-sm"
+          />
+        </div>
         <div className="ml-auto flex items-center gap-2">
           <Button
             size="sm"
@@ -172,36 +193,20 @@ export function GithubQueueWorkspace() {
             <Plus className="size-4" />
             添加仓库 Issue/PR
           </Button>
-          {issueQueue.length > 0 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1.5 text-muted-foreground"
-              onClick={() => {
-                if (window.confirm("确定清空整个 GitHub 队列？此操作不可撤销。")) {
-                  clearIssueQueue()
-                  toast.success("已清空队列")
-                }
-              }}
-            >
-              <Trash2 className="size-4" />
-              清空
-            </Button>
-          )}
         </div>
       </div>
 
       {/* 看板 */}
-      <div className="grid min-h-0 flex-1 grid-cols-4 gap-3 overflow-auto p-4">
+      <div className="grid min-h-0 flex-1 grid-cols-4 gap-3 overflow-auto native-scroll p-4">
         {COLUMNS.map((col) => {
-          const items = issueQueue.filter((it) => it.column === col.id)
+          const items = visible.filter((it) => it.column === col.id)
           return (
             <div key={col.id} className="flex min-h-0 flex-col rounded-lg border bg-muted/20">
               <div className="flex items-center justify-between border-b px-3 py-2">
                 <span className="text-sm font-medium">{col.label}</span>
                 <span className="text-xs text-muted-foreground">{items.length}</span>
               </div>
-              <div className="flex flex-1 flex-col gap-2 overflow-auto p-2">
+              <div className="flex flex-1 flex-col gap-2 overflow-auto native-scroll p-2">
                 {items.length === 0 ? (
                   <p className="px-1 py-4 text-center text-xs text-muted-foreground">空</p>
                 ) : (

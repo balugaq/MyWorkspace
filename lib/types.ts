@@ -193,6 +193,8 @@ export interface NotificationItem {
   url: string
   /** committer/author/login */
   actor: string
+  /** issue/PR 的 assignee 登录名列表（仅 issue/PR 类携带，供「自动入 GitHub 队列」判定 assign 给自己用） */
+  assignees?: string[]
   /** 发生时间（ISO 字符串） */
   createdAt: string
   /** 新闻精选（TODO 23）专有：AI 精选解读的富字段。仅 kind === "news" 的条目携带 */

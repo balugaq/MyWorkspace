@@ -299,8 +299,6 @@ interface WorkspaceState {
   moveIssueQueueItem: (id: string, column: IssueQueueColumn) => void
   /** 从队列移除某卡片 */
   removeIssueQueueItem: (id: string) => void
-  /** 清空整个队列 */
-  clearIssueQueue: () => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -1166,7 +1164,6 @@ export const useWorkspace = create<WorkspaceState>()(
         })),
       removeIssueQueueItem: (id) =>
         set((s) => ({ issueQueue: s.issueQueue.filter((it) => it.id !== id) })),
-      clearIssueQueue: () => set({ issueQueue: [] }),
 
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({
