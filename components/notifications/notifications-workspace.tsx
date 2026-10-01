@@ -47,7 +47,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2 text-xs leading-relaxed">
       <span className="w-16 shrink-0 text-muted-foreground/80">{label}</span>
-      <span className="min-w-0 flex-1 text-muted-foreground">{value}</span>
+      <span className="min-w-0 flex-1 break-words text-muted-foreground">{value}</span>
     </div>
   )
 }
@@ -76,7 +76,7 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
           <span className="shrink-0 rounded-md bg-[#e86c3a] px-2.5 py-1 text-xs font-semibold tracking-wide text-white">
             {detail.field || "新闻"}
           </span>
-          <h3 className="min-w-0 text-base font-bold leading-snug dark:text-white">
+          <h3 className="min-w-0 break-words text-base font-bold leading-snug dark:text-white">
             {detail.title || "（无标题）"}
           </h3>
         </div>
@@ -94,7 +94,7 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
               <span className="pt-0.5 text-[13px] tracking-widest text-muted-foreground dark:text-[#88898c]">
                 {label}
               </span>
-              <span className="min-w-0 leading-relaxed text-foreground/90 dark:text-[#e8e8e8]">
+              <span className="min-w-0 break-words leading-relaxed text-foreground/90 dark:text-[#e8e8e8]">
                 {v}
               </span>
             </Fragment>
@@ -105,7 +105,7 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
           <p className="text-xs font-semibold tracking-widest text-muted-foreground dark:text-[#88898c]">
             作文素材
           </p>
-          <p className="mt-2 text-left text-sm font-medium leading-relaxed text-foreground/90 dark:text-[#e8e8e8]">
+          <p className="mt-2 break-words text-left text-sm font-medium leading-relaxed text-foreground/90 dark:text-[#e8e8e8]">
             {detail.essayExample}
           </p>
         </div>
@@ -156,7 +156,9 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
             {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
           </span>
         </div>
-        <p className="text-sm font-medium text-foreground">{item.title || "（无标题）"}</p>
+        <p className="truncate text-sm font-medium text-foreground" title={item.title}>
+          {item.title || "（无标题）"}
+        </p>
         {item.brief && (
           <p className="truncate text-xs text-muted-foreground" title={item.brief}>
             {item.brief}
@@ -219,7 +221,9 @@ function NewsCard({ item }: { item: NotificationItem }) {
           />
         </span>
       </div>
-      <p className="text-sm font-medium text-foreground">{item.title || "（无标题）"}</p>
+      <p className="truncate text-sm font-medium text-foreground" title={item.title}>
+        {item.title || "（无标题）"}
+      </p>
       {expanded && d && (
         <div className="mt-1 flex flex-col gap-1.5 border-t pt-2">
           <DetailRow label="时间" value={d.time} />
@@ -272,9 +276,13 @@ function PlainNewsCard({ item }: { item: NotificationItem }) {
           {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
         </span>
       </div>
-      <p className="text-sm font-medium text-foreground">{item.title || "（无标题）"}</p>
+      <p className="truncate text-sm font-medium text-foreground" title={item.title}>
+        {item.title || "（无标题）"}
+      </p>
       {item.brief && (
-        <p className="text-xs leading-relaxed text-muted-foreground">{item.brief}</p>
+        <p className="truncate text-xs text-muted-foreground" title={item.brief}>
+          {item.brief}
+        </p>
       )}
     </div>
   )

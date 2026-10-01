@@ -19,7 +19,7 @@ export const NOTIFICATION_CHANNELS: NotificationChannel[] = [
   {
     id: "builtin",
     name: "内置通知",
-    description: "右下角滑入弹窗（停留 5 秒，逐条排队）",
+    description: "右下角滑入弹窗（停留 5 秒，逐条排队；堆积超过 3 条合并为一条摘要）",
     deliver: (items) => emitNotificationToasts(items),
   },
   {
