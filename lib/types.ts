@@ -197,13 +197,21 @@ export interface NotificationItem {
   assignees?: string[]
   /** 发生时间（ISO 字符串） */
   createdAt: string
-  /** 新闻精选（TODO 23）专有：AI 精选解读的富字段。仅 kind === "news" 的条目携带 */
+  /** 新闻精选（TODO 23）专有：AI 精选解读的富字段。仅 kind === "news" 的旧版单条通知携带
+   * （TODO 44 起一轮精选只生成 1 条「新闻包」通知，改走 newsPack；本字段保留兼容旧存档） */
   news?: NewsDetail
+  /** 新闻包（TODO 44）：一轮精选的全部条目。仅 kind === "news" 的包通知携带；
+   * 旧存档无此字段读 undefined，天然兼容 */
+  newsPack?: NewsDetail[]
 }
 
 /** 新闻精选单条解读（TODO 23）：由 AI 从多平台热榜中精选后按固定 schema 返回，
- * 程序解析该 JSON 生成通知。字段名与 todo 23 给定的 JSON 口径一致（camelCase 转写）。 */
+ * 程序解析该 JSON 生成通知。字段名与 todo 23 给定的 JSON 口径一致（camelCase 转写）。
+ * 注：TODO 44 起单条解读承载在 newsPack 内，事件标题存入新增的 title 字段；
+ * 旧存档的单条 news 无此字段（标题在 NotificationItem.title 上），读 undefined 天然兼容。 */
 export interface NewsDetail {
+  /** 事件标题（TODO 44 新增，仅 newsPack 内的条目携带；旧存档缺省） */
+  title?: string
   /** 领域：「国内」/「国外」 */
   field: string
   /** 事件时间描述，如「2026年8月27日—9月上旬」 */

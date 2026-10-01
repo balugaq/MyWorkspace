@@ -1092,9 +1092,9 @@ export function SettingsView() {
               <Section title="新闻精选">
             <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
               <div className="min-w-0">
-                <Label className="text-xs font-medium">自动获取新闻</Label>
+                <Label className="text-xs font-medium">新闻精选开关</Label>
                 <p className="text-xs text-muted-foreground">
-                  开启后每天最多自动触发一次（18:00 为一天分界，周期内首次满足即拉取）。
+                  功能总开关：开启后可在通知中心「新闻精选」页手动触发（每天最多一次，18:00 为一天分界；本周期已拉取需等下一周期）。关闭后手动触发一并禁用。
                 </p>
               </div>
               <Switch
@@ -1106,7 +1106,7 @@ export function SettingsView() {
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">工作流说明</Label>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                触发时自动从哔哩哔哩 / 知乎 / 知乎日报 / 抖音 / 澎湃新闻 5 个平台拉取实时热榜（uapis.cn 聚合接口，复用「高级 → UAPI 令牌」，可选），汇总后在 AI 助手里静默新建一个「新闻精选」会话，由当前选中的 AI 模型挑选最多 10 条最有价值的新闻并生成解读，解析后逐条生成通知（走「GitHub 集成 → 通知方式」勾选的渠道投递）。热榜拉取或 AI 输出失败时本轮跳过，稍后自动重试。
+                触发时自动从哔哩哔哩 / 知乎 / 知乎日报 / 抖音 / 澎湃新闻 5 个平台拉取实时热榜（uapis.cn 聚合接口，复用「高级 → UAPI 令牌」，可选），汇总后在 AI 助手里静默新建一个「新闻精选」会话，由当前选中的 AI 模型挑选最多 10 条最有价值的新闻并生成解读，解析后生成 1 条新闻包通知（内含全部精选条目，走「GitHub 集成 → 通知方式」勾选的渠道投递：内置弹窗与 QQ 各推 1 条汇总）。AI 请求失败（如 HTTP 429）、回复超时或解析不出条目时，会发一条「新闻精选运行失败」通知；热榜部分平台失败不发通知，仅记录通知日志。
               </p>
               <p className="text-xs text-muted-foreground">
                 前提：已在「AI 助手」中配置至少一个可用模型（含 API Key）。AI 会话可在 AI 页随时回看，通知在通知中心按「新闻精选」来源筛选查看。

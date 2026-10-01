@@ -24,7 +24,7 @@ export const SENDER_META: Record<string, SenderMeta> = {
   },
   news: {
     name: "新闻精选",
-    description: "每日热榜聚合 → AI 精选解读（每天最多一次，18:00 为一天分界）",
+    description: "热榜聚合 → AI 精选解读（手动触发，每天最多一次，18:00 为一天分界）",
   },
 }
 

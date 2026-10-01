@@ -307,6 +307,37 @@
 
 ---
 
+## 8.14 通知中心 / 通知系统（`components/notifications/*` + `lib/notifications/*`）
+
+| 功能 | 入口点 |
+| --- | --- |
+| 通知数据 | `lib/types.ts`：`NotificationItem`（`kind`: commit/issue/pr/release/news；`news?`（旧版单条新闻富字段）/ `newsPack?`（TODO 44 新闻包，`NewsDetail[]`）/ `event?` / `foundAt?`）；store `notifications` / `addNotifications`（按 id 去重、按 foundAt 排序）/ `notificationLogs` / `appendNotificationLogs` / `notificationWatermark` |
+| 工作区 UI | `components/notifications/notifications-workspace.tsx`：`NotificationsWorkspace`（`app/page.tsx` 按 `view === "notifications"` 渲染，`goNotifications` 导航）；sender 筛选 tab（全部 / GitHub / 新闻精选）；卡片分发——`NewsPackCard`（`newsPack` 存在，点击弹 Dialog 内嵌 `NewsDetailCard` 逐条查看）→ `NewsCard`（旧版单条 `news` 富详情）→ `PlainNewsCard`（news 无富字段兜底，如失败通知）→ `GithubCard` |
+| 新闻详情卡视觉 | `NewsDetailCard`：参照 `ref.txt` 复刻（深色 `#151517` 卡 + `#d93838` 左引导边 + `#e86c3a` 领域标签 + 时间胶囊 + label/value 网格 + 作文素材框 + 相关链接按钮）；深色用 Tailwind 任意值类还原稿内色值，浅色回落主题 token |
+| 调度器 | `lib/notifications/scheduler.ts`：`startNotificationScheduler`（模块级幂等）→ 每 5 分钟 `scanNow()`（GitHub sender 扫描 → 去重入库 → 推进水位 → `dispatchNotifications` → 自动入 GitHub 队列 → 写日志 → 计贡献）+ `lastActiveAt` 心跳。**新闻精选不自 TODO 44 起不再自动触发** |
+| 新闻精选 sender | `lib/notifications/news-sender.ts`：`triggerNewsManually()`（唯一触发入口，通知中心手动按钮；受 `newsEnabled` 开关 + 18:00 周期「每天一次」门槛 `shouldFetchNews`，本周期已拉返回 `"fetched"`）→ `runNewsCycle()`：拉 5 平台热榜（`lib/uapi.ts`）→ 静默建会话 + `enqueue`（lib/ai/request-queue.ts）→ `waitForAssistantReply` 轮询 → `extractJsonArray` / `toNewsDetail` 解析 → 成功生成 **1 条新闻包通知**（id `news:{cycle}:0`，title「新闻精选 · N 条」，`newsPack` 携带全部条目）；AI 请求失败（回复含「⚠️ 请求失败」占位）/ 超时（`waitForAssistantReply` 返回 null）/ 解析不出条目 → 生成「新闻精选运行失败」通知（id `news-fail:{cycle}`，同周期去重）。热榜部分/全部失败**不发**失败通知，仅写日志；`NewsRunOutcome` 供按钮 toast 反馈 |
+| 渠道分发 | `lib/notifications/channels.ts`：`NOTIFICATION_CHANNELS`（builtin / qq）+ `dispatchNotifications`（按 `settings.notificationChannels` 勾选分发，渠道抛错互不影响）；新增渠道在表内登记一条 |
+| 内置弹窗 | `components/notifications/notification-toast-queue.tsx`：订阅 `toast-bus`，FIFO 一次一条，滑入停留 5 秒滑出；每行 20 字截断；点击进通知中心。瞬态队列不进 store |
+| QQ 渠道 | `lib/notifications/qq-channel.ts`：`sendQqNotification` 经本机中转服务 POST（20 秒超时，失败静默）；`newsPack` 通知整包只发 1 条汇总（包标题 + 逐行「［领域］标题」），超长按行边界 `splitText` 分段发送 |
+| 通知日志 | `appendNotificationLogs` 写 `NotificationLogEntry`（scan / item 两类），通知中心「日志」视图展示 |
+
+### 字段说明
+
+| 持久化字段 | 说明 |
+| --- | --- |
+| `notifications` | 通知条目（按 id 去重、foundAt 降序） |
+| `notificationLogs` | 通知日志（扫描汇总与逐条记录） |
+| `notificationWatermark` | GitHub 扫描水位（epoch ms；限流轮不推进） |
+| `lastReadNotificationsAt` | 最近一次进入通知中心的时刻（未读角标用） |
+| `newsLastFetchedAt` | 新闻精选本轮周期已拉取的时间戳（18:00 周期门槛依据） |
+| `settings.notificationRepos` / `notificationChannels` / `qqRelayUrl` / `githubToken` | 扫描仓库配置 / 渠道勾选 / QQ 中转地址 / GitHub 令牌 |
+| `settings.newsEnabled` | 新闻精选功能总开关（关闭时手动触发一并禁用） |
+
+- **数据链路**：sender 产出 `NotificationItem` → `addNotifications`（store 去重入库）→ `dispatchNotifications`（按勾选渠道投递弹窗 / QQ）→ `appendNotificationLogs` 记录。
+- **Notice**：`newsPack` / `NewsDetail.title` 为 TODO 44 新增可选字段，旧存档读 `undefined` 天然兼容；渲染端对「news 无富字段」条目必须走 `PlainNewsCard` 兜底，不得空指针。
+
+---
+
 ## 8.15 个人主页 Profile Dashboard（`components/profile-workspace.tsx`）
 
 | 功能 | 入口点 |

@@ -1,18 +1,21 @@
-// 新闻精选 sender（TODO 23）：每天最多一次（18:00 为一天分界）自动拉取多平台热榜，
-// 交给 AI 精选最有价值的条目并按固定 schema 输出 JSON，程序解析后生成通知。
+// 新闻精选 sender（TODO 23 / TODO 44）：手动触发（每天最多一次，18:00 为一天分界）拉取
+// 多平台热榜，交给 AI 精选最有价值的条目并按固定 schema 输出 JSON，解析后生成「新闻包」通知。
 //
 // 工作流：
-//   1. maybeRunNewsCycle() 由通知调度器随 5 分钟轮询调用；
-//   2. 周期判断：新闻周期 = 上次 18:00 → 本次 18:00，本周期内 newsLastFetchedAt 未落即触发；
+//   1. 通知中心「新闻精选」tab 的手动按钮调 triggerNewsManually()（TODO 44 起无自动触发）；
+//   2. 周期判断：新闻周期 = 上次 18:00 → 本次 18:00，本周期内 newsLastFetchedAt 已落 → 拒绝触发；
 //   3. 拉取 5 个平台的实时热榜（GET /api/v1/misc/hotboard?type=…，复用 lib/uapi.ts 公共底座
 //      与「高级 → UAPI 令牌」，免费接口，令牌可选）；
 //   4. 汇总条目喂给当前选中的 AI 模型：后台静默新建「新闻精选」会话（不打断当前会话/视图），
 //      经全局请求队列流式回写（与普通对话同一条链路，AI 页里可回看完整问答）；
-//   5. 轮询等待 AI 最终回复 → 解析 JSON 数组 → 生成 NotificationItem（幂等 id，store 去重）
-//      → 走统一渠道分发（弹窗 / QQ）+ 写通知日志。
+//   5. 轮询等待 AI 最终回复 → 解析 JSON 数组 → 生成 1 条新闻包 NotificationItem（newsPack，
+//      幂等 id，store 去重）→ 走统一渠道分发（弹窗 / QQ 各 1 条）+ 写通知日志。
 //
-// 失败策略：热榜全挂 / AI 未配置 → 本轮不动 newsLastFetchedAt，下轮轮询再试；
-// AI 已触发（enqueue 成功）即落 fetched 时间戳——无论 AI 输出成败，本周期不再重复触发。
+// 失败策略（TODO 44）：
+//   - 热榜部分/全部失败 → 不发失败通知，仅写通知日志；全部失败时本轮不动时间戳；
+//   - AI 已触发（enqueue 成功）即落 fetched 时间戳——本周期不再重复触发；
+//   - AI 请求失败（含 HTTP 429）/ 回复超时 / 回复解析不出条目 → 生成一条「新闻精选运行失败」
+//     通知（幂等 id news-fail:{cycle}，同周期去重），走正常渠道分发。
 
 import { enqueue, type AIChatConfig } from "@/lib/ai/request-queue"
 import { useWorkspace } from "@/lib/store"
@@ -66,7 +69,7 @@ export function newsCycleStart(now: number = Date.now()): number {
   return d.getTime() <= now ? d.getTime() : d.getTime() - 24 * 60 * 60 * 1000
 }
 
-/** 是否该触发本周期拉取（开关关着 → 永不触发） */
+/** 是否该触发本周期拉取（开关关着 → 永不触发；本周期已拉 → false） */
 export function shouldFetchNews(now: number = Date.now()): boolean {
   const s = useWorkspace.getState()
   if (!s.settings.newsEnabled) return false
@@ -176,7 +179,7 @@ function extractJsonArray(text: string): unknown[] | null {
 }
 
 /** 原始 AI 条目 → NewsDetail（逐字段校验，坏条目跳过） */
-function toNewsDetail(raw: unknown): { detail: NewsDetail; title: string } | null {
+function toNewsDetail(raw: unknown): NewsDetail | null {
   if (!raw || typeof raw !== "object") return null
   const r = raw as Record<string, unknown>
   const title = typeof r.title === "string" ? r.title.trim() : ""
@@ -187,17 +190,15 @@ function toNewsDetail(raw: unknown): { detail: NewsDetail; title: string } | nul
     : []
   return {
     title,
-    detail: {
-      field: str(r.field) || "国内",
-      time: str(r.time),
-      place: str(r.place),
-      individuals: str(r.individuals),
-      throughout: str(r.throughout),
-      effect: str(r.effect),
-      spirit: str(r.spirit),
-      essayExample: str(r.essay_example),
-      link,
-    },
+    field: str(r.field) || "国内",
+    time: str(r.time),
+    place: str(r.place),
+    individuals: str(r.individuals),
+    throughout: str(r.throughout),
+    effect: str(r.effect),
+    spirit: str(r.spirit),
+    essayExample: str(r.essay_example),
+    link,
   }
 }
 
@@ -223,6 +224,37 @@ async function waitForAssistantReply(conversationId: string): Promise<string | n
   return null
 }
 
+/**
+ * 判断 AI 最终回复是否为请求失败（request-queue 收尾时失败占位以「⚠️ 请求失败」开头），
+ * 是则提取一行失败原因作为通知 brief。
+ */
+function extractRequestFailure(reply: string): string | null {
+  const line = reply
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.startsWith("⚠️ 请求失败"))
+  if (!line) return null
+  return line.replace(/^⚠️\s*/, "").slice(0, 80)
+}
+
+// ---- 通知构造 ----
+
+/** 新闻包通知（幂等 id news:{cycle}:0）与失败通知（news-fail:{cycle}）的公共字段 */
+function buildNewsItemBase(): Pick<
+  NotificationItem,
+  "senderId" | "kind" | "repo" | "url" | "actor" | "createdAt" | "foundAt"
+> {
+  return {
+    senderId: "news",
+    kind: "news",
+    repo: "",
+    url: "",
+    actor: "",
+    createdAt: new Date().toISOString(),
+    foundAt: Date.now(),
+  }
+}
+
 // ---- 主流程 ----
 
 let running = false
@@ -233,42 +265,26 @@ export type NewsRunOutcome =
       status: "ok"
       /** AI 精选出的条数 */
       picked: number
-      /** 实际新增入库的通知条数（去重后） */
+      /** 实际新增入库的通知条数（去重后；成功与失败通知各 1 条封顶） */
       fresh: number
       /** 拉取失败的平台展示名 */
       failedSources: string[]
-      /** AI 回复解析失败（有回复但解析不出条目） */
-      parseFailed: boolean
     }
   | { status: "no-ai" }
   | { status: "no-entries"; failedSources: string[] }
   | { status: "error" }
 
 /**
- * 新闻周期调度入口：条件满足（开关开 + 本周期未拉）时执行一轮完整工作流。
- * 任何失败静默吞掉（写通知日志便于排查），不影响同轮 GitHub 扫描。
- */
-export async function maybeRunNewsCycle(): Promise<void> {
-  if (running) return
-  if (!shouldFetchNews()) return
-  running = true
-  try {
-    await runNewsCycle()
-  } catch {
-    // 整轮异常静默，下轮再试
-  } finally {
-    running = false
-  }
-}
-
-/**
  * 手动触发一轮新闻精选（通知中心「新闻精选」tab 的按钮）：
- * 绕过「本周期已拉取」的门槛，但仍尊重 newsEnabled 开关与防重入；
- * 投递链路同自动触发（dispatchNotifications，含 QQ 渠道）。
+ * 受「本周期已拉取」门槛约束（本周期已拉 → 返回 "fetched"），
+ * 仍尊重 newsEnabled 开关与防重入；投递链路见 dispatchNotifications（含 QQ 渠道）。
  */
-export async function triggerNewsManually(): Promise<NewsRunOutcome | "running" | "disabled"> {
+export async function triggerNewsManually(): Promise<
+  NewsRunOutcome | "running" | "disabled" | "fetched"
+> {
   if (!useWorkspace.getState().settings.newsEnabled) return "disabled"
   if (running) return "running"
+  if (!shouldFetchNews()) return "fetched"
   running = true
   try {
     return await runNewsCycle()
@@ -279,10 +295,33 @@ export async function triggerNewsManually(): Promise<NewsRunOutcome | "running" 
   }
 }
 
+/** 生成一条通知 → 去重入库 → 渠道分发 → 写通知日志的公共收尾 */
+function commitNotification(item: NotificationItem, logMessage: string): number {
+  const existingIds = new Set(useWorkspace.getState().notifications.map((n) => n.id))
+  let fresh = 0
+  if (!existingIds.has(item.id)) {
+    const s = useWorkspace.getState()
+    s.addNotifications([item])
+    dispatchNotifications([item], s.settings)
+    fresh = 1
+  }
+  const s = useWorkspace.getState()
+  s.appendNotificationLogs([
+    {
+      id: `news-scan:${item.foundAt}`,
+      at: item.foundAt ?? Date.now(),
+      kind: "scan",
+      message: logMessage,
+      notified: fresh > 0 && (s.settings.notificationChannels.builtin || s.settings.notificationChannels.qq),
+    },
+  ])
+  return fresh
+}
+
 async function runNewsCycle(): Promise<NewsRunOutcome> {
   const state = useWorkspace.getState()
   const config = resolveAiConfig()
-  if (!config) return { status: "no-ai" } // 未配置 AI 模型：不触发也不落时间戳（配置好后下轮自动补上）
+  if (!config) return { status: "no-ai" } // 未配置 AI 模型：不触发也不落时间戳（配置好后可再手动触发）
 
   // 1) 拉热榜（单平台失败跳过，不影响其余平台）
   const token = state.settings.uapiToken
@@ -299,7 +338,7 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
   const failed = results.filter((r) => r.entries.length === 0)
   const failedSources = failed.map((f) => TYPE_LABEL[f.type])
   if (entries.length === 0) {
-    return { status: "no-entries", failedSources } // 全部平台失败：不动时间戳，下轮重试
+    return { status: "no-entries", failedSources } // 全部平台失败：不动时间戳，可重试
   }
 
   const cycle = newsCycleStart()
@@ -312,58 +351,76 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
   enqueue(conversationId, buildNewsPrompt(entries), config)
   state2.setNewsLastFetchedAt(at)
 
-  // 3) 等 AI 最终回复并解析
-  const reply = await waitForAssistantReply(conversationId)
-  const picked = reply ? extractJsonArray(reply) : null
-  const details = (picked ?? [])
-    .slice(0, MAX_PICKED)
-    .map(toNewsDetail)
-    .filter((x): x is { detail: NewsDetail; title: string } => x !== null)
-
-  // 4) 生成通知（幂等 id：周期起点 + 序号，重放不重复入库）
-  const items: NotificationItem[] = details.map(({ detail, title: t }, i) => ({
-    id: `news:${cycle}:${i}`,
-    senderId: "news",
-    kind: "news",
-    repo: "",
-    title: t,
-    brief: [detail.time, detail.place].filter(Boolean).join(" · "),
-    url: detail.link[0] ?? "",
-    actor: "",
-    createdAt: new Date().toISOString(),
-    foundAt: Date.now(),
-    news: detail,
-  }))
-  const existingIds = new Set(useWorkspace.getState().notifications.map((n) => n.id))
-  const fresh = items.filter((n) => !existingIds.has(n.id))
-  if (fresh.length > 0) {
-    const s = useWorkspace.getState()
-    s.addNotifications(fresh)
-    dispatchNotifications(fresh, s.settings)
-  }
-
-  // 5) 通知日志（TODO 27 通道）
-  const s = useWorkspace.getState()
+  // 3) 等 AI 最终回复并解析；失败三分支 → 失败通知（同周期幂等去重）
   const failedNote = failed.length
     ? `（${failed.map((f) => `${TYPE_LABEL[f.type]}失败`).join("、")}）`
     : ""
-  const parseNote =
-    reply && details.length === 0 ? "（AI 输出解析失败，未生成通知）" : ""
-  s.appendNotificationLogs([
-    {
-      id: `news-scan:${at}`,
-      at,
-      kind: "scan",
-      message: `新闻精选：已拉取 ${NEWS_TYPES.length - failed.length} 个平台共 ${entries.length} 条热榜，AI 精选 ${details.length} 条，新增通知 ${fresh.length} 条${failedNote}${parseNote}`,
-      notified: fresh.length > 0 && (s.settings.notificationChannels.builtin || s.settings.notificationChannels.qq),
-    },
-  ])
+  const reply = await waitForAssistantReply(conversationId)
 
-  return {
-    status: "ok",
-    picked: details.length,
-    fresh: fresh.length,
-    failedSources,
-    parseFailed: Boolean(reply) && details.length === 0,
+  if (reply === null) {
+    // 回复超时（或会话被手动删除）：发失败通知
+    const fresh = commitNotification(
+      {
+        ...buildNewsItemBase(),
+        id: `news-fail:${cycle}`,
+        title: "新闻精选运行失败",
+        brief: "AI 回复超时或会话被删除，本轮未生成精选",
+      },
+      `新闻精选：AI 回复超时，本轮未生成通知${failedNote}`,
+    )
+    return { status: "ok", picked: 0, fresh, failedSources }
   }
+
+  const requestFailure = extractRequestFailure(reply)
+  if (requestFailure !== null) {
+    // AI 请求失败（含 HTTP 429）：request-queue 收尾占位里带失败原因
+    const fresh = commitNotification(
+      {
+        ...buildNewsItemBase(),
+        id: `news-fail:${cycle}`,
+        title: "新闻精选运行失败",
+        brief: requestFailure,
+      },
+      `新闻精选：AI 请求失败（${requestFailure}），本轮未生成通知${failedNote}`,
+    )
+    return { status: "ok", picked: 0, fresh, failedSources }
+  }
+
+  const picked = extractJsonArray(reply)
+  const details = (picked ?? [])
+    .slice(0, MAX_PICKED)
+    .map(toNewsDetail)
+    .filter((x): x is NewsDetail => x !== null)
+
+  if (details.length === 0) {
+    // 有回复但解析不出条目：发失败通知
+    const fresh = commitNotification(
+      {
+        ...buildNewsItemBase(),
+        id: `news-fail:${cycle}`,
+        title: "新闻精选运行失败",
+        brief: "AI 回复无法解析出精选条目（可在 AI 助手对应会话查看原始输出）",
+      },
+      `新闻精选：AI 输出解析失败，本轮未生成通知${failedNote}`,
+    )
+    return { status: "ok", picked: 0, fresh, failedSources }
+  }
+
+  // 4) 成功：一轮只生成 1 条新闻包通知（幂等 id news:{cycle}:0，重放不重复入库）
+  const packItem: NotificationItem = {
+    ...buildNewsItemBase(),
+    id: `news:${cycle}:0`,
+    title: `新闻精选 · ${details.length} 条`,
+    brief: details
+      .slice(0, 3)
+      .map((d) => d.title)
+      .join("；"),
+    newsPack: details,
+  }
+  const fresh = commitNotification(
+    packItem,
+    `新闻精选：已拉取 ${NEWS_TYPES.length - failed.length} 个平台共 ${entries.length} 条热榜，AI 精选 ${details.length} 条，生成新闻包通知${failedNote}`,
+  )
+
+  return { status: "ok", picked: details.length, fresh, failedSources }
 }
