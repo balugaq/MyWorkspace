@@ -30,6 +30,8 @@ import type {
   IssueQueueColumn,
   BackupSections,
   BackupSectionId,
+  Person,
+  FestivalDef,
 } from "./types"
 import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
@@ -189,6 +191,11 @@ interface WorkspaceState {
   // GitHub Issue/PR 看板队列（TODO 36）：用户从仓库拉取 / 监听同步进来的卡片
   issueQueue: IssueQueueItem[]
 
+  // 通讯录（TODO 48：持久化驱动；public/address_book.yml 经设置页按钮导入，界面可增删改）
+  contacts: Person[]
+  // 自定义节日定义（TODO 48：持久化驱动；public/custom_festivals.yml 经设置页按钮导入）
+  customFestivals: FestivalDef[]
+
   // 分类
   addCategory: (
     name: string,
@@ -306,6 +313,16 @@ interface WorkspaceState {
   syncIssueQueueStates: (
     entries: Array<{ id: string; state: "open" | "closed"; merged: boolean }>
   ) => void
+
+  // 通讯录 / 自定义节日（TODO 48：持久化驱动）
+  /** yml 导入：整表替换联系人 */
+  setContacts: (items: Person[]) => void
+  /** yml 导入：整表替换自定义节日 */
+  setCustomFestivals: (items: FestivalDef[]) => void
+  /** 新建联系人（空模板）：返回新条目 id，界面编辑器据此定位 */
+  addContact: () => string
+  updateContact: (id: string, patch: Partial<Person>) => void
+  removeContact: (id: string) => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -449,6 +466,10 @@ export const useWorkspace = create<WorkspaceState>()(
       // GitHub 队列（TODO 36）：默认空
       issueQueue: [],
 
+      // 通讯录 / 自定义节日（TODO 48）：默认空（由设置页「从 yml 导入」或界面新建填充）
+      contacts: [],
+      customFestivals: [],
+
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
 
@@ -497,7 +518,11 @@ export const useWorkspace = create<WorkspaceState>()(
             settings: s.settings,
           }
           if (want("notes")) payload.categories = s.categories
-          if (want("calendar")) payload.calendar = s.calendar
+          if (want("calendar")) {
+            payload.calendar = s.calendar
+            // TODO 48：自定义节日归日历分区（它是日历数据，主人定的口径）
+            payload.customFestivals = s.customFestivals
+          }
           if (want("ai")) {
             payload.conversations = s.conversations
             payload.activeConversationId = s.activeConversationId
@@ -509,7 +534,8 @@ export const useWorkspace = create<WorkspaceState>()(
             payload.notificationWatermark = s.notificationWatermark
           }
           if (want("githubQueue")) payload.issueQueue = s.issueQueue
-          // contacts：数据源为 public/address_book.yml（只读，TODO 48 持久化前无库可导），不输出
+          // TODO 48：联系人已持久化，contacts 分区解锁（敏感分区，默认不勾选）
+          if (want("contacts")) payload.contacts = s.contacts
           return JSON.stringify(payload, null, 2)
         } catch {
           return null
@@ -528,7 +554,18 @@ export const useWorkspace = create<WorkspaceState>()(
           const hasContribs = Array.isArray(data.contributions)
           const hasNotifications = Array.isArray(data.notifications)
           const hasQueue = Array.isArray(data.issueQueue)
-          if (!hasNotes && !hasCalendar && !hasAi && !hasContribs && !hasNotifications && !hasQueue)
+          const hasContacts = Array.isArray(data.contacts)
+          const hasFestivals = Array.isArray(data.customFestivals)
+          if (
+            !hasNotes &&
+            !hasCalendar &&
+            !hasAi &&
+            !hasContribs &&
+            !hasNotifications &&
+            !hasQueue &&
+            !hasContacts &&
+            !hasFestivals
+          )
             return false
           const cur = get()
           // AI 对话：仅当备份显式包含 conversations 时才覆盖（旧版无此字段则保留当前对话）。
@@ -596,6 +633,10 @@ export const useWorkspace = create<WorkspaceState>()(
               : {}),
             // GitHub 队列分区：整体替换
             ...(hasQueue ? { issueQueue: data.issueQueue as IssueQueueItem[] } : {}),
+            // 通讯录分区（TODO 48）：整体替换
+            ...(hasContacts ? { contacts: data.contacts as Person[] } : {}),
+            // 自定义节日（TODO 48，随日历分区携带）：整体替换
+            ...(hasFestivals ? { customFestivals: data.customFestivals as FestivalDef[] } : {}),
             // 有随笔分区才跳工作区（与旧版全量导入行为一致）；部分备份停留在当前视图
             ...(hasNotes ? { view: "workspace" as const } : {}),
           })
@@ -617,7 +658,18 @@ export const useWorkspace = create<WorkspaceState>()(
           const hasContribs = Array.isArray(data.contributions)
           const hasNotifications = Array.isArray(data.notifications)
           const hasQueue = Array.isArray(data.issueQueue)
-          if (!hasNotes && !hasCalendar && !hasAi && !hasContribs && !hasNotifications && !hasQueue)
+          const hasContacts = Array.isArray(data.contacts)
+          const hasFestivals = Array.isArray(data.customFestivals)
+          if (
+            !hasNotes &&
+            !hasCalendar &&
+            !hasAi &&
+            !hasContribs &&
+            !hasNotifications &&
+            !hasQueue &&
+            !hasContacts &&
+            !hasFestivals
+          )
             return false
           const cur = get()
           const patch: Record<string, unknown> = {}
@@ -687,6 +739,20 @@ export const useWorkspace = create<WorkspaceState>()(
             for (const it of cur.issueQueue) qMap.set(it.id, it)
             for (const it of data.issueQueue as IssueQueueItem[]) qMap.set(it.id, it)
             patch.issueQueue = [...qMap.values()]
+          }
+          // 通讯录分区（TODO 48）：按 id 合并（同 id 以备份为准，新 id 追加）
+          if (hasContacts) {
+            const cMap = new Map<string, Person>()
+            for (const p of cur.contacts) cMap.set(p.id, p)
+            for (const p of data.contacts as Person[]) cMap.set(p.id, p)
+            patch.contacts = [...cMap.values()]
+          }
+          // 自定义节日（TODO 48）：按 name 合并（同名以备份为准；节日定义无 id）
+          if (hasFestivals) {
+            const fMap = new Map<string, FestivalDef>()
+            for (const f of cur.customFestivals) fMap.set(f.name, f)
+            for (const f of data.customFestivals as FestivalDef[]) fMap.set(f.name, f)
+            patch.customFestivals = [...fMap.values()]
           }
           set(patch)
           return true
@@ -1255,6 +1321,21 @@ export const useWorkspace = create<WorkspaceState>()(
           }
         }),
 
+      // ---- 通讯录 / 自定义节日（TODO 48：持久化驱动） ----
+      setContacts: (items) => set({ contacts: items }),
+      setCustomFestivals: (items) => set({ customFestivals: items }),
+      addContact: () => {
+        const id = uid()
+        set((s) => ({ contacts: [...s.contacts, { id, name: "新联系人" }] }))
+        return id
+      },
+      updateContact: (id, patch) =>
+        set((s) => ({
+          contacts: s.contacts.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+        })),
+      removeContact: (id) =>
+        set((s) => ({ contacts: s.contacts.filter((p) => p.id !== id) })),
+
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({
           categories: s.categories.map((c) =>
@@ -1538,6 +1619,11 @@ export const useWorkspace = create<WorkspaceState>()(
           // GitHub 队列：旧存档无此字段 → 空数组
           issueQueue: Array.isArray(p.issueQueue)
             ? (p.issueQueue as IssueQueueItem[])
+            : [],
+          // 通讯录 / 自定义节日（TODO 48）：旧存档无此字段 → 空数组（TODO 48 前数据在 public/*.yml，由设置页按钮导入）
+          contacts: Array.isArray(p.contacts) ? (p.contacts as Person[]) : [],
+          customFestivals: Array.isArray(p.customFestivals)
+            ? (p.customFestivals as FestivalDef[])
             : [],
           settings: {
             ...DEFAULT_SETTINGS,

@@ -599,18 +599,47 @@ export interface IssueQueueItem {
 }
 
 
+// ---- 通讯录（TODO 48：持久化驱动；public/address_book.yml 降级为「设置 → 从 yml 导入」的可选来源）----
+export interface ContactItem {
+  /** phone | qq | email | wechat（允许自定义字符串） */
+  type?: string
+  value?: string
+}
+
+export interface Person {
+  /** 稳定 id：界面新建时生成；yml 导入时自动分配（yml 文件本身无此字段） */
+  id: string
+  name: string
+  description?: string
+  /** 公历 "YYYY-MM-DD" 或农历 "LYYYY-MM-DD"（L 前缀） */
+  birthday?: string
+  address?: string
+  roles?: string[]
+  contact?: ContactItem[]
+}
+
+// ---- 自定义节日定义（TODO 48：持久化驱动；public/custom_festivals.yml 降级为可选导入源）----
+export interface FestivalDef {
+  name: string
+  /** 匹配规则（如 "MM-DD" / "LMM-DD" / "LYYYY-MM-DD"，解析见 lib/festivals.ts） */
+  festival_rule?: string
+  color?: string
+  holiday_override?: boolean
+  workday_override?: boolean
+}
+
 // ---- 备份导出分区（TODO 41）----
 // 导出备份时可按分区选择性携带数据；联系人 / 密码保险库属敏感数据，默认不导出。
 // 未来新增可导出数据时，在此扩充 id 并同步 lib/backup.ts 的 BACKUP_SECTION_META 与 docs/entry-points.md。
 
 export type BackupSectionId =
   | "notes" // 随笔数据（categories）
-  | "calendar" // 日历数据（calendar）
+  | "calendar" // 日历数据（calendar + customFestivals，TODO 48 起节日随日历分区携带）
   | "ai" // AI 对话数据（conversations + activeConversationId）
   | "contributions" // 贡献账本（contributions）
   | "notifications" // 通知数据（notifications + notificationLogs + notificationWatermark）
   | "githubQueue" // GitHub 队列数据（issueQueue）
-  | "contacts" // 联系人数据（TODO 48 持久化前暂不可导出）
+  | "contacts" // 联系人数据（TODO 48 起持久化，可导出；敏感默认不携带）
   | "vault" // 密码保险库（ZIP 内 vault.json，AES-256 加密 blob）
 
 /** 各分区是否导出；缺省 = 不导出（由调用方填默认值） */

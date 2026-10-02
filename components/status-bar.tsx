@@ -1,9 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 import { useWorkspace } from "@/lib/store"
 import { VIEW_LABEL } from "@/lib/types"
-import { loadAddressBook } from "@/lib/address-book"
 
 /**
  * 底部状态栏：根据当前视图对聚合数据做轻量摘要。
@@ -20,30 +19,12 @@ export function StatusBar() {
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const conversations = useWorkspace((s) => s.conversations)
   const activeConversationId = useWorkspace((s) => s.activeConversationId)
+  // 联系人数量（TODO 48：store 持久化，同步读取）
+  const contactCount = useWorkspace((s) => (s.view === "contacts" ? s.contacts.length : null))
 
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) ?? null
-
-  // 联系人数量（异步加载，loadAddressBook 自带模块级缓存）。
-  const [contactCount, setContactCount] = useState<number | null>(null)
-  useEffect(() => {
-    if (view !== "contacts") {
-      setContactCount(null)
-      return
-    }
-    let active = true
-    loadAddressBook()
-      .then((p) => {
-        if (active) setContactCount(p.length)
-      })
-      .catch(() => {
-        if (active) setContactCount(0)
-      })
-    return () => {
-      active = false
-    }
-  }, [view])
 
   const left = useMemo<ReactNode[]>(() => {
     switch (view) {

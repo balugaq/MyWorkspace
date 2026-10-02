@@ -21,7 +21,8 @@ import type { BackupSectionId, BackupSections } from "./types"
  *   └── images/<id>.<ext>  # 全部用户图片（含暂存区；已是压缩格式，level 0 直存）
  *
  * 分区（TODO 41）：随笔 / 日历 / AI 对话 / 贡献账本 / 通知 / GitHub 队列 / 联系人 / 密码保险库；
- * 联系人与密码保险库为敏感分区，默认不导出（联系人待 TODO 48 持久化前暂不可导出）。
+ * 联系人与密码保险库为敏感分区，默认不导出（联系人自 TODO 48 持久化起可导出）。
+ * 自定义节日（TODO 48）随「日历数据」分区携带。
  * 导入：`parseBackupFile` 识别 ZIP / 旧版纯 JSON；ZIP 经 `importBackupZip`
  * 按「替换 / 合并」两种模式恢复——两种模式都只处理备份携带的分区，未携带的分区保留当前数据。
  */
@@ -44,7 +45,7 @@ export const BACKUP_SECTION_META: {
   { id: "contributions", label: "贡献记录", description: "Profile 热力图与活动记录账本", sensitive: false, available: true },
   { id: "notifications", label: "通知数据", description: "通知中心条目、扫描日志与水位", sensitive: false, available: true },
   { id: "githubQueue", label: "GitHub 队列数据", description: "Issue / PR 看板队列卡片", sensitive: false, available: true },
-  { id: "contacts", label: "联系人数据", description: "通讯录（待持久化改造后开放导出）", sensitive: true, available: false },
+  { id: "contacts", label: "联系人数据", description: "通讯录（含界面新建与 yml 导入的条目）", sensitive: true, available: true },
   { id: "vault", label: "密码保险库", description: "加密 blob（AES-256-GCM），恢复需主密码", sensitive: true, available: true },
 ]
 

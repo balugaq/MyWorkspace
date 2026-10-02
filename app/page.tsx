@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 import { useWorkspace } from "@/lib/store"
 import { useGlobalShortcuts } from "@/hooks/use-shortcuts"
-import { loadAddressBook } from "@/lib/address-book"
 import { AppSidebar, SidebarContent } from "@/components/app-sidebar"
 import { BrandHeader } from "@/components/brand-header"
 import { ToolbarPanel } from "@/components/toolbar-panel"
@@ -38,7 +37,6 @@ export default function Page() {
   const setConfigEditorOpen = useWorkspace((s) => s.setConfigEditorOpen)
   const imagesOpen = useWorkspace((s) => s.imagesOpen)
   const setImagesOpen = useWorkspace((s) => s.setImagesOpen)
-  const addKnownTags = useWorkspace((s) => s.addKnownTags)
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
 
@@ -99,22 +97,6 @@ export default function Page() {
   useEffect(() => {
     setMobileNav(false)
   }, [activeCategoryId, view])
-
-  // 启动即把联系人 roles 汇入全局标签库，使标签选择器在任意视图下都可用
-  // （ContactsWorkspace 内仍保留一次兜底种入，二者均幂等，不会重复添加）
-  useEffect(() => {
-    let active = true
-    loadAddressBook()
-      .then((p) => {
-        if (!active) return
-        const roles = Array.from(new Set(p.flatMap((person) => person.roles ?? [])))
-        if (roles.length > 0) addKnownTags(roles)
-      })
-      .catch(() => {})
-    return () => {
-      active = false
-    }
-  }, [addKnownTags])
 
   // 通知调度器（TODO 20 / 18）：hydrate 后启动（内部模块级 flag 幂等，重复调用安全）。
   // 每 5 分钟扫描配置仓库的新动态 + 维护活跃心跳。

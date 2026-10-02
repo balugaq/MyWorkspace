@@ -136,17 +136,18 @@
 
 ---
 
-## 5. `public/*.yml`（只读，用户手改）
+## 5. `public/*.yml`（只读，用户手改 → 手动导入）
 
 - 加载：`fetch` 同源只读；缺失 / 失败 toast 提示并跳过
 
 | 文件 | 说明 |
 | --- | --- |
-| `public/address_book.yml` | 通讯录与生日（界面只读，不可增删改） |
-| `public/custom_festivals.yml` | 自定义节日 / 假班覆盖（与内置中国日历要素合并） |
+| `public/address_book.yml` | 通讯录与生日（**TODO 48 起为导入源**：设置页「从 yml 导入」整表覆盖 store `contacts`，不再自动加载） |
+| `public/custom_festivals.yml` | 自定义节日 / 假班覆盖（**TODO 48 起为导入源**：随「从 yml 导入」整表覆盖 store `customFestivals`，不再自动加载） |
 
 - **See also**：[`docs/custom-data-docs.md`](./custom-data-docs.md)。
-- **Notice**：应用只读加载、不回写；改文件后需刷新页面。
+- **Notice**：应用只读加载、不回写；TODO 48 后改为「手改 yml → 设置页点导入」流程（导入前自动清 fetch 缓存）。
+- **Notice（TODO 48）**：联系人 / 自定义节日的数据主源是 store（localStorage 持久化），随备份分区携带（contacts 分区敏感默认不勾；customFestivals 随 calendar 分区）。
 
 ---
 

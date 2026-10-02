@@ -16,23 +16,43 @@ import {
   isToday,
 } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { ChevronLeft, ChevronRight, StickyNote, Sparkles } from "lucide-react"
+import { CalendarCog, CalendarOff, Briefcase, Check, ChevronLeft, ChevronRight, StickyNote, Sparkles, Plus, Pencil, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
-import { loadAddressBook, type Person } from "@/lib/address-book"
-import { loadPublicYaml } from "@/lib/fetch-data"
-import { festivalsForDate, builtinChinaFestivals, type Festival, type FestivalsFile } from "@/lib/festivals"
+import { type Person } from "@/lib/address-book"
+import {
+  festivalsForDate,
+  builtinChinaFestivals,
+  parseFestivalRule,
+  HOLIDAY_COLOR,
+  WORKDAY_COLOR,
+  type Festival,
+  type FestivalDef,
+} from "@/lib/festivals"
 import { birthdaysOn } from "@/lib/birthday"
 import { lunarTextForSolar } from "@/lib/lunar"
 import { dayShortHint } from "@/lib/day-hint"
 import { RichTextEditor } from "@/components/richtext/rich-text-editor"
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"]
+
+// 自定义节日编辑草稿（TODO 55）：original 为空 = 新建，否则编辑原条目（按引用相等替换）
+interface FestivalDraft {
+  original: FestivalDef | null
+  name: string
+  rule: string
+  color: string
+  holiday: boolean
+  workday: boolean
+}
 
 /** shortHint 节日名截断：≤4 字全显，>4 字取前 3 字 + 省略号 */
 function cutFestivalName(name: string): string {
@@ -78,35 +98,10 @@ export function CalendarWorkspace() {
   }, [calendarDetailWidth])
 
 
-  // 自定义数据（节日 + 通讯录），只读加载自 public/*.yml
-  const [people, setPeople] = useState<Person[]>([])
-  const [festivalDefs, setFestivalDefs] = useState<FestivalsFile["festivals"]>([])
-  useEffect(() => {
-    let active = true
-    Promise.all([loadAddressBook(), loadPublicYaml<FestivalsFile>("custom_festivals.yml")])
-      .then(([p, f]) => {
-        if (!active) return
-        setPeople(p)
-        setFestivalDefs(f?.festivals ?? [])
-      })
-      .catch(() => {
-        // fetch-data 内部已触发表单失败事件；此处兜底
-      })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  // 监听 public 数据加载失败 → 页面顶部 toast（失败可跳过，不阻塞日历）
-  useEffect(() => {
-    const onErr = (e: Event) => {
-      const detail = (e as CustomEvent<{ file?: string }>).detail
-      const file = detail?.file
-      toast.error(file ? `${file} 加载失败，已跳过` : "自定义数据加载失败，已跳过")
-    }
-    window.addEventListener("dsh:data-load-error", onErr)
-    return () => window.removeEventListener("dsh:data-load-error", onErr)
-  }, [])
+  // 自定义数据（节日 + 通讯录）：TODO 48 起 store 持久化驱动（设置页可从 public/*.yml 导入）
+  const people = useWorkspace((s) => s.contacts)
+  const festivalDefs = useWorkspace((s) => s.customFestivals)
+  const setCustomFestivals = useWorkspace((s) => s.setCustomFestivals)
 
   // 关系分类中绑定了截止日期的 Todo 节点，按日期分组
   const dueMap = useMemo(() => collectDueNodes(categories), [categories])
@@ -121,6 +116,90 @@ export function CalendarWorkspace() {
   function shift(dir: 1 | -1) {
     setDirection(dir)
     setSelectedDate(format(addMonths(current, dir), "yyyy-MM-dd"))
+  }
+
+  // 右键标记（TODO 55）：把某公历日快速标为放假 / 上班。
+  // 实现为一条一次性节日（festival_rule = "YYYY-MM-DD"）写入 store.customFestivals，
+  // 复用既有 假/班 角标管线，不动 CalendarDay 数据结构。再点同项 = 取消标记；假/班互斥（标记一类会移除同日的另一类）。
+  function toggleDayMark(key: string, kind: "holiday" | "workday") {
+    const isKind = (d: FestivalDef) =>
+      d.festival_rule === key && !!(kind === "holiday" ? d.holiday_override : d.workday_override)
+    const label = kind === "holiday" ? "放假" : "上班"
+    if (festivalDefs.some(isKind)) {
+      setCustomFestivals(festivalDefs.filter((d) => !isKind(d)))
+      toast.success(`已取消 ${key} 的「${label}」标记`)
+      return
+    }
+    const next = festivalDefs.filter(
+      (d) => !(d.festival_rule === key && !!(kind === "holiday" ? d.workday_override : d.holiday_override))
+    )
+    next.push({
+      name: label,
+      festival_rule: key,
+      color: kind === "holiday" ? HOLIDAY_COLOR : WORKDAY_COLOR,
+      ...(kind === "holiday" ? { holiday_override: true } : { workday_override: true }),
+    })
+    setCustomFestivals(next)
+    toast.success(`已将 ${key} 标记为「${label}」`)
+  }
+
+  // 自定义节日管理弹窗（TODO 55）：列表 + 搜索 + 右上角「添加节日」；草稿非空时叠编辑弹窗
+  const [festivalManagerOpen, setFestivalManagerOpen] = useState(false)
+  const [festivalSearch, setFestivalSearch] = useState("")
+  const [festivalDraft, setFestivalDraft] = useState<FestivalDraft | null>(null)
+
+  const filteredFestivals = useMemo(() => {
+    const q = festivalSearch.trim().toLowerCase()
+    if (!q) return festivalDefs
+    return festivalDefs.filter(
+      (d) => d.name.toLowerCase().includes(q) || (d.festival_rule ?? "").toLowerCase().includes(q)
+    )
+  }, [festivalDefs, festivalSearch])
+
+  function openNewFestival() {
+    setFestivalDraft({ original: null, name: "", rule: "", color: "#6a5acd", holiday: false, workday: false })
+  }
+
+  function openEditFestival(def: FestivalDef) {
+    setFestivalDraft({
+      original: def,
+      name: def.name,
+      rule: def.festival_rule ?? "",
+      color: /^#[0-9a-fA-F]{6}$/.test(def.color ?? "") ? (def.color as string) : "#6a5acd",
+      holiday: !!def.holiday_override,
+      workday: !!def.workday_override,
+    })
+  }
+
+  function saveFestival() {
+    if (!festivalDraft) return
+    const name = festivalDraft.name.trim()
+    if (!name) {
+      toast.error("请填写节日名称")
+      return
+    }
+    if (!parseFestivalRule(festivalDraft.rule)) {
+      toast.error("规则格式不正确（如 10-01 / 2026-10-01 / 5-2-7 / L8-15 / L2026-8-15）")
+      return
+    }
+    const def: FestivalDef = {
+      name,
+      festival_rule: festivalDraft.rule.trim(),
+      color: festivalDraft.color,
+      ...(festivalDraft.holiday ? { holiday_override: true } : {}),
+      ...(festivalDraft.workday ? { workday_override: true } : {}),
+    }
+    const next = festivalDraft.original
+      ? festivalDefs.map((d) => (d === festivalDraft.original ? def : d))
+      : [...festivalDefs, def]
+    setCustomFestivals(next)
+    setFestivalDraft(null)
+    toast.success(festivalDraft.original ? "节日已更新" : "节日已添加")
+  }
+
+  function removeFestival(def: FestivalDef) {
+    setCustomFestivals(festivalDefs.filter((d) => d !== def))
+    toast.success(`已删除「${def.name}」`)
   }
 
   // 拖动分隔条：根据鼠标 X 调整右侧详情面板宽度（左侧日历 flex-1 自适应），带最小宽度约束
@@ -204,6 +283,17 @@ export function CalendarWorkspace() {
             </Button>
           </div>
           <div className="flex-1" />
+          {/* 自定义节日管理（TODO 55）：打开列表弹窗（搜索 + 新建/编辑/删除） */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8"
+            title="自定义节日"
+            aria-label="自定义节日"
+            onClick={() => setFestivalManagerOpen(true)}
+          >
+            <CalendarCog className="size-4" />
+          </Button>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col p-3">
@@ -247,6 +337,10 @@ export function CalendarWorkspace() {
               const hasWorkday = festivals.some((f) => f.workday)
               const hasBirthday = bdays.length > 0
               const shortHint = dayShortHint(day)
+              // 右键标记状态：该日是否已有自定义「假/班」一次性标记（TODO 55，用于菜单勾选展示）
+              const dayMark = festivalDefs.find(
+                (d) => d.festival_rule === key && (d.holiday_override || d.workday_override)
+              )
 
               // 日期数字颜色优先级：today > hasBirthday > festival > hasHoliday > hasWorkday > outside > isWeekend
               // selected 不影响文字/颜色，仅以背景 bg-primary/15 标识选中
@@ -343,16 +437,22 @@ export function CalendarWorkspace() {
                 ) : null
               })()
               return (
-                <button
-                  key={key}
-                  type="button"
-                  data-date={key}
-                  onClick={() => setSelectedDate(key)}
-                  className={cn(
-                    "group relative flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-1 text-center outline-none",
-                    outside && "opacity-40"
-                  )}
-                >
+                <ContextMenu key={key}>
+                  {/* 右键菜单与关系图节点一致（base-ui Trigger render prop 接管原格 button，
+                      只拦截 contextmenu，不影响左键选中） */}
+                  <ContextMenuTrigger
+                    render={(triggerProps) => (
+                      <button
+                        {...triggerProps}
+                        type="button"
+                        data-date={key}
+                        onClick={() => setSelectedDate(key)}
+                        className={cn(
+                          triggerProps.className,
+                          "group relative flex min-h-16 flex-col items-center justify-center rounded-lg px-1 py-1 text-center outline-none",
+                          outside && "opacity-40"
+                        )}
+                      >
                   {/* 日期数字容器：角标基于日期数字定位。锚点等比放大，角标可在此范围内外探，日期数字仍居中。
                       选中 / hover 高亮为以数字为中心的圆形（TODO 25 打磨）：高亮挂在数字圆上而非整格 */}
                   <span className="relative inline-flex items-center justify-center">
@@ -386,7 +486,22 @@ export function CalendarWorkspace() {
                       {dueNodes.length}
                     </span>
                   )}
-                </button>
+                      </button>
+                    )}
+                  />
+                  <ContextMenuContent className="min-w-44">
+                    <ContextMenuItem onClick={() => toggleDayMark(key, "holiday")}>
+                      <CalendarOff />
+                      <span style={{ color: HOLIDAY_COLOR }}>今天放假</span>
+                      {dayMark?.holiday_override && <Check className="ml-auto" />}
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={() => toggleDayMark(key, "workday")}>
+                      <Briefcase />
+                      <span style={{ color: WORKDAY_COLOR }}>今天上班</span>
+                      {dayMark?.workday_override && <Check className="ml-auto" />}
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               )
             })}
           </div>
@@ -414,6 +529,140 @@ export function CalendarWorkspace() {
         ]}
         style={isDesktop ? { width: detailWidth } : undefined}
       />
+
+      {/* 自定义节日管理弹窗（TODO 55）：搜索 + 列表，右上角「添加节日」 */}
+      <Dialog
+        open={festivalManagerOpen}
+        onOpenChange={(v) => {
+          setFestivalManagerOpen(v)
+          if (!v) {
+            setFestivalSearch("")
+            setFestivalDraft(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <div className="flex items-center justify-between gap-3">
+            <DialogTitle className="font-serif text-lg font-semibold">自定义节日</DialogTitle>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={openNewFestival}>
+              <Plus className="size-4" />
+              添加节日
+            </Button>
+          </div>
+          <DialogDescription>
+            规则：MM-DD 每年公历｜YYYY-MM-DD 一次性｜M-W-D 某月第 N 个星期 D｜LMM-DD 每年农历｜LYYYY-MM-DD 指定农历年
+          </DialogDescription>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={festivalSearch}
+              onChange={(e) => setFestivalSearch(e.target.value)}
+              placeholder="搜索名称或规则…"
+              className="pl-8"
+            />
+          </div>
+          <div className="flex max-h-80 min-h-24 flex-col gap-1.5 overflow-y-auto">
+            {filteredFestivals.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                {festivalDefs.length === 0 ? "暂无自定义节日，点右上角「添加节日」新建，或在设置里从 yml 导入。" : "没有匹配的节日"}
+              </p>
+            ) : (
+              filteredFestivals.map((def, i) => (
+                <div
+                  key={`${def.name}-${def.festival_rule ?? ""}-${i}`}
+                  className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5"
+                >
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: def.color || "slateblue" }}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm">{def.name}</span>
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {def.festival_rule || "（无规则）"}
+                  </span>
+                  {def.holiday_override && (
+                    <span className="shrink-0 rounded bg-destructive/10 px-1 text-[10px] font-bold text-destructive">假</span>
+                  )}
+                  {def.workday_override && (
+                    <span className="shrink-0 rounded bg-blue-500/10 px-1 text-[10px] font-bold text-blue-500">班</span>
+                  )}
+                  <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => openEditFestival(def)}>
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => removeFestival(def)}>
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 节日编辑弹窗（叠在管理弹窗上）：草稿非空时打开 */}
+      <Dialog
+        open={festivalDraft !== null}
+        onOpenChange={(v) => {
+          if (!v) setFestivalDraft(null)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{festivalDraft?.original ? "编辑节日" : "新建节日"}</DialogTitle>
+            <DialogDescription>
+              规则：MM-DD 每年公历｜YYYY-MM-DD 一次性｜M-W-D 某月第 N 个星期 D｜LMM-DD 每年农历｜LYYYY-MM-DD 指定农历年
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">名称</label>
+              <Input
+                value={festivalDraft?.name ?? ""}
+                onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, name: e.target.value })}
+                placeholder="如 生日 / 纪念日"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium">规则</label>
+              <Input
+                value={festivalDraft?.rule ?? ""}
+                onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, rule: e.target.value })}
+                placeholder="如 10-01 / 2026-10-01 / L8-15"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="shrink-0 text-sm font-medium">颜色</label>
+                <Input
+                  type="color"
+                  value={festivalDraft?.color ?? "#6a5acd"}
+                  onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, color: e.target.value })}
+                  className="h-9 w-14 p-1"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={festivalDraft?.holiday ?? false}
+                  onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, holiday: e.target.checked })}
+                  className="size-4 accent-red-500"
+                />
+                <span className="text-destructive">放假</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={festivalDraft?.workday ?? false}
+                  onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, workday: e.target.checked })}
+                  className="size-4 accent-blue-500"
+                />
+                <span className="text-blue-500">上班</span>
+              </label>
+            </div>
+            <Button onClick={saveFestival}>保存</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

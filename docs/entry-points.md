@@ -139,7 +139,7 @@
 | 当日详情 | `DayDetail`（笔记 `RichTextEditor` → `setDayNote`；待办 `addCalendarTodo/toggleCalendarTodo/removeCalendarTodo`；事件 `addCalendarEvent/removeCalendarEvent`；生日列表 + 农历日期） |
 | 思维图截止任务显示 | `collectDueNodes`（`lib/deadlines.ts`）+ 日格徽标 + 详情跳转（`setActiveCategory`/`setActiveItem`） |
 | 内置中国日历要素 | `lib/festivals.ts` 的 `builtinChinaFestivals(year,month,day)`：返回二十四节气(`kind:"jieqi"`)与法定假日/调休(`kind:"holiday"`)，与 `custom_festivals.yml` 用户节日在 `calendar-workspace.tsx` 按 `[...builtin, ...userFests]` 合并（内置优先，shortHint 取首项）；`HolidayUtil` 仅覆盖约 2010–2026，空窗由 YAML 的 `holiday_override`/`workday_override` 兜底（见 `docs/custom-data-docs.md` 1.4） |
-| 节日/生日数据 | 只读加载 `public/custom_festivals.yml`、`public/address_book.yml`（见 `docs/custom-data-docs.md`） |
+| 节日/生日数据 | TODO 48 起 store 持久化：日历订阅 `customFestivals` 与 `contacts`（设置页可从 `public/custom_festivals.yml` / `address_book.yml` 导入，见 `docs/custom-data-docs.md`） |
 | 节日类型 `FestivalKind` | `lib/festivals.ts` 导出联合类型 `FestivalKind`（`"monthDay"|"date"|"weekdayOfMonth"|"lunar"|"jieqi"|"holiday"`），`Festival.kind` 引用之；节气/法定假日用 `jieqi`/`holiday` |
 
 ## 8.7 全局搜索
@@ -238,15 +238,18 @@
 
 ## 8.12 联系人（`components/contacts-workspace.tsx`）
 
-> 只读通讯录：数据来自 `public/address_book.yml`，用户自行编辑该文件，界面不可增删改。
+> TODO 48 起为**持久化可编辑通讯录**：数据主源 = store `contacts`（localStorage）；`public/address_book.yml` 降级为「设置 → 从 yml 导入」的手动导入源（整表覆盖，id 自动重新分配）。界面支持新建 / 编辑 / 删除。
 
 | 功能 | 入口点 |
 | --- | --- |
 | 工作区分发 | `app/page.tsx` 按 `view === "contacts"` → `ContactsWorkspace` |
 | 视图 state / 切换 | store `view`（`"workspace" | "calendar" | "contacts" | "vault" | "ai-chat" | "profile"`）+ `goContacts`；侧边栏 `ContactNavItem` |
-| 列表 + 搜索 | `ContactsWorkspace`：`loadAddressBook()`（`lib/address-book.ts`）+ `query` 过滤（范围含 name/description/birthday/address/roles/contact，见 `filtered`） |
-| dropdown 展开 contact | `ContactsWorkspace` 内 `expanded` Set + `toggle(name)`；每个 contact 项含复制按钮（`navigator.clipboard.writeText` + toast） |
-| 数据模型 | `lib/address-book.ts`：`Person` / `ContactItem` / `AddressBookFile` / `loadAddressBook` / `parseBirthday` |
+| 列表 + 搜索 | `ContactsWorkspace`：订阅 store `contacts` + `query` 过滤（范围含 name/description/birthday/address/roles/contact，见 `filtered`） |
+| dropdown 展开 contact | `ContactsWorkspace` 内 `expanded` Set + `toggle(id)`；每个 contact 项含复制按钮（`navigator.clipboard.writeText` + toast） |
+| 新建 / 编辑 / 删除 | 工具栏「新建联系人」+ 卡片「编辑 / 删除」按钮 → store actions `addContact`（返回新 id）/ `updateContact(id, patch)` / `removeContact(id)`；表单 `ContactFormDialog`（姓名必填、生日公历/农历结构化输入、roles 顿号分隔、contact 动态行） |
+| yml 导入 | `components/settings-view.tsx` 的 `importYamlData`：`clearDataCache()` 后拉 `address_book.yml` + `custom_festivals.yml`，`withIds`（`lib/address-book.ts`）补 id 后经 `setContacts` / `setCustomFestivals` 整表覆盖 |
+| roles → 标签库 | `ContactsWorkspace` 内 effect：contacts 变化时把 roles 汇入 `addKnownTags`（幂等） |
+| 数据模型 | `lib/types.ts`：`Person` / `ContactItem`（`lib/address-book.ts` re-export）；`AddressBookFile`（yml 结构，条目无 id）/ `loadAddressBook` / `withIds` / `parseBirthday`（返回 { lunar, year, month, day }） |
 
 ## 8.13 AI 助手（`components/ai-chat.tsx` + `lib/ai/*`）
 

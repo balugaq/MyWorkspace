@@ -14,18 +14,16 @@ import { format, isSameDay, isSameMonth } from "date-fns"
 
 import { useWorkspace } from "@/lib/store"
 import { FORMAT_COLORS } from "@/lib/format-colors"
-import { loadAddressBook, type Person } from "@/lib/address-book"
-import { loadPublicYaml } from "@/lib/fetch-data"
+import { type Person } from "@/lib/address-book"
 import {
   builtinChinaFestivals,
   festivalsForDate,
   type Festival,
-  type FestivalsFile,
 } from "@/lib/festivals"
 import { birthdaysOn } from "@/lib/birthday"
 import { dayShortHint } from "@/lib/day-hint"
 import { collectDueNodes } from "@/lib/deadlines"
-import type { Category, Chapter, MindNode } from "@/lib/types"
+import type { Category, Chapter, MindNode, FestivalDef } from "@/lib/types"
 
 /** 一个内置技能的定义。execute 接收已校验的参数对象，返回可 JSON 序列化的结果。 */
 export interface BuiltinSkill {
@@ -79,10 +77,9 @@ function findCategory(
   return null
 }
 
-/** 加载用户自定义节日定义（custom_festivals.yml）。失败返回空数组。 */
-async function loadFestivalDefs(): Promise<FestivalsFile["festivals"]> {
-  const file = await loadPublicYaml<FestivalsFile>("custom_festivals.yml")
-  return file?.festivals ?? []
+/** 用户自定义节日定义（TODO 48 起读 store 持久化；设置页可从 public/custom_festivals.yml 导入）。 */
+function loadFestivalDefs(): FestivalDef[] {
+  return useWorkspace.getState().customFestivals
 }
 
 function festivalToPlain(f: Festival) {
@@ -174,10 +171,10 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       const hasNote = !!data && data.note.trim() !== ""
 
       const builtin = builtinChinaFestivals(year, month, day)
-      const defs = await loadFestivalDefs()
+      const defs = loadFestivalDefs()
       const userFests = festivalsForDate(defs, year, month, day)
       const festivals = [...builtin, ...userFests]
-      const people = await loadAddressBook()
+      const people = useWorkspace.getState().contacts
       const bdays = birthdaysOn(people, year, month, day)
       const hasHoliday = festivals.some((f) => f.holiday)
       const hasWorkday = festivals.some((f) => f.workday)
@@ -206,10 +203,10 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
   // 4. 获取所有联系人姓名
   {
     name: "wb_get_contact_names",
-    description: "获取通讯录中所有联系人的姓名列表（只读 public/address_book.yml）。",
+    description: "获取通讯录中所有联系人的姓名列表（本地持久化通讯录，只读）。",
     parameters: z.object({}),
     execute: async () => {
-      const people = await loadAddressBook()
+      const people = useWorkspace.getState().contacts
       return { count: people.length, names: people.map((p) => p.name) }
     },
   },
@@ -221,7 +218,7 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       "按姓名（精确或包含匹配）获取某位联系人的姓名与描述，并附带生日/地址/角色/联系方式。找不到返回 null。",
     parameters: z.object({ name: z.string().describe("联系人姓名（可模糊）") }),
     execute: async (args) => {
-      const people = await loadAddressBook()
+      const people = useWorkspace.getState().contacts
       const q = String(args.name).trim()
       if (!q) return null
       const exact = people.find((p) => p.name === q)

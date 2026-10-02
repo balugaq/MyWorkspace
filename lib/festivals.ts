@@ -102,13 +102,10 @@ export function builtinChinaFestivals(
   return out
 }
 
-export interface FestivalDef {
-  name: string
-  festival_rule?: string
-  color?: string
-  holiday_override?: boolean
-  workday_override?: boolean
-}
+// FestivalDef 自 TODO 48 起随联系人一起迁入 lib/types.ts（store 持久化类型）；
+// 此处 re-export 保持既有 import 路径（日历 / AI 技能等消费点无需改动）。
+import type { FestivalDef } from "./types"
+export type { FestivalDef }
 
 export interface FestivalsFile {
   festivals?: FestivalDef[]

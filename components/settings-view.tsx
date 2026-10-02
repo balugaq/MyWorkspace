@@ -20,6 +20,9 @@ import {
 } from "@/lib/backup"
 import { clearAllImages } from "@/lib/image-store"
 import { clearVault } from "@/lib/vault-store"
+import { loadPublicYaml, clearDataCache } from "@/lib/fetch-data"
+import { loadAddressBook, withIds } from "@/lib/address-book"
+import type { FestivalsFile } from "@/lib/festivals"
 import {
   SHORTCUT_META,
   DEFAULT_NOTIFICATION_SCAN_TYPES,
@@ -201,6 +204,10 @@ export function SettingsView() {
   const fileRef = useRef<HTMLInputElement>(null)
   // 待导入的已解包 ZIP 文件映射（选中 zip 后、弹出替换/合并选择前暂存）
   const [pendingFiles, setPendingFiles] = useState<Record<string, Uint8Array> | null>(null)
+  // yml 导入（TODO 48）：联系人 / 自定义节日改为 store 持久化后，yml 经此按钮手动灌入
+  const setContacts = useWorkspace((s) => s.setContacts)
+  const setCustomFestivals = useWorkspace((s) => s.setCustomFestivals)
+  const [importingYaml, setImportingYaml] = useState(false)
   // 导出分区选择弹窗（TODO 41）：勾选要携带的数据分区，敏感分区默认不勾选
   const [exportOpen, setExportOpen] = useState(false)
   const [exportSel, setExportSel] = useState<BackupSections>(DEFAULT_EXPORT_SECTIONS)
@@ -312,6 +319,38 @@ export function SettingsView() {
       }
     } catch {
       toast.error("导入失败：文件格式不正确")
+    }
+  }
+
+  // 从 yml 导入（TODO 48）：联系人 / 自定义节日已改为 store 持久化，public/*.yml
+  // 不再自动加载。用户手改 yml 后点此按钮：先清 fetch 缓存（否则拿到旧数据），
+  // 再拉两个文件整表覆盖 store。两文件独立处理，任一失败不影响另一个。
+  async function importYamlData() {
+    setImportingYaml(true)
+    try {
+      clearDataCache()
+      const [book, fests] = await Promise.all([
+        loadAddressBook(),
+        loadPublicYaml<FestivalsFile>("custom_festivals.yml"),
+      ])
+      const parts: string[] = []
+      if (book) {
+        const people = withIds(book.people ?? [])
+        setContacts(people)
+        parts.push(`联系人 ${people.length} 条`)
+      } else {
+        toast.error("address_book.yml 读取失败，联系人未导入")
+      }
+      if (fests) {
+        const defs = fests.festivals ?? []
+        setCustomFestivals(defs)
+        parts.push(`自定义节日 ${defs.length} 条`)
+      } else {
+        toast.error("custom_festivals.yml 读取失败，节日未导入")
+      }
+      if (parts.length > 0) toast.success(`已导入：${parts.join("、")}（整表覆盖）`)
+    } finally {
+      setImportingYaml(false)
     }
   }
 
@@ -634,6 +673,27 @@ export function SettingsView() {
               </div>
               <p className="text-xs text-muted-foreground">
                 导出为 ZIP，可勾选携带的数据分区（联系人 / 密码保险库默认不携带）。导入时可选「替换」或「合并」，仅恢复备份携带的分区。
+              </p>
+            </section>
+
+            {/* TODO 48：联系人 / 自定义节日已持久化，public/*.yml 降级为手动导入源 */}
+            <section className="flex flex-col gap-2">
+              <Label className="text-xs font-medium text-muted-foreground">
+                从 yml 导入（联系人 / 自定义节日）
+              </Label>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={importYamlData}
+                disabled={importingYaml}
+              >
+                <Upload className="size-4" />
+                {importingYaml ? "导入中…" : "导入 public/*.yml 数据"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                联系人与自定义节日已改为本地持久化（联系人可在联系人页增删改，节日可在日历页管理）。
+                public/address_book.yml 与 public/custom_festivals.yml 不再自动加载——
+                手改 yml 后点此导入，整表覆盖当前联系人 / 节日数据。
               </p>
             </section>
 
