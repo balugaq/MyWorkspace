@@ -419,6 +419,9 @@ export interface Settings {
   dayStartOffset: string
   // 通知 sender 要扫描的仓库列表，每个仓库带自己的扫描类型开关（TODO 18 反馈：按仓库单独配置）。
   notificationRepos: NotificationRepoConfig[]
+  // 扫描间隔自适应（TODO 49）：开启后按监听功能数量（各仓库开启的扫描类型总数）
+  // 自动放慢扫描——每满 16 个延长 1 分钟（基准 5 分钟）。默认开启；关闭则固定 5 分钟。
+  scanAdaptive: boolean
   // 通知发送渠道（TODO 22）：勾选哪些渠道，扫描到新通知时就以哪些方式投递。
   // builtin = 右下角弹窗；qq = 本机 QQ 中转服务（默认 localhost:18899，地址可配置）。
   notificationChannels: { builtin: boolean; qq: boolean }
@@ -557,6 +560,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // 与 lib/contributions.ts 的 DEFAULT_DAY_START_OFFSET 保持一致（此处写字面量避免循环依赖）
   dayStartOffset: "04:00",
   notificationRepos: [],
+  scanAdaptive: true,
   notificationChannels: { builtin: true, qq: false },
   newsEnabled: true,
   qqRelayUrl: DEFAULT_QQ_RELAY_URL,

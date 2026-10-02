@@ -14,6 +14,27 @@ import { KIND_LABEL } from "./qq-channel"
 
 const INTERVAL_MS = 5 * 60 * 1000
 
+// 扫描间隔自适应（TODO 49）：每满 16 个监听功能（各仓库开启的扫描类型总数）延长 1 分钟。
+// 主人定的口径：功能越多扫描越稀，减少 API 配额消耗；开关在设置（settings.scanAdaptive，默认开）。
+const ADAPTIVE_STEP_COUNT = 16
+const ADAPTIVE_STEP_MS = 60 * 1000
+
+/** 当前轮次的扫描间隔：自适应开 → 基准 5 分钟 + floor(功能数/16) 分钟；关 → 固定 5 分钟。 */
+function currentScanIntervalMs(): number {
+  const s = useWorkspace.getState().settings
+  if (!s.scanAdaptive) return INTERVAL_MS
+  const features = s.notificationRepos.reduce(
+    (sum, r) =>
+      sum +
+      (r.scanTypes.commits ? 1 : 0) +
+      (r.scanTypes.issues ? 1 : 0) +
+      (r.scanTypes.prs ? 1 : 0) +
+      (r.scanTypes.releases ? 1 : 0),
+    0
+  )
+  return INTERVAL_MS + Math.floor(features / ADAPTIVE_STEP_COUNT) * ADAPTIVE_STEP_MS
+}
+
 let started = false
 let scanning = false
 
@@ -63,10 +84,19 @@ export function startNotificationScheduler(): void {
   // 1. 启动立即扫一轮
   void scanNow()
 
-  // 2. 每 5 分钟扫一轮（新闻精选自 TODO 44 起不再自动触发，改由通知中心手动按钮驱动）
-  window.setInterval(() => void scanNow(), INTERVAL_MS)
+  // 2. 扫描循环（TODO 49 改自调度）：每轮结束后按当前监听功能数量重算下一次间隔，
+  //    改设置 / 增删仓库 / 增减扫描类型后下一轮自然生效；scanNow 内部有 scanning 互斥，不会堆积。
+  //    （新闻精选自 TODO 44 起不再自动触发，改由通知中心手动按钮驱动）
+  const scheduleScan = () => {
+    window.setTimeout(() => {
+      void scanNow()
+      scheduleScan()
+    }, currentScanIntervalMs())
+  }
+  scheduleScan()
 
-  // 3. 活跃心跳：启动 / 每 5 分钟 / pagehide（≈关机时间）各更新一次 lastActiveAt
+  // 3. 活跃心跳：启动 / 每 5 分钟 / pagehide（≈关机时间）各更新一次 lastActiveAt。
+  //    心跳与扫描间隔解耦：它是活跃标记（关机漏扫的兜底起算点），固定 5 分钟即可。
   useWorkspace.getState().setLastActiveAt(Date.now())
   window.setInterval(() => {
     useWorkspace.getState().setLastActiveAt(Date.now())

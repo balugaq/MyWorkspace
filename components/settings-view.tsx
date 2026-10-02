@@ -963,6 +963,22 @@ export function SettingsView() {
 
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">扫描仓库</Label>
+              {/* TODO 49：扫描间隔自适应开关（默认开）——按监听功能数量自动放慢扫描 */}
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-primary"
+                  checked={settings.scanAdaptive}
+                  onChange={(e) => updateSettings({ scanAdaptive: e.target.checked })}
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span>扫描间隔自适应</span>
+                  <span className="text-xs text-muted-foreground">
+                    开启后按监听功能数量（各仓库开启的扫描类型总数）自动放慢扫描：基准 5
+                    分钟，每满 16 个延长 1 分钟。关闭则固定 5 分钟。
+                  </span>
+                </span>
+              </label>
               <div className="flex gap-2">
                 <Input
                   value={repoInput}

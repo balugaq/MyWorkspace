@@ -1552,6 +1552,8 @@ export const useWorkspace = create<WorkspaceState>()(
             notificationRepos: normalizeNotificationRepos(rawSettings.notificationRepos),
             // 兜底：旧存档无此字段 / 坏值 → 默认（builtin 开、qq 关）
             notificationChannels: normalizeNotificationChannels(rawSettings.notificationChannels),
+            // 兜底（TODO 49）：缺失 / 非布尔值 → 开启（仅显式 false 才关闭）
+            scanAdaptive: rawSettings.scanAdaptive !== false,
             // 兜底：旧存档无此字段 / 非法 → 默认 QQ 中转地址
             qqRelayUrl: normalizeQqRelayUrl(rawSettings.qqRelayUrl),
           },
