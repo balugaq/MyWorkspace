@@ -52,11 +52,20 @@ interface GhIssue {
   state: "open" | "closed"
   /** 关闭时间（issue 与 PR 都有；重新打开后再次关闭会更新） */
   closed_at: string | null
+  /**
+   * 执行关闭的用户（TODO 47）：列表 API 在 state=closed 时返回；
+   * PR 被合并时也是执行 merge 的人。brief 文案用它，不与 user（作者）混淆。
+   */
+  closed_by?: { login: string } | null
   body?: string | null
   /** assignee 登录名列表（「自动入 GitHub 队列」判定 assign 给自己用） */
   assignees?: { login: string }[] | null
   /** 有此字段即为 PR（列表 API 的 PR 复用 issue 条目）；merged_at 非空表示已合并 */
-  pull_request?: { merged_at: string | null } | null
+  pull_request?: {
+    merged_at: string | null
+    /** 执行合并的用户（部分响应返回；缺失回落 closed_by） */
+    merged_by?: { login: string } | null
+  } | null
 }
 
 interface GhRelease {
@@ -233,8 +242,11 @@ async function scanIssuesAndPrs(
     if (!Number.isFinite(updatedAt) || updatedAt <= since) continue
     const actor = it.user?.login ?? ""
 
-    // PR 合并：merged_at 是每次合并的稳定时间戳（id 稳定 → 去重天然生效）
+    // PR 合并：merged_at 是每次合并的稳定时间戳（id 稳定 → 去重天然生效）。
+    // 合并者（TODO 47）：merged_by 优先，回落 closed_by（PR 被 merge 时 closed_by 即合并者）；
+    // 都拿不到就不写人名——宁可没有也不错显示成作者。actor 保持作者（贡献判定依赖它，见 scanNow）。
     if (isPr && Number.isFinite(mergedAt) && mergedAt > since) {
+      const merger = it.pull_request?.merged_by?.login ?? it.closed_by?.login ?? ""
       items.push({
         id: `gh:pr:${repo}:${it.number}:merged`,
         senderId: "github",
@@ -242,7 +254,7 @@ async function scanIssuesAndPrs(
         event: "merge",
         repo,
         title: firstLine(it.title, TITLE_MAX),
-        brief: `由 ${actor} 合并`,
+        brief: merger ? `由 ${merger} 合并` : `已合并`,
         url: it.html_url,
         actor,
         createdAt: it.pull_request!.merged_at!,
@@ -250,8 +262,10 @@ async function scanIssuesAndPrs(
       continue
     }
 
-    // 关闭：closed_at > since 才算本轮窗口内发生的关闭（老 issue 收到新评论不会误报）
+    // 关闭：closed_at > since 才算本轮窗口内发生的关闭（老 issue 收到新评论不会误报）。
+    // 关闭者（TODO 47）：closed_by 是执行关闭的人，不是 user（作者）；缺失降级「已关闭」。
     if (it.state === "closed" && Number.isFinite(closedAt) && closedAt > since) {
+      const closer = it.closed_by?.login ?? ""
       items.push({
         id: `gh:${kindBase}:${repo}:${it.number}:closed`,
         senderId: "github",
@@ -259,7 +273,7 @@ async function scanIssuesAndPrs(
         event: "close",
         repo,
         title: firstLine(it.title, TITLE_MAX),
-        brief: `由 ${actor} 关闭`,
+        brief: closer ? `由 ${closer} 关闭` : `已关闭`,
         url: it.html_url,
         actor,
         createdAt: it.closed_at!,
@@ -267,7 +281,8 @@ async function scanIssuesAndPrs(
       continue
     }
 
-    // 重新打开：当前 open、曾关闭过、且我们见过它的关闭（避免把普通评论误判为 reopen）
+    // 重新打开：当前 open、曾关闭过、且我们见过它的关闭（避免把普通评论误判为 reopen）。
+    // 列表 API 没有「重新打开者」字段（TODO 47）：brief 不写人名，避免错误显示成作者。
     if (
       it.state === "open" &&
       Number.isFinite(closedAt) &&
@@ -281,7 +296,7 @@ async function scanIssuesAndPrs(
         event: "reopen",
         repo,
         title: firstLine(it.title, TITLE_MAX),
-        brief: `由 ${actor} 重新打开`,
+        brief: `已重新打开`,
         url: it.html_url,
         actor,
         createdAt: it.updated_at,
