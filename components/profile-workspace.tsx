@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import { CalendarDays, CalendarCheck, User, Feather, RefreshCw, ScanLine, Timer, Clock } from "lucide-react"
+import { CalendarCheck, User, Feather, RefreshCw, ScanLine, Timer, Clock, Sparkles } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { WeatherWidget } from "@/components/weather-widget"
@@ -48,6 +48,15 @@ const CONTRIB_TYPE_META: Record<ContributionType, { label: string; badge: string
 }
 
 const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
+
+// TODO 39 日期牌（参考主人提供的日历牌图）：公历月中文 + 大小月，传统纸质日历牌写法
+const CN_MONTHS = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"]
+
+// 公历月大小：31 天「大」、30 天「小」、2 月一律「平」（平闰同写，日历牌口径）
+function solarMonthSize(year: number, month: number): string {
+  if (month === 2) return "平"
+  return new Date(year, month, 0).getDate() === 31 ? "大" : "小"
+}
 
 // 贡献值展示：四舍五入取整（todo.md 口径）。
 // amount < 0.5 的日子（例如当天只新建 1 个节点 = 0.2）会显示 0 —— 主人明确要求照实显示，不做修饰。
@@ -330,6 +339,20 @@ export function ProfileWorkspace() {
   const day = now.getDate()
   const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()]
 
+  // TODO 39：「问 AI 今日待办」——引导 AI 综合各只读技能可访问的本地数据，汇总今日待办清单。
+  // 走 store.askAiAbout 链路：新建会话 → 切到 AI 对话 → 自动发送。
+  const askAiAbout = useWorkspace((s) => s.askAiAbout)
+  const askAiToday = () => {
+    const prompt =
+      `今天是 ${now.getFullYear()} 年 ${month} 月 ${day} 日（${weekday}）。请综合你可访问的本地数据，给我一份今日待办清单：` +
+      `用 wb_get_mindmap_graph 查思维图节点与截止/长期任务，` +
+      `用 wb_get_day_calendar_data 与 wb_get_day_note 查今天的日程和笔记（必要时用 wb_get_dates_with_notes 回看近期），` +
+      `用 wb_get_github_queue 查 GitHub 队列，用 wb_get_recent_notifications 查最近通知，` +
+      `用 wb_get_categories 查分类概览。` +
+      `请按优先级排序输出，每项标注依据来源（思维图/日历/队列/通知等）；数据中没有支撑的建议项请单独列出并说明。`
+    askAiAbout(prompt)
+  }
+
   // 软件使用时长：从首个贡献到现在的日历差值（实时刷新，每 30s 重算）。
   // 纯派生值：只依赖 contributions，不落存储字段，因此导入/导出备份时不会随数据流动，
   // 天然避免把别的设备/安装的时间线带进来污染本机数据。
@@ -534,17 +557,30 @@ export function ProfileWorkspace() {
             {/* 今天天气（实时数据：本地天气代理 + 中国天气网） */}
             <WeatherWidget />
 
-            {/* 今天日期 + 星期 */}
+            {/* 今天日期牌（TODO 39，按主人参考图）：左竖排「X月大/小/平」+ 中央超大日数字 + 右竖排「星期X」。
+                暗色主题照参考图深底绿字；亮色主题配米白底深绿字（亮色配色待主人目视确认）。 */}
             <div className="rounded-xl border border-border bg-card p-4">
-              {/* 日期数字（约 100×25 像素范围） */}
-              <div className="flex h-[25px] w-[100px] items-center rounded bg-muted/60 px-2 text-sm font-semibold text-foreground">
-                {month}月{day}日
+              <div className="flex h-[92px] items-center justify-center gap-4 rounded-lg bg-[#f2f0e8] px-4 dark:bg-[#0b0d0b]">
+                <span className="text-xs font-medium text-[#55714e] [writing-mode:vertical-rl] dark:text-[#8fae8b]">
+                  {CN_MONTHS[month]}月{solarMonthSize(now.getFullYear(), month)}
+                </span>
+                <span className="text-[56px] font-bold leading-none tabular-nums text-[#55714e] dark:text-[#8fae8b]">
+                  {String(day).padStart(2, "0")}
+                </span>
+                <span className="text-xs font-medium text-[#55714e] [writing-mode:vertical-rl] dark:text-[#8fae8b]">
+                  {weekday}
+                </span>
               </div>
-              <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
-                <CalendarDays className="size-4" />
-                {weekday}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">今日暂无待办事项</p>
+              {/* AI 入口（TODO 39）：替换原「今日暂无待办事项」死文案 */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 w-fit gap-1.5"
+                onClick={askAiToday}
+              >
+                <Sparkles className="size-3.5" />
+                问 AI 今日待办
+              </Button>
             </div>
 
             {/* 软件使用时长：自首次贡献起（纯派生值，不入备份/导入，避免跨设备污染） */}

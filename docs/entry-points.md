@@ -370,7 +370,7 @@
 
 ## 8.17 GitHub 队列（Issue/PR 看板，`components/github-queue-workspace.tsx` + `lib/github-queue.ts`）
 
-> TODO 36 + 后续迭代：类 GitHub Project 的 issue/PR 看板。四列 Urgent / Assigned / Completed / Backlog；卡片由用户从仓库拉取、「从监听同步」导入，或监听收到 assign 给自己的 issue/PR 时**自动入 Backlog**。AI 可经内置技能 `wb_get_github_queue` 只读读取队列。
+> TODO 36 + 后续迭代：类 GitHub Project 的 issue/PR 看板。四列 Urgent / Assigned / Completed / Backlog。**队列是 GitHub 监听的派生视图**：「添加监听仓库」自动创建监听并回扫一次存量，此后监听增量入队（自有仓库全量、他人仓库仅 @me），close/merge/reopen 只回写状态标记。AI 可经内置技能 `wb_get_github_queue` 只读读取队列。
 
 | 功能 | 入口点 |
 | --- | --- |
