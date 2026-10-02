@@ -28,9 +28,13 @@ const KIND_TO_CONTRIB: Record<"commit" | "issue" | "pr", ContributionType> = {
  * 通知条目 → GitHub 队列卡片（Backlog 列，TODO 36 补充的「监听自动入队」）。
  * number 从通知的 html_url 提取（.../issues/123 或 .../pull/123）；
  * id 与手动拉取路径一致（iq:{repo}:{kind}:{number}），addToIssueQueue 按 id 去重且
- * 保留用户手动移动过的列，重复触发无副作用。
+ * 保留用户手动移动过的列，重复触发无副作用。assigneeMe 由调用方按
+ * 「自有仓库全量、他人仓库仅 @me」规则判定后传入。
  */
-function notificationToBacklogItem(n: NotificationItem): IssueQueueItem {
+function notificationToBacklogItem(
+  n: NotificationItem,
+  assigneeMe: boolean,
+): IssueQueueItem {
   const m = /\/(?:issues|pull)\/(\d+)/.exec(n.url)
   const number = m ? Number(m[1]) : 0
   const ev = n.event ?? "open"
@@ -45,7 +49,7 @@ function notificationToBacklogItem(n: NotificationItem): IssueQueueItem {
     htmlUrl: n.url,
     state: ev === "close" || ev === "merge" ? "closed" : "open",
     merged: ev === "merge",
-    assigneeMe: true,
+    assigneeMe,
     column: "backlog",
     createdAt: n.createdAt,
     updatedAt: n.createdAt,
@@ -125,20 +129,55 @@ export async function scanNow(): Promise<void> {
     // 新条目按用户勾选的通知渠道分发（仅本轮新入库的，去重条目不重复投递）
     if (fresh.length > 0) dispatchNotifications(fresh, state.settings)
 
-    // 监听自动入 GitHub 队列（TODO 36）：本轮新收到的 issue/PR 若 assign 给自己，
-    // 自动加到队列 Backlog 列。仅在确有候选时才多打一次 /user 取登录名（省 API 配额）。
-    const queueCandidates = fresh.filter(
-      (n) => (n.kind === "issue" || n.kind === "pr") && (n.assignees?.length ?? 0) > 0
+    // 监听自动入 GitHub 队列（TODO 46 后续口径）：队列是监听的派生视图。
+    // 新建卡片仅取 fresh 中 event === "open" 的 issue/PR；close/merge/reopen 只回写
+    // 既有卡片的 state/merged 标记（见下方 syncIssueQueueStates），不新建。
+    // 入队范围（主人定）：自有仓库（owner === 登录名）全量入队；他人仓库仅 assign 给自己时入队。
+    // token 为空 / 取不到登录名时：他人仓库无法判定 @me，自有仓库判定也依赖登录名，统一跳过本轮入队。
+    const openCandidates = fresh.filter(
+      (n) => (n.kind === "issue" || n.kind === "pr") && (n.event ?? "open") === "open"
     )
-    if (queueCandidates.length > 0 && token.trim()) {
+    if (openCandidates.length > 0 && token.trim()) {
       const login = await fetchCurrentLogin(token)
       if (login) {
-        const autoItems = queueCandidates
-          .filter((n) => n.assignees!.includes(login))
-          .map((n) => notificationToBacklogItem(n))
+        const autoItems = openCandidates
+          .map((n) => ({ n, isMine: n.repo.split("/")[0] === login }))
+          .filter(({ n, isMine }) => {
+            // 自有仓库 → 全量入队；他人仓库 → 仅 assign 给自己
+            return isMine || (n.assignees?.includes(login) ?? false)
+          })
+          .map(({ n, isMine }) =>
+            notificationToBacklogItem(
+              n,
+              isMine ? (n.assignees?.includes(login) ?? false) : true
+            )
+          )
         if (autoItems.length > 0) state.addToIssueQueue(autoItems)
       }
     }
+
+    // 状态标记联动（TODO 46 后续）：fresh 中 close/merge/reopen 的 issue/PR 通知回写
+    // 既有卡片的 state/merged，列与排序位次不动（无需 login / token，队列里没有的 id 忽略）。
+    // 映射：close → 已关闭未合并；merge → 已关闭已合并；reopen → 重新打开。GitHub 不允许
+    // reopen 已合并的 PR（reopen 只会出现在 issue / 未合并 PR 上），故 reopen 置 merged:false
+    // 不会误伤已合并卡片；若出现异常数据按覆盖处理。
+    const stateEntries = fresh
+      .filter((n) => {
+        if (n.kind !== "issue" && n.kind !== "pr") return false
+        const ev = n.event ?? "open"
+        return ev === "close" || ev === "merge" || ev === "reopen"
+      })
+      .map((n) => {
+        const m = /\/(?:issues|pull)\/(\d+)/.exec(n.url)
+        const number = m ? Number(m[1]) : 0
+        const ev = n.event ?? "open"
+        return {
+          id: `iq:${n.repo}:${n.kind === "pr" ? "pr" : "issue"}:${number}`,
+          state: (ev === "reopen" ? "open" : "closed") as "open" | "closed",
+          merged: ev === "merge",
+        }
+      })
+    if (stateEntries.length > 0) state.syncIssueQueueStates(stateEntries)
 
     // 日志存储（TODO 27）：记录本轮检查的仓库、发现的新内容，以及是否发送了通知提示。
     // scan 汇总条目 + 逐条 item 条目（含「仅监听」的 commit——检查过但按规则不通知）。

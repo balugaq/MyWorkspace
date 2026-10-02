@@ -298,10 +298,14 @@ interface WorkspaceState {
   // GitHub 队列（TODO 36）
   /** 拉取到的 issue/PR 加入队列：按 id 去重（已存在则覆盖，保留其当前所在列） */
   addToIssueQueue: (items: IssueQueueItem[]) => void
-  /** 移动某卡片到指定列 */
+  /** 移动某卡片到指定列（手动搬运 = 重新入队，刷新 queuedAt 让卡片浮到新列顶） */
   moveIssueQueueItem: (id: string, column: IssueQueueColumn) => void
   /** 从队列移除某卡片 */
   removeIssueQueueItem: (id: string) => void
+  /** 批量回写 issue/PR 状态标记（state/merged）：监听收到 close/merge/reopen 事件时联动；列与排序位次不动 */
+  syncIssueQueueStates: (
+    entries: Array<{ id: string; state: "open" | "closed"; merged: boolean }>
+  ) => void
   setNodeSolution: (
     catId: string,
     nodeId: string,
@@ -1218,19 +1222,38 @@ export const useWorkspace = create<WorkspaceState>()(
           const byId = new Map(s.issueQueue.map((it) => [it.id, it]))
           for (const it of items) {
             const prev = byId.get(it.id)
-            // 已存在 → 覆盖数据但保留其当前所在列（用户手动移动过的列不被拉取覆盖）
-            byId.set(it.id, prev ? { ...it, column: prev.column } : it)
+            // 已存在 → 覆盖数据但保留其当前所在列与首次入队时间 queuedAt（用户手动移动过的列、原始排序位次不被拉取覆盖）
+            // 新条目 → 记录首次入队时间（看板按 queuedAt 倒序；旧存档无此字段，组件排序时回落 0 沉底）
+            byId.set(
+              it.id,
+              prev
+                ? { ...it, column: prev.column, queuedAt: prev.queuedAt }
+                : { ...it, queuedAt: Date.now() }
+            )
           }
           return { issueQueue: [...byId.values()] }
         }),
       moveIssueQueueItem: (id, column) =>
         set((s) => ({
           issueQueue: s.issueQueue.map((it) =>
-            it.id === id ? { ...it, column } : it
+            // 手动搬运 = 重新入队：刷新 queuedAt 让卡片浮到新列顶（TODO 46 后续口径）
+            it.id === id ? { ...it, column, queuedAt: Date.now() } : it
           ),
         })),
       removeIssueQueueItem: (id) =>
         set((s) => ({ issueQueue: s.issueQueue.filter((it) => it.id !== id) })),
+      // 状态标记联动（TODO 46 后续）：close/merge/reopen 只回写 state/merged，列与排序位次不动
+      syncIssueQueueStates: (entries) =>
+        set((s) => {
+          const byId = new Map(entries.map((e) => [e.id, e]))
+          return {
+            issueQueue: s.issueQueue.map((it) => {
+              const e = byId.get(it.id)
+              // id 不在队列中的条目忽略；未命中的条目保持原引用
+              return e ? { ...it, state: e.state, merged: e.merged } : it
+            }),
+          }
+        }),
 
       setNodeSolution: (catId, nodeId, content, status) =>
         set((s) => ({

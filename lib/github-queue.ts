@@ -87,14 +87,13 @@ function toQueueItem(
   raw: GhIssueRaw,
   repo: string,
   currentLogin: string | null,
-  onlyMine: boolean,
 ): IssueQueueItem {
   const isPr = !!raw.pull_request
   const merged = isPr && !!raw.pull_request?.merged_at
   const assigneeMe = currentLogin
     ? raw.assignee?.login === currentLogin ||
       (raw.assignees ?? []).some((a) => a.login === currentLogin)
-    : onlyMine // 仅 Mine 模式拉到的都是 assign 给自己的
+    : false // 取不到当前登录用户时无法判定 @me
   let column: IssueQueueColumn = "backlog"
   if (raw.state === "closed" || merged) column = "completed"
   else if (assigneeMe) column = "assigned"
@@ -117,26 +116,22 @@ function toQueueItem(
 }
 
 /**
- * 拉取某仓库的 issue/PR（issues API 同时返回 PR，以 `pull_request` 字段区分）。
+ * 拉取某仓库的 issue/PR（issues API 同时返回 PR，以 `pull_request` 字段区分；state=all 全量）。
  * @param perPage 单次上限（默认 100，也是 API 上限）。达到上限视为 truncated。
- * @param onlyMine 仅拉 assign 给当前用户的（API `assignee=@me`，需已填 token 否则 401）。
  */
 export async function fetchRepoIssues(
   repo: string,
-  opts: { onlyMine?: boolean; token: string; perPage?: number; currentLogin?: string | null },
+  opts: { token: string; perPage?: number; currentLogin?: string | null },
 ): Promise<FetchIssuesResult> {
   const [owner, name] = repo.split("/")
   if (!owner || !name) throw new Error("仓库格式应为 owner/name")
   const perPage = opts.perPage ?? 100
-  let url = `${API_BASE}/repos/${owner}/${name}/issues?state=all&per_page=${perPage}`
-  if (opts.onlyMine) url += "&assignee=@me"
+  const url = `${API_BASE}/repos/${owner}/${name}/issues?state=all&per_page=${perPage}`
   const state = { rateLimited: false }
   try {
     const data = await ghFetch(url, opts.token, state)
     const arr = Array.isArray(data) ? (data as GhIssueRaw[]) : []
-    const items = arr.map((r) =>
-      toQueueItem(r, repo, opts.currentLogin ?? null, !!opts.onlyMine),
-    )
+    const items = arr.map((r) => toQueueItem(r, repo, opts.currentLogin ?? null))
     return { items, truncated: arr.length >= perPage, rateLimited: state.rateLimited }
   } catch (e) {
     if (e instanceof RateLimitError) throw new Error("RATE_LIMITED")

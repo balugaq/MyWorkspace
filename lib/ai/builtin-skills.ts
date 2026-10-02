@@ -439,7 +439,7 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
   {
     name: "wb_get_github_queue",
     description:
-      "获取 GitHub Issue/PR 看板队列的内容（四列：Urgent/Assigned/Completed/Backlog，含监听自动入 Backlog 的 assign 给我的条目）。可按列（column）与类型（kind=issue/pr）过滤，不传则返回全部。每条含 kind/repo/number/title/body/actor/column/state/merged/assigneeMe/url。",
+      "获取 GitHub Issue/PR 看板队列的内容（四列：Urgent/Assigned/Completed/Backlog，含监听自动入 Backlog 的条目：自有仓库全量、他人仓库仅 assign 给我的）。可按列（column）与类型（kind=issue/pr）过滤，不传则返回全部。每条含 kind/repo/number/title/body/actor/column/state/merged/assigneeMe/url。",
     parameters: z.object({
       column: z
         .enum(["urgent", "assigned", "completed", "backlog"])

@@ -1,8 +1,9 @@
 "use client"
 
 // GitHub Issue/PR 看板队列（TODO 36）。
-// 四列：Urgent / Assigned / Completed / Backlog。卡片由用户从仓库拉取，或「从监听同步」导入；
-// 监听收到 assign 给自己的 issue/PR 时也会自动入 backlog（见 lib/notifications/scheduler.ts）。
+// 四列：Urgent / Assigned / Completed / Backlog。卡片来源 = 监听仓库：
+// 「添加监听仓库」自动创建 GitHub 监听并回扫一次存量；此后由通知调度器增量入队
+// （自有仓库全量、他人仓库仅 @me；close/merge/reopen 只回写状态标记，见 lib/notifications/scheduler.ts）。
 // 拉取走 lib/github-queue.ts（复用 github-sender 的认证/限流思路，独立模块）。
 // AI 可通过内置技能 wb_get_github_queue 只读访问队列（见 lib/ai/builtin-skills.ts）。
 
@@ -12,12 +13,10 @@ import {
   GitPullRequest,
   AlertCircle,
   Plus,
-  RefreshCw,
   ExternalLink,
   User as UserIcon,
   Search,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/store"
 import { fetchCurrentLogin, fetchRepoIssues } from "@/lib/github-queue"
 import type { IssueQueueColumn, IssueQueueItem } from "@/lib/types"
@@ -56,12 +55,11 @@ export function GithubQueueWorkspace() {
   const removeIssueQueueItem = useWorkspace((s) => s.removeIssueQueueItem)
   const githubToken = useWorkspace((s) => s.settings.githubToken)
   const notificationRepos = useWorkspace((s) => s.settings.notificationRepos)
+  const updateSettings = useWorkspace((s) => s.updateSettings)
 
   const [addOpen, setAddOpen] = useState(false)
   const [repoInput, setRepoInput] = useState("")
-  const [onlyMine, setOnlyMine] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [syncing, setSyncing] = useState(false)
   const [query, setQuery] = useState("")
 
   // 实时搜索：按 标题 / 正文 / 仓库 / 提交者 / #编号 过滤四列
@@ -75,86 +73,69 @@ export function GithubQueueWorkspace() {
             .includes(q),
         )
 
+  // 添加监听仓库：自动创建 GitHub 监听（只开 Issue+PR 扫描）并回扫一次存量 issue/PR 入队
   async function handleAdd() {
     const repo = parseRepo(repoInput)
     if (!repo.includes("/")) {
       toast.error("仓库格式应为 owner/name")
       return
     }
-    if (onlyMine && !githubToken.trim()) {
-      toast.error("仅拉取「分配给我的」需要填写 GitHub Token（设置 → 账户与同步）")
+    if (notificationRepos.some((r) => r.repo === repo)) {
+      toast.info("该仓库已在监听列表中")
       return
     }
     setLoading(true)
     try {
-      const login = onlyMine ? await fetchCurrentLogin(githubToken) : null
+      // 监听配置先生效（存量回扫失败不回滚）
+      updateSettings({
+        notificationRepos: [
+          ...notificationRepos,
+          {
+            repo,
+            scanTypes: { commits: false, issues: true, prs: true, releases: false },
+            commitMonitorOnly: false,
+            scanSince: Date.now(),
+          },
+        ],
+      })
+      const login = await fetchCurrentLogin(githubToken)
+      // 入队范围与调度器口径一致（TODO 46 后续）：自有仓库全量、他人仓库仅 @me；
+      // 无 Token / 取不到登录名时无法判定范围 → 只建监听不回扫（与增量入队统一跳过的口径一致）。
+      if (!login) {
+        toast.warning(
+          "监听已添加；未填写 GitHub Token，存量回扫与后续自动入队均需 Token（设置 → 账户与同步）"
+        )
+        setAddOpen(false)
+        setRepoInput("")
+        return
+      }
       const res = await fetchRepoIssues(repo, {
-        onlyMine,
         token: githubToken,
         currentLogin: login,
         perPage: PER_PAGE,
       })
-      if (res.items.length === 0) {
-        toast.info("该仓库没有匹配的 issue / PR")
+      const isMine = repo.split("/")[0] === login
+      const items = isMine ? res.items : res.items.filter((it) => it.assigneeMe)
+      if (items.length === 0) {
+        toast.info(
+          `已添加监听（${repo} 暂无${isMine ? "" : "分配给你的"}存量 issue/PR）`
+        )
       } else {
-        addToIssueQueue(res.items)
-        toast.success(`已添加 ${res.items.length} 条（${repo}）`)
+        addToIssueQueue(items)
+        toast.success(`已添加监听并回扫 ${items.length} 条 issue/PR 入队`)
       }
       if (res.truncated) {
         toast.warning(`该仓库 issue/PR 超过 ${PER_PAGE} 条，仅导入前 ${PER_PAGE} 条；如需更多请缩小范围。`)
       }
       setAddOpen(false)
       setRepoInput("")
-      setOnlyMine(false)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "拉取失败"
-      if (msg === "RATE_LIMITED") toast.error("GitHub API 限流（403/429），请稍后再试")
-      else toast.error(`拉取失败：${msg}`)
+      const msg = e instanceof Error ? e.message : "回扫失败"
+      if (msg === "RATE_LIMITED")
+        toast.error("监听已添加；存量回扫触发 GitHub API 限流（403/429），可稍后在通知中心重试")
+      else toast.error(`监听已添加；存量回扫失败，可稍后重试：${msg}`)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function handleSync() {
-    if (!githubToken.trim()) {
-      toast.error("同步监听仓库需要填写 GitHub Token（设置 → 账户与同步）")
-      return
-    }
-    if (notificationRepos.length === 0) {
-      toast.info("尚未配置监听仓库（设置 → GitHub 集成 → 通知仓库）")
-      return
-    }
-    setSyncing(true)
-    const login = await fetchCurrentLogin(githubToken)
-    if (!login) {
-      toast.error("无法获取当前登录用户，请检查 Token 权限")
-      setSyncing(false)
-      return
-    }
-    let total = 0
-    let anyTruncated = false
-    for (const cfg of notificationRepos) {
-      try {
-        const res = await fetchRepoIssues(cfg.repo, {
-          onlyMine: true,
-          token: githubToken,
-          currentLogin: login,
-          perPage: PER_PAGE,
-        })
-        if (res.items.length) {
-          addToIssueQueue(res.items)
-          total += res.items.length
-        }
-        if (res.truncated) anyTruncated = true
-      } catch {
-        // 单个仓库失败不中断其余
-      }
-    }
-    setSyncing(false)
-    if (total === 0) toast.info("监听仓库中没有 assign 给你的 issue / PR")
-    else {
-      toast.success(`已从监听仓库同步 ${total} 条（assign 给你的）`)
-      if (anyTruncated) toast.warning("部分仓库 issue/PR 超过 100 条，仅导入前 100 条")
     }
   }
 
@@ -178,20 +159,10 @@ export function GithubQueueWorkspace() {
             size="sm"
             variant="outline"
             className="gap-1.5"
-            onClick={handleSync}
-            disabled={syncing}
-          >
-            <RefreshCw className={cn("size-4", syncing && "animate-spin")} />
-            {syncing ? "同步中…" : "从监听同步"}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
             onClick={() => setAddOpen(true)}
           >
             <Plus className="size-4" />
-            添加仓库 Issue/PR
+            添加监听仓库
           </Button>
         </div>
       </div>
@@ -200,6 +171,8 @@ export function GithubQueueWorkspace() {
       <div className="grid min-h-0 flex-1 grid-cols-4 gap-3 overflow-auto native-scroll p-4">
         {COLUMNS.map((col) => {
           const items = visible.filter((it) => it.column === col.id)
+          // TODO 46：按入队时间倒序（最新在上）；旧存档无 queuedAt 回落 0 沉底。filter 返回新数组，可安全原地排序（稳定排序，同刻入队保持原相对次序）
+          items.sort((a, b) => (b.queuedAt ?? 0) - (a.queuedAt ?? 0))
           return (
             <div key={col.id} className="flex min-h-0 flex-col rounded-lg border bg-muted/20">
               <div className="flex items-center justify-between border-b px-3 py-2">
@@ -225,22 +198,22 @@ export function GithubQueueWorkspace() {
         })}
       </div>
 
-      {/* 添加对话框 */}
+      {/* 添加监听仓库对话框 */}
       <Dialog
         open={addOpen}
         onOpenChange={(v) => {
           if (!v) {
             setAddOpen(false)
             setRepoInput("")
-            setOnlyMine(false)
           }
         }}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>添加仓库 Issue/PR</DialogTitle>
+            <DialogTitle>添加监听仓库</DialogTitle>
             <DialogDescription>
-              输入 owner/name 或完整 GitHub 链接。单次最多拉取 {PER_PAGE} 条，超出仅取前 {PER_PAGE} 条并提示。
+              输入 owner/name 或完整 GitHub 链接。添加后自动创建 GitHub 监听（只扫描
+              Issue + PR 通知）并回扫一次存量 issue/PR 入队（最多 {PER_PAGE} 条）；此后新动态由监听自动入队。
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -256,20 +229,12 @@ export function GithubQueueWorkspace() {
                 }}
               />
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={onlyMine}
-                onChange={(e) => setOnlyMine(e.target.checked)}
-              />
-              仅拉取「分配给我的」（需已填 GitHub Token）
-            </label>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setAddOpen(false)}>
                 取消
               </Button>
               <Button onClick={handleAdd} disabled={loading}>
-                {loading ? "拉取中…" : "拉取"}
+                {loading ? "添加中…" : "添加"}
               </Button>
             </div>
           </div>

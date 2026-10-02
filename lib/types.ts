@@ -564,7 +564,8 @@ export const DEFAULT_SETTINGS: Settings = {
 }
 
 // ---- GitHub Issue/PR 看板队列（TODO 36）----
-// 看板按列分组；卡片由用户从 GitHub 仓库拉取，或「从监听同步」导入监控仓库中 assign 给自己的条目。
+// 看板按列分组；队列是 GitHub 监听的派生视图：「添加监听仓库」自动建监听并回扫一次存量，
+// 此后监听增量入队（自有仓库全量、他人仓库仅 @me），close/merge/reopen 只回写状态标记。
 
 export type IssueQueueColumn = "urgent" | "assigned" | "completed" | "backlog"
 
@@ -587,6 +588,8 @@ export interface IssueQueueItem {
   /** 是否 assign 给当前登录用户（仅 Mine 模式或比对 login 后判定） */
   assigneeMe: boolean
   column: IssueQueueColumn
+  /** 首次加入队列的时间（epoch ms）；重复加入保留首值；旧存档缺省，排序时回落 0 沉底 */
+  queuedAt?: number
   createdAt: string
   updatedAt: string
 }

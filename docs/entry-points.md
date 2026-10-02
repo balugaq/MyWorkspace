@@ -314,7 +314,7 @@
 | 通知数据 | `lib/types.ts`：`NotificationItem`（`kind`: commit/issue/pr/release/news；`news?`（旧版单条新闻富字段）/ `newsPack?`（TODO 44 新闻包，`NewsDetail[]`）/ `event?` / `foundAt?`）；store `notifications` / `addNotifications`（按 id 去重、按 foundAt 排序）/ `notificationLogs` / `appendNotificationLogs` / `notificationWatermark` |
 | 工作区 UI | `components/notifications/notifications-workspace.tsx`：`NotificationsWorkspace`（`app/page.tsx` 按 `view === "notifications"` 渲染，`goNotifications` 导航）；sender 筛选 tab（全部 / GitHub / 新闻精选）；卡片分发——`NewsPackCard`（`newsPack` 存在，点击弹 Dialog 内嵌 `NewsDetailCard` 逐条查看）→ `NewsCard`（旧版单条 `news` 富详情）→ `PlainNewsCard`（news 无富字段兜底，如失败通知）→ `GithubCard` |
 | 新闻详情卡视觉 | `NewsDetailCard`：参照 `ref.txt` 复刻（深色 `#151517` 卡 + `#d93838` 左引导边 + `#e86c3a` 领域标签 + 时间胶囊 + label/value 网格 + 作文素材框 + 相关链接按钮）；深色用 Tailwind 任意值类还原稿内色值，浅色回落主题 token |
-| 调度器 | `lib/notifications/scheduler.ts`：`startNotificationScheduler`（模块级幂等）→ 每 5 分钟 `scanNow()`（GitHub sender 扫描 → 去重入库 → 推进水位 → `dispatchNotifications` → 自动入 GitHub 队列 → 写日志 → 计贡献）+ `lastActiveAt` 心跳。**新闻精选不自 TODO 44 起不再自动触发** |
+| 调度器 | `lib/notifications/scheduler.ts`：`startNotificationScheduler`（模块级幂等）→ 每 5 分钟 `scanNow()`（GitHub sender 扫描 → 去重入库 → 推进水位 → `dispatchNotifications` → 自动入 GitHub 队列（新建入队 + close/merge/reopen 状态标记回写，规则见 §8.17）→ 写日志 → 计贡献）+ `lastActiveAt` 心跳。**新闻精选不自 TODO 44 起不再自动触发** |
 | 新闻精选 sender | `lib/notifications/news-sender.ts`：`triggerNewsManually()`（唯一触发入口，通知中心手动按钮；受 `newsEnabled` 开关 + 18:00 周期「每天一次」门槛 `shouldFetchNews`，本周期已拉返回 `"fetched"`）→ `runNewsCycle()`：拉 5 平台热榜（`lib/uapi.ts`）→ 静默建会话 + `enqueue`（lib/ai/request-queue.ts）→ `waitForAssistantReply` 轮询 → `extractJsonArray` / `toNewsDetail` 解析 → 成功生成 **1 条新闻包通知**（id `news:{cycle}:0`，title「新闻精选 · N 条」，`newsPack` 携带全部条目）；AI 请求失败（回复含「⚠️ 请求失败」占位）/ 超时（`waitForAssistantReply` 返回 null）/ 解析不出条目 → 生成「新闻精选运行失败」通知（id `news-fail:{cycle}`，同周期去重）。热榜部分/全部失败**不发**失败通知，仅写日志；`NewsRunOutcome` 供按钮 toast 反馈 |
 | 渠道分发 | `lib/notifications/channels.ts`：`NOTIFICATION_CHANNELS`（builtin / qq）+ `dispatchNotifications`（按 `settings.notificationChannels` 勾选分发，渠道抛错互不影响）；新增渠道在表内登记一条 |
 | 内置弹窗 | `components/notifications/notification-toast-queue.tsx`：订阅 `toast-bus`，FIFO 一次一条，滑入停留 5 秒滑出；每行 20 字截断；点击进通知中心。瞬态队列不进 store |
@@ -378,20 +378,21 @@
 | 视图分发 | `app/page.tsx`：`view === "github-queue"` → `<GithubQueueWorkspace />` |
 | 视图切换 | store `goGithubQueue()`（`set({ view: "github-queue", activeCategoryId: null })`） |
 | 状态 | store `issueQueue: IssueQueueItem[]`（持久化，键 `my-omni-workspace`；`merge` 缺字段 → `[]`）；见 `docs/data-storage.md` §1 |
-| 拉取逻辑 | `lib/github-queue.ts`：`fetchRepoIssues(repo, { onlyMine?, token, perPage?, currentLogin? })`（issues API 同时返回 PR，`pull_request` 字段区分；`perPage` 默认 100，达上限置 `truncated`）、`fetchCurrentLogin(token)`（取当前用户名用于判定 assignee） |
+| 拉取逻辑 | `lib/github-queue.ts`：`fetchRepoIssues(repo, { token, perPage?, currentLogin? })`（issues API 同时返回 PR，`pull_request` 字段区分；`state=all` 全量，`perPage` 默认 100，达上限置 `truncated`）、`fetchCurrentLogin(token)`（取当前用户名用于判定 assignee） |
 | 去重 / 归类 | `toQueueItem`：`id = iq:{repo}:{kind}:{number}`；默认列 = closed/merged → completed、assignee 是当前用户 → assigned、否则 backlog；Urgent 由用户手动标 |
+| 排序 | 四列统一按 `queuedAt`（首次加入队列的时间，epoch ms）倒序渲染（最新在上），见 `github-queue-workspace.tsx` 看板渲染处；同一条目重复拉取/同步保留首次入队时间 |
 | 实时搜索 | 顶栏搜索框（`query` state）：按 标题 / 正文 / 仓库 / 提交者 / #编号 大小写不敏感过滤，四列只显示匹配卡片；仅过滤显示，不改数据 |
 | 滚动条 | 看板容器与每列卡片列表均为 `overflow-auto` + `.native-scroll`（`docs/ui-conventions.md` §1 细圆角胶囊规范） |
-| 添加对话框 | `GithubQueueWorkspace`：输入 `owner/repo`（支持完整 URL 解析）；模式「全部 / 仅分配给我的」（`assignee=@me`，需已填 `settings.githubToken`）；超 100 条弹提示 |
-| 卡片操作 | `QueueCard`：移动到其它列（`moveIssueQueueItem`）、删除（`removeIssueQueueItem`）；无整队清空入口（`clearIssueQueue` 已移除，逐卡删除为准）；卡片展示标题（外链）、提交者、正文首行截取、kind 标签、@me / 已合并 / 已关闭 |
-| 监听联动（手动） | 「从监听同步」按钮：遍历 `settings.notificationRepos`，对每个仓库 `fetchRepoIssues({ onlyMine: true })` 拉 assign 给自己的 issue/PR 加入 Assigned 列 |
-| 监听联动（自动） | `lib/notifications/scheduler.ts` 的 `scanNow()`：本轮 `fresh` 通知里的 issue/PR 若 `assignees` 含当前登录用户 → `notificationToBacklogItem` 转 `IssueQueueItem`（Backlog 列）→ `addToIssueQueue`（按 id 去重、保留手动移动过的列，幂等）；仅在确有候选时才多调一次 `GET /user` 取登录名 |
+| 添加监听仓库 | `GithubQueueWorkspace` 对话框：输入 `owner/repo`（支持完整 URL 解析）→ 写入 `settings.notificationRepos`（只开 Issue+PR 扫描，`scanSince` = 添加时刻）→ `fetchRepoIssues` 回扫一次存量入队（state=all，≤100 条）；已在监听列表则提示；回扫失败仅提示、**不回滚监听配置**。「从监听同步」手动按钮已删除，入队完全由监听自动机制承担 |
+| 卡片操作 | `QueueCard`：移动到其它列（`moveIssueQueueItem`，**手动搬运 = 重新入队，刷新 `queuedAt` 浮到新列顶**）、删除（`removeIssueQueueItem`）；无整队清空入口（`clearIssueQueue` 已移除，逐卡删除为准）；卡片展示标题（外链）、提交者、正文首行截取、kind 标签、@me / 已合并 / 已关闭 |
+| 监听联动（自动·入队） | `lib/notifications/scheduler.ts` 的 `scanNow()`：本轮 `fresh` 通知里 **event=open（新建）** 的 issue/PR → 取登录名（`fetchCurrentLogin`，有候选才调）：`repo` owner === 登录名 → **全量入队**，`assigneeMe = assignees 含 login`；他人仓库 → 仅 `assignees 含 login` 时入队（`assigneeMe: true`）→ `notificationToBacklogItem` 转 `IssueQueueItem`（Backlog 列）→ `addToIssueQueue`（按 id 去重、保留手动移动过的列，幂等）；token 为空 / 取不到登录名则本轮跳过入队 |
+| 监听联动（自动·标记回写） | `scanNow()` 对 fresh 中 event 为 close / merge / reopen 的 issue/PR 通知：从 `n.url` 提取 number 拼 `iq:{repo}:{kind}:{number}` → store `syncIssueQueueStates` 批量回写 state/merged（close→closed/未合并、merge→closed/已合并、reopen→open/未合并）；**列与排序位次不动**，队列中不存在的 id 忽略；无需 login/token |
 | AI 只读访问 | 内置技能 `wb_get_github_queue`（`lib/ai/builtin-skills.ts`）：读 `issueQueue`，支持 `column` / `kind` 过滤，返回结构化 JSON |
 
-- **数据链路**：用户输入 → `GithubQueueWorkspace` → `fetchRepoIssues`（→ GitHub REST `repos/{o}/{r}/issues`）→ `addToIssueQueue`（按 id 去重，保留已存在的列）→ `issueQueue` 落盘 → 看板按 `column` 分组渲染。
+- **数据链路**：添加监听仓库 → `GithubQueueWorkspace` 写 `settings.notificationRepos` + `fetchRepoIssues`（→ GitHub REST `repos/{o}/{r}/issues?state=all`）回扫 → `addToIssueQueue`（按 id 去重，保留已存在的列与首次入队时间 `queuedAt`）→ `issueQueue` 落盘 → 看板按 `column` 分组、`queuedAt` 倒序渲染；此后 `scanNow()` 增量入队 + 状态标记回写。
 - **See also**：[`docs/data-storage.md`](./data-storage.md) §1（`issueQueue` 持久化字段）；[`lib/notifications/github-sender.ts`](../lib/notifications/github-sender.ts)（既有 GitHub 扫描链路，`ghHeaders`/`fetchJson` 思路被 `github-queue.ts` 复用）。
 - **Notice**：
   - `lib/github-queue.ts` 是**独立模块**，不复用 `github-sender.ts` 的内部函数（其 `ghHeaders`/`fetchJson` 为 module-private），以避免改动既有通知扫描；认证 / 限流思路一致。
-  - 「仅分配给我的」与「从监听同步」都依赖 `settings.githubToken` 取当前登录用户（`GET /user`）；匿名时前者不可用，后者直接提示填 Token。
+  - 「添加监听仓库」的存量回扫与 @me 判定都依赖 `settings.githubToken`（`GET /user`）；无 Token 时监听配置仍生效，只是存量卡片不带 @me 标记。
   - 拉取受 GitHub 限流（403/429 + `x-ratelimit-remaining: 0`）约束，触发时 `fetchRepoIssues` 抛 `RATE_LIMITED`，UI 提示稍后重试。
 
