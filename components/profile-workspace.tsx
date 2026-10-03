@@ -186,7 +186,7 @@ export function ProfileWorkspace() {
     }
   }
   const [initialFocus] = useState(loadFocus)
-  const [focusMode, setFocusMode] = useState<"up" | "down">(initialFocus?.mode ?? "down")
+  const [focusMode, setFocusMode] = useState<"up" | "down">(initialFocus?.mode ?? "up")
   const [durationMin, setDurationMin] = useState(
     initialFocus?.mode === "down" && typeof initialFocus.durationMs === "number"
       ? Math.max(1, Math.round(initialFocus.durationMs / 60_000))
@@ -205,6 +205,22 @@ export function ProfileWorkspace() {
   const pauseStartRef = useRef<number | null>(
     initialFocus && !initialFocus.running && initialFocus.startedAt != null ? Date.now() : null,
   )
+
+  // TODO 53：控制按钮状态切换动画——旧按钮缓慢下移出，新按钮自下向上浮出。
+  // running 变化时先让当前按钮组播退场动画（leaving），500ms 后切换到新按钮组并以进场动画浮现。
+  const [shownRunning, setShownRunning] = useState(initialFocus?.running ?? false)
+  const [leaving, setLeaving] = useState(false)
+  const prevRunningRef = useRef(running)
+  useEffect(() => {
+    if (prevRunningRef.current === running) return
+    prevRunningRef.current = running
+    setLeaving(true)
+    const t = window.setTimeout(() => {
+      setShownRunning(running)
+      setLeaving(false)
+    }, 500)
+    return () => window.clearTimeout(t)
+  }, [running])
 
   const endFocus = useCallback(() => {
     if (startTs == null) return
@@ -666,22 +682,31 @@ export function ProfileWorkspace() {
               <p className="mt-2 text-center text-xs text-muted-foreground">{focusHint}</p>
             )}
 
-            {/* 控制按钮 */}
-            <div className="mt-3 flex gap-2">
-              {running ? (
-                <>
-                  <Button className="flex-1" variant="outline" onClick={pauseFocus}>
-                    暂停
+            {/* 控制按钮（TODO 53：状态切换时旧按钮缓慢下移出，新按钮自下向上浮出） */}
+            <div className="relative mt-3">
+              <div
+                key={leaving ? "out" : `in-${shownRunning}`}
+                className={`flex gap-2 ${
+                  leaving
+                    ? "pointer-events-none animate-out fade-out slide-out-to-bottom-4 fill-mode-forwards duration-500"
+                    : "animate-in fade-in slide-in-from-bottom-4 duration-500"
+                }`}
+              >
+                {shownRunning ? (
+                  <>
+                    <Button className="flex-1" variant="outline" onClick={pauseFocus}>
+                      暂停
+                    </Button>
+                    <Button className="flex-1" variant="outline" onClick={endFocus}>
+                      结束
+                    </Button>
+                  </>
+                ) : (
+                  <Button className="w-full" onClick={startOrResumeFocus}>
+                    {startTs == null ? "开始" : "继续"}
                   </Button>
-                  <Button className="flex-1" variant="outline" onClick={endFocus}>
-                    结束
-                  </Button>
-                </>
-              ) : (
-                <Button className="w-full" onClick={startOrResumeFocus}>
-                  {startTs == null ? "开始" : "继续"}
-                </Button>
-              )}
+                )}
+              </div>
             </div>
 
             {/* 结束弹窗：≥10 分钟时填写 content 后入账。showCloseButton=false 去掉右上角 X；disablePointerDismissal 禁点遮罩关闭；Esc 由 onOpenChange 拦截走「取消」语义入账，三路均不丢贡献 */}
