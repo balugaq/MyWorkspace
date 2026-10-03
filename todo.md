@@ -418,12 +418,14 @@ TODO 43. （状态：待处理）
 洛元的很好，我觉得。
 
 TODO 44. （状态：已完成，待目视核验）
+补充（2026-10-03，主人反馈）：手动触发解禁——去掉「本周期已拉取」门槛（UI 置灰 + sender 的 shouldFetchNews 拦截都移除，随时可点，仅受开关与防重入约束）；新闻包卡片改展开式：列表内点「展开 N 条」直接铺开全部 ref.txt 小新闻卡（默认收起），点卡弹 Dialog 的交互废除。
 新闻精选先改为只能手动触发，现在他每条新闻都发1个通知，以后再调整他的发送，改成1个通知包，里面内含10个通知，外面只统计有1个通知包，qq互联也是整个包发过去而不是逐条通知发。
 另外 AI 功能是可能失败的（如 HTTP 429），这需要额外发一个通知说明新闻精选运行失败。
 
 TODO 45. （状态：已完成，待目视核验）
 修复：通知卡片头行的可截断 span（仓库 / 摘要 / 精选数）缺 min-w-0，flex 子项 min-width:auto 使 truncate 失效、长文字撑破卡片；已补 min-w-0。
-补充（2026-10-03）：4 处类型徽标补 shrink-0 防挤压换行。
+补充（2026-10-03）：4 处类型徽标补 shrink-0 防挤压换行；再补充（2026-10-03 下午）：真正的根因是卡片容器 button/div 自身作为列表 flex 项缺 min-w-0——内部 nowrap 长文把卡片撑破，p 的 truncate 永不触发（主人 DevTools 截图定位 brief 行）。4 处卡片容器已补 min-w-0。
+终修（2026-10-03 下午二次反馈）：容器 min-w-0 在 div 卡（新闻包）生效、在 button 卡（issue/pr）不生效——浏览器对 button 内部 flex 子项的 min-content 计算怪癖，min-w-0 压不住 nowrap 长文。GithubCard/NewsCard 改 div + role="button" + tabIndex + 键盘回车支持；按主人给的表给 truncate 的 p 自身也补 min-w-0（父级和自身都加）。
 通知页面里的卡片里的单行文字过长会超出框，需要加截断
 
 TODO 46. （状态：已完成）
@@ -487,3 +489,17 @@ TODO 56. （状态：已完成，待目视核验）
 实现：通知页 sender 筛选行下新增搜索框（匹配标题/摘要/仓库/来源名，与筛选叠加，空结果有专属提示）；brandheader 搜索框改为仅 view==="workspace"（随笔）时渲染。
 1. 通知页面里增加一个搜索框
 2. brandheader 里的搜索框改为仅在随笔时出现（其他视图不显示）
+
+TODO 57. （状态：待处理）
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 48 48">
+	<path d="M0 0h48v48H0z" fill="none" />
+	<ellipse cx="24" cy="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" rx="7.5" ry="20.5" />
+	<ellipse cx="24" cy="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" rx="7.5" ry="20.5" transform="rotate(-60 24 24)" />
+	<ellipse cx="24" cy="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" rx="20.5" ry="7.5" transform="rotate(-30 24 24)" />
+</svg>
+
+TODO 57. （状态：已完成，待目视核验）
+1. 新闻包形态改版：通知列表仍只占 1 条；打开后 = 1 个大的新闻包外壳（ref.txt 同款：深色卡+左红边+红色「新闻包」标签+包标题+时间胶囊），内部纵排 10 个 ref.txt 样式小新闻卡；QQ 端整包所有新闻的完整文字内容（序号+领域+标题+时间/地点/人物/经过/影响/精神/作文素材/链接）拼一条长消息一次发完，超长按行分段
+2. issue/PR 通知带编号：NotificationItem 加 number?: number（github-sender 四处构造携带），通知界面徽标显示「Issue #123 · 已关闭」，QQ 单条消息同款
+3. 通知界面两处滚动容器（主列表 / 新闻包弹窗）补 native-scroll，符合 ui-conventions.md 胶囊规范

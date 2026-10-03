@@ -186,6 +186,8 @@ export interface NotificationItem {
   foundAt?: number
   /** 仓库，格式 owner/name */
   repo: string
+  /** issue / PR 的编号（仅这两类携带），通知界面与 QQ 消息展示为 #N */
+  number?: number
   title: string
   /** 正文/描述摘要 */
   brief: string
