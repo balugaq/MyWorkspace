@@ -4,7 +4,9 @@
 // 已实测：服务支持 CORS（ACAO:* + 允许 Content-Type），浏览器端可直接调用。
 // 约束：正文以 [MyWorkspace] 开头标注来源；消息保持简短（机器人每日额度有限）；
 //       超时 20 秒（服务转发较慢，短超时会误判失败）；失败静默（不打扰、不重试）。
-// TODO 44：带 newsPack 的新闻包通知只发 1 条汇总消息（包标题 + 逐行新闻标题），
+// TODO 44：带 newsPack 的新闻包通知只发 1 条汇总消息。
+// 改版（主人定稿）：整包**所有新闻的完整文字内容**拼成一条长消息一次发完
+//       （每条：序号 + [领域] 标题 + 时间/地点/人物/经过/影响/精神/作文素材/链接），
 //       超长按行边界自动分段发送。
 import type { NotificationItem } from "@/lib/types"
 import { DEFAULT_QQ_RELAY_URL, GH_EVENT_LABEL } from "@/lib/types"
@@ -72,12 +74,25 @@ async function sendQqText(text: string, relayUrl: string): Promise<boolean> {
 
 /** 推送一条通知到 QQ 私信；返回是否成功（失败由调用方静默处理） */
 export async function sendQqNotification(item: NotificationItem, relayUrl: string): Promise<boolean> {
-  // 新闻包（TODO 44）：整包只发 1 条汇总消息——包标题 + 逐行「[领域] 新闻标题」
+  // 新闻包：整包所有新闻的完整文字内容拼成一条长消息一次发完（超长由 splitText 按行边界分段）
   if (item.newsPack && item.newsPack.length > 0) {
     const body =
       `${item.title}\n` +
-      item.newsPack.map((d) => `［${d.field}］${clip(d.title ?? "（无标题）", 40)}`).join("\n")
-    const header = `[MyWorkspace] 通知中心 · ${senderDisplayName(item.senderId)}\n`
+      item.newsPack
+        .map((d, i) => {
+          const lines = [`【${i + 1}】［${d.field || "新闻"}］${d.title || "（无标题）"}`]
+          if (d.time) lines.push(`时间：${d.time}`)
+          if (d.place) lines.push(`地点：${d.place}`)
+          if (d.individuals) lines.push(`人物：${d.individuals}`)
+          if (d.throughout) lines.push(`经过：${d.throughout}`)
+          if (d.effect) lines.push(`影响：${d.effect}`)
+          if (d.spirit) lines.push(`精神：${d.spirit}`)
+          if (d.essayExample) lines.push(`作文素材：${clip(d.essayExample, 300)}`)
+          if (d.link?.length) lines.push(`链接：${d.link.join(" ")}`)
+          return lines.join("\n")
+        })
+        .join("\n\n")
+    const header = `[MyWorkspace] 通知 · ${senderDisplayName(item.senderId)}\n`
     const segments = splitText(header + body)
     let ok = true
     for (const seg of segments) {
@@ -85,16 +100,19 @@ export async function sendQqNotification(item: NotificationItem, relayUrl: strin
     }
     return ok
   }
-  // 状态变化事件在类型后标注（如「Issue（关闭）」）；open 不标注
+  // 状态变化事件在类型后标注（如「Issue #123（关闭）」）；open 不标注事件；issue/PR 带编号
   const ev = item.event ?? "open"
+  const numText = item.number != null ? ` #${item.number}` : ""
   const kindText =
-    ev === "open" ? KIND_LABEL[item.kind] : `${KIND_LABEL[item.kind]}（${GH_EVENT_LABEL[ev]}）`
+    ev === "open"
+      ? `${KIND_LABEL[item.kind]}${numText}`
+      : `${KIND_LABEL[item.kind]}${numText}（${GH_EVENT_LABEL[ev]}）`
   // 新闻条目 repo 为空，改标领域（国内/国外）；第二行空段跳过
   const line2 = [kindText, item.kind === "news" ? (item.news?.field ?? "") : item.repo]
     .filter(Boolean)
     .join(" · ")
   const text =
-    `[MyWorkspace] 通知中心 · ${senderDisplayName(item.senderId)}\n` +
+    `[MyWorkspace] 通知 · ${senderDisplayName(item.senderId)}\n` +
     `${line2}\n` +
     `${clip(item.title)}\n` +
     item.url

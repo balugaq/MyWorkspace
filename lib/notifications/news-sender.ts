@@ -62,19 +62,12 @@ interface HotboardResponse {
 
 // ---- 周期判断 ----
 
-/** 当前新闻周期起点：最近一次 ≤ now 的本地 18:00（18:00 之后算「新的一天」） */
+/** 当前新闻周期起点：最近一次 ≤ now 的本地 18:00（18:00 之后算「新的一天」）。
+ *  仅用于通知标题的日期标注（手动触发改版后已无「每周期一次」的拉取门槛）。 */
 export function newsCycleStart(now: number = Date.now()): number {
   const d = new Date(now)
   d.setHours(18, 0, 0, 0)
   return d.getTime() <= now ? d.getTime() : d.getTime() - 24 * 60 * 60 * 1000
-}
-
-/** 是否该触发本周期拉取（开关关着 → 永不触发；本周期已拉 → false） */
-export function shouldFetchNews(now: number = Date.now()): boolean {
-  const s = useWorkspace.getState()
-  if (!s.settings.newsEnabled) return false
-  const last = s.newsLastFetchedAt
-  return last == null || last < newsCycleStart(now)
 }
 
 // ---- AI 配置（与 ai-chat.tsx 的选型逻辑同口径）----
@@ -276,15 +269,14 @@ export type NewsRunOutcome =
 
 /**
  * 手动触发一轮新闻精选（通知中心「新闻精选」tab 的按钮）：
- * 受「本周期已拉取」门槛约束（本周期已拉 → 返回 "fetched"），
- * 仍尊重 newsEnabled 开关与防重入；投递链路见 dispatchNotifications（含 QQ 渠道）。
+ * 改版后随时可点（不再受「本周期已拉取」门槛约束），仅尊重 newsEnabled 开关与防重入；
+ * 投递链路见 dispatchNotifications（含 QQ 渠道）。
  */
 export async function triggerNewsManually(): Promise<
-  NewsRunOutcome | "running" | "disabled" | "fetched"
+  NewsRunOutcome | "running" | "disabled"
 > {
   if (!useWorkspace.getState().settings.newsEnabled) return "disabled"
   if (running) return "running"
-  if (!shouldFetchNews()) return "fetched"
   running = true
   try {
     return await runNewsCycle()

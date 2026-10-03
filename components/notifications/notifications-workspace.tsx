@@ -2,7 +2,7 @@
 
 // 通知中心工作区（TODO 20 / TODO 23 / TODO 44）：只读消息流，按 foundAt 降序渲染 store.notifications。
 // TODO 23：sender 筛选 tab（全部 / GitHub / 新闻精选）+ 新闻卡片的可展开富详情。
-// TODO 44：新闻包卡片（一轮精选 1 条 newsPack 通知，点击弹 Dialog 逐条查看）+
+// TODO 44：新闻包卡片（一轮精选 1 条 newsPack 通知，点「展开」在列表内铺开全部小新闻卡）+
 //          失败通知（无富字段的 news 条目）兜底渲染 + 手动按钮受周期门槛约束。
 // 布局遵守 AGENTS.md §3：flex 列 + min-h-0 + flex-1 + overflow-auto。
 
@@ -12,10 +12,9 @@ import { useWorkspace } from "@/lib/store"
 import type { NewsDetail, NotificationItem } from "@/lib/types"
 import { GH_EVENT_LABEL } from "@/lib/types"
 import { SENDER_META, senderDisplayName } from "@/lib/notifications/senders"
-import { newsCycleStart, triggerNewsManually } from "@/lib/notifications/news-sender"
+import { triggerNewsManually } from "@/lib/notifications/news-sender"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Bell, ChevronDown, Link2, RefreshCw, Search, Settings as SettingsIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
@@ -131,69 +130,77 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
   )
 }
 
-/** 新闻包卡片（TODO 44）：一轮精选 1 条（title「新闻精选 · N 条」），点击弹 Dialog 逐条查看 */
+/** 新闻包卡片（TODO 44 / 57 改版）：一轮精选 1 条；点击「展开」在列表内直接铺开全部 ref.txt 样式小新闻卡（默认收起），不再弹 Dialog */
 function NewsPackCard({ item }: { item: NotificationItem }) {
-  const [open, setOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const pack = item.newsPack ?? []
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex w-full flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/70"
-      >
-        <div className="flex items-center gap-2 text-xs">
-          <span
-            className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 font-medium",
-              KIND_META.news.className,
-            )}
-          >
-            新闻包
-          </span>
-          <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
-          <span className="min-w-0 truncate text-muted-foreground">共 {pack.length} 条精选</span>
-          <span className="ml-auto shrink-0 text-muted-foreground/70">
-            {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
-          </span>
-        </div>
-        <p className="truncate text-sm font-medium text-foreground" title={item.title}>
-          {item.title || "（无标题）"}
+    <div className="flex w-full min-w-0 flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left">
+      <div className="flex items-center gap-2 text-xs">
+        <span
+          className={cn(
+            "shrink-0 rounded px-1.5 py-0.5 font-medium",
+            KIND_META.news.className,
+          )}
+        >
+          新闻包
+        </span>
+        <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
+        <span className="min-w-0 truncate text-muted-foreground">共 {pack.length} 条精选</span>
+        <span className="ml-auto shrink-0 text-muted-foreground/70">
+          {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
+        </span>
+        {/* 展开/收起：在通知列表内直接铺开全部小新闻卡（默认收起） */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 shrink-0 gap-1 px-2 text-xs"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} aria-hidden />
+          {expanded ? "收起" : `展开 ${pack.length} 条`}
+        </Button>
+      </div>
+      <p className="truncate text-sm font-medium text-foreground" title={item.title}>
+        {item.title || "（无标题）"}
+      </p>
+      {item.brief && (
+        <p className="truncate text-xs text-muted-foreground" title={item.brief}>
+          {item.brief}
         </p>
-        {item.brief && (
-          <p className="truncate text-xs text-muted-foreground" title={item.brief}>
-            {item.brief}
-          </p>
-        )}
-      </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{item.title || "新闻精选"}</DialogTitle>
-            <DialogDescription>共 {pack.length} 条精选新闻，点「相关链接」可查看原文</DialogDescription>
-          </DialogHeader>
-          <div className="flex max-h-[70vh] min-h-0 flex-col gap-4 overflow-auto pr-1">
-            {pack.map((d, i) => (
-              <NewsDetailCard key={`${item.id}:${i}`} detail={d} />
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+      )}
+      {expanded && pack.length > 0 && (
+        <div className="mt-2 flex flex-col gap-4 border-t pt-3">
+          {pack.map((d, i) => (
+            <NewsDetailCard key={`${item.id}:${i}`} detail={d} />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
-/** 新闻精选卡片（TODO 23，旧版单条富详情形态，保持不变）：默认收起，点击展开 */
+/** 新闻精选卡片（TODO 23，旧版单条富详情形态）：默认收起，点击展开。
+ *  用 div + role="button" 而非 <button>：button 内部 flex 子项的 min-content 计算有浏览器怪癖，
+ *  min-w-0 压不住 nowrap 长文（issue/pr 卡实测溢出），div 容器无此问题。 */
 function NewsCard({ item }: { item: NotificationItem }) {
   const [expanded, setExpanded] = useState(false)
   const d: NewsDetail | undefined = item.news
   const isDomestic = (d?.field ?? "").includes("国内")
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => setExpanded((v) => !v)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          setExpanded((v) => !v)
+        }
+      }}
       className={cn(
-        "flex w-full flex-col gap-1.5 rounded-lg border bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/70",
+        "flex w-full min-w-0 cursor-pointer flex-col gap-1.5 rounded-lg border bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/70",
         expanded && "bg-muted/70",
       )}
     >
@@ -260,14 +267,14 @@ function NewsCard({ item }: { item: NotificationItem }) {
           )}
         </div>
       )}
-    </button>
+    </div>
   )
 }
 
 /** 失败通知等无富字段的 news 条目（TODO 44）：news / newsPack 均缺省时的兜底渲染 */
 function PlainNewsCard({ item }: { item: NotificationItem }) {
   return (
-    <div className="flex w-full flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left">
+    <div className="flex w-full min-w-0 flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left">
       <div className="flex items-center gap-2 text-xs">
         <span className={cn("shrink-0 rounded px-1.5 py-0.5 font-medium", KIND_META.news.className)}>
           {KIND_META.news.label}
@@ -289,20 +296,27 @@ function PlainNewsCard({ item }: { item: NotificationItem }) {
   )
 }
 
-/** GitHub sender 卡片（原有形态） */
+/** GitHub sender 卡片：div + role="button"（button 内部 flex 子项 min-content 怪癖会让 truncate 失效，见 NewsCard 注释） */
 function GithubCard({ item }: { item: NotificationItem }) {
   const meta = KIND_META[item.kind]
+  const open = () => window.open(item.url, "_blank", "noopener")
   return (
-    <button
-      type="button"
-      onClick={() => window.open(item.url, "_blank", "noopener")}
-      className="flex w-full flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/70"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault()
+          open()
+        }
+      }}
+      className="flex w-full min-w-0 cursor-pointer flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/70"
     >
       <div className="flex items-center gap-2 text-xs">
         <span className={cn("shrink-0 rounded px-1.5 py-0.5 font-medium", meta.className)}>
-          {(item.event ?? "open") === "open"
-            ? meta.label
-            : `${meta.label} · ${GH_EVENT_LABEL[item.event ?? "open"]}`}
+          {item.number != null ? `${meta.label} #${item.number}` : meta.label}
+          {(item.event ?? "open") !== "open" && ` · ${GH_EVENT_LABEL[item.event ?? "open"]}`}
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
         <span className="min-w-0 truncate text-muted-foreground">{item.repo}</span>
@@ -310,30 +324,26 @@ function GithubCard({ item }: { item: NotificationItem }) {
           {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
         </span>
       </div>
-      <p className="truncate text-sm font-medium text-foreground" title={item.title}>
+      <p className="min-w-0 truncate text-sm font-medium text-foreground" title={item.title}>
         {item.title || "（无标题）"}
       </p>
       {item.brief && (
-        <p className="truncate text-xs text-muted-foreground" title={item.brief}>
+        <p className="min-w-0 truncate text-xs text-muted-foreground" title={item.brief}>
           {item.brief}
         </p>
       )}
-    </button>
+    </div>
   )
 }
 
 type SenderFilter = "all" | "github" | "news"
 
 /**
- * 手动触发新闻精选（仅「新闻精选」tab 显示）：受 18:00 周期「每天一次」门槛约束
- * （本周期已拉取 → 置灰 + 提示），newsEnabled 关闭时同样禁用。
+ * 手动触发新闻精选（仅「新闻精选」tab 显示）：改版后随时可点（仅受 newsEnabled 开关与防重入约束）。
  */
 function TriggerNewsButton() {
   const [busy, setBusy] = useState(false)
   const newsEnabled = useWorkspace((s) => s.settings.newsEnabled)
-  const lastFetchedAt = useWorkspace((s) => s.newsLastFetchedAt)
-  const fetchedThisCycle = lastFetchedAt != null && lastFetchedAt >= newsCycleStart()
-  const blocked = !newsEnabled || fetchedThisCycle
   const handle = async () => {
     if (busy) return
     setBusy(true)
@@ -345,10 +355,6 @@ function TriggerNewsButton() {
       }
       if (r === "running") {
         toast.info("上一轮新闻精选仍在生成中，请稍候")
-        return
-      }
-      if (r === "fetched") {
-        toast.info("本周期已拉取（18:00 为一天分界），下一周期可再次触发")
         return
       }
       if (r.status === "no-ai") {
@@ -376,15 +382,12 @@ function TriggerNewsButton() {
   }
   return (
     <span className="inline-flex items-center gap-2">
-      {fetchedThisCycle && (
-        <span className="text-xs text-muted-foreground">本周期已拉取</span>
-      )}
       <Button
         type="button"
         variant="outline"
         size="sm"
         className="gap-1.5"
-        disabled={busy || blocked}
+        disabled={busy || !newsEnabled}
         onClick={handle}
       >
         <RefreshCw className={cn("size-3.5", busy && "animate-spin")} aria-hidden />
@@ -425,7 +428,7 @@ export function NotificationsWorkspace() {
         <h1 className="text-2xl font-bold leading-tight text-foreground">通知</h1>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto px-8">
+      <div className="native-scroll min-h-0 flex-1 overflow-auto px-8">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-8">
           {/* sender 筛选 tab（TODO 23）：登记在 SENDER_META 的 sender 各占一档 */}
           {notifications.length > 0 && (
