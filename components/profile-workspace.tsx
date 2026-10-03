@@ -364,8 +364,9 @@ export function ProfileWorkspace() {
   const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()]
 
   // TODO 39：「问 AI 今日待办」——引导 AI 综合各只读技能可访问的本地数据，汇总今日待办清单。
-  // 走 store.askAiAbout 链路：新建会话 → 切到 AI 对话 → 自动发送。
-  const askAiAbout = useWorkspace((s) => s.askAiAbout)
+  // 走 store.askAiToday 链路：按翻篇时间记档当天会话——当天内重复点击直接打开原会话（不重发），
+  // 跨天或原会话被删才新建并发送。
+  const askAiTodayAction = useWorkspace((s) => s.askAiToday)
   const askAiToday = () => {
     const prompt =
       `今天是 ${now.getFullYear()} 年 ${month} 月 ${day} 日（${weekday}）。请综合你可访问的本地数据，给我一份今日待办清单：` +
@@ -374,7 +375,7 @@ export function ProfileWorkspace() {
       `用 wb_get_github_queue 查 GitHub 队列，用 wb_get_recent_notifications 查最近通知，` +
       `用 wb_get_categories 查分类概览。` +
       `请按优先级排序输出，每项标注依据来源（思维图/日历/队列/通知等）；数据中没有支撑的建议项请单独列出并说明。`
-    askAiAbout(prompt)
+    askAiTodayAction(prompt)
   }
 
   // 软件使用时长：从首个贡献到现在的日历差值（实时刷新，每 30s 重算）。

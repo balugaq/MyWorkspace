@@ -161,6 +161,9 @@ interface WorkspaceState {
   activeConversationId: string | null
   // 外部（如日历 DayDetail）触发的"打开 AI 闲聊并自动询问"：携带待发送 query；消费后清空（不持久化）。
   pendingAiQuery: string | null
+  // Profile「问 AI 今日待办」的会话存档（按 dayStartOffset 翻篇时间划分"今天"）：
+  // 记录今天那次询问所在的会话 id，当天内重复点击直接复用该会话，跨天/会话被删后重建。
+  todayTodoAi: { dayKey: string; conversationId: string } | null
 
   // 贡献账本（Profile 热力图数据源）：每条为一次「新建/完成节点」事件（真账本，非派生）
   contributions: Contribution[]
@@ -231,6 +234,8 @@ interface WorkspaceState {
   // 外部触发：新建会话并切到 AI 闲聊，携带一条待发送 query（由 AI 聊天界面消费后清空）
   askAiAbout: (text: string) => void
   clearPendingAiQuery: () => void
+  /** Profile「问 AI 今日待办」：当天已有对应会话则直接打开该会话；否则新建会话发送并记录（按翻篇时间划分"今天"） */
+  askAiToday: (text: string) => void
 
   // 系统设置 / UI
   updateSettings: (patch: Partial<Settings>) => void
@@ -445,6 +450,7 @@ export const useWorkspace = create<WorkspaceState>()(
       conversations: [],
       activeConversationId: null,
       pendingAiQuery: null,
+      todayTodoAi: null,
 
       // 贡献账本：默认空（存量由 Profile 页「补算历史」一次性补齐）
       contributions: [],
@@ -938,6 +944,26 @@ export const useWorkspace = create<WorkspaceState>()(
         set({ view: "ai-chat", activeCategoryId: null, pendingAiQuery: text })
       },
       clearPendingAiQuery: () => set({ pendingAiQuery: null }),
+
+      // Profile「问 AI 今日待办」：按 settings.dayStartOffset 翻篇时间算出"今天"的 dayKey。
+      // 当天已记录且会话仍存在 → 直接打开那个会话（不再发新 query）；否则新建会话发送并记录。
+      askAiToday: (text) => {
+        const s = get()
+        const dayKey = todayKey(parseDayStartOffset(s.settings.dayStartOffset))
+        const rec = s.todayTodoAi
+        if (rec && rec.dayKey === dayKey && s.conversations.some((c) => c.id === rec.conversationId)) {
+          s.selectConversation(rec.conversationId)
+          set({ view: "ai-chat", activeCategoryId: null })
+          return
+        }
+        const id = s.createConversation()
+        set({
+          view: "ai-chat",
+          activeCategoryId: null,
+          pendingAiQuery: text,
+          todayTodoAi: { dayKey, conversationId: id },
+        })
+      },
 
       addChapter: (catId) =>
         set((s) => ({
@@ -1625,6 +1651,14 @@ export const useWorkspace = create<WorkspaceState>()(
           customFestivals: Array.isArray(p.customFestivals)
             ? (p.customFestivals as FestivalDef[])
             : [],
+          // 「问 AI 今日待办」会话存档：旧存档无此字段 / 坏值 → null（下次点击重新建会话）
+          todayTodoAi:
+            !!p.todayTodoAi &&
+            typeof p.todayTodoAi === "object" &&
+            typeof (p.todayTodoAi as Record<string, unknown>).dayKey === "string" &&
+            typeof (p.todayTodoAi as Record<string, unknown>).conversationId === "string"
+              ? (p.todayTodoAi as { dayKey: string; conversationId: string })
+              : null,
           settings: {
             ...DEFAULT_SETTINGS,
             ...(rawSettings as Partial<Settings>),
