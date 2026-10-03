@@ -34,6 +34,7 @@
 | `components/vault/vault-workspace.tsx` | 保险库多行输入 |
 | `components/markdown-view.tsx` | 代码块 |
 | `components/richtext/rich-text-editor.tsx` | 编辑器内容区 / 源码编辑区 |
+| `components/github-queue-workspace.tsx` | 四列看板滚动区 / 列内卡片滚动区（TODO 46.1 补记，46.2 重写时已挂） |
 
 ---
 

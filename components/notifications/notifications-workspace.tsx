@@ -6,7 +6,7 @@
 //          失败通知（无富字段的 news 条目）兜底渲染 + 手动按钮受周期门槛约束。
 // 布局遵守 AGENTS.md §3：flex 列 + min-h-0 + flex-1 + overflow-auto。
 
-import { Fragment, useState } from "react"
+import { Fragment, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import type { NewsDetail, NotificationItem } from "@/lib/types"
@@ -16,7 +16,8 @@ import { newsCycleStart, triggerNewsManually } from "@/lib/notifications/news-se
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Bell, ChevronDown, Link2, RefreshCw, Settings as SettingsIcon } from "lucide-react"
+import { Bell, ChevronDown, Link2, RefreshCw, Search, Settings as SettingsIcon } from "lucide-react"
+import { Input } from "@/components/ui/input"
 
 const KIND_META: Record<string, { label: string; className: string }> = {
   commit: { label: "提交", className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
@@ -151,7 +152,7 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
             新闻包
           </span>
           <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
-          <span className="truncate text-muted-foreground">共 {pack.length} 条精选</span>
+          <span className="min-w-0 truncate text-muted-foreground">共 {pack.length} 条精选</span>
           <span className="ml-auto shrink-0 text-muted-foreground/70">
             {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
           </span>
@@ -209,7 +210,7 @@ function NewsCard({ item }: { item: NotificationItem }) {
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
         {item.brief && (
-          <span className="truncate text-muted-foreground" title={item.brief}>
+          <span className="min-w-0 truncate text-muted-foreground" title={item.brief}>
             {item.brief}
           </span>
         )}
@@ -304,7 +305,7 @@ function GithubCard({ item }: { item: NotificationItem }) {
             : `${meta.label} · ${GH_EVENT_LABEL[item.event ?? "open"]}`}
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
-        <span className="truncate text-muted-foreground">{item.repo}</span>
+        <span className="min-w-0 truncate text-muted-foreground">{item.repo}</span>
         <span className="ml-auto shrink-0 text-muted-foreground/70">
           {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
         </span>
@@ -397,6 +398,8 @@ export function NotificationsWorkspace() {
   const notifications = useWorkspace((s) => s.notifications)
   const goSettings = useWorkspace((s) => s.goSettings)
   const [senderFilter, setSenderFilter] = useState<SenderFilter>("all")
+  // TODO 56：关键词搜索（匹配标题 / 摘要 / 仓库 / 来源名），与 sender 筛选叠加
+  const [search, setSearch] = useState("")
 
   const filtered =
     senderFilter === "all" ? notifications : notifications.filter((n) => n.senderId === senderFilter)
@@ -404,6 +407,17 @@ export function NotificationsWorkspace() {
     (a, b) =>
       (b.foundAt ?? (Date.parse(b.createdAt) || 0)) - (a.foundAt ?? (Date.parse(a.createdAt) || 0)),
   )
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return sorted
+    return sorted.filter(
+      (n) =>
+        (n.title ?? "").toLowerCase().includes(q) ||
+        (n.brief ?? "").toLowerCase().includes(q) ||
+        (n.repo ?? "").toLowerCase().includes(q) ||
+        senderDisplayName(n.senderId).toLowerCase().includes(q),
+    )
+  }, [sorted, search])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -415,27 +429,39 @@ export function NotificationsWorkspace() {
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-8">
           {/* sender 筛选 tab（TODO 23）：登记在 SENDER_META 的 sender 各占一档 */}
           {notifications.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              {(["all", "github", "news"] as const).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setSenderFilter(f)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs transition-colors",
-                    senderFilter === f
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/60 text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {f === "all" ? "全部" : (SENDER_META[f]?.name ?? f)}
-                </button>
-              ))}
-              {senderFilter === "news" && (
-                <span className="ml-auto">
-                  <TriggerNewsButton />
-                </span>
-              )}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5">
+                {(["all", "github", "news"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setSenderFilter(f)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-xs transition-colors",
+                      senderFilter === f
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/60 text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {f === "all" ? "全部" : (SENDER_META[f]?.name ?? f)}
+                  </button>
+                ))}
+                {senderFilter === "news" && (
+                  <span className="ml-auto">
+                    <TriggerNewsButton />
+                  </span>
+                )}
+              </div>
+              {/* TODO 56：关键词搜索（标题 / 摘要 / 仓库 / 来源） */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="搜索通知…"
+                  className="pl-8"
+                />
+              </div>
             </div>
           )}
 
@@ -451,21 +477,23 @@ export function NotificationsWorkspace() {
                 去设置
               </Button>
             </div>
-          ) : sorted.length === 0 ? (
+          ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
               <Bell className="size-8 text-muted-foreground/60" />
-              <p className="text-sm font-medium">该来源暂无通知</p>
+              <p className="text-sm font-medium">{search.trim() ? "没有匹配的通知" : "该来源暂无通知"}</p>
               <p className="text-xs text-muted-foreground">
-                {senderFilter === "news"
-                  ? "新闻精选每天最多触发一次（18:00 为一天分界），可手动触发本轮。"
-                  : "在设置页配置要扫描的仓库后，commit、Issue、PR 与 Release 动态会出现在这里。"}
+                {search.trim()
+                  ? "换个关键词试试，或清空搜索查看全部。"
+                  : senderFilter === "news"
+                    ? "新闻精选每天最多触发一次（18:00 为一天分界），可手动触发本轮。"
+                    : "在设置页配置要扫描的仓库后，commit、Issue、PR 与 Release 动态会出现在这里。"}
               </p>
-              {senderFilter === "news" && <TriggerNewsButton />}
+              {!search.trim() && senderFilter === "news" && <TriggerNewsButton />}
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               {/* 按「发现时间」降序：晚推送的旧 commit createdAt 很早，按发生时间排会被压到深处 */}
-              {sorted.map((n) =>
+              {visible.map((n) =>
                 n.kind === "news" && n.newsPack && n.newsPack.length > 0 ? (
                   <NewsPackCard key={n.id} item={n} />
                 ) : n.kind === "news" && n.news ? (

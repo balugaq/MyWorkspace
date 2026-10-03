@@ -179,7 +179,7 @@ export function GithubQueueWorkspace() {
                 <span className="text-sm font-medium">{col.label}</span>
                 <span className="text-xs text-muted-foreground">{items.length}</span>
               </div>
-              <div className="flex flex-1 flex-col gap-2 overflow-auto native-scroll p-2">
+              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto native-scroll p-2">
                 {items.length === 0 ? (
                   <p className="px-1 py-4 text-center text-xs text-muted-foreground">空</p>
                 ) : (

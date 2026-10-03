@@ -23,6 +23,7 @@ export function BrandHeader({
   onOpenSearch: () => void
 }) {
   const settings = useWorkspace((s) => s.settings)
+  const view = useWorkspace((s) => s.view)
   const goAIChat = useWorkspace((s) => s.goAIChat)
   const goProfile = useWorkspace((s) => s.goProfile)
   const goSettings = useWorkspace((s) => s.goSettings)
@@ -74,20 +75,22 @@ export function BrandHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* 搜索框 */}
-        <button
-          type="button"
-          onClick={onOpenSearch}
-          className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border bg-muted/50 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
-        >
-          <Search className="size-4" />
-          <span className="hidden text-left sm:inline">搜索全部内容…</span>
-          <kbd className="hidden items-center gap-0.5 rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground sm:flex">
-            {settings.shortcuts.search.modifier &&
-              (isMac ? <Command className="size-2.5" /> : <span className="text-[10px] font-medium">Ctrl</span>)}
-            {settings.shortcuts.search.key.toUpperCase()}
-          </kbd>
-        </button>
+        {/* 搜索框（TODO 56）：仅随笔视图显示 */}
+        {view === "workspace" && (
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border bg-muted/50 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
+          >
+            <Search className="size-4" />
+            <span className="hidden text-left sm:inline">搜索全部内容…</span>
+            <kbd className="hidden items-center gap-0.5 rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground sm:flex">
+              {settings.shortcuts.search.modifier &&
+                (isMac ? <Command className="size-2.5" /> : <span className="text-[10px] font-medium">Ctrl</span>)}
+              {settings.shortcuts.search.key.toUpperCase()}
+            </kbd>
+          </button>
+        )}
 
         {/* 头像（最右）：点击弹出「打开个人主页 / 打开设置」（设置按钮与头像菜单功能重复，已移除独立按钮） */}
         <DropdownMenu>
