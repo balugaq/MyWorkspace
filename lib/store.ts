@@ -33,7 +33,7 @@ import type {
   Person,
   FestivalDef,
 } from "./types"
-import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, type AIPersona } from "./types"
+import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, normalizeProfileWidgetOrder, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
 import { normalizeDayStartOffset, parseDayStartOffset, todayKey } from "./contributions"
 import { imageIdsInText } from "./image-refs"
@@ -1642,6 +1642,8 @@ export const useWorkspace = create<WorkspaceState>()(
             scanAdaptive: rawSettings.scanAdaptive !== false,
             // 兜底：旧存档无此字段 / 非法 → 默认 QQ 中转地址
             qqRelayUrl: normalizeQqRelayUrl(rawSettings.qqRelayUrl),
+            // 兜底（TODO 52）：缺失 / 非法 → 默认组件顺序（合法 id 去重 + 缺失补齐）
+            profileWidgetOrder: normalizeProfileWidgetOrder(rawSettings.profileWidgetOrder),
           },
         }
       },

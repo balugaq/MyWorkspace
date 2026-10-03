@@ -400,7 +400,7 @@ TODO 37. （状态：已完成）
 TODO 38. （状态：已完成）
 现在Tiptap代码块渲染部分有点小了呢，字号调大点，然后加上显示行数和语言
 
-TODO 39. （状态：已完成，待目视核验）
+TODO 39. （状态：已完成）
 个人主页里面有一个待办事项，在这里加一个ai按钮，然后点击就可以 askAiAbout，引导ai结合具体各项skill支持访问的数据来综合给出待办事项，再切到对应对话。
 
 TODO 40. （状态：待处理）
@@ -409,7 +409,7 @@ TODO 40. （状态：待处理）
 TODO 41. （状态：已完成）
 导出增加一个可以选择导出哪些内容，包括AI对话数据，随笔数据，日历数据，联系人数据，密码保险，通知数据，github队列数据（等等的，未来如果写新功能也要加进来，需要添加到docs中说明），比如联系人（todo 48）和密码这些敏感信息可以选择导出时不顺带（默认就这2个不携带导出）
 
-TODO 42. （状态：已完成，待目视核验）
+TODO 42. （状态：已完成）
 消息过多时（堆积超过3条），不再逐个弹toast，而是只显示一条：
 你有 x 条新消息
 
@@ -417,21 +417,19 @@ TODO 43. （状态：待处理）
 加一个"方法论"大全，专门整理我以前是怎么解决什么问题的。。。类似博客吗，可能又需要一个界面重构，需要先参考看看别人博客怎么写的。
 洛元的很好，我觉得。
 
-TODO 44. （状态：已完成，待目视核验）
-补充（2026-10-03，主人反馈）：手动触发解禁——去掉「本周期已拉取」门槛（UI 置灰 + sender 的 shouldFetchNews 拦截都移除，随时可点，仅受开关与防重入约束）；新闻包卡片改展开式：列表内点「展开 N 条」直接铺开全部 ref.txt 小新闻卡（默认收起），点卡弹 Dialog 的交互废除。
+TODO 44. （状态：已完成）
 新闻精选先改为只能手动触发，现在他每条新闻都发1个通知，以后再调整他的发送，改成1个通知包，里面内含10个通知，外面只统计有1个通知包，qq互联也是整个包发过去而不是逐条通知发。
 另外 AI 功能是可能失败的（如 HTTP 429），这需要额外发一个通知说明新闻精选运行失败。
 
-TODO 45. （状态：已完成，待目视核验）
+TODO 45. （状态：已完成）
 修复：通知卡片头行的可截断 span（仓库 / 摘要 / 精选数）缺 min-w-0，flex 子项 min-width:auto 使 truncate 失效、长文字撑破卡片；已补 min-w-0。
-补充（2026-10-03）：4 处类型徽标补 shrink-0 防挤压换行；再补充（2026-10-03 下午）：真正的根因是卡片容器 button/div 自身作为列表 flex 项缺 min-w-0——内部 nowrap 长文把卡片撑破，p 的 truncate 永不触发（主人 DevTools 截图定位 brief 行）。4 处卡片容器已补 min-w-0。
-终修（2026-10-03 下午二次反馈）：容器 min-w-0 在 div 卡（新闻包）生效、在 button 卡（issue/pr）不生效——浏览器对 button 内部 flex 子项的 min-content 计算怪癖，min-w-0 压不住 nowrap 长文。GithubCard/NewsCard 改 div + role="button" + tabIndex + 键盘回车支持；按主人给的表给 truncate 的 p 自身也补 min-w-0（父级和自身都加）。
+补充（2026-10-03）：4 处类型徽标补 shrink-0 防挤压换行。
 通知页面里的卡片里的单行文字过长会超出框，需要加截断
 
 TODO 46. （状态：已完成）
 github 队列应当以"加入到这个队列的时间"最新排上面
 
-TODO 46.1 （状态：已完成，待目视核验）
+TODO 46.1 （状态：已完成）
 2026-10-03 静态核实：queue 两处滚动容器（L171 看板 / L182 列内）均已挂 native-scroll，并把这两处补进了 docs/ui-conventions.md 正例清单；根因（主人 DevTools 截图坐实）：html/body 的 scrollbar-width/color 是继承属性，继承到所有后代后同样触发 Chrome 121+ 陷阱，全站 ::-webkit-scrollbar 胶囊被禁用、退化系统细条；平时看到的胶囊多为 Base UI ScrollArea 自绘。修复：globals.css 内容容器组（.native-scroll/textarea/pre/table）显式重置标准属性切断继承，Firefox 经 @-moz-document 回落 thin+主题色；顺带补 queue 列内容器缺的 min-h-0；docs 继承陷阱已补记。
 issue queue里面的滑动条都不符合docs下说明的滑动条风格，需要修改
 
@@ -443,11 +441,11 @@ TODO 46.2 （状态：已完成）
 TODO 47. （状态：已完成）
 通知里提示一个issue被关闭时，显示的closer错误，应当显示正确的closer，却显示了author
 
-TODO 48. （状态：已完成，待目视核验）
+TODO 48. （状态：已完成）
 联系人数据、自定义节日数据改为持久化数据驱动
 原读取yml的改为临时按钮导入数据
 
-TODO 49. （状态：已完成，待目视核验）
+TODO 49. （状态：已完成）
 github集成现在会经常扫描仓库，在设置中加一个自动适应开关（默认开启）如果开启了适应，就会按照需要监听的功能的数量为计量，每多16个数量扫描间隔就延长1分钟。
 
 TODO 50. （状态：待处理）
@@ -459,17 +457,18 @@ patch 随笔的文字选择的右键contextmenu
 4. 全选
 5. AI （只在随笔中显示）
 
-TODO 51. （状态：已完成，待目视核验）
+TODO 51. （状态：已完成）
 实现（2026-10-03 改版，主人反馈要的是主题不是主题色）：ThemePreference 扩展为 light/dark/system/green/purple/orange，设置里「主题」下拉直接多出绿色/紫色/橙色三项；彩色主题是一套固定配色（浅色基调+主题色强调，不分亮暗），next-themes attribute=class 挂成 html.green 等类，globals.css 提供 html.green/purple/orange 三套完整变量；原 settings.themeColor 独立维度已整体移除（types/store/provider/设置 UI/CSS 清零）。
 新增更多主题颜色：绿色、紫色、橙色等（当前只有亮/暗两套，见设置里主题切换）。
 
-TODO 52. （状态：待处理）
+TODO 52. （状态：已完成，待目视确认）
 现在个人主页里的4个组件（天气，待办，使用时长，专注钟），都是较少文字量却占据了较大空间，应当只占据需要的空间，不要撑到那么大的大小
 另外应该要支持用户可以自己调整这些组件的位置（下面的activity&contributions）
+- 已改：小组件区由 sm:grid-cols-2 等宽两列改为 flex-wrap + 内容自适应宽度（专注钟定宽 w-64 保证按钮排布，其余 w-fit）；四卡支持拖拽调序（HTML5 DnD，拖法与 sidebar 分类一致：落点左半插前/右半插后），顺序持久化到 settings.profileWidgetOrder（types.ts 新增 ProfileWidgetId + normalizeProfileWidgetOrder 兜底，store merge 接入）。拖拽手感与视觉效果待主人目视确认。
 
 TODO 53. （状态：已完成，待目视确认）
 专注钟默认改为正计时，按钮状态切换改为缓慢向下移出画面，然后向上浮出新的按钮
-- 已改：focusMode 默认值 "down"→"up"（profile-workspace.tsx）；控制按钮组（开始/继续 ↔ 暂停/结束）状态切换加双向动画——旧按钮 500ms 下移+淡出（fill-mode-forwards 锁终态防闪回、退场期禁点击），随后新按钮 500ms 自下向上浮入；基于 tw-animate-css animate-in/out，动画期间按钮组不位移布局。待主人 npm run dev 目视确认。
+- 已改（2026-10-03，此条目上一轮的状态更新被覆盖丢失，现补回）：focusMode 默认 "down"→"up"；控制按钮组状态切换加双向动画——旧按钮 500ms 下移+淡出（fill-mode-forwards 锁终态、退场期禁点击），新按钮 500ms 自下向上浮入。动画效果待主人目视确认。
 
 TODO 54. （状态：待处理）
 应当在待办事项里加一个自带的关系类，打开按钮加到个人主页那个待办事项的卡片里
@@ -480,27 +479,27 @@ TODO 54. （状态：待处理）
 对于1个或若干的节点，现在有新的"搬迁"选择在contextmenu里，点开后，先列表显示当前有什么分类（或添加，对于当前所处分类暗色表示禁用）然后最底下添加一个"搬迁至其他图"的按钮，点击后可以显示可以搬迁到其他的关系类图（如自带的待办事项关系类图，和随笔里其他的关系类图）然后再打开到这个指定的图的上面的界面里。
 对于旧数据，先默认按移动到默认的"我的分类"里处理。
 
-TODO 55. （状态：已完成，待目视核验）
+TODO 55. （状态：已完成）
 1. 自定义节日编辑：设置 → 账户与同步新增「自定义节日」管理区（列表 + 新建/编辑/删除弹窗，字段：名称/规则/颜色/放假/上班），与「从 yml 导入」并存；保存时用 parseFestivalRule 校验规则格式
 2. 日历日期右键交互：右键任意日格弹出菜单（样式与关系类图节点右键一致），红字「今天放假」/蓝字「今天上班」快速标记；实现为往 store.customFestivals 写一条 festival_rule="YYYY-MM-DD" 的一次性节日（复用假/班角标管线），再点同项=取消标记，假/班互斥
 
 TODO 55 补充调整（2026-10-03）：自定义节日管理从设置页移入日历页——日历工具栏右侧新增管理按钮（CalendarCog 图标），弹窗内右上角「添加节日」按钮，新增按名称/规则搜索；设置页仅保留 yml 导入入口（文案已注明节日改在日历页管理）。
 
-TODO 56. （状态：已完成，待目视核验）
+TODO 56. （状态：已完成）
 实现：通知页 sender 筛选行下新增搜索框（匹配标题/摘要/仓库/来源名，与筛选叠加，空结果有专属提示）；brandheader 搜索框改为仅 view==="workspace"（随笔）时渲染。
 1. 通知页面里增加一个搜索框
 2. brandheader 里的搜索框改为仅在随笔时出现（其他视图不显示）
 
 TODO 57. （状态：待处理）
-
+更改AI图标，工具栏的改为如下
 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 48 48">
 	<path d="M0 0h48v48H0z" fill="none" />
 	<ellipse cx="24" cy="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" rx="7.5" ry="20.5" />
 	<ellipse cx="24" cy="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" rx="7.5" ry="20.5" transform="rotate(-60 24 24)" />
 	<ellipse cx="24" cy="24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" rx="20.5" ry="7.5" transform="rotate(-30 24 24)" />
 </svg>
+其他地方涉及AI按钮的，将按钮文本里的"AI"改为彩色的AI字即可
 
-TODO 57. （状态：已完成，待目视核验）
-1. 新闻包形态改版：通知列表仍只占 1 条；打开后 = 1 个大的新闻包外壳（ref.txt 同款：深色卡+左红边+红色「新闻包」标签+包标题+时间胶囊），内部纵排 10 个 ref.txt 样式小新闻卡；QQ 端整包所有新闻的完整文字内容（序号+领域+标题+时间/地点/人物/经过/影响/精神/作文素材/链接）拼一条长消息一次发完，超长按行分段
-2. issue/PR 通知带编号：NotificationItem 加 number?: number（github-sender 四处构造携带），通知界面徽标显示「Issue #123 · 已关闭」，QQ 单条消息同款
-3. 通知界面两处滚动容器（主列表 / 新闻包弹窗）补 native-scroll，符合 ui-conventions.md 胶囊规范
+TODO 58. （状态：待处理）
+当我在随笔界面里还没打开任何界面时，也显示"还没有分类"
+但实际，在有分类时不应这样显示，而是显示"打开一个分类"等提示信息

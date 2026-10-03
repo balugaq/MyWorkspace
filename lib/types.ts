@@ -440,6 +440,32 @@ export interface Settings {
     digits: boolean
     symbols: boolean
   }
+  // Profile 页四个小组件（TODO 52）的展示顺序：天气 / 日期牌 / 使用时长 / 专注钟
+  profileWidgetOrder: ProfileWidgetId[]
+}
+
+// ---- Profile 页小组件（TODO 52）----
+
+export type ProfileWidgetId = "weather" | "date" | "usage" | "focus"
+
+/** Profile 小组件默认顺序 */
+export const PROFILE_WIDGET_IDS: ProfileWidgetId[] = ["weather", "date", "usage", "focus"]
+
+/** 规范化 Profile 小组件顺序：仅保留合法 id（去重），缺失的默认项按默认顺序补到末尾 */
+export function normalizeProfileWidgetOrder(value: unknown): ProfileWidgetId[] {
+  const valid = new Set(PROFILE_WIDGET_IDS)
+  const out: ProfileWidgetId[] = []
+  if (Array.isArray(value)) {
+    for (const v of value) {
+      if (typeof v === "string" && valid.has(v as ProfileWidgetId) && !out.includes(v as ProfileWidgetId)) {
+        out.push(v as ProfileWidgetId)
+      }
+    }
+  }
+  for (const id of PROFILE_WIDGET_IDS) {
+    if (!out.includes(id)) out.push(id)
+  }
+  return out
 }
 
 // ---- 通知扫描配置（TODO 18 / 20）----
@@ -568,6 +594,7 @@ export const DEFAULT_SETTINGS: Settings = {
   newsEnabled: true,
   qqRelayUrl: DEFAULT_QQ_RELAY_URL,
   pwdGenerator: { length: 16, upper: true, lower: true, digits: true, symbols: true },
+  profileWidgetOrder: [...PROFILE_WIDGET_IDS],
 }
 
 // ---- GitHub Issue/PR 看板队列（TODO 36）----

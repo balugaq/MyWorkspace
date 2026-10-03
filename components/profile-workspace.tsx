@@ -18,7 +18,7 @@ import {
   parseDayStartOffset,
   todayKey,
 } from "@/lib/contributions"
-import { type ContributionType } from "@/lib/types"
+import { type ContributionType, type ProfileWidgetId } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { NativeScrollArea } from "@/components/ui/native-scroll-area"
@@ -48,6 +48,14 @@ const CONTRIB_TYPE_META: Record<ContributionType, { label: string; badge: string
 }
 
 const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
+
+// TODO 52：各小组件外壳宽度——专注钟定宽（保证按钮排布），其余内容自适应、不撑满整行
+const WIDGET_WRAP_CLASS: Record<ProfileWidgetId, string> = {
+  weather: "w-fit max-w-xs",
+  date: "w-fit",
+  usage: "w-fit",
+  focus: "w-64",
+}
 
 // TODO 39 日期牌（参考主人提供的日历牌图）：公历月中文 + 大小月，传统纸质日历牌写法
 const CN_MONTHS = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"]
@@ -386,6 +394,19 @@ export function ProfileWorkspace() {
 
   // 用户名：同款双击编辑（不可留空，空则回退上一值）；未设置时默认展示「未命名用户」
   const updateSettings = useWorkspace((s) => s.updateSettings)
+
+  // TODO 52：Profile 小组件顺序（settings.profileWidgetOrder 持久化）+ 拖拽调序
+  const widgetOrder = settings.profileWidgetOrder
+  const moveWidget = useCallback(
+    (from: number, to: number) => {
+      const order = [...widgetOrder]
+      const [moved] = order.splice(from, 1)
+      if (!moved) return
+      order.splice(to, 0, moved)
+      updateSettings({ profileWidgetOrder: order })
+    },
+    [widgetOrder, updateSettings],
+  )
   const storedName = useWorkspace((s) => s.settings.userName)
   const [nameEditing, setNameEditing] = useState(false)
   const [nameDraft, setNameDraft] = useState("")
@@ -569,12 +590,37 @@ export function ProfileWorkspace() {
 
         {/* 右栏：天气 + 日期（上）；贡献图（下） */}
         <div className="flex min-w-0 flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* 今天天气（实时数据：本地天气代理 + 中国天气网） */}
+          {/* TODO 52：小组件区改为 flex-wrap 内容自适应宽度（不再两列等宽铺满），
+              支持拖拽调序（顺序持久化 settings.profileWidgetOrder，拖法与 sidebar 分类一致） */}
+          <div className="flex flex-wrap items-start gap-4">
+            {widgetOrder.map((id, i) => (
+              <div
+                key={id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/plain", id)
+                  e.dataTransfer.effectAllowed = "move"
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const dragId = e.dataTransfer.getData("text/plain")
+                  if (!dragId) return
+                  const from = widgetOrder.indexOf(dragId as ProfileWidgetId)
+                  if (from === -1) return
+                  // 落点在目标卡左半 → 插到它前面；右半 → 插到它后面
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const before = e.clientX < rect.left + rect.width / 2
+                  const to = before ? i : i + 1
+                  if (to !== from && to !== from + 1) moveWidget(from, to)
+                }}
+                className={`cursor-grab active:cursor-grabbing ${WIDGET_WRAP_CLASS[id]}`}
+              >
+            {id === "weather" && (
             <WeatherWidget />
+            )}
 
-            {/* 今天日期牌（TODO 39，按主人参考图）：左竖排「X月大/小/平」+ 中央超大日数字 + 右竖排「星期X」。
-                暗色主题照参考图深底绿字；亮色主题配米白底深绿字（亮色配色待主人目视确认）。 */}
+            {id === "date" && (
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex h-[92px] items-center justify-center gap-4 rounded-lg bg-[#f2f0e8] px-4 dark:bg-[#0b0d0b]">
                 <span className="text-xs font-medium text-[#55714e] [writing-mode:vertical-rl] dark:text-[#8fae8b]">
@@ -598,8 +644,9 @@ export function ProfileWorkspace() {
                 问 AI 今日待办
               </Button>
             </div>
+            )}
 
-            {/* 软件使用时长：自首次贡献起（纯派生值，不入备份/导入，避免跨设备污染） */}
+            {id === "usage" && (
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <Clock className="size-4 text-sky-400" />
@@ -618,8 +665,10 @@ export function ProfileWorkspace() {
                 <p className="mt-2 text-sm text-muted-foreground">暂无贡献记录</p>
               )}
             </div>
+            )}
 
             {/* 专注钟（TODO 10） */}
+            {id === "focus" && (
             <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <Timer className="size-4 text-amber-400" />
@@ -740,7 +789,10 @@ export function ProfileWorkspace() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
+            </div>
+            )}
+            </div>
+            ))}
           </div>
 
           {/* GitHub 式横向贡献热力图 */}
