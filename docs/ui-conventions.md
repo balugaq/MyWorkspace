@@ -86,7 +86,38 @@ Tailwind 的任意属性 utility（如 `[overflow-wrap:anywhere]`）是**单类�
 
 ---
 
-## 6. 验证方法
+## 7. 右键菜单：外壳与功能分离（TODO 50，主人明确要求）
+
+右键 ContextMenu 分两层，**新接入点不要把逻辑写在菜单 JSX 里**：
+
+| 层 | 文件 | 职责 |
+| --- | --- | --- |
+| 功能层 | `lib/text-menu-actions.ts` | 定义 `TextMenuContext`（宿主能力接口：editable / getSelectedText / copy / cut / paste / selectAll / onAi）与 `TextMenuAction`（isAvailable + run），内置动作组 `BUILTIN_TEXT_MENU_ACTIONS`：剪切 → 复制 → 粘贴 → 全选 → AI。不知道任何 UI。 |
+| 外壳层 | `components/text-context-menu.tsx` | `TextContextMenu`：**自绘轻量浮层**（portal 到 body，不用 base-ui ContextMenu/Menu），按 `isAvailable` 过滤，AI 项前自动加分隔线，run 失败 toast。不含业务逻辑。 |
+
+接入步骤（参考 `components/richtext/rich-text-editor.tsx` 的 visualCtx / sourceCtx）：
+
+1. 为自己的文本宿主实现 `TextMenuContext`——**所有回调必须是闭包实时读取状态**（editor.state / textarea ref），不要传选区字符串快照（选区变化不触发 React 渲染，快照会过期）；
+2. `<TextContextMenu ctx={...}>` 包住目标区域，把原布局类挪到外壳 `className`；
+3. 「AI」项只在宿主传了 `onAi` 时出现（如随笔编辑器传入 → 新建 AI 会话分析选段；只读文档、日历笔记不传 → 不出现）；
+4. 剪切/粘贴仅在 `ctx.editable && 宿主提供了对应回调` 时出现（只读文档天然只有复制/全选）；
+5. 需要自定义动作组（如日历格的「今天放假/今天上班」）时传 `actions` 覆盖默认组，或在该场景继续用裸 ContextMenu——功能层不强制。
+
+其他要点：
+
+- 粘贴用 `navigator.clipboard.readText()`（用户手势内调用），失败由外壳层 toast「剪贴板不可用或权限被拒」；
+- **焦点协议（重要，三次打磨后定稿）**：**不要用 base-ui ContextMenu/Menu 承载文字右键菜单**——它是 modal 焦点陷阱，打开即夺走编辑器焦点，点击菜单项时的焦点操作被陷阱拉回，`select()`/`setRangeText` 等选区操作在失焦元素上全部落空（挂起延迟执行、finalFocus、setTimeout 抢焦点三种方案都试过，均被关闭流程竞速或时序问题击败）。自绘浮层的核心手法：**菜单容器 `onMouseDown={(e) => e.preventDefault()}`**——点击菜单项时焦点根本不离开编辑器，动作可立即执行、选区全程可见。其它要点：
+  - isAvailable 在打开瞬间（setState 触发的重渲染）求值，依赖选区的项必须走 `ctx.getSelectedText()`，并带「有选区」条件（空白处不出现剪切/复制/AI；粘贴/全选只看 editable）；
+  - 全局 capture 监听负责关闭：菜单外 mousedown / 别处右键（先 close，编辑器 onContextMenu 随后重开）/ Esc / 滚动缩放；
+  - 浮层 portal 到 body + `fixed` 定位，渲染后测量尺寸 clamp 进视口；
+  - **宿主拿 textarea/滚动内容 DOM 的引用时，别直接写 `ref`**：`NativeScrollArea` 会 `cloneElement` 给子元素注入自己的 `scrollRef`，覆盖子元素 ref（React 19 ref 即 prop）——改为在子元素的 `onContextMenu`（或其它既有事件）里同步记录 `e.currentTarget`，右键瞬间必先于菜单求值；
+  - **textarea 的剪切/粘贴要用 `document.execCommand("cut"/"insertText")`**：与 Ctrl+X/V 同语义、**进浏览器撤销栈（可 Ctrl+Z）**；`setRangeText` 是程序化修改不进撤销栈，只作 execCommand 失败时的兜底。TipTap 场景无此问题（`deleteSelection`/`insertText` 走 ProseMirror history）；
+  - TipTap 粘贴纯文本用 `tr.insertText`，**不要用 `insertContent(string)`**（字符串会被当 HTML 解析）；
+  - 富文本复制统一走 `components/richtext/clipboard.ts` 的 `copySelectionRich`（HTML + 纯文本双写，失败回落纯文本），浮动工具条与右键菜单共用。
+
+---
+
+## 8. 验证方法
 
 - **样式 / 视觉 / 布局类改动**：由**宿主在 `npm run dev` 下目视核验**（AI 禁止自行开浏览器 —— 不得用无头 Edge / Chrome / 任何浏览器自动化代劳）。
 - **AI 只负责静态核对**：`npm run typecheck` + `npm run lint` 均 **0 error**，并用 `grep` 确认关键类名 / 选择器真正落地（例：`max-w-[66%]`、`w-full`、`.rich-text-content pre` / `table` 的 5 处滑条选择器、`chat-md-user` 无残留）。

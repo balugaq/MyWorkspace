@@ -173,6 +173,8 @@ function ChapterEditor({
   const updateChapter = useWorkspace((s) => s.updateChapter)
   const removeChapter = useWorkspace((s) => s.removeChapter)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
+  // TODO 50：文字右键「AI」项——选中内容发给 AI 闲聊（新建会话）
+  const askAiAbout = useWorkspace((s) => s.askAiAbout)
 
   const { prev, next } = useMemo(() => {
     const idx = chapters.findIndex((c) => c.id === chapter.id)
@@ -235,6 +237,11 @@ function ChapterEditor({
           value={chapter.content}
           onChange={(v) => updateChapter(category.id, chapter.id, { content: v })}
           className={cn(isNovel ? "font-serif text-lg" : "text-base")}
+          onAiText={(text) =>
+            askAiAbout(
+              `请帮我分析/解读以下内容；若其中是问题，请直接回答：\n\n${text}`,
+            )
+          }
         />
       </div>
 

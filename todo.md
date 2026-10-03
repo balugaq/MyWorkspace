@@ -448,7 +448,7 @@ TODO 48. （状态：已完成）
 TODO 49. （状态：已完成）
 github集成现在会经常扫描仓库，在设置中加一个自动适应开关（默认开启）如果开启了适应，就会按照需要监听的功能的数量为计量，每多16个数量扫描间隔就延长1分钟。
 
-TODO 50. （状态：待处理）
+TODO 50. （状态：已完成，待目视确认）
 patch 随笔的文字选择的右键contextmenu
 有以下按钮：
 1. 剪切 （若可以编辑）
@@ -456,6 +456,7 @@ patch 随笔的文字选择的右键contextmenu
 3. 粘贴 （若可以编辑）
 4. 全选
 5. AI （只在随笔中显示）
+- 已改（2026-10-03）：外壳与功能分离（主人要求，记入 docs/ui-conventions.md §7）——功能层 lib/text-menu-actions.ts（TextMenuContext 能力接口 + BUILTIN_TEXT_MENU_ACTIONS：剪切/复制/粘贴/全选/AI），外壳层 components/text-context-menu.tsx（base-ui 渲染，按能力过滤、AI 项前自动分隔）。RichTextEditor 两个分支（TipTap 可视化 / 源码 textarea）均接入；「AI」项仅在传入 onAiText 时出现，随笔 novel-workspace 传入（选中内容经 askAiAbout 新建会话分析）。富文本复制抽为 richtext/clipboard.ts copySelectionRich，浮动工具条与右键共用。剪切/粘贴仅在可编辑宿主出现（只读文档天然只有复制/全选）。待主人目视确认菜单样式与各操作实际效果。
 
 TODO 51. （状态：已完成）
 实现（2026-10-03 改版，主人反馈要的是主题不是主题色）：ThemePreference 扩展为 light/dark/system/green/purple/orange，设置里「主题」下拉直接多出绿色/紫色/橙色三项；彩色主题是一套固定配色（浅色基调+主题色强调，不分亮暗），next-themes attribute=class 挂成 html.green 等类，globals.css 提供 html.green/purple/orange 三套完整变量；原 settings.themeColor 独立维度已整体移除（types/store/provider/设置 UI/CSS 清零）。

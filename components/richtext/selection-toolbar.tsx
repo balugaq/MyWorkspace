@@ -2,8 +2,8 @@
 
 import { BubbleMenu } from "@tiptap/react/menus"
 import type { Editor } from "@tiptap/core"
-import { DOMSerializer } from "@tiptap/pm/model"
 import { Copy, ClipboardCopy, TextSelect, Quote } from "lucide-react"
+import { copySelectionRich } from "./clipboard"
 
 /**
  * QQ 式选段浮动工具条：选中文字时出现。
@@ -19,26 +19,7 @@ export function SelectionToolbar({ editor }: { editor: Editor }) {
     void navigator.clipboard.writeText(text)
   }
 
-  const copyRich = async () => {
-    const { from, to } = editor.state.selection
-    const slice = editor.state.doc.slice(from, to)
-    const serializer = DOMSerializer.fromSchema(editor.schema)
-    const frag = serializer.serializeFragment(slice.content)
-    const div = document.createElement("div")
-    div.appendChild(frag)
-    const html = div.innerHTML
-    const text = editor.state.doc.textBetween(from, to, "\n")
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "text/html": new Blob([html], { type: "text/html" }),
-          "text/plain": new Blob([text], { type: "text/plain" }),
-        }),
-      ])
-    } catch {
-      void navigator.clipboard.writeText(text)
-    }
-  }
+  const copyRich = () => void copySelectionRich(editor)
 
   const selectAll = () => editor.chain().focus().selectAll().run()
   const quote = () => editor.chain().focus().toggleBlockquote().run()
