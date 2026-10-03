@@ -17,6 +17,8 @@
 ### Chrome 121+ 陷阱：标准属性会禁用 `::-webkit-scrollbar`
 `scrollbar-width` / `scrollbar-color` 标准属性一旦设置，Chrome 会**整体禁用** `::-webkit-scrollbar` 系伪元素、改用系统标准渲染（thin **直角**条，不是圆角胶囊）。因此内容容器（`.native-scroll` / `textarea` / pre / table）**只走 `::-webkit-scrollbar` 胶囊**，标准属性仅保留给页面级 `html` / `body`。给新容器补样式时同样不要给它加标准属性，否则胶囊失效、退化成系统直角条。
 
+**继承陷阱（2026-10-03，TODO 46.1 实测踩中）**：这两个标准属性是**继承属性**——`html`/`body` 上的值会继承到所有后代，继承来的非 auto 计算值**同样触发**上述禁用（DevTools Computed 里能看到后代的 `scrollbar-color` 非 auto、来源标注「继承自 html」）。因此内容容器组在 `globals.css` 里显式重置 `scrollbar-width: auto; scrollbar-color: auto;` 切断继承；Firefox 不认 webkit 胶囊，经 `@-moz-document url-prefix()`（Chromium 忽略）回落 `thin` + 主题色。新增内容容器类型时，**两处都要同步补**。
+
 ### 为什么刻意排除 Base UI ScrollArea
 `[data-slot^="scroll-area"]` **不要**并入上面这组选择器。Base UI 的 ScrollArea 自带自定义细滑条，若再把原生滚动条样式叠加到它身上，会出现「原生 + 自定义」**双滑条**。需要滚动时优先用挂 `.native-scroll` 的原生容器，而不是在 ScrollArea 上再补原生样式。
 

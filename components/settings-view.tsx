@@ -72,6 +72,9 @@ const THEMES: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "浅色" },
   { value: "dark", label: "深色" },
   { value: "system", label: "跟随系统" },
+  { value: "green", label: "绿色" },
+  { value: "purple", label: "紫色" },
+  { value: "orange", label: "橙色" },
 ]
 
 const DEFAULT_VIEWS: { value: DefaultView; label: string }[] = [

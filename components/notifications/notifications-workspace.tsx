@@ -145,7 +145,7 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
         <div className="flex items-center gap-2 text-xs">
           <span
             className={cn(
-              "rounded px-1.5 py-0.5 font-medium",
+              "shrink-0 rounded px-1.5 py-0.5 font-medium",
               KIND_META.news.className,
             )}
           >
@@ -200,7 +200,7 @@ function NewsCard({ item }: { item: NotificationItem }) {
       <div className="flex items-center gap-2 text-xs">
         <span
           className={cn(
-            "rounded px-1.5 py-0.5 font-medium",
+            "shrink-0 rounded px-1.5 py-0.5 font-medium",
             isDomestic
               ? "bg-red-500/10 text-red-600 dark:text-red-400"
               : "bg-sky-500/10 text-sky-600 dark:text-sky-400",
@@ -269,7 +269,7 @@ function PlainNewsCard({ item }: { item: NotificationItem }) {
   return (
     <div className="flex w-full flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left">
       <div className="flex items-center gap-2 text-xs">
-        <span className={cn("rounded px-1.5 py-0.5 font-medium", KIND_META.news.className)}>
+        <span className={cn("shrink-0 rounded px-1.5 py-0.5 font-medium", KIND_META.news.className)}>
           {KIND_META.news.label}
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
@@ -299,7 +299,7 @@ function GithubCard({ item }: { item: NotificationItem }) {
       className="flex w-full flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/70"
     >
       <div className="flex items-center gap-2 text-xs">
-        <span className={cn("rounded px-1.5 py-0.5 font-medium", meta.className)}>
+        <span className={cn("shrink-0 rounded px-1.5 py-0.5 font-medium", meta.className)}>
           {(item.event ?? "open") === "open"
             ? meta.label
             : `${meta.label} · ${GH_EVENT_LABEL[item.event ?? "open"]}`}

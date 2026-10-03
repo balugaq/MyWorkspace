@@ -384,7 +384,18 @@ function ContactFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (v) return
+        // 直接关闭（X / 点遮罩 / Esc）时自动保存：姓名非空走保存（校验失败会 toast 并保持打开）；空姓名直接关闭
+        if (draft.name.trim()) {
+          save()
+        } else {
+          onClose()
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{initial ? "编辑联系人" : "新建联系人"}</DialogTitle>

@@ -363,7 +363,8 @@ export interface NotificationLogEntry {
 }
 
 // 可持久化的系统设置
-export type ThemePreference = "light" | "dark" | "system"
+/** 主题（TODO 51 改版）：light/dark/system 为默认蓝紫的亮暗；green/purple/orange 为独立彩色主题（一套固定配色，不分亮暗） */
+export type ThemePreference = "light" | "dark" | "system" | "green" | "purple" | "orange"
 /** 默认启动视图；"last" = 打开上次的视图（view/activeCategoryId 本身已持久化，rehydrate 后即为上次状态） */
 export type DefaultView = "workspace" | "calendar" | "ai-chat" | "last"
 /** 界面字体家族：映射根元素 fontFamily 的 CSS 变量（--font-sans / --font-serif / --font-mono） */

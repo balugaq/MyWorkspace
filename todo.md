@@ -423,12 +423,14 @@ TODO 44. （状态：已完成，待目视核验）
 
 TODO 45. （状态：已完成，待目视核验）
 修复：通知卡片头行的可截断 span（仓库 / 摘要 / 精选数）缺 min-w-0，flex 子项 min-width:auto 使 truncate 失效、长文字撑破卡片；已补 min-w-0。
+补充（2026-10-03）：4 处类型徽标补 shrink-0 防挤压换行。
 通知页面里的卡片里的单行文字过长会超出框，需要加截断
 
 TODO 46. （状态：已完成）
 github 队列应当以"加入到这个队列的时间"最新排上面
 
-TODO 46.1 （状态：待处理）
+TODO 46.1 （状态：已完成，待目视核验）
+2026-10-03 静态核实：queue 两处滚动容器（L171 看板 / L182 列内）均已挂 native-scroll，并把这两处补进了 docs/ui-conventions.md 正例清单；根因（主人 DevTools 截图坐实）：html/body 的 scrollbar-width/color 是继承属性，继承到所有后代后同样触发 Chrome 121+ 陷阱，全站 ::-webkit-scrollbar 胶囊被禁用、退化系统细条；平时看到的胶囊多为 Base UI ScrollArea 自绘。修复：globals.css 内容容器组（.native-scroll/textarea/pre/table）显式重置标准属性切断继承，Firefox 经 @-moz-document 回落 thin+主题色；顺带补 queue 列内容器缺的 min-h-0；docs 继承陷阱已补记。
 issue queue里面的滑动条都不符合docs下说明的滑动条风格，需要修改
 
 TODO 46.2 （状态：已完成）
@@ -455,7 +457,8 @@ patch 随笔的文字选择的右键contextmenu
 4. 全选
 5. AI （只在随笔中显示）
 
-TODO 51. （状态：待处理）
+TODO 51. （状态：已完成，待目视核验）
+实现（2026-10-03 改版，主人反馈要的是主题不是主题色）：ThemePreference 扩展为 light/dark/system/green/purple/orange，设置里「主题」下拉直接多出绿色/紫色/橙色三项；彩色主题是一套固定配色（浅色基调+主题色强调，不分亮暗），next-themes attribute=class 挂成 html.green 等类，globals.css 提供 html.green/purple/orange 三套完整变量；原 settings.themeColor 独立维度已整体移除（types/store/provider/设置 UI/CSS 清零）。
 新增更多主题颜色：绿色、紫色、橙色等（当前只有亮/暗两套，见设置里主题切换）。
 
 TODO 52. （状态：待处理）

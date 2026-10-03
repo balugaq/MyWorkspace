@@ -15,6 +15,8 @@ function ThemeProvider({
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange
+      // TODO 51 改版：彩色主题（green/purple/orange）经 attribute="class" 挂成 html class
+      themes={["light", "dark", "system", "green", "purple", "orange"]}
       {...props}
     >
       <ThemeHotkey />

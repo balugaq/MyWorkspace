@@ -138,6 +138,98 @@
     --sidebar-ring: oklch(0.68 0.16 275);
 }
 
+/* TODO 51（改版）：独立彩色主题——settings.theme = green / purple / orange 时，
+   next-themes（attribute="class"）直接把该值挂成 html 的 class（html.green 等）。
+   彩色主题是一套固定配色（浅色基调 + 主题色强调），不分亮暗、不响应 .dark。
+   中性面（背景 / 卡片 / 边框 / 侧栏）按主题色相做浅色染色，语义色 solution / warning 沿用默认。 */
+
+html.green {
+    --background: oklch(0.975 0.015 150);
+    --foreground: oklch(0.24 0.03 150);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.24 0.03 150);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.24 0.03 150);
+    --primary: oklch(0.52 0.14 150);
+    --primary-foreground: oklch(0.985 0.01 150);
+    --secondary: oklch(0.95 0.02 150);
+    --secondary-foreground: oklch(0.34 0.05 150);
+    --muted: oklch(0.95 0.02 150);
+    --muted-foreground: oklch(0.5 0.03 150);
+    --accent: oklch(0.92 0.05 150);
+    --accent-foreground: oklch(0.28 0.06 150);
+    --border: oklch(0.88 0.02 150);
+    --input: oklch(0.88 0.02 150);
+    --ring: oklch(0.52 0.14 150);
+    --chart-1: oklch(0.52 0.14 150);
+    --sidebar: oklch(0.96 0.02 150);
+    --sidebar-foreground: oklch(0.3 0.03 150);
+    --sidebar-primary: oklch(0.52 0.14 150);
+    --sidebar-primary-foreground: oklch(0.985 0.01 150);
+    --sidebar-accent: oklch(0.92 0.05 150);
+    --sidebar-accent-foreground: oklch(0.28 0.06 150);
+    --sidebar-border: oklch(0.88 0.02 150);
+    --sidebar-ring: oklch(0.52 0.14 150);
+}
+
+html.purple {
+    --background: oklch(0.975 0.015 305);
+    --foreground: oklch(0.25 0.04 305);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.25 0.04 305);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.25 0.04 305);
+    --primary: oklch(0.55 0.2 305);
+    --primary-foreground: oklch(0.985 0.01 305);
+    --secondary: oklch(0.95 0.025 305);
+    --secondary-foreground: oklch(0.36 0.06 305);
+    --muted: oklch(0.95 0.025 305);
+    --muted-foreground: oklch(0.51 0.04 305);
+    --accent: oklch(0.93 0.04 305);
+    --accent-foreground: oklch(0.3 0.07 305);
+    --border: oklch(0.88 0.025 305);
+    --input: oklch(0.88 0.025 305);
+    --ring: oklch(0.55 0.2 305);
+    --chart-1: oklch(0.55 0.2 305);
+    --sidebar: oklch(0.96 0.02 305);
+    --sidebar-foreground: oklch(0.31 0.04 305);
+    --sidebar-primary: oklch(0.55 0.2 305);
+    --sidebar-primary-foreground: oklch(0.985 0.01 305);
+    --sidebar-accent: oklch(0.93 0.04 305);
+    --sidebar-accent-foreground: oklch(0.3 0.07 305);
+    --sidebar-border: oklch(0.88 0.025 305);
+    --sidebar-ring: oklch(0.55 0.2 305);
+}
+
+html.orange {
+    --background: oklch(0.98 0.012 55);
+    --foreground: oklch(0.26 0.04 55);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.26 0.04 55);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.26 0.04 55);
+    --primary: oklch(0.58 0.17 55);
+    --primary-foreground: oklch(0.99 0.01 55);
+    --secondary: oklch(0.955 0.02 55);
+    --secondary-foreground: oklch(0.36 0.05 55);
+    --muted: oklch(0.955 0.02 55);
+    --muted-foreground: oklch(0.52 0.04 55);
+    --accent: oklch(0.93 0.05 55);
+    --accent-foreground: oklch(0.3 0.06 55);
+    --border: oklch(0.885 0.02 55);
+    --input: oklch(0.885 0.02 55);
+    --ring: oklch(0.58 0.17 55);
+    --chart-1: oklch(0.58 0.17 55);
+    --sidebar: oklch(0.965 0.015 55);
+    --sidebar-foreground: oklch(0.32 0.04 55);
+    --sidebar-primary: oklch(0.58 0.17 55);
+    --sidebar-primary-foreground: oklch(0.99 0.01 55);
+    --sidebar-accent: oklch(0.93 0.05 55);
+    --sidebar-accent-foreground: oklch(0.3 0.06 55);
+    --sidebar-border: oklch(0.885 0.02 55);
+    --sidebar-ring: oklch(0.58 0.17 55);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -409,11 +501,35 @@
  * 注意（2026-09-12）：Chrome 121+ 一旦元素设置了 scrollbar-width / scrollbar-color 标准属性，
  *   ::-webkit-scrollbar 系伪元素会被整体禁用、改用系统标准渲染（thin 直角条 ≠ 圆角胶囊）。
  *   因此标准属性仅保留给页面级 html / body；内容容器（.native-scroll / textarea / pre /
- *   table）一律只走下方 ::-webkit-scrollbar 胶囊，才能渲染出圆角滑块。 */
+ *   table）一律只走下方 ::-webkit-scrollbar 胶囊，才能渲染出圆角滑块。
+ * 注意（2026-10-03，TODO 46.1）：上面两条标准属性是**继承属性**——html/body 的值会继承到
+ *   所有后代，继承来的非 auto 计算值**同样触发** Chrome 121+ 陷阱，导致全站原生胶囊失效
+ *   （DevTools 可见后代 Computed 里 scrollbar-color 非 auto、继承自 html）。
+ *   修复：内容容器组显式重置标准属性切断继承，Chrome 恢复 webkit 胶囊；
+ *   Firefox 不认 webkit 胶囊，经 @-moz-document（Chromium 忽略此块）回落 thin + 主题色。 */
 html,
 body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;
+}
+
+/* 内容容器：切断继承的标准属性（见上注释），否则 ::-webkit-scrollbar 胶囊被禁用 */
+.native-scroll,
+textarea,
+.rich-text-content pre,
+.rich-text-content table {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+@-moz-document url-prefix() {
+  .native-scroll,
+  textarea,
+  .rich-text-content pre,
+  .rich-text-content table {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
 }
 
 /* 隐藏原生滚动条：给用 NativeScrollArea 自绘胶囊的容器（textarea 等）配套。
