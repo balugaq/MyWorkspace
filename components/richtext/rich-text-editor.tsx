@@ -252,6 +252,7 @@ export function RichTextEditor({
       }
     },
     selectAll: () => textareaRef.current?.select(),
+    onAi: onAiText,
   }
 
   return (

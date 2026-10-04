@@ -237,9 +237,10 @@ function ChapterEditor({
           value={chapter.content}
           onChange={(v) => updateChapter(category.id, chapter.id, { content: v })}
           className={cn(isNovel ? "font-serif text-lg" : "text-base")}
-          onAiText={(text) =>
+          onAiText={(selected) =>
             askAiAbout(
-              `请帮我分析/解读以下内容；若其中是问题，请直接回答：\n\n${text}`,
+              // prompt 形如 "{selectedContent} {location}"：选中内容 + 随笔内位置，便于 AI 结合上下文解读
+              `${selected}\n\n（以上内容选自随笔「${category.name}」的章节「${chapter.title}」。）\n请解释这段内容是什么意思；若其中是问题，请直接回答。`,
             )
           }
         />
