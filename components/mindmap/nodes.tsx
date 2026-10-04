@@ -16,6 +16,7 @@ import {
   Palette,
   Undo2,
   X,
+  FolderInput,
 } from "lucide-react"
 import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
@@ -58,8 +59,13 @@ interface TodoNodeData {
   /** 单图缩放时上报实时倍数（由画布负责持久化与右下角显示） */
   onImageZoom?: (value: number) => void
   /** 右键菜单动作上报，由画布统一执行：
-   *  add-child / toggle-done / tag:<text> / style-border:<argb|空> / style-bg:<argb|空> / due:<yyyy-MM-dd|空> / long-term */
+   *  add-child / toggle-done / tag:<text> / style-border:<argb|空> / style-bg:<argb|空> / due:<yyyy-MM-dd|空> / long-term / move
+   *  多选态（multiSelected）下画布会把批量项套用到整个选区；move 打开「搬迁」弹窗 */
   onMenuAction?: (action: string) => void
+  /** 该节点处于多选选区内：隐藏「添加子节点」并显示「搬迁」批量语义 */
+  multiSelected?: boolean
+  /** 多选选区大小（仅 multiSelected 时用于菜单文案） */
+  multiCount?: number
 }
 
 // 自定义 memo 比较器：只有「本节点数据 / 折叠态 / 选中态」变化才重渲染。
@@ -71,6 +77,7 @@ function todoNodeAreEqual(a: NodeProps, b: NodeProps): boolean {
   return (
     ad.node === bd.node &&
     !!ad.collapsed === !!bd.collapsed &&
+    !!ad.multiSelected === !!bd.multiSelected &&
     a.selected === b.selected
   )
 }
@@ -88,6 +95,8 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
     onToggleCollapse,
     onImageZoom,
     onMenuAction,
+    multiSelected = false,
+    multiCount = 0,
   } = data as unknown as TodoNodeData
   // 右键菜单「添加标签」的内嵌输入草稿
   const [tagDraft, setTagDraft] = useState("")
@@ -228,13 +237,21 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
         )}
       />
       <ContextMenuContent className="min-w-44">
-        <ContextMenuItem onClick={() => onMenuAction?.("add-child")}>
-          <Plus />
-          添加子节点
-        </ContextMenuItem>
+        {!multiSelected && (
+          <ContextMenuItem onClick={() => onMenuAction?.("add-child")}>
+            <Plus />
+            添加子节点
+          </ContextMenuItem>
+        )}
         <ContextMenuItem onClick={() => onMenuAction?.("toggle-done")}>
           {node.done ? <Undo2 /> : <Check />}
-          {node.done ? "取消完成" : "标记已完成"}
+          {multiSelected
+            ? (node.done ? "批量取消完成" : "批量标记已完成")
+            : (node.done ? "取消完成" : "标记已完成")}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={() => onMenuAction?.("move")}>
+          <FolderInput />
+          {multiSelected ? `搬迁 ${multiCount} 个节点` : "搬迁节点"}
         </ContextMenuItem>
         <ContextMenuSeparator />
         {/* 添加标签：内嵌输入（非 Item），stopPropagation 防菜单键盘导航/typeahead 抢事件 */}

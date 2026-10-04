@@ -200,7 +200,7 @@ export async function importBackup(json: string): Promise<{ ok: boolean; images:
 /** 供设置「缓存查看」用：返回全部图片及引用情况 */
 export async function getImageInventory() {
   const s = useWorkspace.getState()
-  const refs = collectReferencedImageIds(s.categories, s.calendar)
+  const refs = collectReferencedImageIds(s.categories, Object.values(s.relationFamilies), s.calendar)
   const all = await listImages(false)
   return {
     all,

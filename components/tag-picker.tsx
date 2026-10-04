@@ -26,10 +26,12 @@ export function TagPicker({
   onChange: (tags: string[]) => void
 }) {
   const categories = useWorkspace((s) => s.categories)
+  const relationFamilies = useWorkspace((s) => s.relationFamilies)
   const knownTags = useWorkspace((s) => s.knownTags)
+  const families = useMemo(() => Object.values(relationFamilies), [relationFamilies])
   const allTags = useMemo(
-    () => collectAllTagsWithKnown(categories, knownTags),
-    [categories, knownTags],
+    () => collectAllTagsWithKnown(categories, families, knownTags),
+    [categories, families, knownTags],
   )
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")

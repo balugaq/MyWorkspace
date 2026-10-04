@@ -1,4 +1,4 @@
-import type { Category, CalendarData } from "./types"
+import type { Category, CalendarData, RelationFamily } from "./types"
 
 /** 从一段文本中提取所有图片引用 id（兼容旧 `{{img:<id>}}` 与新 `![alt](imgref:<id>)` 协议） */
 export function imageIdsInText(text?: string): Set<string> {
@@ -13,9 +13,10 @@ export function imageIdsInText(text?: string): Set<string> {
   return set
 }
 
-/** 汇总全库（分类章节 + 思维图节点 + 日历笔记）中被引用的图片 id */
+/** 汇总全库（分类章节 + 思维图节点（关系族） + 日历笔记）中被引用的图片 id */
 export function collectReferencedImageIds(
   categories: Category[],
+  families: RelationFamily[],
   calendar: CalendarData,
 ): Set<string> {
   const refs = new Set<string>()
@@ -24,7 +25,9 @@ export function collectReferencedImageIds(
   }
   for (const cat of categories) {
     if (cat.chapters) for (const ch of cat.chapters) addText(ch.content)
-    if (cat.relation) for (const n of cat.relation.nodes) addText(n.content)
+  }
+  for (const fam of families) {
+    for (const n of fam.nodes) addText(n.content)
   }
   for (const d of Object.values(calendar)) {
     addText(d.note)

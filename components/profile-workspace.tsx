@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { format } from "date-fns"
-import { CalendarCheck, User, Feather, RefreshCw, ScanLine, Timer, Clock, Sparkles } from "lucide-react"
+import { CalendarCheck, User, Feather, RefreshCw, ScanLine, Timer, Clock, Sparkles, Workflow } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
+import { BUILTIN_TODO_RELATIONS_CATEGORY_ID } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { WeatherWidget } from "@/components/weather-widget"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -397,6 +398,12 @@ export function ProfileWorkspace() {
   // 用户名：同款双击编辑（不可留空，空则回退上一值）；未设置时默认展示「未命名用户」
   const updateSettings = useWorkspace((s) => s.updateSettings)
 
+  // TODO 54：待办卡「打开关系图」→ 跳转内建「待办事项」relation 分类
+  const setActiveCategory = useWorkspace((s) => s.setActiveCategory)
+  const openTodoRelations = useCallback(() => {
+    setActiveCategory(BUILTIN_TODO_RELATIONS_CATEGORY_ID)
+  }, [setActiveCategory])
+
   // TODO 52：Profile 小组件顺序（settings.profileWidgetOrder 持久化）+ 拖拽调序
   const widgetOrder = settings.profileWidgetOrder
   const moveWidget = useCallback(
@@ -636,15 +643,28 @@ export function ProfileWorkspace() {
                 </span>
               </div>
               {/* AI 入口（TODO 39）：替换原「今日暂无待办事项」死文案；「AI」用渐变彩色字（TODO 57） */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3 w-fit gap-1.5"
-                onClick={askAiToday}
-              >
-                <Sparkles className="size-3.5" />
-                问 <AiText /> 今日待办
-              </Button>
+              {/* 打开关系图（TODO 54）：跳转内建「待办事项」relation 分类 */}
+              <div className="mt-3 flex w-fit flex-wrap gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={askAiToday}
+                >
+                  <Sparkles className="size-3.5" />
+                  问 <AiText /> 今日待办
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={openTodoRelations}
+                  title="打开内建「待办事项」关系图"
+                >
+                  <Workflow className="size-3.5" />
+                  打开关系图
+                </Button>
+              </div>
             </div>
             )}
 

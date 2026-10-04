@@ -62,7 +62,7 @@ export function ImageCacheDialog({
   async function runScan() {
     const s = useWorkspace.getState()
     const { collectReferencedImageIds } = await import("@/lib/image-refs")
-    const refs = collectReferencedImageIds(s.categories, s.calendar)
+    const refs = collectReferencedImageIds(s.categories, Object.values(s.relationFamilies), s.calendar)
     let stagedCount = 0
     for (const img of all) {
       if (!refs.has(img.id) && !img.staged) {

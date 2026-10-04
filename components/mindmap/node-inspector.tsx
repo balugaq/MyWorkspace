@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { RichTextEditor } from "@/components/richtext/rich-text-editor"
 import { NativeScrollArea } from "@/components/ui/native-scroll-area"
-import type { Category, MindNode, SolutionStatus } from "@/lib/types"
+import type { MindNode, RelationFamily, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
 import { useEscapeClose } from "@/hooks/use-escape-close"
@@ -44,11 +44,11 @@ const STATUS_BTN: Record<SolutionStatus, string> = {
 }
 
 export function NodeInspector({
-  category,
+  family,
   node,
   onClose,
 }: {
-  category: Category
+  family: RelationFamily
   node: MindNode
   onClose: () => void
 }) {
@@ -57,7 +57,7 @@ export function NodeInspector({
   const setNodeSolution = useWorkspace((s) => s.setNodeSolution)
   const addChildNode = useWorkspace((s) => s.addChildNode)
 
-  const patch = (p: Partial<MindNode>) => updateNode(category.id, node.id, p)
+  const patch = (p: Partial<MindNode>) => updateNode(family.id, node.id, p)
   const solStatus = node.solution?.status ?? "doing"
   const [confirmDel, setConfirmDel] = useState(false)
 
@@ -74,8 +74,8 @@ export function NodeInspector({
     const live = liveContentRef.current
     if (!live) return
     liveContentRef.current = null
-    updateNode(category.id, live.id, { content: live.value })
-  }, [updateNode, category.id])
+    updateNode(family.id, live.id, { content: live.value })
+  }, [updateNode, family.id])
 
   const flushContent = useCallback(() => {
     if (contentTimerRef.current !== undefined) {
@@ -131,8 +131,7 @@ export function NodeInspector({
 
   // 添加子节点：走 store 统一入口 addChildNode（避重命名 / 右置 / 自动连线 / 切换详情）。
   function handleAddChild() {
-    if (!category.relation) return
-    addChildNode(category.id, node.id)
+    addChildNode(family.id, node.id)
   }
 
   // 标签（由共享 TagPicker 编辑）
@@ -140,7 +139,7 @@ export function NodeInspector({
 
   // 是否为「完全新的节点」：仅含 title、其它内容为空且无子节点时，删除无需二次确认。
   // 逻辑见 lib/mindmap.ts 的 isPristineNode（删除按钮与键盘删除共用）。
-  const isPristine = isPristineNode(node, category.relation?.edges ?? [])
+  const isPristine = isPristineNode(node, family.edges)
 
 
   return (
@@ -303,7 +302,7 @@ export function NodeInspector({
               <textarea
                 value={node.solution?.content ?? ""}
                 onChange={(e) =>
-                  setNodeSolution(category.id, node.id, e.target.value, solStatus)
+                  setNodeSolution(family.id, node.id, e.target.value, solStatus)
                 }
                 placeholder="记录解决方案，将以绿线连接到节点…"
                 className="min-h-16 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -317,7 +316,7 @@ export function NodeInspector({
                   data-on={node.solution?.status === st}
                   onClick={() =>
                     setNodeSolution(
-                      category.id,
+                      family.id,
                       node.id,
                       node.solution?.content ?? "",
                       st
@@ -344,7 +343,7 @@ export function NodeInspector({
           className="w-full gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={() => {
             if (isPristine) {
-              removeNode(category.id, node.id)
+              removeNode(family.id, node.id)
               toast.success("已删除节点")
               onClose()
             } else {
@@ -369,7 +368,7 @@ export function NodeInspector({
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                removeNode(category.id, node.id)
+                removeNode(family.id, node.id)
                 toast.success("已删除节点")
                 onClose()
               }}

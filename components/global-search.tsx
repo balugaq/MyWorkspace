@@ -42,6 +42,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const categories = useWorkspace((s) => s.categories)
+  const relationFamilies = useWorkspace((s) => s.relationFamilies)
   const calendar = useWorkspace((s) => s.calendar)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const setActiveCategory = useWorkspace((s) => s.setActiveCategory)
@@ -56,9 +57,10 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
   useEscapeClose(open, () => onOpenChange(false))
 
 
+  const families = useMemo(() => Object.values(relationFamilies), [relationFamilies])
   const results = useMemo(
-    () => runSearch(categories, calendar, query, scope, activeCategoryId),
-    [categories, calendar, query, scope, activeCategoryId],
+    () => runSearch(categories, families, calendar, query, scope, activeCategoryId),
+    [categories, families, calendar, query, scope, activeCategoryId],
   )
 
   function jump(r: SearchResult) {

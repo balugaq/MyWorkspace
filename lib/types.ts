@@ -70,11 +70,21 @@ export type ConnectResult = "created" | "exists" | "invalid"
 // 关系类思维图视口（与 @xyflow/react 的 Viewport 结构一致），持久化保存上次浏览位置
 export type MindmapViewport = { x: number; y: number; zoom: number }
 
-export interface RelationContent {
+// 关系族（TODO 54）：一个 relation 分类下可建多张独立图（自己的 nodes/edges/view/viewport）。
+// 旧版单图数据（Category.relation + store.mindmapViewports）由 store merge 迁移为每分类一个默认族「我的分类」。
+export interface RelationFamily {
+  id: string
+  name: string
+  /** 归属的 relation 分类 id */
+  categoryId: string
   nodes: MindNode[]
   edges: MindEdge[]
   view: "mindmap" | "list"
+  viewport?: MindmapViewport
 }
+
+/** 内建 relation 分类「待办事项」的固定 id（merge 缺失时自动补建，Profile 待办卡「打开关系图」跳转目标） */
+export const BUILTIN_TODO_RELATIONS_CATEGORY_ID = "todo-relations"
 
 export interface CategoryConfig {
   autoNumber?: boolean
@@ -90,7 +100,8 @@ export interface Category {
   config: CategoryConfig
   builtin?: boolean
   chapters?: Chapter[] // novel / study / work / life / custom
-  relation?: RelationContent // relation
+  // relation 模板的思维图数据已外置到顶层 relationFamilies（TODO 54，RelationFamily.categoryId 归属）；
+  // 旧存档的 Category.relation 由 store merge 迁移后删除
 }
 
 // 日历

@@ -16,6 +16,7 @@ import { VIEW_LABEL } from "@/lib/types"
 export function StatusBar() {
   const view = useWorkspace((s) => s.view)
   const categories = useWorkspace((s) => s.categories)
+  const relationFamilies = useWorkspace((s) => s.relationFamilies)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const conversations = useWorkspace((s) => s.conversations)
   const activeConversationId = useWorkspace((s) => s.activeConversationId)
@@ -26,17 +27,27 @@ export function StatusBar() {
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) ?? null
 
+  // 关系族节点聚合（TODO 54：思维图数据存于 relationFamilies，按当前分类的族汇总）
+  const famNodes = useMemo(
+    () =>
+      view === "workspace" && activeCategory?.template === "relation"
+        ? Object.values(relationFamilies)
+            .filter((f) => f.categoryId === activeCategory.id)
+            .flatMap((f) => f.nodes)
+        : null,
+    [view, activeCategory, relationFamilies],
+  )
+
   const left = useMemo<ReactNode[]>(() => {
     switch (view) {
       case "calendar":
         // TODO 2 停用：日历待办/事件统计（保留 mindmap dueDate 体系，可恢复）
         return []
       case "workspace": {
-        if (activeCategory?.relation) {
-          const nodes = activeCategory.relation.nodes
-          const done = nodes.filter((n) => n.done).length
+        if (famNodes) {
+          const done = famNodes.filter((n) => n.done).length
           return [
-            <Stat key="nodes" value={nodes.length} label="节点" />,
+            <Stat key="nodes" value={famNodes.length} label="节点" />,
             <Stat key="done" value={done} label="已完成" />,
           ]
         }
@@ -78,7 +89,7 @@ export function StatusBar() {
       default:
         return []
     }
-  }, [view, activeCategory, contactCount, activeConversation])
+  }, [view, activeCategory, famNodes, contactCount, activeConversation])
 
   return (
     <footer className="flex h-8 shrink-0 items-center gap-4 border-t bg-background/80 px-4 text-[11px] text-muted-foreground backdrop-blur">

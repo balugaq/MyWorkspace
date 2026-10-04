@@ -14,7 +14,8 @@
 
 | 持久化字段 | 说明 |
 | --- | --- |
-| `categories` | 全部分类与章节；关系类分类内含思维图节点与连线（核心数据） |
+| `categories` | 全部分类与章节（核心数据）；TODO 54 起 relation 分类不再内嵌图数据（旧 `Category.relation` 由 merge 迁移后删除） |
+| `relationFamilies` | 关系族（TODO 54）：key = 族 id，每族一张独立思维图（nodes/edges/view/viewport），经 `categoryId` 归属 relation 分类；旧 `Category.relation` + `mindmapViewports` 由 merge 迁移为每分类一个默认族「我的分类」（id 稳定 `fam_${catId}`），内建「待办事项」分类缺失自动补建 |
 | `calendar` | 按 `yyyy-MM-dd` 聚合的笔记 / 待办 / 事件 |
 | `activeCategoryId` | 当前选中的分类 id；`null` 表示选中日历（导航态） |
 | `activeItemId` | 当前选中的条目 id（章节 id 或思维图节点 id） |
@@ -43,7 +44,7 @@
 | `lastWaterRemindAt` | 喝水提醒上次触发时间（epoch ms），按墙钟对表 |
 | `lastStandRemindAt` | 站立提醒上次触发时间（epoch ms） |
 | `newsLastFetchedAt` | 新闻精选上次触发时刻（epoch ms），与 18:00 周期比对；`null` = 从未拉过 |
-| `mindmapViewports` | 关系类思维图视口存档（key = `category.id`，含 scale / x / y） |
+| `pendingFamilyId` | 跨组件跳族标记（如搬迁后跳转目标族）；`onRehydrateStorage` 强制置空，刷新不残留、不持久化生效 |
 
 ### 1.1 `settings` 子字段
 
@@ -81,9 +82,9 @@
 - **See also**：[`docs/entry-points.md`](./entry-points.md) §8.5（store actions）、§8.13（会话）、§8.16（贡献账本）。
 - **Notice**：
   - persist **未配置 `partialize`**，故 `WorkspaceState` 顶层所有非函数字段都会被 `JSON.stringify` 落盘（上表 30 项），动作函数自然被跳过。
-  - `merge` 对旧存档缺字段均有回落默认值（如 `contributions→[]`、`mindmapViewports→{}`、`dayStartOffset→"04:00"`、`notificationRepos` 旧 `string[]` 兼容）；新增已发布字段须在 `merge` 兼容，否则旧 localStorage 读崩（红线第 1 条）。
+  - `merge` 对旧存档缺字段均有回落默认值（如 `contributions→[]`、`dayStartOffset→"04:00"`、`notificationRepos` 旧 `string[]` 兼容）；新增已发布字段须在 `merge` 兼容，否则旧 localStorage 读崩（红线第 1 条）。TODO 54：旧 `Category.relation` / `mindmapViewports` 由 `migrateRelationState` 统一迁移为 `relationFamilies` 并删除原字段。
   - `hydrated` 与 `pendingAiQuery` 虽被序列化，但 `onRehydrateStorage` 会**强制覆盖**（`hydrated=true`、`pendingAiQuery=null`），不依赖其持久化值；前者是运行时水合标志、后者刷新后不应重发。
-  - **备份导出分区（TODO 41）**：`exportData(sections)` 按分区从上表取数（`notes`=categories、`calendar`、`ai`=conversations+activeConversationId、`contributions`、`notifications`=notifications+notificationLogs+notificationWatermark、`githubQueue`=issueQueue）；`settings` 始终携带，`contacts` 数据源为只读 yml（§5）不输出，`vault` 走 ZIP 内 `vault.json`（§3）。分区表与扩展规范见 [`docs/entry-points.md`](./entry-points.md) §8.8。
+  - **备份导出分区（TODO 41）**：`exportData(sections)` 按分区从上表取数（`notes`=categories+relationFamilies（TODO 54 起关系族随随笔分区携带）、`calendar`、`ai`=conversations+activeConversationId、`contributions`、`notifications`=notifications+notificationLogs+notificationWatermark、`githubQueue`=issueQueue）；`settings` 始终携带，`contacts` 数据源为只读 yml（§5）不输出，`vault` 走 ZIP 内 `vault.json`（§3）。分区表与扩展规范见 [`docs/entry-points.md`](./entry-points.md) §8.8。
 
 ---
 

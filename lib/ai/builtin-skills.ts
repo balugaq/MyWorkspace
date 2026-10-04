@@ -23,7 +23,7 @@ import {
 import { birthdaysOn } from "@/lib/birthday"
 import { dayShortHint } from "@/lib/day-hint"
 import { collectDueNodes } from "@/lib/deadlines"
-import type { Category, Chapter, MindNode, FestivalDef } from "@/lib/types"
+import type { Category, Chapter, MindNode, FestivalDef, RelationFamily } from "@/lib/types"
 
 /** 一个内置技能的定义。execute 接收已校验的参数对象，返回可 JSON 序列化的结果。 */
 export interface BuiltinSkill {
@@ -97,6 +97,28 @@ function personToPlain(p: Person) {
   }
 }
 
+/** 按 familyId/familyName 定位分类下的关系族；缺省回落该分类第一个族（TODO 54：思维图数据存于关系族）。 */
+function findFamilyInCategory(
+  families: RelationFamily[],
+  cat: Category,
+  args: Record<string, unknown>,
+): RelationFamily | null {
+  const catFams = families.filter((f) => f.categoryId === cat.id)
+  const fid = typeof args.familyId === "string" ? args.familyId : ""
+  const fname = typeof args.familyName === "string" ? args.familyName : ""
+  if (fid) {
+    const byId = catFams.find((f) => f.id === fid)
+    if (byId) return byId
+  }
+  if (fname) {
+    const byName =
+      catFams.find((f) => f.name === fname) ??
+      catFams.find((f) => f.name.includes(fname))
+    if (byName) return byName
+  }
+  return catFams[0] ?? null
+}
+
 function nodeToPlain(n: MindNode) {
   return {
     id: n.id,
@@ -161,7 +183,10 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       const key = format(dayDate, "yyyy-MM-dd")
       const calendar = useWorkspace.getState().calendar
       const data = calendar[key]
-      const dueMap = collectDueNodes(useWorkspace.getState().categories)
+      const dueMap = collectDueNodes(
+        useWorkspace.getState().categories,
+        Object.values(useWorkspace.getState().relationFamilies),
+      )
       const dueNodes = dueMap[key] ?? []
 
       const today = new Date()
@@ -324,28 +349,33 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 9. 获取思维导图下所有节点的连接关系及名称（仅 mindmap / relation 类）
+  // 9. 获取思维导图下所有节点的连接关系及名称（仅 mindmap / relation 类，TODO 54 起按关系族）
   {
     name: "wb_get_mindmap_graph",
     description:
-      "获取指定关系类（relation）分类下思维导图的所有节点（名称/标题）与连线关系。返回 nodes([{id,title}]) 与 edges([{id,source,target,kind}])；kind 取值 flow/sub/solution。",
+      "获取指定关系类（relation）分类下思维导图的所有节点（名称/标题）与连线关系。按 categoryId/categoryName 定位分类，可选 familyId/familyName 定位具体关系族（缺省取该分类第一个族）。返回 familyId/familyName、nodes([{id,title}]) 与 edges([{id,source,target,kind}])；kind 取值 flow/sub/solution。",
     parameters: z.object({
       categoryId: z.string().optional().describe("分类 id"),
       categoryName: z.string().optional().describe("分类名称（可模糊）"),
+      familyId: z.string().optional().describe("关系族 id（可选，缺省取第一个族）"),
+      familyName: z.string().optional().describe("关系族名称（可选，可模糊）"),
     }),
     execute: async (args) => {
-      const categories = useWorkspace.getState().categories
-      const cat = findCategory(categories, args)
+      const s = useWorkspace.getState()
+      const cat = findCategory(s.categories, args)
       if (!cat) return { found: false, reason: "未找到匹配的分类" }
-      if (cat.template !== "relation" || !cat.relation)
+      if (cat.template !== "relation")
         return { found: false, reason: "该分类不是思维导图(relation)类型" }
-      const { nodes, edges } = cat.relation
+      const fam = findFamilyInCategory(Object.values(s.relationFamilies), cat, args)
+      if (!fam) return { found: false, reason: "该分类下没有关系族" }
       return {
         found: true,
         categoryId: cat.id,
         categoryName: cat.name,
-        nodes: nodes.map((n) => ({ id: n.id, title: n.title })),
-        edges: edges.map((e) => ({
+        familyId: fam.id,
+        familyName: fam.name,
+        nodes: fam.nodes.map((n) => ({ id: n.id, title: n.title })),
+        edges: fam.edges.map((e) => ({
           id: e.id,
           source: e.source,
           target: e.target,
@@ -355,24 +385,28 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 10. 获取思维导图下指定节点的所有内容（仅 mindmap / relation 类）
+  // 10. 获取思维导图下指定节点的所有内容（仅 mindmap / relation 类，TODO 54 起按关系族）
   {
     name: "wb_get_mindmap_node",
     description:
-      "获取指定关系类(relation)分类下某个思维导图节点的全部内容：正文、原因、导向、结果、标签、截止日期、解决方案(内容+状态)、已完成状态、隐藏状态。按 categoryId/categoryName 定位分类，按 nodeId/nodeTitle 定位节点。",
+      "获取指定关系类(relation)分类下某个思维导图节点的全部内容：正文、原因、导向、结果、标签、截止日期、解决方案(内容+状态)、已完成状态、隐藏状态。按 categoryId/categoryName 定位分类，可选 familyId/familyName 定位关系族（缺省取第一个族），按 nodeId/nodeTitle 定位节点。",
     parameters: z.object({
       categoryId: z.string().optional().describe("分类 id"),
       categoryName: z.string().optional().describe("分类名称（可模糊）"),
+      familyId: z.string().optional().describe("关系族 id（可选，缺省取第一个族）"),
+      familyName: z.string().optional().describe("关系族名称（可选，可模糊）"),
       nodeId: z.string().optional().describe("节点 id"),
       nodeTitle: z.string().optional().describe("节点标题（可模糊）"),
     }),
     execute: async (args) => {
-      const categories = useWorkspace.getState().categories
-      const cat = findCategory(categories, args)
+      const s = useWorkspace.getState()
+      const cat = findCategory(s.categories, args)
       if (!cat) return { found: false, reason: "未找到匹配的分类" }
-      if (cat.template !== "relation" || !cat.relation)
+      if (cat.template !== "relation")
         return { found: false, reason: "该分类不是思维导图(relation)类型" }
-      const nodes = cat.relation.nodes
+      const fam = findFamilyInCategory(Object.values(s.relationFamilies), cat, args)
+      if (!fam) return { found: false, reason: "该分类下没有关系族" }
+      const nodes = fam.nodes
       const nId = typeof args.nodeId === "string" ? args.nodeId : ""
       const nTitle = typeof args.nodeTitle === "string" ? args.nodeTitle : ""
       let node: MindNode | undefined
@@ -388,11 +422,15 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
           reason: "未找到匹配的节点",
           categoryId: cat.id,
           categoryName: cat.name,
+          familyId: fam.id,
+          familyName: fam.name,
         }
       return {
         found: true,
         categoryId: cat.id,
         categoryName: cat.name,
+        familyId: fam.id,
+        familyName: fam.name,
         node: nodeToPlain(node),
       }
     },

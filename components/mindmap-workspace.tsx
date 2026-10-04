@@ -11,20 +11,36 @@ import {
   type Node,
   type Edge,
   type Connection,
+  type OnSelectionChangeParams,
   ReactFlowProvider,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
-import { Plus, Workflow, List, Pin, Lightbulb, Eye, EyeOff } from "lucide-react"
+import {
+  Plus,
+  Workflow,
+  List,
+  Pin,
+  Lightbulb,
+  Eye,
+  EyeOff,
+  Layers,
+  Pencil,
+  Trash2,
+  Sparkles,
+  Wand2,
+} from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
-import type { Category, MindNode } from "@/lib/types"
+import type { Category, MindNode, RelationFamily } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
+import { relayoutFamilyNodes } from "@/lib/ai/relayout"
 import { useEscapeClose } from "@/hooks/use-escape-close"
 import { TodoNode, SolutionNode } from "@/components/mindmap/nodes"
 import { NodeInspector } from "@/components/mindmap/node-inspector"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   AlertDialog,
@@ -36,45 +52,93 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
 const nodeTypes = { todo: TodoNode, solution: SolutionNode }
 
 export function MindmapWorkspace({ category }: { category: Category }) {
-  const view = category.relation?.view ?? "mindmap"
-  const setRelationView = useWorkspace((s) => s.setRelationView)
+  // 关系族（TODO 54）：当前分类下的所有族；当前族为组件内 state（默认第一个族）
+  const relationFamilies = useWorkspace((s) => s.relationFamilies)
+  const pendingFamilyId = useWorkspace((s) => s.pendingFamilyId)
+  const setPendingFamilyId = useWorkspace((s) => s.setPendingFamilyId)
+  const setFamilyView = useWorkspace((s) => s.setFamilyView)
+
+  const families = useMemo(
+    () => Object.values(relationFamilies).filter((f) => f.categoryId === category.id),
+    [relationFamilies, category.id],
+  )
+  const [activeFamilyId, setActiveFamilyId] = useState<string | null>(null)
+  const family = families.find((f) => f.id === activeFamilyId) ?? families[0] ?? null
+
+  // 消费跨组件跳族标记（如搬迁后跳转到目标分类并选中目标族）
+  useEffect(() => {
+    if (pendingFamilyId && families.some((f) => f.id === pendingFamilyId)) {
+      setActiveFamilyId(pendingFamilyId)
+      setPendingFamilyId(null)
+    }
+  }, [pendingFamilyId, families, setPendingFamilyId])
+
+  // 当前族被删除时回落到第一个族
+  useEffect(() => {
+    if (activeFamilyId && !families.some((f) => f.id === activeFamilyId)) {
+      setActiveFamilyId(null)
+    }
+  }, [activeFamilyId, families])
+
+  const view = family?.view ?? "mindmap"
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b px-4 py-2.5">
         <h1 className="font-serif text-lg font-semibold">{category.name}</h1>
-        <div className="flex items-center rounded-lg border p-0.5">
-          <ViewBtn
-            active={view === "mindmap"}
-            onClick={() => setRelationView(category.id, "mindmap")}
-          >
-            <Workflow className="size-3.5" />
-            思维导图
-          </ViewBtn>
-          <ViewBtn
-            active={view === "list"}
-            onClick={() => setRelationView(category.id, "list")}
-          >
-            <List className="size-3.5" />
-            列表
-          </ViewBtn>
-        </div>
+        {family && (
+          <div className="flex items-center rounded-lg border p-0.5">
+            <ViewBtn
+              active={view === "mindmap"}
+              onClick={() => setFamilyView(family.id, "mindmap")}
+            >
+              <Workflow className="size-3.5" />
+              思维导图
+            </ViewBtn>
+            <ViewBtn
+              active={view === "list"}
+              onClick={() => setFamilyView(family.id, "list")}
+            >
+              <List className="size-3.5" />
+              列表
+            </ViewBtn>
+          </div>
+        )}
         <div className="flex-1" />
       </div>
 
       <div className="min-h-0 flex-1">
         {view === "mindmap" ? (
-          <ReactFlowProvider>
-            <Canvas category={category} />
-          </ReactFlowProvider>
-        ) : (
-          <ListView category={category} />
-        )}
+          family ? (
+            <ReactFlowProvider>
+              <Canvas
+                category={category}
+                family={family}
+                families={families}
+                onSelectFamily={setActiveFamilyId}
+              />
+            </ReactFlowProvider>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              该分类下还没有关系族。
+            </div>
+          )
+        ) : family ? (
+          <ListView family={family} />
+        ) : null}
       </div>
     </div>
   )
@@ -105,8 +169,419 @@ function ViewBtn({
   )
 }
 
-function Canvas({ category }: { category: Category }) {
-  const relation = category.relation!
+// ---------------- 族 sidebar（TODO 54：图内显示范围内，列出/切换/新建/重命名/删除族 + AI 入口） ----------------
+
+function FamilySidebar({
+  category,
+  family,
+  families,
+  onSelect,
+}: {
+  category: Category
+  family: RelationFamily
+  families: RelationFamily[]
+  onSelect: (id: string) => void
+}) {
+  const addRelationFamily = useWorkspace((s) => s.addRelationFamily)
+  const renameRelationFamily = useWorkspace((s) => s.renameRelationFamily)
+  const deleteRelationFamily = useWorkspace((s) => s.deleteRelationFamily)
+  const askAiAbout = useWorkspace((s) => s.askAiAbout)
+
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = useState("")
+  const [confirmDelId, setConfirmDelId] = useState<string | null>(null)
+  const [relayoutBusy, setRelayoutBusy] = useState(false)
+
+  const commitAdd = () => {
+    const id = addRelationFamily(category.id, newName.trim() || undefined)
+    setAdding(false)
+    setNewName("")
+    onSelect(id)
+    toast.success("已新建关系族")
+  }
+
+  const commitRename = () => {
+    if (renamingId && renameDraft.trim()) {
+      renameRelationFamily(renamingId, renameDraft)
+    }
+    setRenamingId(null)
+    setRenameDraft("")
+  }
+
+  // AI 分析（只读）：askAiAbout 新建会话并携带族上下文，AI 用既有只读技能拉数据出报告
+  const handleAiAnalyze = () => {
+    const prompt =
+      `请分析「${category.name}」分类下关系族「${family.name}」的思维导图（共 ${family.nodes.length} 个节点、${family.edges.length} 条连线）。` +
+      `请用 wb_get_mindmap_graph 技能获取节点与连线结构（categoryId "${category.id}"，familyId "${family.id}"），` +
+      `必要时用 wb_get_mindmap_node 查看节点详情，` +
+      `然后输出结构分析报告：任务依赖与层级是否合理、孤立节点、循环依赖、可合并/拆分的节点、下一步建议。`
+    askAiAbout(prompt)
+  }
+
+  // AI 整理布局（写操作）：函数式调用 + JSON 解析落库，失败 toast 不落库
+  const handleRelayout = async () => {
+    if (relayoutBusy) return
+    setRelayoutBusy(true)
+    try {
+      const n = await relayoutFamilyNodes(family.id)
+      toast.success(`AI 已重排 ${n} 个节点位置`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI 整理布局失败")
+    } finally {
+      setRelayoutBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex w-48 shrink-0 flex-col border-r bg-card/50">
+      <div className="flex items-center gap-1.5 border-b px-3 py-2.5">
+        <Layers className="size-3.5 text-muted-foreground" />
+        <span className="text-xs font-semibold text-foreground">关系族</span>
+        <button
+          type="button"
+          title="新建族"
+          aria-label="新建族"
+          onClick={() => {
+            setAdding(true)
+            setNewName("")
+          }}
+          className="ml-auto flex size-5 items-center justify-center rounded transition-colors hover:bg-primary/10"
+        >
+          <Plus className="size-3.5 text-muted-foreground" />
+        </button>
+      </div>
+
+      <div className="native-scroll min-h-0 flex-1 overflow-auto p-1.5">
+        {adding && (
+          <div className="mb-1 flex items-center gap-1 px-1">
+            <Input
+              autoFocus
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  commitAdd()
+                } else if (e.key === "Escape") {
+                  e.preventDefault()
+                  setAdding(false)
+                }
+              }}
+              placeholder="族名称"
+              className="h-7 text-xs"
+            />
+          </div>
+        )}
+        {families.map((f) => (
+          <div
+            key={f.id}
+            className={cn(
+              "group flex items-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors",
+              f.id === family.id
+                ? "bg-primary/10 font-medium text-foreground"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            )}
+          >
+            {renamingId === f.id ? (
+              <input
+                autoFocus
+                value={renameDraft}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    commitRename()
+                  } else if (e.key === "Escape") {
+                    e.preventDefault()
+                    setRenamingId(null)
+                  }
+                }}
+                className="h-6 min-w-0 flex-1 rounded border bg-background px-1.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onSelect(f.id)}
+                  className="min-w-0 flex-1 truncate text-left"
+                  title={f.name}
+                >
+                  {f.name}
+                </button>
+                <button
+                  type="button"
+                  title="重命名"
+                  aria-label="重命名族"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setRenamingId(f.id)
+                    setRenameDraft(f.name)
+                  }}
+                  className="hidden size-4 shrink-0 items-center justify-center rounded group-hover:flex hover:bg-primary/10"
+                >
+                  <Pencil className="size-3 text-muted-foreground" />
+                </button>
+                <button
+                  type="button"
+                  title="删除族"
+                  aria-label="删除族"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setConfirmDelId(f.id)
+                  }}
+                  className="hidden size-4 shrink-0 items-center justify-center rounded group-hover:flex hover:bg-destructive/10"
+                >
+                  <Trash2 className="size-3 text-destructive" />
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-1.5 border-t p-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 w-full gap-1.5 text-xs"
+          onClick={handleAiAnalyze}
+        >
+          <Sparkles className="size-3.5" />
+          AI 分析
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 w-full gap-1.5 text-xs"
+          onClick={handleRelayout}
+          disabled={relayoutBusy || family.nodes.length === 0}
+        >
+          <Wand2 className={cn("size-3.5", relayoutBusy && "animate-pulse")} />
+          {relayoutBusy ? "整理中…" : "整理布局"}
+        </Button>
+      </div>
+
+      {/* 删除族确认：ESC 视为取消（与其它弹窗行为一致） */}
+      <AlertDialog
+        open={confirmDelId !== null}
+        onOpenChange={(v) => !v && setConfirmDelId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              删除关系族「
+              {families.find((f) => f.id === confirmDelId)?.name || "未命名"}」？
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              将删除该族及其下全部节点与连线，并清理对应贡献记录。此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDelId(null)}>
+              取消
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmDelId) deleteRelationFamily(confirmDelId)
+                setConfirmDelId(null)
+                toast.success("已删除关系族")
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+// ---------------- 搬迁弹窗（TODO 54） ----------------
+
+function MoveNodesDialog({
+  open,
+  nodeIds,
+  category,
+  currentFamily,
+  onClose,
+}: {
+  open: boolean
+  nodeIds: string[]
+  category: Category
+  currentFamily: RelationFamily
+  onClose: () => void
+}) {
+  const relationFamilies = useWorkspace((s) => s.relationFamilies)
+  const categories = useWorkspace((s) => s.categories)
+  const moveNodesToFamily = useWorkspace((s) => s.moveNodesToFamily)
+  const addRelationFamily = useWorkspace((s) => s.addRelationFamily)
+  const setActiveCategory = useWorkspace((s) => s.setActiveCategory)
+  const setPendingFamilyId = useWorkspace((s) => s.setPendingFamilyId)
+
+  const allFamilies = useMemo(() => Object.values(relationFamilies), [relationFamilies])
+  const sameCatFams = useMemo(
+    () => allFamilies.filter((f) => f.categoryId === category.id),
+    [allFamilies, category.id],
+  )
+  const otherRelCats = useMemo(
+    () => categories.filter((c) => c.template === "relation" && c.id !== category.id),
+    [categories, category.id],
+  )
+
+  const [target, setTarget] = useState<string | null>(null)
+  const [newName, setNewName] = useState("")
+
+  // 每次打开重置选择
+  useEffect(() => {
+    if (open) {
+      setTarget(null)
+      setNewName("")
+    }
+  }, [open])
+
+  const createInline = () => {
+    const id = addRelationFamily(category.id, newName.trim() || undefined)
+    setNewName("")
+    setTarget(id)
+  }
+
+  const confirm = () => {
+    if (!target || target === currentFamily.id) return
+    moveNodesToFamily(currentFamily.id, nodeIds, target)
+    const dst = allFamilies.find((f) => f.id === target)
+    if (dst && dst.categoryId !== category.id) {
+      // 跨分类搬迁：跳到目标分类并选中目标族
+      setActiveCategory(dst.categoryId)
+      setPendingFamilyId(target)
+    }
+    toast.success(`已搬迁 ${nodeIds.length} 个节点`)
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>搬迁 {nodeIds.length} 个节点</DialogTitle>
+          <DialogDescription>
+            选择目标关系族；搬迁只移动节点，两端都被选中的连线会一并随迁。
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="native-scroll flex max-h-[55vh] flex-col gap-3 overflow-auto pr-1">
+          {/* 当前分类的族 */}
+          <section className="flex flex-col gap-1.5">
+            <p className="text-xs font-medium text-muted-foreground">
+              「{category.name}」的关系族
+            </p>
+            {sameCatFams.map((f) => {
+              const isCurrent = f.id === currentFamily.id
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  disabled={isCurrent}
+                  onClick={() => setTarget(f.id)}
+                  className={cn(
+                    "flex items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                    isCurrent
+                      ? "cursor-not-allowed border-border/60 bg-muted/40 text-muted-foreground/60"
+                      : target === f.id
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border text-foreground hover:border-primary/50"
+                  )}
+                >
+                  {f.name}
+                  {isCurrent && <span className="text-xs">当前所在</span>}
+                </button>
+              )
+            })}
+            {/* 就地新建族 */}
+            <div className="flex items-center gap-1.5">
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    createInline()
+                  }
+                }}
+                placeholder="新建族名称…"
+                className="h-8 flex-1 text-xs"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1 text-xs"
+                onClick={createInline}
+              >
+                <Plus className="size-3.5" />
+                新建
+              </Button>
+            </div>
+          </section>
+
+          {/* 搬迁至其他图 */}
+          {otherRelCats.length > 0 && (
+            <section className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground">搬迁至其他图</p>
+              {otherRelCats.map((c) => (
+                <div key={c.id} className="flex flex-col gap-1">
+                  <p className="px-1 text-[11px] text-muted-foreground/80">{c.name}</p>
+                  {allFamilies
+                    .filter((f) => f.categoryId === c.id)
+                    .map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setTarget(f.id)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-colors",
+                          target === f.id
+                            ? "border-primary bg-primary/10 text-foreground"
+                            : "border-border text-foreground hover:border-primary/50"
+                        )}
+                      >
+                        <Workflow className="size-3.5 shrink-0 text-muted-foreground" />
+                        {f.name}
+                      </button>
+                    ))}
+                </div>
+              ))}
+            </section>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            取消
+          </Button>
+          <Button onClick={confirm} disabled={!target || target === currentFamily.id}>
+            搬迁
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ---------------- 画布 ----------------
+
+function Canvas({
+  category,
+  family,
+  families,
+  onSelectFamily,
+}: {
+  category: Category
+  family: RelationFamily
+  families: RelationFamily[]
+  onSelectFamily: (id: string) => void
+}) {
   const activeItemId = useWorkspace((s) => s.activeItemId)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const addNode = useWorkspace((s) => s.addNode)
@@ -115,9 +590,9 @@ function Canvas({ category }: { category: Category }) {
   const connectNodes = useWorkspace((s) => s.connectNodes)
   const removeEdge = useWorkspace((s) => s.removeEdge)
   const removeNode = useWorkspace((s) => s.removeNode)
-  // 上次浏览视口存档：有有效存档则重挂载后恢复（否则初始 fitView 自适应）
-  const savedViewport = useWorkspace((s) => s.mindmapViewports[category.id])
-  const setMindmapViewport = useWorkspace((s) => s.setMindmapViewport)
+  // 上次浏览视口存档（TODO 54 起存于族内）：有有效存档则重挂载后恢复（否则初始 fitView 自适应）
+  const savedViewport = useWorkspace((s) => s.relationFamilies[family.id]?.viewport)
+  const setFamilyViewport = useWorkspace((s) => s.setFamilyViewport)
   const restoredViewport =
     savedViewport &&
     Number.isFinite(savedViewport.x) &&
@@ -127,6 +602,23 @@ function Canvas({ category }: { category: Category }) {
       : undefined
   const { screenToFlowPosition, fitView } = useReactFlow()
   const canvasWrapRef = useRef<HTMLDivElement>(null)
+
+  // 多选选区（TODO 54：React Flow 默认 Shift+左键拖框选；右键菜单批量项作用于该选区）
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [family.id])
+  // 稳定引用 + 内容相同返回旧 Set：xyflow 的 SelectionListener 把 onSelectionChange prop
+  // 放进了 effect 依赖，内联函数（每次渲染新引用）会造成 setState→渲染→再触发的死循环
+  const handleSelectionChange = useCallback((params: OnSelectionChangeParams) => {
+    setSelectedIds((prev) => {
+      const next = new Set(
+        params.nodes.map((n) => n.id).filter((id) => !id.startsWith("sol-")),
+      )
+      if (prev.size === next.size && [...prev].every((id) => next.has(id))) return prev
+      return next
+    })
+  }, [])
 
   // 鸟瞰模式：允许无限缩小（默认 minZoom=0.5 限制缩小），并禁用拖拽/连线避免缩很小误触
   const [birdView, setBirdView] = useState(false)
@@ -149,12 +641,12 @@ function Canvas({ category }: { category: Category }) {
         x: r.left + r.width / 2,
         y: r.top + r.height / 2,
       })
-      addNode(category.id, center)
+      addNode(family.id, center)
     } else {
-      addNode(category.id)
+      addNode(family.id)
     }
     toast.success("已添加节点，右侧编辑详情")
-  }, [screenToFlowPosition, addNode, category.id])
+  }, [screenToFlowPosition, addNode, family.id])
 
   // 是否正在从节点手柄拖拽连线（拖拽中不播放连线动画，松手后再播放）
   const [isConnecting, setIsConnecting] = useState(false)
@@ -175,7 +667,7 @@ function Canvas({ category }: { category: Category }) {
   const hidden = useMemo(() => {
     const res = new Set<string>()
     const visit = (id: string) => {
-      for (const subId of relation.nodes.find((n) => n.id === id)?.sub ?? []) {
+      for (const subId of family.nodes.find((n) => n.id === id)?.sub ?? []) {
         if (!res.has(subId)) {
           res.add(subId)
           visit(subId)
@@ -184,9 +676,9 @@ function Canvas({ category }: { category: Category }) {
     }
     for (const id of collapsed) visit(id)
     return res
-  }, [collapsed, relation.nodes])
+  }, [collapsed, family.nodes])
 
-  const selectedNode = relation.nodes.find((n) => n.id === activeItemId) ?? null
+  const selectedNode = family.nodes.find((n) => n.id === activeItemId) ?? null
 
   // 单图缩放的右下角实时倍数显示：缩放中可见，停止后淡出。
   const [zoomBadge, setZoomBadge] = useState<{ value: number; visible: boolean } | null>(null)
@@ -205,10 +697,10 @@ function Canvas({ category }: { category: Category }) {
       if (zoomPersistTimer.current) window.clearTimeout(zoomPersistTimer.current)
       zoomPersistTimer.current = window.setTimeout(() => {
         const p = zoomPersist.current
-        if (p) updateNode(category.id, p.id, { imageZoom: p.value })
+        if (p) updateNode(family.id, p.id, { imageZoom: p.value })
       }, 250)
     },
-    [updateNode, category.id],
+    [updateNode, family.id],
   )
   useEffect(() => {
     return () => {
@@ -217,14 +709,22 @@ function Canvas({ category }: { category: Category }) {
     }
   }, [])
 
-  // 节点右键菜单动作（由 TodoNode 上报，此处统一执行 store 变更）
+  // 节点右键菜单动作（由 TodoNode 上报，此处统一执行 store 变更）。
+  // TODO 54：多选态（右键节点在选区内且选区 >1）时，除「添加子节点」外的项批量套用到整个选区。
   const handleMenuAction = useCallback(
     (nodeId: string, action: string) => {
-      const n = relation.nodes.find((x) => x.id === nodeId)
-      if (!n) return
+      const isBatch = selectedIds.size > 1 && selectedIds.has(nodeId)
+      const batchIds = isBatch ? [...selectedIds] : [nodeId]
+      const targets = family.nodes.filter((n) => batchIds.includes(n.id))
+      if (targets.length === 0) return
+
+      if (action === "move") {
+        setMoveIds(batchIds)
+        return
+      }
       if (action === "add-child") {
-        // 走 store 统一入口（与 NodeInspector.handleAddChild 同一逻辑）
-        const childId = addChildNode(category.id, nodeId)
+        // 仅单选态出现；走 store 统一入口（与 NodeInspector.handleAddChild 同一逻辑）
+        const childId = addChildNode(family.id, nodeId)
         if (childId) {
           // 右键菜单关闭时 base-ui 会把焦点还给节点触发器，随后的点击/选区时序可能
           // 把 addNode 里设置的 activeItemId 覆盖掉（这正是「添加后不切详情」的根因），
@@ -234,41 +734,64 @@ function Canvas({ category }: { category: Category }) {
         return
       }
       if (action === "toggle-done") {
+        // 批量口径：选区内有未完成 → 全部标记完成；否则全部取消完成。
         // done 跃迁时 updateNode 内部自动记录贡献账 / completedAt
-        updateNode(category.id, nodeId, { done: !n.done })
+        const nextDone = targets.some((n) => !n.done)
+        for (const n of targets) {
+          updateNode(family.id, n.id, { done: nextDone })
+        }
+        toast.success(
+          nextDone
+            ? `已标记 ${targets.length} 个节点完成`
+            : `已取消 ${targets.length} 个节点的完成态`
+        )
         return
       }
       if (action === "long-term") {
-        updateNode(category.id, nodeId, { longTerm: !n.longTerm, dueDate: null })
+        const nextVal = targets.length === 1 ? !targets[0].longTerm : true
+        for (const n of targets) {
+          updateNode(family.id, n.id, { longTerm: nextVal, dueDate: null })
+        }
         return
       }
       if (action.startsWith("tag:")) {
         const t = action.slice(4).trim()
         if (!t) return
-        if ((n.tags ?? []).includes(t)) {
-          toast.info("该标签已存在")
-          return
+        let added = 0
+        for (const n of targets) {
+          if (!(n.tags ?? []).includes(t)) {
+            updateNode(family.id, n.id, { tags: [...(n.tags ?? []), t] })
+            added++
+          }
         }
-        updateNode(category.id, nodeId, { tags: [...(n.tags ?? []), t] })
+        if (added === 0) toast.info("选区内节点均已存在该标签")
         return
       }
       if (action.startsWith("style-border:")) {
         // 空值 = 清除自定义边框色，回落主题默认（显式 undefined 才能覆盖掉旧值）
-        updateNode(category.id, nodeId, { borderColor: action.slice(13) || undefined })
+        const v = action.slice(13) || undefined
+        for (const n of targets) {
+          updateNode(family.id, n.id, { borderColor: v })
+        }
         return
       }
       if (action.startsWith("style-bg:")) {
-        updateNode(category.id, nodeId, { bgColor: action.slice(9) || undefined })
+        const v = action.slice(9) || undefined
+        for (const n of targets) {
+          updateNode(family.id, n.id, { bgColor: v })
+        }
         return
       }
       if (action.startsWith("due:")) {
         // 非空日期清 longTerm（同 NodeInspector 行为）；空串清除截止日期
         const d = action.slice(4)
-        updateNode(category.id, nodeId, { dueDate: d || null, longTerm: false })
+        for (const n of targets) {
+          updateNode(family.id, n.id, { dueDate: d || null, longTerm: false })
+        }
         return
       }
     },
-    [relation.nodes, category, addChildNode, setActiveItem, updateNode],
+    [selectedIds, family.nodes, family.id, addChildNode, setActiveItem, updateNode],
   )
 
   // 按 Delete / Backspace 请求删除当前选中的节点（弹出确认，避开文本输入框）
@@ -283,12 +806,12 @@ function Canvas({ category }: { category: Category }) {
       const t = e.target
       if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return
       if (!activeItemId) return
-      const keyNode = relation.nodes.find((n) => n.id === activeItemId)
+      const keyNode = family.nodes.find((n) => n.id === activeItemId)
       if (!keyNode) return
       // 完全新的节点（仅 title、其它内容为空、无子节点）直接删除，跳过确认弹窗
       e.preventDefault()
-      if (isPristineNode(keyNode, relation.edges)) {
-        removeNode(category.id, keyNode.id)
+      if (isPristineNode(keyNode, family.edges)) {
+        removeNode(family.id, keyNode.id)
         toast.success("已删除节点")
         return
       }
@@ -296,13 +819,16 @@ function Canvas({ category }: { category: Category }) {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [activeItemId, relation.nodes])
+  }, [activeItemId, family.nodes, family.edges, family.id, removeNode])
 
   // ---- 渲染防风暴缓存：只改 1 个节点不再重建整张画布 ----
-  // rfNode 逐节点缓存：node 引用 / 折叠态 / 选中态都没变就复用同一对象（含回调闭包），
+  // rfNode 逐节点缓存：node 引用 / 折叠态 / 选中态 / 多选态都没变就复用同一对象（含回调闭包），
   // 让 React Flow 的逐节点 memo 生效。回调按 nodeId 派发，旧闭包最多滞后一个快照，语义无影响。
   const rfNodeCacheRef = useRef(
-    new Map<string, { node: MindNode; collapsed: boolean; selected: boolean; rf: Node }>()
+    new Map<
+      string,
+      { node: MindNode; collapsed: boolean; selected: boolean; multi: boolean; rf: Node }
+    >()
   )
   const lastRfNodesRef = useRef<Node[] | null>(null)
   // edge 逐边缓存：源 edge/node 引用与 animated 标志没变就复用同一对象
@@ -315,15 +841,23 @@ function Canvas({ category }: { category: Category }) {
     const cache = rfNodeCacheRef.current
     const list: Node[] = []
     const seen = new Set<string>()
-    for (const n of relation.nodes) {
+    const multiActive = selectedIds.size > 1
+    for (const n of family.nodes) {
       if (hidden.has(n.id)) continue
       if (n.hidden) continue // 用户隐藏：不在画布显示
       seen.add(n.id)
-      const selected = n.id === activeItemId
+      const selected = n.id === activeItemId || selectedIds.has(n.id)
       const isCollapsed = collapsed.has(n.id)
+      const multi = multiActive && selectedIds.has(n.id)
       const hit = cache.get(n.id)
       let rf: Node
-      if (hit && hit.node === n && hit.selected === selected && hit.collapsed === isCollapsed) {
+      if (
+        hit &&
+        hit.node === n &&
+        hit.selected === selected &&
+        hit.collapsed === isCollapsed &&
+        hit.multi === multi
+      ) {
         rf = hit.rf
       } else {
         rf = {
@@ -336,10 +870,12 @@ function Canvas({ category }: { category: Category }) {
             onToggleCollapse: () => toggleCollapse(n.id),
             onImageZoom: (v: number) => handleImageZoom(n.id, v),
             onMenuAction: (a: string) => handleMenuAction(n.id, a),
+            multiSelected: multi,
+            multiCount: selectedIds.size,
           },
           selected,
         }
-        cache.set(n.id, { node: n, collapsed: isCollapsed, selected, rf })
+        cache.set(n.id, { node: n, collapsed: isCollapsed, selected, multi, rf })
       }
       list.push(rf)
       if (n.solution && n.solution.content.trim()) {
@@ -357,7 +893,7 @@ function Canvas({ category }: { category: Category }) {
             draggable: true,
             selectable: false,
           }
-          cache.set(solKey, { node: n, collapsed: false, selected: false, rf: solRf })
+          cache.set(solKey, { node: n, collapsed: false, selected: false, multi: false, rf: solRf })
           list.push(solRf)
         }
       }
@@ -376,8 +912,9 @@ function Canvas({ category }: { category: Category }) {
     lastRfNodesRef.current = list
     return list
   }, [
-    relation.nodes,
+    family.nodes,
     activeItemId,
+    selectedIds,
     hidden,
     collapsed,
     toggleCollapse,
@@ -390,8 +927,8 @@ function Canvas({ category }: { category: Category }) {
     const list: Edge[] = []
     const seen = new Set<string>()
     // 用户隐藏的节点 id（用于过滤连线）
-    const hiddenIds = new Set(relation.nodes.filter((n) => n.hidden).map((n) => n.id))
-    for (const e of relation.edges) {
+    const hiddenIds = new Set(family.nodes.filter((n) => n.hidden).map((n) => n.id))
+    for (const e of family.edges) {
       if (hidden.has(e.source) || hidden.has(e.target)) continue
       if (hiddenIds.has(e.source) || hiddenIds.has(e.target)) continue
       const animated = e.kind === "flow" && !isConnecting
@@ -415,7 +952,7 @@ function Canvas({ category }: { category: Category }) {
       }
     }
     // 解决方案绿线（按节点引用缓存）
-    for (const n of relation.nodes) {
+    for (const n of family.nodes) {
       if (hidden.has(n.id)) continue
       if (n.hidden) continue
       if (n.solution && n.solution.content.trim()) {
@@ -449,7 +986,7 @@ function Canvas({ category }: { category: Category }) {
     }
     lastRfEdgesRef.current = list
     return list
-  }, [relation.edges, relation.nodes, hidden, isConnecting])
+  }, [family.edges, family.nodes, hidden, isConnecting])
 
   // ---- 本地画布态（React Flow 持有位置，避免拖拽时每帧写 store 导致卡顿/节点消失） ----
   const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes)
@@ -512,24 +1049,24 @@ function Canvas({ category }: { category: Category }) {
     (_: unknown, node: Node) => {
       if (node.id.startsWith("sol-")) {
         const parentId = node.id.slice("sol-".length)
-        const parent = relation.nodes.find((n) => n.id === parentId)
-        if (parent) updateNode(category.id, parentId, { solutionPosition: node.position })
+        const parent = family.nodes.find((n) => n.id === parentId)
+        if (parent) updateNode(family.id, parentId, { solutionPosition: node.position })
       } else {
-        updateNode(category.id, node.id, { position: node.position })
+        updateNode(family.id, node.id, { position: node.position })
       }
     },
-    [relation.nodes, updateNode, category.id],
+    [family.nodes, updateNode, family.id],
   )
 
   const onConnect = useCallback(
     (c: Connection) => {
       if (c.source && c.target) {
-        const res = connectNodes(category.id, c.source, c.target, "flow")
+        const res = connectNodes(family.id, c.source, c.target, "flow")
         if (res === "exists") toast.error("已经连接过此节点了！")
         else if (res === "created") toast.success("已建立连线")
       }
     },
-    [connectNodes, category.id],
+    [connectNodes, family.id],
   )
 
   const onNodeDoubleClick = useCallback(
@@ -562,17 +1099,29 @@ function Canvas({ category }: { category: Category }) {
       ) {
         paneClickRef.current = null
         const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
-        addNode(category.id, pos)
+        addNode(family.id, pos)
         toast.success("已添加节点，右侧编辑详情")
       } else {
         paneClickRef.current = { t: now, x: e.clientX, y: e.clientY }
       }
     },
-    [screenToFlowPosition, addNode, category.id, setActiveItem]
+    [screenToFlowPosition, addNode, family.id, setActiveItem]
   )
+
+  // 搬迁弹窗：多选批量 / 单节点
+  const [moveIds, setMoveIds] = useState<string[] | null>(null)
+  useEscapeClose(moveIds !== null, () => setMoveIds(null))
 
   return (
     <div className="flex h-full">
+      {/* 族 sidebar（TODO 54：仅图内显示范围内） */}
+      <FamilySidebar
+        category={category}
+        family={family}
+        families={families}
+        onSelect={onSelectFamily}
+      />
+
       <div ref={canvasWrapRef} className="relative min-w-0 flex-1">
         <div className="pointer-events-none absolute right-3 top-3 z-10 flex flex-col items-end gap-2">
           <Button size="sm" className="pointer-events-auto gap-1.5" onClick={addAtCenter}>
@@ -591,6 +1140,8 @@ function Canvas({ category }: { category: Category }) {
           </Button>
         </div>
         <ReactFlow
+          // 切族时整体重挂：defaultViewport / fitView 按目标族的视口存档重新应用
+          key={family.id}
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
@@ -604,33 +1155,34 @@ function Canvas({ category }: { category: Category }) {
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
           onPaneContextMenu={(e) => e.preventDefault()}
+          onSelectionChange={handleSelectionChange}
           zoomOnDoubleClick={false}
           minZoom={birdView ? 0.02 : 0.5}
           nodesDraggable={!birdView}
           nodesConnectable={!birdView}
           onEdgeClick={(_, e) => {
             if (!e.id.startsWith("sol-edge-")) {
-              removeEdge(category.id, e.id)
+              removeEdge(family.id, e.id)
               toast.success("已删除连线")
             }
           }}
           fitView={!restoredViewport}
           defaultViewport={restoredViewport}
-          onMoveEnd={(_, viewport) => setMindmapViewport(category.id, viewport)}
+          onMoveEnd={(_, viewport) => setFamilyViewport(family.id, viewport)}
           proOptions={{ hideAttribution: true }}
           className="bg-muted/30"
         >
           <Background color="var(--border)" gap={20} />
           <Controls className="!rounded-lg !border !bg-card !shadow-sm [&_button]:!border-border [&_button]:!bg-card [&_button]:!fill-foreground" />
         </ReactFlow>
-        {relation.nodes.length === 0 && (
+        {family.nodes.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
             <Workflow className="size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              画布空空如也，双击画布或点击右上角「添加节点」开始。
+              「{family.name}」还是空的，双击画布或点击右上角「添加节点」开始。
             </p>
             <p className="text-xs text-muted-foreground/70">
-              拖拽节点底部圆点可连线，点击连线可删除；双击节点可编辑，带子任务的节点可折叠。
+              Shift+左键拖框可多选节点；拖拽节点底部圆点可连线，点击连线可删除。
             </p>
           </div>
         )}
@@ -649,11 +1201,19 @@ function Canvas({ category }: { category: Category }) {
 
       {selectedNode && (
         <NodeInspector
-          category={category}
+          family={family}
           node={selectedNode}
           onClose={() => setActiveItem(null)}
         />
       )}
+
+      <MoveNodesDialog
+        open={moveIds !== null}
+        nodeIds={moveIds ?? []}
+        category={category}
+        currentFamily={family}
+        onClose={() => setMoveIds(null)}
+      />
 
       <AlertDialog
         open={pendingDeleteId !== null}
@@ -662,7 +1222,7 @@ function Canvas({ category }: { category: Category }) {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              删除节点「{relation.nodes.find((n) => n.id === pendingDeleteId)?.title || "未命名"}」？
+              删除节点「{family.nodes.find((n) => n.id === pendingDeleteId)?.title || "未命名"}」？
             </AlertDialogTitle>
             <AlertDialogDescription>
               将删除该节点及其关联连线；若它是其它节点的子任务，也会从父节点移除。此操作不可撤销。
@@ -672,7 +1232,7 @@ function Canvas({ category }: { category: Category }) {
             <AlertDialogCancel onClick={() => setPendingDeleteId(null)}>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (pendingDeleteId) removeNode(category.id, pendingDeleteId)
+                if (pendingDeleteId) removeNode(family.id, pendingDeleteId)
                 setPendingDeleteId(null)
               }}
             >
@@ -685,10 +1245,10 @@ function Canvas({ category }: { category: Category }) {
   )
 }
 
-function ListView({ category }: { category: Category }) {
-  const nodes = category.relation!.nodes
+function ListView({ family }: { family: RelationFamily }) {
+  const nodes = family.nodes
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
-  const setRelationView = useWorkspace((s) => s.setRelationView)
+  const setFamilyView = useWorkspace((s) => s.setFamilyView)
   const addNode = useWorkspace((s) => s.addNode)
 
   return (
@@ -698,7 +1258,7 @@ function ListView({ category }: { category: Category }) {
           <Button
             size="sm"
             onClick={() => {
-              addNode(category.id)
+              addNode(family.id)
               toast.success("已添加节点，右侧编辑详情")
             }}
           >
@@ -716,7 +1276,7 @@ function ListView({ category }: { category: Category }) {
             key={n.id}
             type="button"
             onClick={() => {
-              setRelationView(category.id, "mindmap")
+              setFamilyView(family.id, "mindmap")
               setActiveItem(n.id)
             }}
             className="flex flex-col gap-2 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/50"

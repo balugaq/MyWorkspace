@@ -63,20 +63,24 @@
 **容器与视图**
 | 功能 | 入口点 |
 | --- | --- |
-| 工作区外壳 + 视图切换 | `MindmapWorkspace`（`setRelationView` 切 mindmap/list；`ViewBtn`） |
+| 工作区外壳 + 视图切换 | `MindmapWorkspace`（`setFamilyView` 按**当前族**切 mindmap/list；`ViewBtn`）；当前族为组件内 state（默认第一个族，被删时回落） |
+| 关系族 sidebar（TODO 54） | `FamilySidebar`（仅图内显示范围内渲染）：列出当前分类所有族、点击切换、新建/重命名（行内输入）/删除（AlertDialog 确认）；底部「AI 分析」（`askAiAbout` 携带族上下文，AI 用既有只读技能出报告）与「整理布局」（`lib/ai/relayout.ts` 的 `relayoutFamilyNodes` 函数式调用 + JSON 解析写回 position，失败 toast 不落库） |
+| 跨组件跳族 | store `pendingFamilyId`（不持久化，刷新不残留）+ `setPendingFamilyId`；`MindmapWorkspace` 消费后置空（搬迁跨分类跳转用） |
 | 鸟瞰模式 | `MindmapWorkspace` 右上角「鸟瞰」按钮（`birdView` 状态）；开启时 `minZoom` 降到 `0.02` 并 `fitView()`，临时禁用 `nodesDraggable`/`nodesConnectable`；退出恢复 `minZoom=0.5` |
-| 画布 | `Canvas`（`ReactFlow` + `ReactFlowProvider`） |
-| 视口记忆（x/y/zoom） | `Canvas` 读 `store.mindmapViewports[category.id]`（有效存档经 `defaultViewport` 恢复，此时初始 `fitView` 关闭；无存档保持 fitView）；`onMoveEnd` → `setMindmapViewport` 写回（按分类 id 持久化） |
+| 画布 | `Canvas`（`ReactFlow` + `ReactFlowProvider`；`key={family.id}` 切族整体重挂以重放视口存档） |
+| 视口记忆（x/y/zoom） | `Canvas` 读族内 `family.viewport`（有效存档经 `defaultViewport` 恢复，此时初始 `fitView` 关闭；无存档保持 fitView）；`onMoveEnd` → `setFamilyViewport` 写回（按族持久化；旧版顶层 `mindmapViewports` 已废弃） |
 | 列表视图 | `ListView`（含「添加节点」按钮 `addNode`、完成/隐藏/解决方案徽标） |
 | 节点类型注册 | `nodeTypes = { todo: TodoNode, solution: SolutionNode }` |
 
 **节点生命周期**
 | 功能 | 入口点 |
 | --- | --- |
-| 新建节点 | `addAtCenter()`（`screenToFlowPosition` 画面中心 → `addNode(category.id, pos)`）；列表视图 `ListView` 的添加按钮（`addNode`） |
+| 新建节点 | `addAtCenter()`（`screenToFlowPosition` 画面中心 → `addNode(family.id, pos)`）；列表视图 `ListView` 的添加按钮（`addNode`） |
 | 双击画布新增 | `onPaneClick`（pane 单击计时模拟双击建节点） |
 | 移动节点（拖拽不卡顿） | `onNodeDragStop`（`onNodeDragStop` 一次写回 `updateNode{position}`；拖拽中走 `useNodesState` 本地态） |
 | 打开节点详情 | `onNodeClick` / `onNodeDoubleClick`（均 `setActiveItem(n.id)`） |
+| 多选与批量操作（TODO 54） | React Flow 默认 Shift+左键拖框选；`onSelectionChange` → 本地 `selectedIds`；右键菜单（`TodoNode.multiSelected`/`multiCount`）多选时隐藏「添加子节点」，标记完成/添加标签/节点风格/截止日期对整个选区批量执行（`Canvas.handleMenuAction` 统一分发） |
+| 节点搬迁（TODO 54） | 右键「搬迁」→ `MoveNodesDialog`：上半区列当前分类各族（当前族禁用，可就地新建），底部「搬迁至其他图」列其他 relation 分类的族；确认 → `moveNodesToFamily`（只搬节点 + 两端都在搬移集合内的边），跨分类时 `setActiveCategory` + `setPendingFamilyId` 跳转到目标族 |
 | 删除节点 | 详情 `NodeInspector` 删除按钮 / 画布 `Delete`/`Backspace`（`pendingDeleteId` + `AlertDialog` 确认 → `removeNode`）；全新节点（`isPristineNode`，见 `lib/mindmap.ts`）删除免确认 |
 | 子节点位置 | 「添加子节点」在父节点右侧同高生成（不按索引下移） |
 
@@ -118,14 +122,17 @@
 
 ## 8.5 思维导图 store actions（`lib/store.ts`）
 
+> TODO 54 起思维图数据外置到顶层 `relationFamilies`（`RelationFamily.categoryId` 归属 relation 分类），全部节点类 action 以 **familyId** 定位；旧 `Category.relation` / `mindmapViewports` 由 `migrateRelationState` 迁移（persist merge / `importData` / `mergeData` 三处共用），内建「待办事项」分类（`BUILTIN_TODO_RELATIONS_CATEGORY_ID`）缺失自动补建。
+
 | 功能 | 方法 |
 | --- | --- |
-| 节点增删改 | `addNode`（返回新 id）、`updateNode`、`removeNode`（清理关联线 + 子引用） |
-| 解决方案 | `setNodeSolution` |
-| 连线 | `connectNodes(catId, src, tgt, kind)`（返回 `ConnectResult`）、`removeEdge` |
-| 视图 | `setRelationView` |
-| 视口存档 | `setMindmapViewport(catId, { x, y, zoom })`（写 `mindmapViewports`；persist merge 对旧存档兜底为 `{}`） |
-| 导入数据合并 | `mergeData(json)`（分类按 id 合并、日历按日期合并），`mergeById`/`mergeCalendarDay` 辅助 |
+| 节点增删改 | `addNode(familyId)`（返回新 id）、`updateNode(familyId, ...)`、`removeNode(familyId, ...)`（清理关联线 + 子引用） |
+| 解决方案 | `setNodeSolution(familyId, ...)` |
+| 连线 | `connectNodes(familyId, src, tgt, kind)`（返回 `ConnectResult`）、`removeEdge(familyId, ...)` |
+| 视图 / 视口 | `setFamilyView` / `setFamilyViewport`（写族内 `view` / `viewport`） |
+| 关系族管理 | `addRelationFamily(categoryId, name?)`（返回新族 id）、`renameRelationFamily`、`deleteRelationFamily`（清理族内节点贡献）、`moveNodesToFamily(familyId, nodeIds, targetFamilyId)`、`setPendingFamilyId`（跨组件跳族标记） |
+| 贡献联动 | `addNode`（+created）、`updateNode`（done 跃迁 ±done）、`removeNode` / `deleteRelationFamily` / `removeCategory`（连带清账）；`scanLegacyContributions` 遍历全部族 |
+| 导入数据合并 | `mergeData(json)`（分类按 id 合并、关系族按 id 合并后统一迁移、日历按日期合并），`mergeById`/`mergeCalendarDay` 辅助 |
 
 ## 8.6 日历（`components/calendar-workspace.tsx`）
 
@@ -351,6 +358,7 @@
 | 头像来源 | 复用 `settings.aiUserAvatar`（与 AI 对话头像同源；空回落默认 `User` 图标），256×256 圆角容器 |
 | 天气 / 地区 / 诗歌 / 签到 | 天气卡**已接真实数据**（TODO 34）：`components/weather-widget.tsx` + `lib/weather.ts` 直连 UAPI `https://uapis.cn/api/v1/misc/weather`（客户端 IP 自动定位，无城市选择；可选 Bearer 令牌存 `settings.uapiToken`，设置 → 高级）；结果缓存 2 小时（localStorage `mw:weather-cache`），仅手动刷新绕过缓存；429 后前端冷却 10 分钟（`mw:weather-cooldown`），期间禁用刷新并提示。地区（1 行）、每日诗歌（右下角小字）为**占位**；签到按钮**已实现**：点击 toast 成功提示 + 写 `check-in` 贡献（amount 2）+ 当天禁用 / 暗色图层，`04:00`（同一 `dayStartOffset`）重置；状态由账本按 dayKey 推导 |
 | 日期 / 星期 | 实时 `new Date()` 计算（非占位） |
+| 待办卡「打开关系图」 | 日期牌（待办）卡片按钮 → `setActiveCategory(BUILTIN_TODO_RELATIONS_CATEGORY_ID)` 跳转内建「待办事项」relation 分类（TODO 54） |
 | 贡献热力图（真实数据） | `ProfileWorkspace`：`lib/contributions.ts` 的 `buildHeatmapGrid` / `buildMonthLabels` / `aggregateByDay` / `contributionLevel` + store `contributions`；53 周 × 7 天、周日起始；颜色按「当日 amount 之和」走 0/(0,1]/(1,3]/(3,6]/>6，右上角总数按**条数**（`contributions.length`），tooltip 显示「yyyy-MM-dd · N 条 · X 贡献值」（X **四舍五入取整**，`< 0.5` 显示 `0`）/「yyyy-MM-dd · 无记录」 |
 | 存量贡献补算（临时） | 热力图卡片头部「补算历史」按钮（`ScanLine` 图标）→ store `scanLegacyContributions()`（幂等，toast 报新增条数）；**临时功能，主人用完会要求连同按钮整块删除** |
 

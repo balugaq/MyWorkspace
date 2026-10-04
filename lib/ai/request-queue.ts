@@ -9,7 +9,7 @@
 
 "use client"
 
-import { streamText, tool, stepCountIs, zodSchema, type ModelMessage, type ToolSet } from "ai"
+import { streamText, generateText, tool, stepCountIs, zodSchema, type ModelMessage, type ToolSet } from "ai"
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
 import { z } from "zod"
 
@@ -183,6 +183,69 @@ export function stopConversation(conversationId: string) {
     liveMessages.delete(conversationId)
     notify()
   }
+}
+
+// ---- 函数式一次性调用（TODO 54「AI 整理布局」等）：不走对话流，直接 generateText ----
+// 并发纪律与对话请求一致：settings.aiForceSync 开启时等对话队列空闲后再执行；
+// 多个一次性调用之间彼此串行（promise 链），避免并发轰炸供应商触发限流。
+
+let directChain: Promise<unknown> = Promise.resolve()
+
+const directSleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+async function waitConversationQueueIdle() {
+  while (
+    useWorkspace.getState().settings.aiForceSync &&
+    (activeJobs.size > 0 || pendingQueue.length > 0)
+  ) {
+    await directSleep(150)
+  }
+}
+
+function resolveDirectConfig(): AIChatConfig {
+  const { aiModels, aiActiveModelId } = useWorkspace.getState().settings
+  const model = aiModels.find((m) => m.id === aiActiveModelId) ?? aiModels[0]
+  if (!model || !model.apiKey?.trim()) {
+    throw new Error("尚未配置可用的 AI 模型，请先到「设置 → AI 助手」配置")
+  }
+  return {
+    providerId: model.provider,
+    apiKey: model.apiKey,
+    baseURL: model.baseUrl || undefined,
+    model: model.model || undefined,
+  }
+}
+
+/**
+ * 函数式一次性 AI 补全：返回模型完整文本；失败抛 Error（由调用方 toast）。
+ * 走 request-queue 的并发纪律（强制同步时让位于对话队列；多个直接调用彼此串行）。
+ */
+export async function requestDirectCompletion(
+  userPrompt: string,
+  systemPrompt?: string,
+): Promise<string> {
+  const run = async (): Promise<string> => {
+    await waitConversationQueueIdle()
+    const config = resolveDirectConfig()
+    const resolved = resolveProvider(config.providerId, config.apiKey, config.baseURL, config.model)
+    const provider = createOpenAICompatible({
+      name: config.providerId,
+      baseURL: resolved.baseURL,
+      apiKey: resolved.apiKey,
+    })
+    const result = await generateText({
+      model: provider.chatModel(resolved.model),
+      system: systemPrompt,
+      prompt: userPrompt,
+      // 显式关闭遥测（与 streamText 调用同理由，避免浏览器端未捕获 rejection）
+      telemetry: { isEnabled: false },
+    })
+    return result.text
+  }
+  const next = directChain.then(run, run)
+  // 链上吞错，保证后续调用不受前次失败影响；真实错误经 next 透给调用方
+  directChain = next.catch(() => undefined)
+  return next
 }
 
 function pump() {

@@ -471,7 +471,7 @@ TODO 53. （状态：已完成）
 专注钟默认改为正计时，按钮状态切换改为缓慢向下移出画面，然后向上浮出新的按钮
 - 已改（2026-10-03，此条目上一轮的状态更新被覆盖丢失，现补回）：focusMode 默认 "down"→"up"；控制按钮组状态切换加双向动画——旧按钮 500ms 下移+淡出（fill-mode-forwards 锁终态、退场期禁点击），新按钮 500ms 自下向上浮入。动画效果待主人目视确认。
 
-TODO 54. （状态：待处理）
+TODO 54. （状态：已完成，待目视确认）
 应当在待办事项里加一个自带的关系类，打开按钮加到个人主页那个待办事项的卡片里
 然后，关系类的存储应该改一改（包括个人主页和随笔的），在图内的显示范围添加一个新的sidebar，这个sidebar可以显示关系族分类，按不同的类别分别存储不同的图。
 默认有一个"我的分类"分类族，默认的节点也都放在这里
@@ -479,6 +479,16 @@ TODO 54. （状态：待处理）
 还要支持可以左键按住选择范围内的节点，可以有右键contextmenu选择，支持除了"添加子节点"的其他4个功能
 对于1个或若干的节点，现在有新的"搬迁"选择在contextmenu里，点开后，先列表显示当前有什么分类（或添加，对于当前所处分类暗色表示禁用）然后最底下添加一个"搬迁至其他图"的按钮，点击后可以显示可以搬迁到其他的关系类图（如自带的待办事项关系类图，和随笔里其他的关系类图）然后再打开到这个指定的图的上面的界面里。
 对于旧数据，先默认按移动到默认的"我的分类"里处理。
+
+### TODO 54 实施记录（2026-10-05，方案 B：族外置顶层）
+- 数据结构：`lib/types.ts` 新增 `RelationFamily`（id/name/categoryId/nodes/edges/view/viewport），删除 `Category.relation` 与 `RelationContent`；store 顶层新增 `relationFamilies`（key=族 id）与 `pendingFamilyId`（跨组件跳族标记，刷新置空不持久化生效），顶层 `mindmapViewports` 废弃。
+- 旧数据迁移：`lib/store.ts` 的 `migrateRelationState`（persist merge / importData 替换 / mergeData 合并三处共用）——旧 `categories[].relation` 迁为每分类一个默认族「我的分类」（id 稳定 `fam_${catId}`，viewport 取 `mindmapViewports[catId]` 后整体废弃）；坏值兜底（nodes/edges 非 Array 归空、view 非法回落 mindmap、族缺 id/categoryId 丢弃、孤儿族丢弃）；每个 relation 分类保底一个族；内建「待办事项」relation 分类（id `todo-relations`，builtin）缺失自动补建含默认族；备份「随笔数据」分区现随带 `relationFamilies`，旧备份导入同样走迁移。
+- actions 全量改族定位：addNode/addChildNode/updateNode/removeNode/setNodeSolution/connectNodes/removeEdge/removeSub/setFamilyView/setFamilyViewport；新增 addRelationFamily / renameRelationFamily / deleteRelationFamily（清理族内节点贡献）/ moveNodesToFamily（只搬节点 + 两端都在搬移集合内的边）/ setPendingFamilyId；removeCategory 连带删族清账；扫描/搜索/标签/截止/图片引用（lib/search、tags、deadlines、image-refs、builtin-skills 的 wb_get_mindmap_graph / wb_get_mindmap_node 增 familyId/familyName 参数）全部改读族。
+- 图内族 sidebar（FamilySidebar）：列族/切换/行内新建与重命名/删除（AlertDialog 确认）；底部「AI 分析」（askAiAbout 携带族上下文，AI 用既有只读技能出报告）与「整理布局」（lib/ai/relayout.ts 函数式一次性调用，经 request-queue 并发纪律：强制同步时让位对话队列、多次调用串行；prompt 给节点清单要求返回 JSON {nodeId:{x,y}}，解析容错支持代码围栏与前后缀说明文字，逐坐标校验有限数值才写回，失败 toast 不落库）。
+- 多选与搬迁：React Flow 默认 Shift+左键框选（onSelectionChange 收集 selectedIds）；多选右键隐藏「添加子节点」，标记完成（选内有未完成则全标记完成）/添加标签/节点风格/截止日期批量套用；「搬迁」弹窗 MoveNodesDialog——上半区当前分类各族（当前族暗色禁用、可就地新建族），底部「搬迁至其他图」列其他 relation 分类的族；跨分类搬迁后 setActiveCategory + setPendingFamilyId 直达目标族。画布切族整体重挂（key=family.id）重放各族视口存档。
+- Profile 待办卡新增「打开关系图」按钮 → 跳转内建「待办事项」分类。
+- typecheck / lint 均 0 错误（仅 vault 一条历史 warning）；`.relation` 残留仅剩迁移代码与注释。以上均待主人目视确认（族 sidebar 交互、多选批量、搬迁跳转、AI 分析/整理布局效果）。
+- 修复（2026-10-05 主人实测报错「Maximum update depth exceeded」）：根因是 xyflow v12 `SelectionListenerInner` 把 `onSelectionChange` prop 放进 effect 依赖，内联箭头函数每次渲染新引用 → effect 每次渲染重跑 → setState(新 Set) → 再渲染死循环。改为 `useCallback` 稳定引用 + 内容相同返回旧 Set（React 跳过重渲染）双保险。
 
 TODO 55. （状态：已完成）
 1. 自定义节日编辑：设置 → 账户与同步新增「自定义节日」管理区（列表 + 新建/编辑/删除弹窗，字段：名称/规则/颜色/放假/上班），与「从 yml 导入」并存；保存时用 parseFestivalRule 校验规则格式
@@ -509,3 +519,6 @@ TODO 58. （状态：已完成，待目视确认）
 - 57：新建 components/ai-brand.tsx（AiIcon 原子图标 = 主人指定 SVG，签名兼容 lucide；AiText 渐变彩色「AI」字 violet→fuchsia→sky）。工具栏「AI 对话」图标 BotMessageSquare→AiIcon、文本 AI 彩色；profile「问 AI 今日待办」、右键菜单 AI 项文本同步彩色。彩色渐变色值如需调整改 AiText 一处即可。
 - 58：page.tsx 主区空态按 categories.length 分支——有分类未打开显示「打开一个分类」，无分类保持「还没有分类」引导创建。
 - 均待主人目视确认（图标观感 / 渐变配色 / 空态文案）。
+
+TODO 59. （状态：待处理）
+AI 整理关系图（从 TODO 54 拆出，本轮不做）：读取图中已有内容和用户提供的素材，生成或补充关系图（写回节点+连线）。功能较大，执行前需主人指明作用域 scope（当前族 / 整个分类 / 跨分类）。

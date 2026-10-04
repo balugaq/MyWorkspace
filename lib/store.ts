@@ -26,6 +26,7 @@ import type {
   NotificationItem,
   NotificationLogEntry,
   MindmapViewport,
+  RelationFamily,
   IssueQueueItem,
   IssueQueueColumn,
   BackupSections,
@@ -33,7 +34,7 @@ import type {
   Person,
   FestivalDef,
 } from "./types"
-import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, normalizeProfileWidgetOrder, type AIPersona } from "./types"
+import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, normalizeProfileWidgetOrder, BUILTIN_TODO_RELATIONS_CATEGORY_ID, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
 import { normalizeDayStartOffset, parseDayStartOffset, todayKey } from "./contributions"
 import { imageIdsInText } from "./image-refs"
@@ -87,25 +88,141 @@ const LEGACY_NODE_TIME = new Date("2026-08-31T02:00:00+08:00").getTime()
 
 // 为旧存档/旧备份中缺失 createdAt / completedAt 的节点补齐默认值（并在加载时写回持久化）。
 // 约定：字段为 undefined = 旧数据缺失 → 补齐 LEGACY_NODE_TIME；字段为 null = 明确「未完成」→ 保留。
-function normalizeCategoryNodes(cats: Category[]): Category[] {
-  return cats.map((c) => {
-    if (!c.relation || !Array.isArray(c.relation.nodes) || c.relation.nodes.length === 0)
-      return c
-    let changed = false
-    const nodes = c.relation.nodes.map((n) => {
-      const next = { ...n }
-      if (typeof next.createdAt !== "number") {
-        next.createdAt = LEGACY_NODE_TIME
-        changed = true
+function normalizeMindNodes(raw: unknown): MindNode[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((n) => n && typeof n === "object" && typeof (n as MindNode).id === "string")
+    .map((n) => {
+      const node = { ...(n as MindNode) }
+      if (typeof node.createdAt !== "number") {
+        node.createdAt = LEGACY_NODE_TIME
       }
-      if (next.completedAt === undefined) {
-        next.completedAt = LEGACY_NODE_TIME
-        changed = true
+      if (node.completedAt === undefined) {
+        node.completedAt = LEGACY_NODE_TIME
       }
-      return next
+      return node
     })
-    return changed ? { ...c, relation: { ...c.relation, nodes } } : c
-  })
+}
+
+// ---- 关系族（TODO 54）：旧版 Category.relation + mindmapViewports → relationFamilies 迁移 ----
+
+/** 迁移 / 新建默认族的统一命名 */
+const DEFAULT_FAMILY_NAME = "我的分类"
+
+/** 默认族稳定 id：`fam_${categoryId}`（同一分类的迁移/兜底默认族固定此 id，避免重复补建） */
+function defaultFamilyId(categoryId: string): string {
+  return `fam_${categoryId}`
+}
+
+function isValidViewport(v: unknown): v is MindmapViewport {
+  if (!v || typeof v !== "object") return false
+  const p = v as Record<string, unknown>
+  return (
+    typeof p.x === "number" && Number.isFinite(p.x) &&
+    typeof p.y === "number" && Number.isFinite(p.y) &&
+    typeof p.zoom === "number" && Number.isFinite(p.zoom)
+  )
+}
+
+function makeEmptyFamily(categoryId: string, name = DEFAULT_FAMILY_NAME): RelationFamily {
+  return { id: defaultFamilyId(categoryId), name, categoryId, nodes: [], edges: [], view: "mindmap" }
+}
+
+/** 族规范化：id 必须非空字符串、categoryId 必须可归属，坏值兜底（nodes/edges/view/name/viewport） */
+function normalizeFamily(raw: unknown, fallbackCategoryId: string): RelationFamily | null {
+  if (!raw || typeof raw !== "object") return null
+  const r = raw as Record<string, unknown>
+  if (typeof r.id !== "string" || !r.id) return null
+  const categoryId =
+    typeof r.categoryId === "string" && r.categoryId ? r.categoryId : fallbackCategoryId
+  if (!categoryId) return null
+  const viewport = isValidViewport(r.viewport) ? r.viewport : undefined
+  return {
+    id: r.id,
+    name: typeof r.name === "string" && r.name.trim() ? r.name : DEFAULT_FAMILY_NAME,
+    categoryId,
+    nodes: normalizeMindNodes(r.nodes),
+    edges: Array.isArray(r.edges) ? (r.edges as MindEdge[]) : [],
+    view: r.view === "list" ? "list" : "mindmap",
+    ...(viewport ? { viewport } : {}),
+  }
+}
+
+/**
+ * 关系族总迁移（TODO 54）：persist merge / 备份导入（替换 / 合并）三处共用。
+ * - 新格式 relationFamilies（Record）逐条规范化，坏值兜底；categoryId 指向不存在分类的孤儿族丢弃。
+ * - 旧格式：categories[].relation（单图）迁移为每分类一个默认族「我的分类」（id 稳定 `fam_${catId}`），
+ *   viewport 取 legacyViewports[catId]；迁移后删除 Category.relation 键，mindmapViewports 整体废弃。
+ * - 兜底：每个 relation 分类至少一个族；内建「待办事项」分类缺失则自动补建（含默认族）。
+ */
+function migrateRelationState(
+  rawCategories: unknown,
+  rawFamilies: unknown,
+  legacyViewports: unknown,
+): { categories: Category[]; relationFamilies: Record<string, RelationFamily> } {
+  const categories: Category[] = Array.isArray(rawCategories)
+    ? (rawCategories as Category[]).filter(
+        (c) => c && typeof c === "object" && typeof c.id === "string"
+      )
+    : []
+  const families: Record<string, RelationFamily> = {}
+  if (rawFamilies && typeof rawFamilies === "object" && !Array.isArray(rawFamilies)) {
+    for (const val of Object.values(rawFamilies as Record<string, unknown>)) {
+      const fam = normalizeFamily(val, "")
+      if (fam) families[fam.id] = fam
+    }
+  }
+  const catIds = new Set(categories.map((c) => c.id))
+  // 孤儿族（归属分类已不存在）丢弃，避免占据存储且无处显示
+  for (const [id, fam] of Object.entries(families)) {
+    if (!catIds.has(fam.categoryId)) delete families[id]
+  }
+  // 旧格式迁移：Category.relation 单图 → 默认族（viewport 取 mindmapViewports[catId]）
+  for (const c of categories) {
+    const raw = c as unknown as Record<string, unknown>
+    if (!("relation" in raw)) continue
+    const legacy = raw.relation
+    const famId = defaultFamilyId(c.id)
+    if (legacy && typeof legacy === "object" && !families[famId]) {
+      const l = legacy as Record<string, unknown>
+      const lv =
+        legacyViewports && typeof legacyViewports === "object"
+          ? (legacyViewports as Record<string, unknown>)[c.id]
+          : undefined
+      const migrated = normalizeFamily(
+        { id: famId, name: DEFAULT_FAMILY_NAME, categoryId: c.id, nodes: l.nodes, edges: l.edges, view: l.view, viewport: lv },
+        c.id
+      )
+      if (migrated) families[famId] = migrated
+    }
+    delete raw.relation
+  }
+  // 兜底：每个 relation 分类至少一个族（空分类 / 迁移失败补默认空族）
+  for (const c of categories) {
+    if (c.template !== "relation") continue
+    if (!Object.values(families).some((f) => f.categoryId === c.id)) {
+      families[defaultFamilyId(c.id)] = makeEmptyFamily(c.id)
+    }
+  }
+  // 内建「待办事项」relation 分类缺失则补建（含默认族「我的分类」）
+  if (!catIds.has(BUILTIN_TODO_RELATIONS_CATEGORY_ID)) {
+    categories.push({
+      id: BUILTIN_TODO_RELATIONS_CATEGORY_ID,
+      name: "待办事项",
+      template: "relation",
+      icon: "Workflow",
+      config: {},
+      builtin: true,
+    })
+  }
+  if (
+    !Object.values(families).some((f) => f.categoryId === BUILTIN_TODO_RELATIONS_CATEGORY_ID)
+  ) {
+    families[defaultFamilyId(BUILTIN_TODO_RELATIONS_CATEGORY_ID)] = makeEmptyFamily(
+      BUILTIN_TODO_RELATIONS_CATEGORY_ID
+    )
+  }
+  return { categories, relationFamilies: families }
 }
 
 /** 合并某天的日历数据：笔记取备份非空值，待办/事件按 id 合并 */
@@ -188,8 +305,11 @@ interface WorkspaceState {
   // null = 从未拉过
   newsLastFetchedAt: number | null
 
-  // 关系类思维图视口存档（key = category.id）：保存上次浏览的 scale 及 x,y，重挂载后恢复
-  mindmapViewports: Record<string, MindmapViewport>
+  // 关系族（TODO 54）：key = family.id；每族一张独立图（nodes/edges/view/viewport），经 categoryId 归属 relation 分类。
+  // 旧版 Category.relation 与 mindmapViewports 由 merge 迁移为默认族后废弃
+  relationFamilies: Record<string, RelationFamily>
+  // 跨组件跳转到指定族（如搬迁后跳转目标族）：消费后由组件置空；onRehydrateStorage 置 null（刷新不残留）
+  pendingFamilyId: string | null
 
   // GitHub Issue/PR 看板队列（TODO 36）：用户从仓库拉取 / 监听同步进来的卡片
   issueQueue: IssueQueueItem[]
@@ -273,12 +393,12 @@ interface WorkspaceState {
   ) => void
   removeChapter: (catId: string, chapterId: string) => void
 
-  // 思维导图
-  addNode: (catId: string, position?: { x: number; y: number }, title?: string) => string
+  // 思维导图（TODO 54 起以 familyId 定位操作 relationFamilies）
+  addNode: (familyId: string, position?: { x: number; y: number }, title?: string) => string
   /** 添加子节点（统一入口）：以「父标题 序号」避重命名、置于父节点右侧并自动连线，
    *  末尾显式 setActiveItem(childId) 保证详情面板切到新节点。返回子节点 id（失败为 null）。 */
-  addChildNode: (catId: string, parentId: string) => string | null
-  updateNode: (catId: string, nodeId: string, patch: Partial<MindNode>) => void
+  addChildNode: (familyId: string, parentId: string) => string | null
+  updateNode: (familyId: string, nodeId: string, patch: Partial<MindNode>) => void
   removeNode: (catId: string, nodeId: string) => void
   /** 一次性存量补算：为账本中缺失的节点补 created/done 记录（幂等），返回新增条数。
    *  临时功能（入口在 Profile 页），主人用完会要求删除 —— 与 Profile 的按钮一并摘除。 */
@@ -329,21 +449,33 @@ interface WorkspaceState {
   updateContact: (id: string, patch: Partial<Person>) => void
   removeContact: (id: string) => void
   setNodeSolution: (
-    catId: string,
+    familyId: string,
     nodeId: string,
     content: string,
     status: SolutionStatus
   ) => void
   connectNodes: (
-    catId: string,
+    familyId: string,
     source: string,
     target: string,
     kind: "flow" | "sub"
   ) => ConnectResult
-  removeEdge: (catId: string, edgeId: string) => void
-  removeSub: (catId: string, nodeId: string, subId: string) => void
-  setRelationView: (catId: string, view: "mindmap" | "list") => void
-  setMindmapViewport: (categoryId: string, viewport: MindmapViewport) => void
+  removeEdge: (familyId: string, edgeId: string) => void
+  removeSub: (familyId: string, nodeId: string, subId: string) => void
+  /** 切换族视图（mindmap / list） */
+  setFamilyView: (familyId: string, view: "mindmap" | "list") => void
+  /** 族视口存档（写族内 viewport；旧版顶层 mindmapViewports 已废弃） */
+  setFamilyViewport: (familyId: string, viewport: MindmapViewport) => void
+
+  // 关系族管理（TODO 54）
+  /** 新建族：返回新族 id（默认命名「我的分类」） */
+  addRelationFamily: (categoryId: string, name?: string) => string
+  renameRelationFamily: (familyId: string, name: string) => void
+  /** 删除族：清理族内全部节点的贡献账本记录 */
+  deleteRelationFamily: (familyId: string) => void
+  /** 搬迁节点：只搬节点 + 两端都在搬移集合内的边（跨分类搬迁不改族归属字段以外的东西） */
+  moveNodesToFamily: (familyId: string, nodeIds: string[], targetFamilyId: string) => void
+  setPendingFamilyId: (id: string | null) => void
 
   // 日历
   setSelectedDate: (date: string) => void
@@ -466,8 +598,9 @@ export const useWorkspace = create<WorkspaceState>()(
       // 新闻精选：从未拉过
       newsLastFetchedAt: null,
 
-      // 关系图视口存档：默认空（首次进入画布走 fitView 自适应）
-      mindmapViewports: {},
+      // 关系族（TODO 54）：初始空（内建「待办事项」与旧数据迁移由 merge 的 migrateRelationState 补建）
+      relationFamilies: {},
+      pendingFamilyId: null,
 
       // GitHub 队列（TODO 36）：默认空
       issueQueue: [],
@@ -523,7 +656,11 @@ export const useWorkspace = create<WorkspaceState>()(
             exportedAt: new Date().toISOString(),
             settings: s.settings,
           }
-          if (want("notes")) payload.categories = s.categories
+          if (want("notes")) {
+            payload.categories = s.categories
+            // TODO 54：关系族随「随笔数据」分区携带（含族内节点/连线/视口）
+            payload.relationFamilies = s.relationFamilies
+          }
           if (want("calendar")) {
             payload.calendar = s.calendar
             // TODO 48：自定义节日归日历分区（它是日历数据，主人定的口径）
@@ -555,6 +692,10 @@ export const useWorkspace = create<WorkspaceState>()(
           // 分区备份兼容（TODO 41）：按「字段是否出现」识别分区；至少含一个数据分区才合法。
           // 替换语义 = 只替换备份携带的分区，未携带的分区保留当前数据（向后兼容旧版全量备份）。
           const hasNotes = Array.isArray(data.categories)
+          const hasFamilies =
+            !!data.relationFamilies &&
+            typeof data.relationFamilies === "object" &&
+            !Array.isArray(data.relationFamilies)
           const hasCalendar = typeof data.calendar === "object" && data.calendar !== null
           const hasAi = Array.isArray(data.conversations)
           const hasContribs = Array.isArray(data.contributions)
@@ -564,6 +705,7 @@ export const useWorkspace = create<WorkspaceState>()(
           const hasFestivals = Array.isArray(data.customFestivals)
           if (
             !hasNotes &&
+            !hasFamilies &&
             !hasCalendar &&
             !hasAi &&
             !hasContribs &&
@@ -574,6 +716,10 @@ export const useWorkspace = create<WorkspaceState>()(
           )
             return false
           const cur = get()
+          // 关系族（TODO 54）：随 notes 分区迁移（旧备份 categories[].relation 一并转为默认族）
+          const migratedNotes = hasNotes
+            ? migrateRelationState(data.categories, data.relationFamilies, undefined)
+            : null
           // AI 对话：仅当备份显式包含 conversations 时才覆盖（旧版无此字段则保留当前对话）。
           const convs = hasAi ? (data.conversations as Conversation[]) : null
           // 贡献账本：仅当备份显式包含数组时才覆盖（旧备份无此字段 → 保留当前账本，不清空）
@@ -584,10 +730,11 @@ export const useWorkspace = create<WorkspaceState>()(
           const persona = migratePersona((bSettings ?? {}) as Record<string, unknown>)
           set({
             // 随笔分区：出现才替换；未出现保留当前分类与选中态
-            ...(hasNotes
+            ...(migratedNotes
               ? {
-                  categories: normalizeCategoryNodes(data.categories as Category[]),
-                  activeCategoryId: (data.categories as Category[])[0]?.id ?? null,
+                  categories: migratedNotes.categories,
+                  relationFamilies: migratedNotes.relationFamilies,
+                  activeCategoryId: migratedNotes.categories[0]?.id ?? null,
                   activeItemId: null,
                 }
               : {}),
@@ -659,6 +806,10 @@ export const useWorkspace = create<WorkspaceState>()(
           const data = JSON.parse(json)
           if (!data || typeof data !== "object") return false
           const hasNotes = Array.isArray(data.categories)
+          const hasFamilies =
+            !!data.relationFamilies &&
+            typeof data.relationFamilies === "object" &&
+            !Array.isArray(data.relationFamilies)
           const hasCalendar = typeof data.calendar === "object" && data.calendar !== null
           const hasAi = Array.isArray(data.conversations)
           const hasContribs = Array.isArray(data.contributions)
@@ -668,6 +819,7 @@ export const useWorkspace = create<WorkspaceState>()(
           const hasFestivals = Array.isArray(data.customFestivals)
           if (
             !hasNotes &&
+            !hasFamilies &&
             !hasCalendar &&
             !hasAi &&
             !hasContribs &&
@@ -679,12 +831,24 @@ export const useWorkspace = create<WorkspaceState>()(
             return false
           const cur = get()
           const patch: Record<string, unknown> = {}
-          // 分类：按 id 合并（备份覆盖同 id，新 id 追加）
+          // 分类：按 id 合并（备份覆盖同 id，新 id 追加）；关系族一并按 id 合并后统一迁移
+          // （旧备份 categories[].relation → 默认族；TODO 54）
           if (hasNotes) {
             const catMap = new Map<string, Category>()
             for (const c of cur.categories) catMap.set(c.id, c)
             for (const c of data.categories as Category[]) catMap.set(c.id, c)
-            patch.categories = normalizeCategoryNodes([...catMap.values()])
+            const famMap: Record<string, RelationFamily> = { ...cur.relationFamilies }
+            if (hasFamilies) {
+              for (const val of Object.values(
+                data.relationFamilies as Record<string, unknown>
+              )) {
+                const fam = normalizeFamily(val, "")
+                if (fam) famMap[fam.id] = fam
+              }
+            }
+            const migrated = migrateRelationState([...catMap.values()], famMap, undefined)
+            patch.categories = migrated.categories
+            patch.relationFamilies = migrated.relationFamilies
           }
           // 日历：按日期合并
           if (hasCalendar) {
@@ -777,8 +941,20 @@ export const useWorkspace = create<WorkspaceState>()(
           config,
           builtin: false,
         }
+        let newFamilies: Record<string, RelationFamily> | null = null
         if (template === "relation") {
-          cat.relation = { nodes: [], edges: [], view: "mindmap" }
+          // TODO 54：relation 分类建一个默认族「我的分类」（图数据在 relationFamilies）
+          const famId = `fam_${uid()}`
+          newFamilies = {
+            [famId]: {
+              id: famId,
+              name: DEFAULT_FAMILY_NAME,
+              categoryId: id,
+              nodes: [],
+              edges: [],
+              view: "mindmap",
+            },
+          }
         } else {
           const chapters: Chapter[] = []
           if (template === "novel" && count > 0) {
@@ -796,6 +972,7 @@ export const useWorkspace = create<WorkspaceState>()(
         }
         set((s) => ({
           categories: [...s.categories, cat],
+          ...(newFamilies ? { relationFamilies: { ...s.relationFamilies, ...newFamilies } } : {}),
           activeCategoryId: id,
           activeItemId: null,
           view: "workspace",
@@ -805,23 +982,38 @@ export const useWorkspace = create<WorkspaceState>()(
 
       removeCategory: (id) =>
         set((s) => {
-          const removing = s.categories.find((c) => c.id === id)
           const categories = s.categories.filter((c) => c.id !== id)
           const activeCategoryId =
             s.activeCategoryId === id
               ? (categories[0]?.id ?? null)
               : s.activeCategoryId
-          // 账本：删整个关系型分类 = 连带删掉其下所有节点，口径与 removeNode 一致
+          // 关系族连带删除（TODO 54）：删整个关系型分类 = 连带删掉其下所有族，
+          // 族内全部节点的贡献账本一并清理（口径与 removeNode 一致）
+          const relationFamilies: Record<string, RelationFamily> = {}
+          const nodeIds: string[] = []
+          for (const [fid, fam] of Object.entries(s.relationFamilies)) {
+            if (fam.categoryId === id) {
+              for (const n of fam.nodes) nodeIds.push(n.id)
+            } else {
+              relationFamilies[fid] = fam
+            }
+          }
           let contributions = s.contributions
-          if (removing?.relation && removing.relation.nodes.length > 0) {
-            const prefixes = removing.relation.nodes.map((n) => `${n.id}:`)
+          if (nodeIds.length > 0) {
+            const prefixes = nodeIds.map((n) => `${n}:`)
             const kept = s.contributions.filter(
               (x) => !prefixes.some((p) => x.id.startsWith(p))
             )
             // 未命中则保持原引用，避免无谓重渲染
             if (kept.length !== s.contributions.length) contributions = kept
           }
-          return { categories, activeCategoryId, activeItemId: null, contributions }
+          return {
+            categories,
+            activeCategoryId,
+            activeItemId: null,
+            contributions,
+            relationFamilies,
+          }
         }),
 
       renameCategory: (id, name) =>
@@ -1009,14 +1201,14 @@ export const useWorkspace = create<WorkspaceState>()(
           activeItemId: s.activeItemId === chapterId ? null : s.activeItemId,
         })),
 
-      addNode: (catId, position, title) => {
+      addNode: (familyId, position, title) => {
         const id = uid()
         const now = Date.now()
         const nodeTitle = title ?? "新节点"
         set((s) => {
-          const cat = s.categories.find((c) => c.id === catId)
-          // 目标分类不存在 / 非 relation：不建节点（保留 activeItemId 行为）
-          if (!cat || !cat.relation) return { activeItemId: id }
+          const fam = s.relationFamilies[familyId]
+          // 目标族不存在：不建节点（保留 activeItemId 行为）
+          if (!fam) return { activeItemId: id }
           const node: MindNode = {
             id,
             title: nodeTitle,
@@ -1034,14 +1226,10 @@ export const useWorkspace = create<WorkspaceState>()(
             completedAt: null,
           }
           return {
-            categories: s.categories.map((c) =>
-              c.id === catId && c.relation
-                ? {
-                    ...c,
-                    relation: { ...c.relation, nodes: [...c.relation.nodes, node] },
-                  }
-                : c
-            ),
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: { ...fam, nodes: [...fam.nodes, node] },
+            },
             // 记账：新建节点 +0.2
             contributions: [
               ...s.contributions,
@@ -1062,28 +1250,28 @@ export const useWorkspace = create<WorkspaceState>()(
       // 添加子节点统一入口（原 NodeInspector.handleAddChild 与右键菜单两处重复逻辑合并）：
       // 末尾显式 setActiveItem(childId)——仅靠 addNode 内部的 activeItemId 赋值，
       // 在右键菜单路径下会被菜单关闭后的焦点/点击时序覆盖，详情面板不切换。
-      addChildNode: (catId, parentId) => {
+      addChildNode: (familyId, parentId) => {
         const s = get()
-        const cat = s.categories.find((c) => c.id === catId)
-        if (!cat || !cat.relation) return null
-        const parent = cat.relation.nodes.find((n) => n.id === parentId)
+        const fam = s.relationFamilies[familyId]
+        if (!fam) return null
+        const parent = fam.nodes.find((n) => n.id === parentId)
         if (!parent) return null
         const base = parent.title?.trim() || "新节点"
-        const existing = new Set(cat.relation.nodes.map((n) => (n.title ?? "").trim()))
+        const existing = new Set(fam.nodes.map((n) => (n.title ?? "").trim()))
         let seq = 1
         while (existing.has(`${base} ${seq}`)) seq++
         const pos = parent.position ?? { x: 200, y: 120 }
-        const childId = s.addNode(catId, { x: pos.x + 300, y: pos.y }, `${base} ${seq}`)
-        s.connectNodes(catId, parentId, childId, "flow")
+        const childId = s.addNode(familyId, { x: pos.x + 300, y: pos.y }, `${base} ${seq}`)
+        s.connectNodes(familyId, parentId, childId, "flow")
         s.setActiveItem(childId)
         return childId
       },
 
-      updateNode: (catId, nodeId, patch) =>
+      updateNode: (familyId, nodeId, patch) =>
         set((s) => {
-          const cat = s.categories.find((c) => c.id === catId)
-          if (!cat || !cat.relation) return {}
-          const prev = cat.relation.nodes.find((n) => n.id === nodeId)
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return {}
+          const prev = fam.nodes.find((n) => n.id === nodeId)
           if (!prev) return {}
 
           const next = { ...prev, ...patch }
@@ -1098,17 +1286,13 @@ export const useWorkspace = create<WorkspaceState>()(
             }
           }
 
-          const categories = s.categories.map((c) =>
-            c.id === catId && c.relation
-              ? {
-                  ...c,
-                  relation: {
-                    ...c.relation,
-                    nodes: c.relation.nodes.map((n) => (n.id === nodeId ? next : n)),
-                  },
-                }
-              : c
-          )
+          const relationFamilies = {
+            ...s.relationFamilies,
+            [familyId]: {
+              ...fam,
+              nodes: fam.nodes.map((n) => (n.id === nodeId ? next : n)),
+            },
+          }
 
           // 记账：仅当完成态「真正跃迁」时才写账本（拖拽 position / 图片缩放等 patch 不触发）
           let contributions = s.contributions
@@ -1130,36 +1314,36 @@ export const useWorkspace = create<WorkspaceState>()(
               : withoutDone
           }
 
-          return { categories, contributions }
+          return { relationFamilies, contributions }
         }),
 
-      removeNode: (catId, nodeId) =>
-        set((s) => ({
-          categories: s.categories.map((c) =>
-            c.id === catId && c.relation
-              ? {
-                  ...c,
-                  relation: {
-                    ...c.relation,
-                    nodes: c.relation.nodes
-                      .filter((n) => n.id !== nodeId)
-                      .map((n) =>
-                        n.sub.includes(nodeId)
-                          ? { ...n, sub: n.sub.filter((x) => x !== nodeId) }
-                          : n
-                      ),
-                    edges: c.relation.edges.filter(
-                      (e) => e.source !== nodeId && e.target !== nodeId
-                    ),
-                  },
-                }
-              : c
-          ),
-          // 记账：删除节点 → 清掉该节点全部条（id 形如 `${nodeId}:created` / `${nodeId}:done`）。
-          // 注：removeNode 非递归，子节点会存活（仅从父节点 sub 解绑），故只清本节点记录。
-          contributions: s.contributions.filter((x) => !x.id.startsWith(`${nodeId}:`)),
-          activeItemId: s.activeItemId === nodeId ? null : s.activeItemId,
-        })),
+      removeNode: (familyId, nodeId) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return {}
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: {
+                ...fam,
+                nodes: fam.nodes
+                  .filter((n) => n.id !== nodeId)
+                  .map((n) =>
+                    n.sub.includes(nodeId)
+                      ? { ...n, sub: n.sub.filter((x) => x !== nodeId) }
+                      : n
+                  ),
+                edges: fam.edges.filter(
+                  (e) => e.source !== nodeId && e.target !== nodeId
+                ),
+              },
+            },
+            // 记账：删除节点 → 清掉该节点全部条（id 形如 `${nodeId}:created` / `${nodeId}:done`）。
+            // 注：removeNode 非递归，子节点会存活（仅从父节点 sub 解绑），故只清本节点记录。
+            contributions: s.contributions.filter((x) => !x.id.startsWith(`${nodeId}:`)),
+            activeItemId: s.activeItemId === nodeId ? null : s.activeItemId,
+          }
+        }),
 
       // 一次性存量补算（幂等）：为账本缺失的节点补 created / done 记录，返回新增条数。
       // 临时功能：入口在 Profile 页「补算历史」按钮，主人用完会要求删除 —— 与按钮一并摘除。
@@ -1168,9 +1352,8 @@ export const useWorkspace = create<WorkspaceState>()(
         set((s) => {
           const existing = new Set(s.contributions.map((c) => c.id))
           const next = [...s.contributions]
-          for (const c of s.categories) {
-            if (!c.relation) continue
-            for (const n of c.relation.nodes) {
+          for (const fam of Object.values(s.relationFamilies)) {
+            for (const n of fam.nodes) {
               const createdId = `${n.id}:created`
               if (typeof n.createdAt === "number" && !existing.has(createdId)) {
                 next.push({
@@ -1362,40 +1545,40 @@ export const useWorkspace = create<WorkspaceState>()(
       removeContact: (id) =>
         set((s) => ({ contacts: s.contacts.filter((p) => p.id !== id) })),
 
-      setNodeSolution: (catId, nodeId, content, status) =>
-        set((s) => ({
-          categories: s.categories.map((c) =>
-            c.id === catId && c.relation
-              ? {
-                  ...c,
-                  relation: {
-                    ...c.relation,
-                    nodes: c.relation.nodes.map((n) =>
-                      n.id === nodeId
-                        ? {
-                            ...n,
-                            solution: content.trim()
-                              ? { content, status }
-                              : null,
-                          }
-                        : n
-                    ),
-                  },
-                }
-              : c
-          ),
-        })),
+      setNodeSolution: (familyId, nodeId, content, status) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return {}
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: {
+                ...fam,
+                nodes: fam.nodes.map((n) =>
+                  n.id === nodeId
+                    ? {
+                        ...n,
+                        solution: content.trim()
+                          ? { content, status }
+                          : null,
+                      }
+                    : n
+                ),
+              },
+            },
+          }
+        }),
 
-      connectNodes: (catId, source, target, kind) => {
+      connectNodes: (familyId, source, target, kind) => {
         let result: ConnectResult = "invalid"
         set((s) => {
-          const cat = s.categories.find((c) => c.id === catId)
-          if (!cat || !cat.relation) return s
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return s
           if (source === target) {
             result = "invalid"
             return s
           }
-          const exists = cat.relation.edges.some(
+          const exists = fam.edges.some(
             (e) => e.source === source && e.target === target
           )
           if (exists) {
@@ -1403,7 +1586,7 @@ export const useWorkspace = create<WorkspaceState>()(
             return s
           }
           const edge: MindEdge = { id: uid(), source, target, kind }
-          let nodes = cat.relation.nodes
+          let nodes = fam.nodes
           if (kind === "sub") {
             nodes = nodes.map((n) =>
               n.id === source && !n.sub.includes(target)
@@ -1413,90 +1596,174 @@ export const useWorkspace = create<WorkspaceState>()(
           }
           result = "created"
           return {
-            categories: s.categories.map((c) =>
-              c.id === catId && c.relation
-                ? {
-                    ...c,
-                    relation: {
-                      ...c.relation,
-                      edges: [...c.relation.edges, edge],
-                      nodes,
-                    },
-                  }
-                : c
-            ),
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: { ...fam, edges: [...fam.edges, edge], nodes },
+            },
           }
         })
         return result
       },
 
-      removeEdge: (catId, edgeId) =>
-        set((s) => ({
-          categories: s.categories.map((c) => {
-            if (c.id !== catId || !c.relation) return c
-            const edge = c.relation.edges.find((e) => e.id === edgeId)
-            const nodes =
-              edge && edge.kind === "sub"
-                ? c.relation.nodes.map((n) =>
-                    n.id === edge.source
-                      ? { ...n, sub: n.sub.filter((x) => x !== edge.target) }
-                      : n
-                  )
-                : c.relation.nodes
-            return {
-              ...c,
-              relation: {
-                ...c.relation,
-                edges: c.relation.edges.filter((e) => e.id !== edgeId),
+      removeEdge: (familyId, edgeId) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return s
+          const edge = fam.edges.find((e) => e.id === edgeId)
+          const nodes =
+            edge && edge.kind === "sub"
+              ? fam.nodes.map((n) =>
+                  n.id === edge.source
+                    ? { ...n, sub: n.sub.filter((x) => x !== edge.target) }
+                    : n
+                )
+              : fam.nodes
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: {
+                ...fam,
+                edges: fam.edges.filter((e) => e.id !== edgeId),
                 nodes,
               },
-            }
-          }),
-        })),
+            },
+          }
+        }),
 
-      removeSub: (catId, nodeId, subId) =>
-        set((s) => ({
-          categories: s.categories.map((c) =>
-            c.id === catId && c.relation
-              ? {
-                  ...c,
-                  relation: {
-                    ...c.relation,
-                    nodes: c.relation.nodes.map((n) =>
-                      n.id === nodeId
-                        ? { ...n, sub: n.sub.filter((x) => x !== subId) }
-                        : n
-                    ),
-                    edges: c.relation.edges.filter(
-                      (e) =>
-                        !(
-                          e.kind === "sub" &&
-                          e.source === nodeId &&
-                          e.target === subId
-                        )
-                    ),
-                  },
-                }
-              : c
-          ),
-        })),
+      removeSub: (familyId, nodeId, subId) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return {}
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: {
+                ...fam,
+                nodes: fam.nodes.map((n) =>
+                  n.id === nodeId
+                    ? { ...n, sub: n.sub.filter((x) => x !== subId) }
+                    : n
+                ),
+                edges: fam.edges.filter(
+                  (e) =>
+                    !(
+                      e.kind === "sub" &&
+                      e.source === nodeId &&
+                      e.target === subId
+                    )
+                ),
+              },
+            },
+          }
+        }),
 
-      setRelationView: (catId, view) =>
-        set((s) => ({
-          categories: s.categories.map((c) =>
-            c.id === catId && c.relation
-              ? { ...c, relation: { ...c.relation, view } }
-              : c
-          ),
-        })),
+      setFamilyView: (familyId, view) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return {}
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: { ...fam, view },
+            },
+          }
+        }),
 
-      setMindmapViewport: (categoryId, viewport) =>
+      setFamilyViewport: (familyId, viewport) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return {}
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: { ...fam, viewport },
+            },
+          }
+        }),
+
+      // ---- 关系族管理（TODO 54） ----
+      addRelationFamily: (categoryId, name) => {
+        const id = `fam_${uid()}`
         set((s) => ({
-          mindmapViewports: {
-            ...s.mindmapViewports,
-            [categoryId]: viewport,
+          relationFamilies: {
+            ...s.relationFamilies,
+            [id]: {
+              id,
+              name: name?.trim() || DEFAULT_FAMILY_NAME,
+              categoryId,
+              nodes: [],
+              edges: [],
+              view: "mindmap",
+            },
           },
-        })),
+        }))
+        return id
+      },
+
+      renameRelationFamily: (familyId, name) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          const next = name.trim()
+          if (!fam || !next) return {}
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: { ...fam, name: next },
+            },
+          }
+        }),
+
+      deleteRelationFamily: (familyId) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return {}
+          const relationFamilies: Record<string, RelationFamily> = {}
+          for (const [fid, f] of Object.entries(s.relationFamilies)) {
+            if (fid !== familyId) relationFamilies[fid] = f
+          }
+          // 清理族内全部节点的贡献账本记录（口径与 removeNode / removeCategory 一致）
+          const prefixes = fam.nodes.map((n) => `${n.id}:`)
+          const contributions = s.contributions.filter(
+            (x) => !prefixes.some((p) => x.id.startsWith(p))
+          )
+          const activeItemId = fam.nodes.some((n) => n.id === s.activeItemId)
+            ? null
+            : s.activeItemId
+          return { relationFamilies, contributions, activeItemId }
+        }),
+
+      // 搬迁节点：只搬节点 + 两端都在搬移集合内的边（节点本身无分类归属，跨分类搬迁只改族的节点集合）
+      moveNodesToFamily: (familyId, nodeIds, targetFamilyId) =>
+        set((s) => {
+          if (familyId === targetFamilyId) return {}
+          const src = s.relationFamilies[familyId]
+          const dst = s.relationFamilies[targetFamilyId]
+          if (!src || !dst) return {}
+          const moving = new Set(nodeIds)
+          const movedNodes = src.nodes.filter((n) => moving.has(n.id))
+          if (movedNodes.length === 0) return {}
+          const movedIds = new Set(movedNodes.map((n) => n.id))
+          const movedEdges = src.edges.filter(
+            (e) => movedIds.has(e.source) && movedIds.has(e.target)
+          )
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [familyId]: {
+                ...src,
+                nodes: src.nodes.filter((n) => !movedIds.has(n.id)),
+                edges: src.edges.filter((e) => !movedEdges.includes(e)),
+              },
+              [targetFamilyId]: {
+                ...dst,
+                nodes: [...dst.nodes, ...movedNodes],
+                edges: [...dst.edges, ...movedEdges],
+              },
+            },
+          }
+        }),
+
+      setPendingFamilyId: (id) => set({ pendingFamilyId: id }),
 
       setSelectedDate: (date) => set({ selectedDate: date }),
 
@@ -1588,13 +1855,16 @@ export const useWorkspace = create<WorkspaceState>()(
           state.hydrated = true
           // 应用用户设置的默认视图（仅当尚未处于某个明确视图时属于启动行为）
           applyDefaultView(state)
-          // pendingAiQuery 不持久化：刷新后不应自动重发，置空保险
+          // pendingAiQuery / pendingFamilyId 不持久化：刷新后不应自动重发/跳转，置空保险
           state.pendingAiQuery = null
+          state.pendingFamilyId = null
         }
       },
       merge: (persisted, current) => {
         const p = { ...(persisted ?? {}) } as Partial<WorkspaceState> &
           Record<string, unknown>
+        // TODO 54：旧版顶层 mindmapViewports 已迁入族 viewport，整体废弃不入 state
+        delete p.mindmapViewports
         // 迁移：旧版「单一模型配置」（aiProvider/aiApiKey/aiBaseUrl/aiModel）转为多模型数组。
         // 旧快照里这些字段存在但 aiModels 不存在；新用户则 aiModels 为空、由首次配置补齐。
         const rawSettings = (p.settings as Record<string, unknown> | undefined) ?? {}
@@ -1624,13 +1894,18 @@ export const useWorkspace = create<WorkspaceState>()(
         // 迁移：旧版单一人设字符串（aiPersona）升级为多人人设列表 + 全局选中。
         const persona = migratePersona(rawSettings)
         // 若历史数据没有 settings，则并入当前默认设置
+        // 关系族（TODO 54）：新格式 relationFamilies 规范化；旧格式 categories[].relation +
+        // mindmapViewports 迁移为每分类一个默认族「我的分类」（id 稳定 `fam_${catId}`，viewport 随迁）；
+        // 内建「待办事项」分类缺失时自动补建（含默认族）
+        const relationState = migrateRelationState(p.categories, p.relationFamilies, persisted ? (persisted as Record<string, unknown>).mindmapViewports : undefined)
         return {
           ...current,
           ...p,
           // 旧存档节点可能缺失 createdAt / completedAt：补齐默认值并随本次写入持久化。
-          categories: Array.isArray(p.categories)
-            ? normalizeCategoryNodes(p.categories)
-            : current.categories,
+          categories: relationState.categories,
+          relationFamilies: relationState.relationFamilies,
+          // 跨组件跳族标记：不持久化生效
+          pendingFamilyId: null,
           conversations: (p.conversations as Conversation[] | undefined) ?? [],
           activeConversationId:
             (p.activeConversationId as string | null | undefined) ?? null,
@@ -1638,10 +1913,6 @@ export const useWorkspace = create<WorkspaceState>()(
           contributions: Array.isArray(p.contributions)
             ? (p.contributions as Contribution[])
             : [],
-          // 关系图视口存档：旧存档无此字段 → 空对象
-          mindmapViewports:
-            (p.mindmapViewports as Record<string, MindmapViewport> | undefined) ??
-            {},
           // GitHub 队列：旧存档无此字段 → 空数组
           issueQueue: Array.isArray(p.issueQueue)
             ? (p.issueQueue as IssueQueueItem[])

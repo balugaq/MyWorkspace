@@ -103,8 +103,12 @@ export function CalendarWorkspace() {
   const festivalDefs = useWorkspace((s) => s.customFestivals)
   const setCustomFestivals = useWorkspace((s) => s.setCustomFestivals)
 
-  // 关系分类中绑定了截止日期的 Todo 节点，按日期分组
-  const dueMap = useMemo(() => collectDueNodes(categories), [categories])
+  // 关系分类中绑定了截止日期的 Todo 节点，按日期分组（TODO 54 起遍历关系族）
+  const relationFamilies = useWorkspace((s) => s.relationFamilies)
+  const dueMap = useMemo(
+    () => collectDueNodes(categories, Object.values(relationFamilies)),
+    [categories, relationFamilies],
+  )
   const current = useMemo(() => parse(selectedDate, "yyyy-MM-dd", new Date()), [selectedDate])
 
   const days = useMemo(() => {

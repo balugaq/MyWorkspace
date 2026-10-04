@@ -1,4 +1,4 @@
-import type { Category, CalendarData, SearchResult, SearchScope } from "./types"
+import type { Category, CalendarData, RelationFamily, SearchResult, SearchScope } from "./types"
 
 function makeSnippet(text: string, query: string, len = 60): string {
   // 去掉图片 token（{{img:}} 与 ![alt](url)/imgref:），避免搜索摘要露出乱码
@@ -14,6 +14,7 @@ function makeSnippet(text: string, query: string, len = 60): string {
 
 export function runSearch(
   categories: Category[],
+  families: RelationFamily[],
   calendar: CalendarData,
   rawQuery: string,
   scope: SearchScope,
@@ -44,9 +45,10 @@ export function runSearch(
         }
       }
     }
-    // 思维导图节点与解决方案
-    if (cat.relation) {
-      for (const n of cat.relation.nodes) {
+    // 思维导图节点与解决方案（TODO 54 起遍历该分类的关系族）
+    const fams = families.filter((f) => f.categoryId === cat.id)
+    for (const fam of fams) {
+      for (const n of fam.nodes) {
         const hay = [n.title, n.content, n.cause, n.leadTo, n.result].join(" ")
         if (match(hay)) {
           results.push({
@@ -85,7 +87,7 @@ export function runSearch(
   if (scope === "all" || scope === "category" || scope === "todo" || scope === "mindmap") {
     for (const cat of categories) {
       if (scope === "category" && cat.id !== activeCategoryId) continue
-      if (scope === "todo" && !cat.relation) continue
+      if (scope === "todo" && !families.some((f) => f.categoryId === cat.id)) continue
       if (scope === "mindmap" && cat.template !== "relation") continue
       scanCategory(cat)
     }
