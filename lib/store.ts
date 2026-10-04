@@ -1673,6 +1673,17 @@ export const useWorkspace = create<WorkspaceState>()(
         set((s) => {
           const fam = s.relationFamilies[familyId]
           if (!fam) return {}
+          // 值等守卫：视口数值没变就不写 store（xyflow 的 panZoom end / fitView 可能重复
+          // 触发 onMoveEnd，无条件重建对象会让每次事件都变成一次重渲染，是死循环燃料）
+          const prev = fam.viewport
+          if (
+            prev &&
+            prev.x === viewport.x &&
+            prev.y === viewport.y &&
+            prev.zoom === viewport.zoom
+          ) {
+            return {}
+          }
           return {
             relationFamilies: {
               ...s.relationFamilies,

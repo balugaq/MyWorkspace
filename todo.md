@@ -492,6 +492,7 @@ TODO 54. （状态：已完成，待目视确认）
 - 修复（2026-10-05 主人实测多选右键弹浏览器原生菜单）：根因是 xyflow v12 多选时渲染盖在节点上层的选区矩形 `.react-flow__nodesselection-rect`（z-index:3 + pointer-events:all），其 onContextMenu 未 preventDefault 也不转发到节点。关闭其 pointer-events 让事件穿透回节点卡片（base-ui 批量菜单照常触发）；拖整组不受影响（xyflow 拖任一选中节点即带动全组，getDragItems 收集全部 selected）。
 - 修复补充（同日，上轮 Tailwind 任意变体实测无效）：Tailwind v4 utilities 全部在 cascade layer 里，xyflow 的 style.css 未分层——按 CSS cascade 规则**未分层样式压过任何 layer，specificity 无效**，故 `[&_.react-flow__nodesselection-rect]:pointer-events-none` 类虽生成但不生效。改为 app/globals.css 末尾写未分层普通 CSS（`.react-flow .react-flow__nodesselection-rect { pointer-events: none }`，specificity 0,2,0 胜 0,1,0），组件内无效类已删。
 - 修复（2026-10-05 主人实测右键选区内不同节点「搬迁 n 个节点」数量不一致）：rfNode 渲染缓存命中条件漏了 multiCount——它是 data 里的闭包快照（菜单数量显示源），选区数量变化时已选中节点 multi 布尔不变→缓存命中→data 不重建→显示过期旧数量（新进选区节点则重建显示新数量）。已把 multiCount 纳入缓存 key。行为层 handleMenuAction 实时读 selectedIds 本就正确，纯显示过期。
+- 死循环修复续（2026-10-05 深夜，主人实测 onSelectionChange 修复后仍复现一次、措辞变为 render-phase 变体）：确定缺陷——store `setFamilyViewport` 无条件造新 viewport/family 对象（值相同也写 store），配合 onMoveEnd（内联箭头 + xyflow panZoom end/fitView 可重复触发）构成「视口事件→写 store→重渲染」回流燃料。修复：store 侧加值等守卫（x/y/zoom 相同直接不写）；组件侧 onMoveEnd useCallback + 数值级比较双重拦截；onConnectStart/onConnectEnd/onPaneContextMenu/onEdgeClick 全部 useCallback 化（xyflow StoreUpdater 把每个 prop 放进独立 effect，内联箭头让 store 每渲染 setState 一轮）。若仍复现，需主人提供完整控制台堆栈（重点看 "The result of getSnapshot should be cached" 警告与内部调用帧）。
 
 TODO 55. （状态：已完成）
 1. 自定义节日编辑：设置 → 账户与同步新增「自定义节日」管理区（列表 + 新建/编辑/删除弹窗，字段：名称/规则/颜色/放假/上班），与「从 yml 导入」并存；保存时用 parseFestivalRule 校验规则格式

@@ -1094,6 +1094,44 @@ function Canvas({
     [connectNodes, family.id],
   )
 
+  // 视口存档：useCallback 稳定引用 + 数值级守卫（xyflow 的 panZoom end / fitView 可能重复
+  // 触发 moveEnd；值不变时 store 侧与组件侧双重拦截，杜绝「写 store → 重渲染」回流）
+  const handleMoveEnd = useCallback(
+    (_: unknown, viewport: { x: number; y: number; zoom: number }) => {
+      const prev = family.viewport
+      if (
+        prev &&
+        prev.x === viewport.x &&
+        prev.y === viewport.y &&
+        prev.zoom === viewport.zoom
+      ) {
+        return
+      }
+      setFamilyViewport(family.id, viewport)
+    },
+    [family.viewport, family.id, setFamilyViewport],
+  )
+
+  // 其余传给 ReactFlow 的回调统一 useCallback：xyflow 的 StoreUpdater 把每个 prop
+ // 放进独立 effect，内联箭头（每次渲染新引用）会让 store 每渲染都 setState 一轮
+  const handleConnectStart = useCallback(() => setIsConnecting(true), [])
+  const handleConnectEnd = useCallback(() => setIsConnecting(false), [])
+  const handlePaneContextMenu = useCallback(
+    (e: MouseEvent | React.MouseEvent) => {
+      e.preventDefault()
+    },
+    [],
+  )
+  const handleEdgeClick = useCallback(
+    (_: React.MouseEvent, e: Edge) => {
+      if (!e.id.startsWith("sol-edge-")) {
+        removeEdge(family.id, e.id)
+        toast.success("已删除连线")
+      }
+    },
+    [removeEdge, family.id],
+  )
+
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, n: Node) => {
       if (!n.id.startsWith("sol-")) setActiveItem(n.id)
@@ -1174,26 +1212,21 @@ function Canvas({
           onEdgesChange={onEdgesChange}
           onNodeDragStop={onNodeDragStop}
           onConnect={onConnect}
-          onConnectStart={() => setIsConnecting(true)}
-          onConnectEnd={() => setIsConnecting(false)}
+          onConnectStart={handleConnectStart}
+          onConnectEnd={handleConnectEnd}
           onNodeDoubleClick={onNodeDoubleClick}
           onNodeClick={onNodeClick}
           onPaneClick={onPaneClick}
-          onPaneContextMenu={(e) => e.preventDefault()}
+          onPaneContextMenu={handlePaneContextMenu}
           onSelectionChange={handleSelectionChange}
           zoomOnDoubleClick={false}
           minZoom={birdView ? 0.02 : 0.5}
           nodesDraggable={!birdView}
           nodesConnectable={!birdView}
-          onEdgeClick={(_, e) => {
-            if (!e.id.startsWith("sol-edge-")) {
-              removeEdge(family.id, e.id)
-              toast.success("已删除连线")
-            }
-          }}
+          onEdgeClick={handleEdgeClick}
           fitView={!restoredViewport}
           defaultViewport={restoredViewport}
-          onMoveEnd={(_, viewport) => setFamilyViewport(family.id, viewport)}
+          onMoveEnd={handleMoveEnd}
           proOptions={{ hideAttribution: true }}
           // 多选选区矩形的 pointer-events 关闭写在 app/globals.css（未分层 CSS）——
           // Tailwind v4 utilities 在 cascade layer 里，压不过 xyflow 未分层的 style.css
