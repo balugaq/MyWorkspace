@@ -6,7 +6,6 @@
 
 import { ChevronDown, Wrench } from "lucide-react"
 import {
-  BotMessageSquare,
   CalendarDays,
   KeyRound,
   PenLine,
@@ -16,10 +15,11 @@ import {
 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { cn } from "@/lib/utils"
+import { AiIcon, AiText } from "@/components/ai-brand"
 
 // 工具卡片清单：点击切换主区域视图；id 与 view 值对应。
 const TOOL_CARDS = [
-  { id: "ai-chat", name: "AI 对话", icon: BotMessageSquare },
+  { id: "ai-chat", name: "AI 对话", icon: AiIcon },
   { id: "workspace", name: "随笔", icon: PenLine },
   { id: "calendar", name: "日历", icon: CalendarDays },
   { id: "contacts", name: "联系人", icon: Users },
@@ -124,7 +124,16 @@ export function ToolbarPanel() {
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
-                  <span className="w-full truncate text-center">{t.name}</span>
+                  {/* AI 对话按钮文本里的「AI」用渐变彩色字（TODO 57） */}
+                  <span className="w-full truncate text-center">
+                    {t.id === "ai-chat" ? (
+                      <>
+                        <AiText /> 对话
+                      </>
+                    ) : (
+                      t.name
+                    )}
+                  </span>
                   {showBadge && (
                     <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
                       {unreadCount > 99 ? "99+" : unreadCount}

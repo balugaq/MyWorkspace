@@ -201,10 +201,20 @@ export default function Page() {
                   <EmptyMedia variant="icon">
                     <LayoutGrid />
                   </EmptyMedia>
-                  <EmptyTitle>还没有分类</EmptyTitle>
-                  <EmptyDescription>
-                    在左侧点击“添加分类”，选择小说、学习、工作或关系图模板开始使用。
-                  </EmptyDescription>
+                  {/* TODO 58：有分类但未打开 → 提示打开；一个分类都没有 → 引导创建 */}
+                  {categories.length > 0 ? (
+                    <>
+                      <EmptyTitle>打开一个分类</EmptyTitle>
+                      <EmptyDescription>在左侧选择一个分类开始使用。</EmptyDescription>
+                    </>
+                  ) : (
+                    <>
+                      <EmptyTitle>还没有分类</EmptyTitle>
+                      <EmptyDescription>
+                        在左侧点击“添加分类”，选择小说、学习、工作或关系图模板开始使用。
+                      </EmptyDescription>
+                    </>
+                  )}
                 </EmptyHeader>
               </Empty>
             </div>

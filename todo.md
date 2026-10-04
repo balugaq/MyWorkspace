@@ -193,7 +193,7 @@ TODO 22. （状态：已完成）
 需要把投递层抽象成统一的 notifier 接口（sender → 事件 → 按 用户配置 分发给启用的 notifier），
 弹窗（内置通知）只是其中一种 notifier 实现；通知方式的选择 UI 放设置页「通知」分区。
 
-TODO 23. （状态：已完成，待目视核验）
+TODO 23. （状态：已完成）
 通知中心多 sender 支持：当前数据源只有内置的 GitHub sender，未来可能接入更多消息源
 （如新闻页：定时获取新闻并推送为通知）。sender 抽象已预留 senderId（lib/notifications/senders.ts 有展示注册表），
 需要完善：多 sender 的注册与启停管理、通知中心按 sender 筛选/分组展示、每个 sender 各自的配置分区等。
@@ -303,7 +303,7 @@ TODO 33. （状态：已完成）
 4. AI 助手中的用户头像放到账户与同步里，不再需要
 5. Git 本地名称直接用名称，不用再单开一个，旧数据不再保留。
 
-TODO 34. （状态：已完成，待目视核验）
+TODO 34. （状态：已完成）
 authorization Bearer 在设置中设置（UAPI 令牌） // 没有 Bearer 时也可以访问，可选的
 更换天气接口：（2小时获取1次或用户手动点击刷新时获取）
 官方sdk接口：
@@ -448,7 +448,7 @@ TODO 48. （状态：已完成）
 TODO 49. （状态：已完成）
 github集成现在会经常扫描仓库，在设置中加一个自动适应开关（默认开启）如果开启了适应，就会按照需要监听的功能的数量为计量，每多16个数量扫描间隔就延长1分钟。
 
-TODO 50. （状态：已完成，待目视确认）
+TODO 50. （状态：已完成）
 patch 随笔的文字选择的右键contextmenu
 有以下按钮：
 1. 剪切 （若可以编辑）
@@ -462,12 +462,12 @@ TODO 51. （状态：已完成）
 实现（2026-10-03 改版，主人反馈要的是主题不是主题色）：ThemePreference 扩展为 light/dark/system/green/purple/orange，设置里「主题」下拉直接多出绿色/紫色/橙色三项；彩色主题是一套固定配色（浅色基调+主题色强调，不分亮暗），next-themes attribute=class 挂成 html.green 等类，globals.css 提供 html.green/purple/orange 三套完整变量；原 settings.themeColor 独立维度已整体移除（types/store/provider/设置 UI/CSS 清零）。
 新增更多主题颜色：绿色、紫色、橙色等（当前只有亮/暗两套，见设置里主题切换）。
 
-TODO 52. （状态：已完成，待目视确认）
+TODO 52. （状态：已完成）
 现在个人主页里的4个组件（天气，待办，使用时长，专注钟），都是较少文字量却占据了较大空间，应当只占据需要的空间，不要撑到那么大的大小
 另外应该要支持用户可以自己调整这些组件的位置（下面的activity&contributions）
 - 已改：小组件区由 sm:grid-cols-2 等宽两列改为 flex-wrap + 内容自适应宽度（专注钟定宽 w-64 保证按钮排布，其余 w-fit）；四卡支持拖拽调序（HTML5 DnD，拖法与 sidebar 分类一致：落点左半插前/右半插后），顺序持久化到 settings.profileWidgetOrder（types.ts 新增 ProfileWidgetId + normalizeProfileWidgetOrder 兜底，store merge 接入）。拖拽手感与视觉效果待主人目视确认。
 
-TODO 53. （状态：已完成，待目视确认）
+TODO 53. （状态：已完成）
 专注钟默认改为正计时，按钮状态切换改为缓慢向下移出画面，然后向上浮出新的按钮
 - 已改（2026-10-03，此条目上一轮的状态更新被覆盖丢失，现补回）：focusMode 默认 "down"→"up"；控制按钮组状态切换加双向动画——旧按钮 500ms 下移+淡出（fill-mode-forwards 锁终态、退场期禁点击），新按钮 500ms 自下向上浮入。动画效果待主人目视确认。
 
@@ -491,7 +491,7 @@ TODO 56. （状态：已完成）
 1. 通知页面里增加一个搜索框
 2. brandheader 里的搜索框改为仅在随笔时出现（其他视图不显示）
 
-TODO 57. （状态：待处理）
+TODO 57. （状态：已完成，待目视确认）
 更改AI图标，工具栏的改为如下
 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 48 48">
 	<path d="M0 0h48v48H0z" fill="none" />
@@ -501,6 +501,11 @@ TODO 57. （状态：待处理）
 </svg>
 其他地方涉及AI按钮的，将按钮文本里的"AI"改为彩色的AI字即可
 
-TODO 58. （状态：待处理）
+TODO 58. （状态：已完成，待目视确认）
 当我在随笔界面里还没打开任何界面时，也显示"还没有分类"
 但实际，在有分类时不应这样显示，而是显示"打开一个分类"等提示信息
+
+### TODO 57/58 实施记录（2026-10-04）
+- 57：新建 components/ai-brand.tsx（AiIcon 原子图标 = 主人指定 SVG，签名兼容 lucide；AiText 渐变彩色「AI」字 violet→fuchsia→sky）。工具栏「AI 对话」图标 BotMessageSquare→AiIcon、文本 AI 彩色；profile「问 AI 今日待办」、右键菜单 AI 项文本同步彩色。彩色渐变色值如需调整改 AiText 一处即可。
+- 58：page.tsx 主区空态按 categories.length 分支——有分类未打开显示「打开一个分类」，无分类保持「还没有分类」引导创建。
+- 均待主人目视确认（图标观感 / 渐变配色 / 空态文案）。

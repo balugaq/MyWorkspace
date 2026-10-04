@@ -22,6 +22,7 @@ import { type ContributionType, type ProfileWidgetId } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { NativeScrollArea } from "@/components/ui/native-scroll-area"
+import { AiText } from "@/components/ai-brand"
 
 // GitHub 风格贡献热力图：53 周 × 7 天，数据来自 store 的真实「贡献账本」
 // （lib/contributions.ts 纯逻辑 + lib/store.ts 记账）。
@@ -634,7 +635,7 @@ export function ProfileWorkspace() {
                   {weekday}
                 </span>
               </div>
-              {/* AI 入口（TODO 39）：替换原「今日暂无待办事项」死文案 */}
+              {/* AI 入口（TODO 39）：替换原「今日暂无待办事项」死文案；「AI」用渐变彩色字（TODO 57） */}
               <Button
                 variant="outline"
                 size="sm"
@@ -642,7 +643,7 @@ export function ProfileWorkspace() {
                 onClick={askAiToday}
               >
                 <Sparkles className="size-3.5" />
-                问 AI 今日待办
+                问 <AiText /> 今日待办
               </Button>
             </div>
             )}

@@ -11,6 +11,7 @@ import { createPortal } from "react-dom"
 import { toast } from "sonner"
 import { BUILTIN_TEXT_MENU_ACTIONS, type TextMenuAction, type TextMenuContext } from "@/lib/text-menu-actions"
 import { cn } from "@/lib/utils"
+import { AiText } from "@/components/ai-brand"
 
 const ITEM_CLASS =
   "flex w-full cursor-default items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-popover-foreground outline-none hover:bg-accent focus-visible:bg-accent"
@@ -125,7 +126,8 @@ export function TextContextMenu({
                   }}
                 >
                   <a.icon className="size-4 shrink-0" />
-                  {a.label}
+                  {/* AI 项文本用渐变彩色「AI」字（TODO 57） */}
+                  {a.id === "ai" ? <AiText /> : a.label}
                 </button>
               </Fragment>
             ))}
