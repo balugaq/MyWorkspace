@@ -1695,26 +1695,38 @@ export const useWorkspace = create<WorkspaceState>()(
       // ---- 关系族管理（TODO 54） ----
       addRelationFamily: (categoryId, name) => {
         const id = `fam_${uid()}`
-        set((s) => ({
-          relationFamilies: {
-            ...s.relationFamilies,
-            [id]: {
-              id,
-              name: name?.trim() || DEFAULT_FAMILY_NAME,
-              categoryId,
-              nodes: [],
-              edges: [],
-              view: "mindmap",
+        set((s) => {
+          // 名字防重（主人口径：同分类内不重名，重名自动追加「 n」，n 为最小正整数）
+          // + 20 字上限；默认名同样参与防重
+          const base = (name?.trim() || DEFAULT_FAMILY_NAME).slice(0, 20)
+          const taken = new Set(
+            Object.values(s.relationFamilies)
+              .filter((f) => f.categoryId === categoryId)
+              .map((f) => f.name),
+          )
+          let final = base
+          for (let n = 2; taken.has(final); n++) final = `${base} ${n}`
+          return {
+            relationFamilies: {
+              ...s.relationFamilies,
+              [id]: {
+                id,
+                name: final,
+                categoryId,
+                nodes: [],
+                edges: [],
+                view: "mindmap",
+              },
             },
-          },
-        }))
+          }
+        })
         return id
       },
 
       renameRelationFamily: (familyId, name) =>
         set((s) => {
           const fam = s.relationFamilies[familyId]
-          const next = name.trim()
+          const next = name.trim().slice(0, 20)
           if (!fam || !next) return {}
           return {
             relationFamilies: {

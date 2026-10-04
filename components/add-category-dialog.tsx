@@ -50,6 +50,10 @@ export function AddCategoryDialog({
       toast.error("请填写分类名称")
       return
     }
+    if (name.trim().length > 20) {
+      toast.error("分类名称不能超过 20 个字")
+      return
+    }
     addCategory(
       name.trim(),
       template,
@@ -82,6 +86,7 @@ export function AddCategoryDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="例如：我的超级无敌小说"
+              maxLength={20}
               autoFocus
             />
           </div>

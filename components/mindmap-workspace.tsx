@@ -193,21 +193,40 @@ function FamilySidebar({
   const [renameDraft, setRenameDraft] = useState("")
   const [confirmDelId, setConfirmDelId] = useState<string | null>(null)
   const [relayoutBusy, setRelayoutBusy] = useState(false)
+  // 新建提交状态机：Enter → committed、Esc → cancelled、点击别处失焦 → 提交。
+  // 防两条坑：Enter 提交后输入框卸载可能再触发一次 blur（会建出两个族）；Esc 后的 blur 不能变成创建。
+  const addStateRef = useRef<"idle" | "committed" | "cancelled">("idle")
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
   const commitAdd = () => {
-    const id = addRelationFamily(category.id, newName.trim() || undefined)
+    if (addStateRef.current !== "idle") return
+    addStateRef.current = "committed"
+    const id = addRelationFamily(category.id, newName.trim().slice(0, 20) || undefined)
     setAdding(false)
     setNewName("")
     onSelect(id)
     toast.success("已新建关系族")
   }
 
-  const commitRename = () => {
-    if (renamingId && renameDraft.trim()) {
-      renameRelationFamily(renamingId, renameDraft)
+  // 重命名提交：重名（同分类内、排除自身）时 toast 提示并保留编辑态与焦点，不落库
+  const commitRename = (): boolean => {
+    if (!renamingId) return true
+    const next = renameDraft.trim().slice(0, 20)
+    if (!next) {
+      setRenamingId(null)
+      setRenameDraft("")
+      return true
     }
+    const dup = families.some((f) => f.id !== renamingId && f.name === next)
+    if (dup) {
+      toast.error(`已存在同名关系族「${next}」，请换个名字`)
+      renameInputRef.current?.focus()
+      return false
+    }
+    renameRelationFamily(renamingId, next)
     setRenamingId(null)
     setRenameDraft("")
+    return true
   }
 
   // AI 分析（只读）：askAiAbout 新建会话并携带族上下文，AI 用既有只读技能拉数据出报告
@@ -244,6 +263,7 @@ function FamilySidebar({
           title="新建族"
           aria-label="新建族"
           onClick={() => {
+            addStateRef.current = "idle"
             setAdding(true)
             setNewName("")
           }}
@@ -260,16 +280,22 @@ function FamilySidebar({
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              onBlur={() => {
+                if (addStateRef.current !== "idle") return
+                commitAdd()
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault()
                   commitAdd()
                 } else if (e.key === "Escape") {
                   e.preventDefault()
+                  addStateRef.current = "cancelled" // Esc 取消：不放行紧随的 blur 提交
                   setAdding(false)
                 }
               }}
-              placeholder="族名称"
+              maxLength={20}
+              placeholder="族名称（≤20 字）"
               className="h-7 text-xs"
             />
           </div>
@@ -287,18 +313,22 @@ function FamilySidebar({
             {renamingId === f.id ? (
               <input
                 autoFocus
+                ref={renameInputRef}
                 value={renameDraft}
                 onChange={(e) => setRenameDraft(e.target.value)}
-                onBlur={commitRename}
+                onBlur={() => {
+                  if (!commitRename()) renameInputRef.current?.focus()
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault()
-                    commitRename()
+                    if (!commitRename()) renameInputRef.current?.focus()
                   } else if (e.key === "Escape") {
                     e.preventDefault()
                     setRenamingId(null)
                   }
                 }}
+                maxLength={20}
                 className="h-6 min-w-0 flex-1 rounded border bg-background px-1.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             ) : (

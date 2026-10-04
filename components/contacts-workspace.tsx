@@ -173,8 +173,10 @@ export function ContactsWorkspace() {
                       >
                         <UserAvatar />
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-medium">{p.name}</span>
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="max-w-full truncate font-medium" title={p.name}>
+                              {p.name}
+                            </span>
                             {(p.roles ?? []).map((r) => (
                               <Badge key={r} variant="secondary" className="text-[10px]">
                                 {r}
@@ -372,14 +374,17 @@ function ContactFormDialog({
     const contacts = draft.contacts
       .map((c) => ({ type: c.type.trim(), value: c.value.trim() }))
       .filter((c) => c.value)
-    onSave({
+    // 显式写全所有可选字段（空值置 undefined）：updateContact 是浅合并，
+    // 若用条件展开省略字段，清空简介/地址/生日等操作会被旧值覆盖回去（保存无效的根因）
+    const fields: Omit<Person, "id"> = {
       name,
-      ...(draft.description.trim() ? { description: draft.description.trim() } : {}),
-      ...(birthday ? { birthday } : {}),
-      ...(draft.address.trim() ? { address: draft.address.trim() } : {}),
-      ...(roles.length ? { roles } : {}),
-      ...(contacts.length ? { contact: contacts } : {}),
-    })
+      description: draft.description.trim() || undefined,
+      birthday: birthday ?? undefined,
+      address: draft.address.trim() || undefined,
+      roles: roles.length ? roles : undefined,
+      contact: contacts.length ? contacts : undefined,
+    }
+    onSave(fields)
     onClose()
   }
 

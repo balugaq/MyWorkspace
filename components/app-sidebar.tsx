@@ -540,7 +540,7 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
           <button
             type="button"
             onClick={() => setActiveCategory(category.id)}
-            className="flex flex-1 items-center gap-2 py-2 pl-2 text-left text-sm"
+            className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-2 text-left text-sm"
           >
             {/* 占位：与展开箭头等宽，保证图标/文字与其他分类对齐 */}
             <span className="size-3.5 shrink-0" aria-hidden />
@@ -564,7 +564,7 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
           active ? "bg-sidebar-accent" : "hover:bg-sidebar-accent/60",
         )}
       >
-        <CollapsibleTrigger className="flex flex-1 items-center gap-2 py-2 pl-2 text-left text-sm">
+        <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-2 text-left text-sm">
           <ChevronRight
             className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
           />
