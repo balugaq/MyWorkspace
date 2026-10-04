@@ -822,12 +822,21 @@ function Canvas({
   }, [activeItemId, family.nodes, family.edges, family.id, removeNode])
 
   // ---- 渲染防风暴缓存：只改 1 个节点不再重建整张画布 ----
-  // rfNode 逐节点缓存：node 引用 / 折叠态 / 选中态 / 多选态都没变就复用同一对象（含回调闭包），
+  // rfNode 逐节点缓存：node 引用 / 折叠态 / 选中态 / 多选态 / 多选数量都没变就复用同一对象（含回调闭包），
   // 让 React Flow 的逐节点 memo 生效。回调按 nodeId 派发，旧闭包最多滞后一个快照，语义无影响。
+  // multiCount 必须入 key：它是 data 里的闭包快照（右键菜单「搬迁 n 个节点」的显示源），
+  // 若只比 multi 布尔值，选区数量变化时已选中节点不重建 data，菜单会显示过期的旧数量。
   const rfNodeCacheRef = useRef(
     new Map<
       string,
-      { node: MindNode; collapsed: boolean; selected: boolean; multi: boolean; rf: Node }
+      {
+        node: MindNode
+        collapsed: boolean
+        selected: boolean
+        multi: boolean
+        multiCount: number
+        rf: Node
+      }
     >()
   )
   const lastRfNodesRef = useRef<Node[] | null>(null)
@@ -849,6 +858,7 @@ function Canvas({
       const selected = n.id === activeItemId || selectedIds.has(n.id)
       const isCollapsed = collapsed.has(n.id)
       const multi = multiActive && selectedIds.has(n.id)
+      const multiCount = selectedIds.size
       const hit = cache.get(n.id)
       let rf: Node
       if (
@@ -856,7 +866,8 @@ function Canvas({
         hit.node === n &&
         hit.selected === selected &&
         hit.collapsed === isCollapsed &&
-        hit.multi === multi
+        hit.multi === multi &&
+        hit.multiCount === multiCount
       ) {
         rf = hit.rf
       } else {
@@ -871,11 +882,18 @@ function Canvas({
             onImageZoom: (v: number) => handleImageZoom(n.id, v),
             onMenuAction: (a: string) => handleMenuAction(n.id, a),
             multiSelected: multi,
-            multiCount: selectedIds.size,
+            multiCount: multiCount,
           },
           selected,
         }
-        cache.set(n.id, { node: n, collapsed: isCollapsed, selected, multi, rf })
+        cache.set(n.id, {
+          node: n,
+          collapsed: isCollapsed,
+          selected,
+          multi,
+          multiCount,
+          rf,
+        })
       }
       list.push(rf)
       if (n.solution && n.solution.content.trim()) {
@@ -893,7 +911,14 @@ function Canvas({
             draggable: true,
             selectable: false,
           }
-          cache.set(solKey, { node: n, collapsed: false, selected: false, multi: false, rf: solRf })
+          cache.set(solKey, {
+            node: n,
+            collapsed: false,
+            selected: false,
+            multi: false,
+            multiCount: 0,
+            rf: solRf,
+          })
           list.push(solRf)
         }
       }
@@ -1170,6 +1195,8 @@ function Canvas({
           defaultViewport={restoredViewport}
           onMoveEnd={(_, viewport) => setFamilyViewport(family.id, viewport)}
           proOptions={{ hideAttribution: true }}
+          // 多选选区矩形的 pointer-events 关闭写在 app/globals.css（未分层 CSS）——
+          // Tailwind v4 utilities 在 cascade layer 里，压不过 xyflow 未分层的 style.css
           className="bg-muted/30"
         >
           <Background color="var(--border)" gap={20} />

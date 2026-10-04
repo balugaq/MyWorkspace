@@ -578,3 +578,11 @@ body::-webkit-scrollbar-thumb:hover,
 .rich-text-content table::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-muted-foreground) !important;
 }
+
+/* xyflow 多选选区矩形（选中节点上方的拖拽框）不拦截指针事件：
+ * 右键需穿透到节点卡片触发 base-ui 批量菜单；拖整组不受影响（拖任一选中节点即带动全组）。
+ * 注意 xyflow 的 style.css 未分层，按 cascade 规则会压过 Tailwind v4 utilities layer
+ * （specificity 再高也没用），覆盖必须写未分层普通 CSS；specificity 0,2,0 胜其 0,1,0。 */
+.react-flow .react-flow__nodesselection-rect {
+  pointer-events: none;
+}

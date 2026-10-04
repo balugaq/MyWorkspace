@@ -489,6 +489,9 @@ TODO 54. （状态：已完成，待目视确认）
 - Profile 待办卡新增「打开关系图」按钮 → 跳转内建「待办事项」分类。
 - typecheck / lint 均 0 错误（仅 vault 一条历史 warning）；`.relation` 残留仅剩迁移代码与注释。以上均待主人目视确认（族 sidebar 交互、多选批量、搬迁跳转、AI 分析/整理布局效果）。
 - 修复（2026-10-05 主人实测报错「Maximum update depth exceeded」）：根因是 xyflow v12 `SelectionListenerInner` 把 `onSelectionChange` prop 放进 effect 依赖，内联箭头函数每次渲染新引用 → effect 每次渲染重跑 → setState(新 Set) → 再渲染死循环。改为 `useCallback` 稳定引用 + 内容相同返回旧 Set（React 跳过重渲染）双保险。
+- 修复（2026-10-05 主人实测多选右键弹浏览器原生菜单）：根因是 xyflow v12 多选时渲染盖在节点上层的选区矩形 `.react-flow__nodesselection-rect`（z-index:3 + pointer-events:all），其 onContextMenu 未 preventDefault 也不转发到节点。关闭其 pointer-events 让事件穿透回节点卡片（base-ui 批量菜单照常触发）；拖整组不受影响（xyflow 拖任一选中节点即带动全组，getDragItems 收集全部 selected）。
+- 修复补充（同日，上轮 Tailwind 任意变体实测无效）：Tailwind v4 utilities 全部在 cascade layer 里，xyflow 的 style.css 未分层——按 CSS cascade 规则**未分层样式压过任何 layer，specificity 无效**，故 `[&_.react-flow__nodesselection-rect]:pointer-events-none` 类虽生成但不生效。改为 app/globals.css 末尾写未分层普通 CSS（`.react-flow .react-flow__nodesselection-rect { pointer-events: none }`，specificity 0,2,0 胜 0,1,0），组件内无效类已删。
+- 修复（2026-10-05 主人实测右键选区内不同节点「搬迁 n 个节点」数量不一致）：rfNode 渲染缓存命中条件漏了 multiCount——它是 data 里的闭包快照（菜单数量显示源），选区数量变化时已选中节点 multi 布尔不变→缓存命中→data 不重建→显示过期旧数量（新进选区节点则重建显示新数量）。已把 multiCount 纳入缓存 key。行为层 handleMenuAction 实时读 selectedIds 本就正确，纯显示过期。
 
 TODO 55. （状态：已完成）
 1. 自定义节日编辑：设置 → 账户与同步新增「自定义节日」管理区（列表 + 新建/编辑/删除弹窗，字段：名称/规则/颜色/放假/上班），与「从 yml 导入」并存；保存时用 parseFestivalRule 校验规则格式
