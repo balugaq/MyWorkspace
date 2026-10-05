@@ -18,6 +18,7 @@ import {
   Search,
 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
+import { matchTextPinyin } from "@/lib/pinyin"
 import { fetchCurrentLogin, fetchRepoIssues } from "@/lib/github-queue"
 import type { IssueQueueColumn, IssueQueueItem } from "@/lib/types"
 import {
@@ -62,15 +63,16 @@ export function GithubQueueWorkspace() {
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState("")
 
-  // 实时搜索：按 标题 / 正文 / 仓库 / 提交者 / #编号 过滤四列
+  // 实时搜索：按 标题 / 正文 / 仓库 / 提交者 / #编号 过滤四列（拼音增强：纯字母 query 追加全拼/首字母命中）
   const q = query.trim().toLowerCase()
   const visible =
     q.length === 0
       ? issueQueue
       : issueQueue.filter((it) =>
-          `${it.title} ${it.bodySnippet} ${it.repo} ${it.actor} #${it.number}`
-            .toLowerCase()
-            .includes(q),
+          matchTextPinyin(
+            `${it.title} ${it.bodySnippet} ${it.repo} ${it.actor} #${it.number}`,
+            q,
+          ),
         )
 
   // 添加监听仓库：自动创建 GitHub 监听（只开 Issue+PR 扫描）并回扫一次存量 issue/PR 入队

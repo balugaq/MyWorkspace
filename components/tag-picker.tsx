@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { Plus, X, Search } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { collectAllTagsWithKnown } from "@/lib/tags"
+import { matchTextPinyin } from "@/lib/pinyin"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -45,7 +46,7 @@ export function TagPicker({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     const pool = allTags.filter((t) => !tags.includes(t))
-    return q ? pool.filter((t) => t.toLowerCase().includes(q)) : pool
+    return q ? pool.filter((t) => matchTextPinyin(t, q)) : pool
   }, [allTags, query, tags])
 
   return (

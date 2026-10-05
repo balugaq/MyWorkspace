@@ -17,6 +17,7 @@ import {
   type Person,
 } from "@/lib/address-book"
 import { useWorkspace } from "@/lib/store"
+import { matchTextPinyin } from "@/lib/pinyin"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -72,7 +73,7 @@ export function ContactsWorkspace() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return people
-    const match = (s?: string) => !!s && s.toLowerCase().includes(q)
+    const match = (s?: string) => matchTextPinyin(s, q)
     return people.filter((p) => {
       if (match(p.name) || match(p.description) || match(p.birthday) || match(p.address)) return true
       if ((p.roles ?? []).some((r) => match(r))) return true

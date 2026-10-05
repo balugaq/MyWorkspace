@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { matchTextPinyin } from "@/lib/pinyin"
 import {
   scheduleVaultClipboardClear,
   cancelVaultClipboardClear,
@@ -186,7 +187,8 @@ function VaultHome() {
     const q = query.trim().toLowerCase()
     if (!q) return entries
     return entries.filter(
-      (e) => e.name.toLowerCase().includes(q) || e.value.toLowerCase().includes(q),
+      // 拼音增强只用于 name；value 是敏感内容（多为账号/密码原文），不进拼音缓存
+      (e) => matchTextPinyin(e.name, q) || e.value.toLowerCase().includes(q),
     )
   }, [entries, query])
 

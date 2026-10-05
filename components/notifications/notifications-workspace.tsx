@@ -9,6 +9,7 @@
 import { Fragment, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
+import { matchTextPinyin } from "@/lib/pinyin"
 import type { NewsDetail, NotificationItem } from "@/lib/types"
 import { GH_EVENT_LABEL } from "@/lib/types"
 import { SENDER_META, senderDisplayName } from "@/lib/notifications/senders"
@@ -413,12 +414,13 @@ export function NotificationsWorkspace() {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return sorted
+    // 拼音增强：纯字母 query 追加全拼/首字母命中（标题多为中文，如 "xw" 命中新闻精选标题）
     return sorted.filter(
       (n) =>
-        (n.title ?? "").toLowerCase().includes(q) ||
-        (n.brief ?? "").toLowerCase().includes(q) ||
+        matchTextPinyin(n.title, q) ||
+        matchTextPinyin(n.brief, q) ||
         (n.repo ?? "").toLowerCase().includes(q) ||
-        senderDisplayName(n.senderId).toLowerCase().includes(q),
+        matchTextPinyin(senderDisplayName(n.senderId), q),
     )
   }, [sorted, search])
 

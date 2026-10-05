@@ -19,6 +19,7 @@ import { zhCN } from "date-fns/locale"
 import { CalendarCog, CalendarOff, Briefcase, Check, ChevronLeft, ChevronRight, StickyNote, Sparkles, Plus, Pencil, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
+import { matchTextPinyin } from "@/lib/pinyin"
 import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
 import { type Person } from "@/lib/address-book"
 import {
@@ -156,7 +157,7 @@ export function CalendarWorkspace() {
     const q = festivalSearch.trim().toLowerCase()
     if (!q) return festivalDefs
     return festivalDefs.filter(
-      (d) => d.name.toLowerCase().includes(q) || (d.festival_rule ?? "").toLowerCase().includes(q)
+      (d) => matchTextPinyin(d.name, q) || matchTextPinyin(d.festival_rule, q)
     )
   }, [festivalDefs, festivalSearch])
 

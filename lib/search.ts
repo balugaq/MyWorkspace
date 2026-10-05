@@ -1,4 +1,5 @@
 import type { Category, CalendarData, RelationFamily, SearchResult, SearchScope } from "./types"
+import { matchTextPinyin } from "./pinyin"
 
 function makeSnippet(text: string, query: string, len = 60): string {
   // 去掉图片 token（{{img:}} 与 ![alt](url)/imgref:），避免搜索摘要露出乱码
@@ -24,7 +25,8 @@ export function runSearch(
   if (!query) return []
   const q = query.toLowerCase()
   const results: SearchResult[] = []
-  const match = (t?: string) => !!t && t.toLowerCase().includes(q)
+  // 拼音增强：纯字母 query 追加全拼/首字母命中（如 "biji" 命中「笔记」），中文 query 退回 includes
+  const match = (t?: string) => !!t && (t.toLowerCase().includes(q) || matchTextPinyin(t, query))
 
   const scanCategory = (cat: Category) => {
     // 章节 / 通用条目

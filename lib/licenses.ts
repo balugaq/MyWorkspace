@@ -142,6 +142,13 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
   {
+    name: "pinyin-pro",
+    author: "zh-lx",
+    description: "汉字转拼音（拼音搜索：全拼/首字母匹配，用于联系人、全局搜索等各搜索框）。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
     name: "fast-xml-parser",
     author: "Naveen (natural-intelligence)",
     description: "XML 解析（自定义数据兼容）。",
