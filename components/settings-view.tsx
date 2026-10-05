@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, Trash2, ChevronRight, Check, Braces } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, Trash2, ChevronRight, Check, Braces, History, RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/store"
 import {
@@ -20,6 +20,14 @@ import {
 } from "@/lib/backup"
 import { clearAllImages } from "@/lib/image-store"
 import { clearVault } from "@/lib/vault-store"
+import {
+  listAutoBackups,
+  saveAutoBackup,
+  deleteAutoBackup,
+  restoreAutoBackup,
+  AUTO_BACKUP_KEEP,
+  type AutoBackupEntry,
+} from "@/lib/auto-backup"
 import { loadPublicYaml, clearDataCache } from "@/lib/fetch-data"
 import { loadAddressBook, withIds } from "@/lib/address-book"
 import type { FestivalsFile } from "@/lib/festivals"
@@ -42,6 +50,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -184,6 +202,145 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <section className="flex flex-col gap-4">
       <h2 className="border-b pb-2 text-sm font-semibold text-foreground">{title}</h2>
       {children}
+    </section>
+  )
+}
+
+// 自动备份管理（TODO 60）：列表 / 立即备份 / 恢复（替换导入）/ 删除。
+// 日常备份由 AutoBackupWatcher 在页面隐藏/关闭时自动做（当天一次），此处提供手动兜底与恢复入口。
+function AutoBackupManager() {
+  const [list, setList] = useState<AutoBackupEntry[]>([])
+  const [busy, setBusy] = useState(false)
+  const [confirmRestore, setConfirmRestore] = useState<AutoBackupEntry | null>(null)
+
+  const refresh = () => {
+    listAutoBackups()
+      .then(setList)
+      .catch(() => setList([]))
+  }
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  const doBackup = async () => {
+    setBusy(true)
+    try {
+      await saveAutoBackup(true)
+      toast.success("已保存一份自动备份")
+      refresh()
+    } catch {
+      toast.error("自动备份保存失败")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const doRestore = async (entry: AutoBackupEntry) => {
+    setBusy(true)
+    try {
+      const ok = await restoreAutoBackup(entry.json)
+      if (ok) {
+        toast.success(`已恢复 ${new Date(entry.at).toLocaleString()} 的备份（替换导入）`)
+      } else {
+        toast.error("恢复失败：备份数据解析不通过")
+      }
+    } catch {
+      toast.error("恢复失败")
+    } finally {
+      setBusy(false)
+      setConfirmRestore(null)
+    }
+  }
+
+  const doDelete = async (entry: AutoBackupEntry) => {
+    try {
+      await deleteAutoBackup(entry.dayKey)
+    } catch {
+      // 删除失败静默，刷新列表对齐现状
+    }
+    refresh()
+  }
+
+  return (
+    <section className="flex flex-col gap-2">
+      <Label className="text-xs font-medium text-muted-foreground">自动备份（保留最近 {AUTO_BACKUP_KEEP} 份）</Label>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" className="gap-2" onClick={doBackup} disabled={busy}>
+          <History className="size-4" />
+          立即备份
+        </Button>
+        <span className="text-xs text-muted-foreground">{list.length} 份备份</span>
+      </div>
+      {list.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {list.map((entry) => (
+            <li
+              key={entry.dayKey}
+              className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs"
+            >
+              <span className="min-w-0 flex-1 truncate text-foreground">
+                {new Date(entry.at).toLocaleString()}
+              </span>
+              <span className="shrink-0 text-muted-foreground">
+                {entry.size < 1024
+                  ? `${entry.size} 字符`
+                  : entry.size < 1024 * 1024
+                    ? `${(entry.size / 1024).toFixed(1)} K 字符`
+                    : `${(entry.size / 1024 / 1024).toFixed(2)} M 字符`}
+              </span>
+              <button
+                type="button"
+                title="恢复此备份（替换当前数据，除保险库外全部分区）"
+                aria-label="恢复此备份"
+                onClick={() => setConfirmRestore(entry)}
+                className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-primary/10"
+              >
+                <RotateCcw className="size-3.5 text-muted-foreground" />
+              </button>
+              <button
+                type="button"
+                title="删除此备份"
+                aria-label="删除此备份"
+                onClick={() => doDelete(entry)}
+                className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-destructive/10"
+              >
+                <Trash2 className="size-3.5 text-destructive" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs text-muted-foreground">
+        每天关闭应用时自动保存 1 份（按「每天翻篇时间」计天），保留最近 {AUTO_BACKUP_KEEP} 份。
+        当前数据量与最新备份相差超 50% 时，启动后会弹窗提醒可能的数据丢失。
+        恢复为替换导入（除保险库外全部分区）；图片不随快照携带，仍在本地图片库中。
+      </p>
+
+      {/* 恢复确认：替换导入不可撤销 */}
+      <AlertDialog
+        open={confirmRestore !== null}
+        onOpenChange={(v) => !v && setConfirmRestore(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>恢复这份自动备份？</AlertDialogTitle>
+            <AlertDialogDescription>
+              将用 {confirmRestore ? new Date(confirmRestore.at).toLocaleString() : ""} 的备份
+              （{confirmRestore?.size ?? 0} 字符）替换当前全部数据（除密码保险库）。此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmRestore(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmRestore) doRestore(confirmRestore)
+              }}
+            >
+              恢复
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }
@@ -678,6 +835,9 @@ export function SettingsView() {
                 导出为 ZIP，可勾选携带的数据分区（联系人 / 密码保险库默认不携带）。导入时可选「替换」或「合并」，仅恢复备份携带的分区。
               </p>
             </section>
+
+            {/* TODO 60：自动备份管理（关机自动备份 / 数据量差异提醒 / 手动备份恢复） */}
+            <AutoBackupManager />
 
             {/* TODO 48：联系人 / 自定义节日已持久化，public/*.yml 降级为手动导入源 */}
             <section className="flex flex-col gap-2">

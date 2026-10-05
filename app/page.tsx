@@ -20,6 +20,7 @@ import { NotificationsWorkspace } from "@/components/notifications/notifications
 import { GithubQueueWorkspace } from "@/components/github-queue-workspace"
 import { NotificationToastQueue } from "@/components/notifications/notification-toast-queue"
 import { HealthReminderToasts } from "@/components/notifications/health-reminder-toasts"
+import { AutoBackupWatcher } from "@/components/auto-backup-watcher"
 import { startNotificationScheduler } from "@/lib/notifications/scheduler"
 import { ConfigEditorDialog } from "@/components/config-editor-dialog"
 import { ImageCacheDialog } from "@/components/image-cache-dialog"
@@ -235,6 +236,7 @@ export default function Page() {
       <ImageCacheDialog open={imagesOpen} onOpenChange={setImagesOpen} />
       <NotificationToastQueue />
       <HealthReminderToasts />
+      <AutoBackupWatcher />
     </div>
   )
 }
