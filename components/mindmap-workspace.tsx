@@ -876,6 +876,21 @@ function Canvas({
   )
   const lastRfEdgesRef = useRef<Edge[] | null>(null)
 
+  // ---- 本地画布态（React Flow 持有位置，避免拖拽时每帧写 store 导致卡顿/节点消失） ----
+  // 初值空数组：快照由下方 sync effect 首帧推入——这样 rfNodes 能读到本地 selected 现值。
+  // **selected 单向铁律**：React Flow 的内部选中是唯一真相，快照只读不写 selected
+  // （sync effect 用本地现值回填），否则与 onSelectionChange→selectedIds 回写构成双向
+  // 同步环——历次「Maximum update depth exceeded」的死循环根源。
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+
+  // 本地选中映射：rfNodes 快照从这读取选中态（跟随 React Flow 现值，不反向派生）
+  const localSelected = useMemo(() => {
+    const m = new Map<string, boolean>()
+    for (const n of nodes) m.set(n.id, !!n.selected)
+    return m
+  }, [nodes])
+
   const rfNodes: Node[] = useMemo(() => {
     const cache = rfNodeCacheRef.current
     const list: Node[] = []
@@ -885,7 +900,7 @@ function Canvas({
       if (hidden.has(n.id)) continue
       if (n.hidden) continue // 用户隐藏：不在画布显示
       seen.add(n.id)
-      const selected = n.id === activeItemId || selectedIds.has(n.id)
+      const selected = localSelected.get(n.id) ?? false
       const isCollapsed = collapsed.has(n.id)
       const multi = multiActive && selectedIds.has(n.id)
       const multiCount = selectedIds.size
@@ -968,7 +983,7 @@ function Canvas({
     return list
   }, [
     family.nodes,
-    activeItemId,
+    localSelected,
     selectedIds,
     hidden,
     collapsed,
@@ -1043,26 +1058,23 @@ function Canvas({
     return list
   }, [family.edges, family.nodes, hidden, isConnecting])
 
-  // ---- 本地画布态（React Flow 持有位置，避免拖拽时每帧写 store 导致卡顿/节点消失） ----
-  const [nodes, setNodes, onNodesChange] = useNodesState(rfNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(rfEdges)
-
   // 把 store 的结构/内容变化（增删节点、改标题/标签、折叠、临时右键线）同步进本地画布态，
-  // 但保留当前拖拽中的位置，不覆盖 flow 内部坐标。
+  // 但保留当前拖拽中的位置与选中态（**不写 selected**：选中以 React Flow 内部为唯一真相，
+  // 快照若反向派生 selected 会与 onSelectionChange→selectedIds 回写构成死循环）。
   useEffect(() => {
     const sn = new Map(rfNodes.map((n) => [n.id, n]))
     const se = new Map(rfEdges.map((e) => [e.id, e]))
 
     setNodes((curr) => {
       let mutated = false
-      // 1) 通过 store 但保留本地位置（拖拽不被打断）；快照与当前对象一致时直接复用引用，
+      // 1) 通过 store 但保留本地位置与选中（拖拽/框选不被打断）；data 一致时直接复用引用，
       //    让 React Flow 只重渲染真正变化的节点
       let next = curr.map((n) => {
         const s = sn.get(n.id)
         if (!s) return n // 交由下方“移除”处理
-        if (n.data === s.data && n.selected === s.selected) return n
+        if (n.data === s.data) return n
         mutated = true
-        return { ...s, position: n.position, selected: s.selected }
+        return { ...s, position: n.position, selected: n.selected }
       })
       // 2) 补入 store 新增的节点
       for (const [id, s] of sn) {
@@ -1098,6 +1110,17 @@ function Canvas({
       return mutated ? next : curr
     })
   }, [rfNodes, rfEdges, setNodes, setEdges])
+
+  // activeItemId 编程选中：只在目标节点未选中时补选一次（不清除其他选中、不破坏多选）。
+  // 用户点击路径 React Flow 自己已选中，这里 no-op；列表跳转 / 添加子节点等非画布路径由此补高亮。
+  useEffect(() => {
+    if (!activeItemId) return
+    setNodes((curr) => {
+      const target = curr.find((n) => n.id === activeItemId)
+      if (!target || target.selected) return curr
+      return curr.map((n) => (n.id === activeItemId ? { ...n, selected: true } : n))
+    })
+  }, [activeItemId, setNodes])
 
   // 拖拽结束：仅此时把最终位置写回 store（拖拽过程中不写 store，保证流畅）
   const onNodeDragStop = useCallback(
