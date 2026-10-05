@@ -185,6 +185,7 @@ function FamilySidebar({
   const addRelationFamily = useWorkspace((s) => s.addRelationFamily)
   const renameRelationFamily = useWorkspace((s) => s.renameRelationFamily)
   const deleteRelationFamily = useWorkspace((s) => s.deleteRelationFamily)
+  const moveRelationFamily = useWorkspace((s) => s.moveRelationFamily)
   const askAiAbout = useWorkspace((s) => s.askAiAbout)
 
   const [adding, setAdding] = useState(false)
@@ -300,9 +301,27 @@ function FamilySidebar({
             />
           </div>
         )}
-        {families.map((f) => (
+        {families.map((f, i) => (
           <div
             key={f.id}
+            draggable={renamingId !== f.id}
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/plain", f.id)
+              e.dataTransfer.effectAllowed = "move"
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault()
+              const id = e.dataTransfer.getData("text/plain")
+              if (!id) return
+              const from = families.findIndex((x) => x.id === id)
+              if (from === -1) return
+              const rect = e.currentTarget.getBoundingClientRect()
+              const before = e.clientY < rect.top + rect.height / 2
+              const to = before ? i : i + 1
+              // 落点在自身原位或紧邻下一位都等于没动，不落库
+              if (to !== from && to !== from + 1) moveRelationFamily(id, to)
+            }}
             className={cn(
               "group flex items-center gap-1 rounded-md px-2 py-1.5 text-xs transition-colors",
               f.id === family.id
@@ -360,7 +379,13 @@ function FamilySidebar({
                   aria-label="删除族"
                   onClick={(e) => {
                     e.stopPropagation()
-                    setConfirmDelId(f.id)
+                    // TODO 66：空族（无节点）直接删除，不打扰确认
+                    if (f.nodes.length === 0) {
+                      deleteRelationFamily(f.id)
+                      toast.success("已删除关系族")
+                    } else {
+                      setConfirmDelId(f.id)
+                    }
                   }}
                   className="hidden size-4 shrink-0 items-center justify-center rounded group-hover:flex hover:bg-destructive/10"
                 >

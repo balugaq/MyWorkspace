@@ -473,6 +473,8 @@ interface WorkspaceState {
   renameRelationFamily: (familyId: string, name: string) => void
   /** 删除族：清理族内全部节点的贡献账本记录 */
   deleteRelationFamily: (familyId: string) => void
+  /** 调整族在族列表中的位置（TODO 69）：toIndex 为同分类族数组的目标插入索引（0..len，原数组口径）；顺序承载在 relationFamilies 的 key 顺序上 */
+  moveRelationFamily: (familyId: string, toIndex: number) => void
   /** 搬迁节点：只搬节点 + 两端都在搬移集合内的边（跨分类搬迁不改族归属字段以外的东西） */
   moveNodesToFamily: (familyId: string, nodeIds: string[], targetFamilyId: string) => void
   setPendingFamilyId: (id: string | null) => void
@@ -1753,6 +1755,37 @@ export const useWorkspace = create<WorkspaceState>()(
             ? null
             : s.activeItemId
           return { relationFamilies, contributions, activeItemId }
+        }),
+
+      // 调整族位置（TODO 69）：同分类族重排，其余分类族的 key 位置原样保留。
+      // 族列表顺序由 relationFamilies 的 key 插入顺序承载（所有消费方均按 categoryId 过滤后使用），
+      // 故重建对象时同分类族按新顺序填回原有槽位即可，无需额外顺序字段。
+      moveRelationFamily: (familyId, toIndex) =>
+        set((s) => {
+          const fam = s.relationFamilies[familyId]
+          if (!fam) return {}
+          const siblings = Object.entries(s.relationFamilies).filter(
+            ([, f]) => f.categoryId === fam.categoryId
+          )
+          const fromIndex = siblings.findIndex(([fid]) => fid === familyId)
+          if (fromIndex === -1) return {}
+          const clamped = Math.max(0, Math.min(Math.trunc(toIndex), siblings.length))
+          // toIndex 以原数组口径表述：向后插时移除自身后目标位左移一格
+          const target = clamped > fromIndex ? clamped - 1 : clamped
+          if (target === fromIndex) return {}
+          const [moved] = siblings.splice(fromIndex, 1)
+          siblings.splice(target, 0, moved)
+          const relationFamilies: Record<string, RelationFamily> = {}
+          let cursor = 0
+          for (const [fid, f] of Object.entries(s.relationFamilies)) {
+            if (f.categoryId === fam.categoryId) {
+              const [nid, nf] = siblings[cursor++]
+              relationFamilies[nid] = nf
+            } else {
+              relationFamilies[fid] = f
+            }
+          }
+          return { relationFamilies }
         }),
 
       // 搬迁节点：只搬节点 + 两端都在搬移集合内的边（节点本身无分类归属，跨分类搬迁只改族的节点集合）
