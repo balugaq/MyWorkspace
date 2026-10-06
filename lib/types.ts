@@ -453,6 +453,8 @@ export interface Settings {
   }
   // Profile 页四个小组件（TODO 52）的展示顺序：天气 / 日期牌 / 使用时长 / 专注钟
   profileWidgetOrder: ProfileWidgetId[]
+  // 生日横幅（TODO 61）：brandHeader 顶部横幅提前 n 天显示临近生日（含当天），0 = 仅当天
+  birthdayBannerDays: number
 }
 
 // ---- Profile 页小组件（TODO 52）----
@@ -606,6 +608,15 @@ export const DEFAULT_SETTINGS: Settings = {
   qqRelayUrl: DEFAULT_QQ_RELAY_URL,
   pwdGenerator: { length: 16, upper: true, lower: true, digits: true, symbols: true },
   profileWidgetOrder: [...PROFILE_WIDGET_IDS],
+  // 生日横幅提前天数（TODO 61）：默认 7 = 生日前 7 天（含当天）开始显示
+  birthdayBannerDays: 7,
+}
+
+/** 生日横幅提前天数兜底（TODO 61）：缺失 / 非法 / 越界（0-60 之外的整数）回落默认 7 */
+export function normalizeBirthdayBannerDays(value: unknown): number {
+  const n = typeof value === "number" ? Math.floor(value) : Number.NaN
+  if (!Number.isFinite(n) || n < 0 || n > 60) return 7
+  return n
 }
 
 // ---- GitHub Issue/PR 看板队列（TODO 36）----

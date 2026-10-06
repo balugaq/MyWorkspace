@@ -538,10 +538,18 @@ TODO 60. （状态：已完成）
 - 管理入口：设置 → 账户与同步 → 「自动备份」块——备份列表（时间/大小）、立即备份、恢复（AlertDialog 确认，替换导入，走 importData 含旧数据迁移）、删除。图片不随快照携带（仍在本地图片库）。
 - typecheck / lint 均 0 错误。待主人目视确认（设置页区块、提醒弹窗样式）。
 
-TODO 61. （状态：待处理）
+TODO 61. （状态：已完成，待目视确认）
 生日横幅
 xxx最近生日（） 或 最近有n人生日（xxx，xxx）
 这个怎么显示内容需要先设计一下，暂时不确定
+
+- 已实现（2026-10-06，验收口径经主人确认：brandHeader 内 / 前 7 天可配置 / 自己生日纳入）：
+  - `lib/birthday.ts` 新增 `nextBirthdayIn(person, today)`（下一个生日日期 + 剩余天数；公历 2/29 非闰年回落 2/28 防止 Date 溢出进位到 3 月；农历经 solarMatchForLunarMD 换算，当年已过自动回落次年）与 `upcomingBirthdays(people, daysAhead, today)`（窗口内汇总，按剩余天数升序、同天按姓名）。
+  - 数据源：store.contacts（Person.birthday，公历 / L 前缀农历）+ 设置→账户的用户生日（作为伪联系人 `__self__` 纳入，名字取 settings.userName）。
+  - 横幅 UI：`components/brand-header.tsx` 中间段 BirthdayBanner（桌面端 md:flex 显示、移动端隐藏；无临近生日时不占位）。文案按主人原文形态：单人「xxx 最近生日（M月D日，还有 n 天 · 农历）」、多人「最近有 n 人生日（xxx、xxx 等 n 人）」（取前 3 个名字）；当天过生日 → 横幅高亮 primary 色 + ✨ + Cake 图标脉冲，hover 显示每人明细，点击跳转联系人页。
+  - 配置：Settings 新增 `birthdayBannerDays`（默认 7，0 = 仅当天，上限 60，`normalizeBirthdayBannerDays` 兜底接入 persist merge 与 importData 两处 settings 组装）；设置 → 通用/基础 新增「生日横幅提前天数」数字输入。
+  - 测试：新增 `tests/birthday.test.ts`（11 用例：公历倒推 / 当天 / 已过归明年 / 2/29 闰年两态 / 农历动态构造换算日 / 汇总排序与窗口过滤），全套 28 用例通过。
+- typecheck / lint / test 均 0 错误。待主人目视确认（横幅出现时机、文案、当天高亮、点击跳转、设置项生效）。
 
 TODO 62. (状态：待处理)
 最大的问题就是他没有成为整个桌面的一部分，工具这些本应是小组件一样的
@@ -600,3 +608,7 @@ TODO 69. （状态：已完成）
 允许关系族之间调整位置
 
 - 已改（2026-10-05）：族 sidebar 行支持 HTML5 DnD 拖拽排序（交互与 app-sidebar 分类拖拽一致：落点行上半=插到它前面、下半=插到它后面；落点在自身原位或紧邻下一位视为没动不落库；重命名编辑态禁用拖拽）。存储不新增字段——顺序继续承载在 relationFamilies 的 key 插入顺序上，store 新增 `moveRelationFamily(familyId, toIndex)`（toIndex 为同分类族数组的目标插入索引，原数组口径；重建对象时同分类族按新顺序填回原有 key 槽位、其余分类族位置原样保留；搬迁弹窗等所有按 categoryId 过滤的消费方自动跟随新顺序）。typecheck / lint 均 0 错误。待主人目视确认拖拽手感与落点指示。
+
+TODO 70. （状态：待处理）
+当前docs规范风格的滑动条，会在深色主题颜色下，与背景融为一体，导致无法看到滑动条。
+同时，滑动条过长时，在显示屏幕上滑动条的底部会出现白色矩形（这一条尚需多加验证，有时显示有时不显示的）

@@ -886,6 +886,32 @@ export function SettingsView() {
               <p className="text-xs text-muted-foreground">应用每次打开时默认进入的界面。</p>
             </section>
 
+            {/* TODO 61：生日横幅提前天数（brandHeader 横幅） */}
+            <section className="flex flex-col gap-2">
+              <Label htmlFor="birthday-banner-days" className="text-xs font-medium text-muted-foreground">
+                生日横幅提前天数
+              </Label>
+              <Input
+                id="birthday-banner-days"
+                type="number"
+                min={0}
+                max={60}
+                step={1}
+                value={settings.birthdayBannerDays}
+                onChange={(e) => {
+                  const n = Math.floor(Number(e.target.value))
+                  updateSettings({
+                    birthdayBannerDays: Number.isFinite(n) && n >= 0 ? Math.min(n, 60) : 7,
+                  })
+                }}
+                className="max-w-24"
+              />
+              <p className="text-xs text-muted-foreground">
+                顶栏生日横幅提前 n 天显示临近生日（含当天，0 = 仅当天；上限 60）。
+                数据源：联系人生日（含农历换算）与账户里的自己生日。
+              </p>
+            </section>
+
             {/* TODO 67：全站标签管理（创建 / 重命名 / 删除，含联系人角色） */}
             <TagManagerBlock />
             </Section>

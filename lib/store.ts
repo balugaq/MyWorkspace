@@ -34,7 +34,7 @@ import type {
   Person,
   FestivalDef,
 } from "./types"
-import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, normalizeProfileWidgetOrder, BUILTIN_TODO_RELATIONS_CATEGORY_ID, type AIPersona } from "./types"
+import { DEFAULT_SETTINGS, CONTRIBUTION_AMOUNT, normalizeNotificationRepos, normalizeNotificationChannels, normalizeQqRelayUrl, normalizeProfileWidgetOrder, normalizeBirthdayBannerDays, BUILTIN_TODO_RELATIONS_CATEGORY_ID, type AIPersona } from "./types"
 import { AI_PROVIDERS } from "@/lib/ai/providers"
 import { normalizeDayStartOffset, parseDayStartOffset, todayKey } from "./contributions"
 import { imageIdsInText } from "./image-refs"
@@ -907,6 +907,10 @@ export const useWorkspace = create<WorkspaceState>()(
                   // 兜底：备份里的 QQ 中转地址缺失 / 非法 → 默认地址
                   qqRelayUrl: normalizeQqRelayUrl(
                     (bSettings as Record<string, unknown>).qqRelayUrl
+                  ),
+                  // 兜底（TODO 61）：备份里的横幅提前天数缺失 / 非法 / 越界 → 默认 7
+                  birthdayBannerDays: normalizeBirthdayBannerDays(
+                    (bSettings as Record<string, unknown>).birthdayBannerDays
                   ),
                 } as Settings)
               : cur.settings,
@@ -2150,6 +2154,8 @@ export const useWorkspace = create<WorkspaceState>()(
             qqRelayUrl: normalizeQqRelayUrl(rawSettings.qqRelayUrl),
             // 兜底（TODO 52）：缺失 / 非法 → 默认组件顺序（合法 id 去重 + 缺失补齐）
             profileWidgetOrder: normalizeProfileWidgetOrder(rawSettings.profileWidgetOrder),
+            // 兜底（TODO 61）：缺失 / 非法 / 越界 → 默认 7 天
+            birthdayBannerDays: normalizeBirthdayBannerDays(rawSettings.birthdayBannerDays),
           },
         }
       },
