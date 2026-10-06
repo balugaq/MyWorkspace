@@ -83,6 +83,17 @@ function mergeById<T extends { id: string }>(a: T[], b: T[]): T[] {
   return [...m.values()]
 }
 
+// 标签数组去重（保序）：renameTag 合并语义（TODO 67）用
+function dedupeTags(tags: string[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const x of tags) if (!seen.has(x)) {
+    seen.add(x)
+    out.push(x)
+  }
+  return out
+}
+
 // 旧版思维导图节点无 createdAt / completedAt 字段；统一默认时间（用户指定：2026/8/31 02:00:00 GMT+8）。
 const LEGACY_NODE_TIME = new Date("2026-08-31T02:00:00+08:00").getTime()
 
@@ -377,6 +388,10 @@ interface WorkspaceState {
 
   // 全局标签库（导入联系人 roles 等）：并入去重后的标签，已存在则忽略
   addKnownTags: (tags: string[]) => void
+  /** 全站重命名标签（TODO 67）：随笔章节 / 思维图节点 / 联系人角色 / 全局标签库同步替换；目标名已被使用时自动合并（去重）。返回修改的使用处数量 */
+  renameTag: (from: string, to: string) => number
+  /** 全站删除标签（TODO 67）：从章节 / 思维图节点 / 联系人角色 / 全局标签库移除。返回清理的使用处数量（不含标签库条目本身） */
+  deleteTag: (name: string) => number
 
   // 数据备份
   /** 导出 store 快照为 JSON；sections 指定导出分区（TODO 41），缺省导出除 vault 外全部分区 */
@@ -645,6 +660,136 @@ export const useWorkspace = create<WorkspaceState>()(
           if (additions.length === 0) return {}
           return { knownTags: [...s.knownTags, ...additions] }
         }),
+
+      // 全站重命名标签（TODO 67）：「先算后写」——在 set 外遍历四个数据域算出新值与计数，
+      // 无任何变更时不触发 set。目标名已被其他标签占用时替换后去重，即自然合并。
+      renameTag: (from, to) => {
+        const s = get()
+        const f = from.trim()
+        const t = to.trim()
+        if (!f || !t || f === t) return 0
+        let changed = 0
+        // 泛型保持入参类型：章节 tags 为必有 string[]，节点/联系人 roles 为可选项
+        const swapTags = <T extends string[] | undefined>(tags: T): T => {
+          if (!tags || !tags.some((x) => x === f)) return tags
+          changed++
+          return dedupeTags(tags.map((x) => (x === f ? t : x))) as T
+        }
+        let catsTouched = false
+        const categories = s.categories.map((cat) => {
+          if (!cat.chapters) return cat
+          let touched = false
+          const chapters = cat.chapters.map((ch) => {
+            const tags = swapTags(ch.tags)
+            if (tags === ch.tags) return ch
+            touched = true
+            return { ...ch, tags }
+          })
+          if (!touched) return cat
+          catsTouched = true
+          return { ...cat, chapters }
+        })
+        const relationFamilies: Record<string, RelationFamily> = { ...s.relationFamilies }
+        let famsTouched = false
+        for (const [fid, fam] of Object.entries(s.relationFamilies)) {
+          let touched = false
+          const nodes = fam.nodes.map((n) => {
+            const tags = swapTags(n.tags)
+            if (tags === n.tags) return n
+            touched = true
+            return { ...n, tags }
+          })
+          if (touched) {
+            relationFamilies[fid] = { ...fam, nodes }
+            famsTouched = true
+          }
+        }
+        const contactsArr: Person[] = []
+        let contactsTouched = false
+        for (const p of s.contacts) {
+          const roles = swapTags(p.roles)
+          if (roles === p.roles) contactsArr.push(p)
+          else {
+            contactsArr.push({ ...p, roles })
+            contactsTouched = true
+          }
+        }
+        // 全局标签库：from 移除；to 不存在（精确匹配）则补入
+        const knownHasTo = s.knownTags.some((x) => x === t)
+        const knownTags = dedupeTags([...s.knownTags.filter((x) => x !== f), ...(knownHasTo ? [] : [t])])
+        const knownTouched = s.knownTags.some((x) => x === f) || !knownHasTo
+        if (!catsTouched && !famsTouched && !contactsTouched && !knownTouched) return changed
+        set({
+          ...(catsTouched ? { categories } : {}),
+          ...(famsTouched ? { relationFamilies } : {}),
+          ...(contactsTouched ? { contacts: contactsArr } : {}),
+          ...(knownTouched ? { knownTags } : {}),
+        })
+        return changed
+      },
+
+      // 全站删除标签（TODO 67）：四个数据域移除该标签；计数口径 = 使用处（章节/节点/联系人），标签库条目静默移除
+      deleteTag: (name) => {
+        const s = get()
+        const f = name.trim()
+        if (!f) return 0
+        let removed = 0
+        // 泛型保持入参类型：章节 tags 为必有 string[]，节点/联系人 roles 为可选项
+        const stripTags = <T extends string[] | undefined>(tags: T): T => {
+          if (!tags || !tags.some((x) => x === f)) return tags
+          removed++
+          return tags.filter((x) => x !== f) as T
+        }
+        let catsTouched = false
+        const categories = s.categories.map((cat) => {
+          if (!cat.chapters) return cat
+          let touched = false
+          const chapters = cat.chapters.map((ch) => {
+            const tags = stripTags(ch.tags)
+            if (tags === ch.tags) return ch
+            touched = true
+            return { ...ch, tags }
+          })
+          if (!touched) return cat
+          catsTouched = true
+          return { ...cat, chapters }
+        })
+        const relationFamilies: Record<string, RelationFamily> = { ...s.relationFamilies }
+        let famsTouched = false
+        for (const [fid, fam] of Object.entries(s.relationFamilies)) {
+          let touched = false
+          const nodes = fam.nodes.map((n) => {
+            const tags = stripTags(n.tags)
+            if (tags === n.tags) return n
+            touched = true
+            return { ...n, tags }
+          })
+          if (touched) {
+            relationFamilies[fid] = { ...fam, nodes }
+            famsTouched = true
+          }
+        }
+        const contactsArr: Person[] = []
+        let contactsTouched = false
+        for (const p of s.contacts) {
+          const roles = stripTags(p.roles)
+          if (roles === p.roles) contactsArr.push(p)
+          else {
+            contactsArr.push({ ...p, roles })
+            contactsTouched = true
+          }
+        }
+        const knownTouched = s.knownTags.some((x) => x === f)
+        const knownTags = s.knownTags.filter((x) => x !== f)
+        if (!catsTouched && !famsTouched && !contactsTouched && !knownTouched) return removed
+        set({
+          ...(catsTouched ? { categories } : {}),
+          ...(famsTouched ? { relationFamilies } : {}),
+          ...(contactsTouched ? { contacts: contactsArr } : {}),
+          ...(knownTouched ? { knownTags } : {}),
+        })
+        return removed
+      },
 
       // 分区导出（TODO 41）：sections 指明各分区是否携带；缺省（未传）= 除 vault / contacts 外全部分区
       // （兼容旧调用方如 ConfigEditorDialog 的全量快照语义）。settings 始终携带（应用配置，恢复必需）。

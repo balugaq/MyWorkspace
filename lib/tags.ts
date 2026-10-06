@@ -1,4 +1,4 @@
-import type { Category, RelationFamily } from "./types"
+import type { Category, Person, RelationFamily } from "./types"
 
 /**
  * 汇总整个工作台所有已创建的标签（跨小说/通用分类章节 与 思维图节点共用）。
@@ -36,4 +36,30 @@ export function collectAllTagsWithKnown(
     ...knownTags.map((t) => t.trim()).filter(Boolean),
   ])
   return [...set].sort((a, b) => a.localeCompare(b, "zh-CN"))
+}
+
+/**
+ * 标签使用统计（TODO 67 标签管理配套）：标签名 → 使用处数量。
+ * 统计口径 = 实际挂载处（随笔章节 / 思维图节点 / 联系人角色），不含全局标签库 knownTags 条目
+ * （库条目可能尚未被任何对象使用，count 为 0 表示「仅存在于标签库」）。
+ */
+export function collectTagUsage(
+  categories: Category[],
+  families: RelationFamily[],
+  contacts: Person[],
+): Map<string, number> {
+  const map = new Map<string, number>()
+  const bump = (t?: string) => {
+    const key = t?.trim()
+    if (!key) return
+    map.set(key, (map.get(key) ?? 0) + 1)
+  }
+  for (const cat of categories) {
+    for (const ch of cat.chapters ?? []) for (const t of ch.tags ?? []) bump(t)
+  }
+  for (const fam of families) {
+    for (const n of fam.nodes) for (const t of n.tags ?? []) bump(t)
+  }
+  for (const p of contacts) for (const r of p.roles ?? []) bump(r)
+  return map
 }

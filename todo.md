@@ -574,13 +574,26 @@ TODO 66. （状态：已完成）
 
 - 已改（2026-10-05）：FamilySidebar 删除按钮——族内 nodes 为空时直接调 deleteRelationFamily 并 toast「已删除关系族」，不再弹 AlertDialog 确认；非空族维持原确认弹窗（因删除会连带节点、连线与贡献记录）。待主人目视确认。
 
-TODO 67. （状态：待处理）
+TODO 67. （状态：已完成）
 设置增加一个标签管理
 
-TODO 68. （状态：待处理）
+- 已实现（2026-10-05，验收口径经主人确认：重命名+删除+创建；联系人 roles 纳入；放「通用」分区）：
+  - store 新增 `renameTag(from, to)` / `deleteTag(name)`——全站遍历四个数据域（随笔章节 tags / 关系族节点 tags / 联系人 roles / 全局标签库 knownTags），「先算后写」模式（set 外算新值与计数，无变更不触发 set，引用级不变性保持）；重命名撞已有标签名时替换后去重即自然合并；返回使用处计数供 UI toast。
+  - `lib/tags.ts` 新增 `collectTagUsage(categories, families, contacts)`——标签 → 使用处数量统计（口径 = 实际挂载处，knownTags 库条目不计）。
+  - 设置 → 通用/基础 末尾新增「标签管理」块（TagManagerBlock）：列表（使用数徽标，0 显示「仅标签库」）+ 拼音搜索（复用 lib/pinyin）+ 新建（入 knownTags，重名拦截）+ 行内重命名（撞名合并 toast）+ 删除（AlertDialog 确认，显示将清理的引用数）。
+  - 联系人 roles 的顿号/逗号分隔此前已做好（`split(/[、,，]/)` + placeholder「用顿号/逗号分隔」），本轮核实无需改动。
+- typecheck / lint 均 0 错误。待主人目视确认（设置页区块交互、搜索、合并/删除提示）。
+
+TODO 68. （状态：已完成）
 @ todo 32
 todo 32 效果未实现
 用户在AI对话栏输入<blue>这是一段文字</blue>并回车后（借AI对话栏自动渲染富文本来看效果），显示的文本为<blue>这是一段文字 后面的</blue>显示上被吞掉，点击复制文字后可以确认原文仍为<blue>这是一段文字</blue>请调查无法渲染的根因
+
+- 根因已查明并修复（2026-10-05/06）：`lib/format-colors.ts` 的 `FORMAT_COLOR_TAG_AT` 是 `^<(/)?(色名)>$` **全锚定**正则，却同时用在两个语义不同的地方——`components/markdown-view.tsx`（marked 管线，对 html token **整串**匹配，全锚定正确）与 `components/richtext/format-color.ts`（TipTap 管线，AI 对话气泡渲染走这里，对 `slice(pos, pos+32)` **滑动窗口**匹配，需要前缀语义）。全锚定在滑动窗口下：文本中间的开标签（后面跟着文字，窗口非纯标签）永不命中 → `<blue>` 原样显示；扫到字符串末尾的 `</blue>` 时剩余窗口恰为标签本身 → 孤立命中，push 了没有配对 open 的 close token → 渲染成孤立 `</span>`，视觉上 `</blue>` 被吞。即：**开闭标签永远一坏一好，色标签管线此前从未真正渲染成功过**（32 一直处于未验证状态）。
+- 修复：`lib/format-colors.ts` 新增 `FORMAT_COLOR_TAG_PREFIX`（`^<(/)?(色名)>` 无 `$` 尾锚）；`format-color.ts` 的 inline 规则改用 PREFIX，marked 路径继续用 AT（语义正确不动）。
+- 验证：新建 `tests/format-colors.test.ts`（node:test，17 用例含根因回归样本：AT 仅末尾闭标签孤立命中 / PREFIX 开闭配对 / 16 色遍历 / `<blueberry>` 等误匹配防护 / marked 路径 AT 整串语义回归），`npm test` 全过。
+- 顺带落地测试基建（主人提议，对齐 src/test 习惯）：`tests/` 目录 + `package.json` `test` script（node --test --experimental-strip-types，零新依赖）+ tsconfig `allowImportingTsExtensions` + 新增 `tests/contributions.test.ts`（04:00 翻篇口径常驻回归）；AGENTS.md 验收口径（TL;DR 1 / 第 2 节 / 红线 3、8、9 / Git 工作流 / 第 7 节测试约定）统一加入 `npm test`。
+- typecheck / lint / test 均 0 错误。渲染效果待主人目视确认（`npm run dev` → AI 对话栏输入 `<blue>这是一段文字</blue>` 发送 → 用户气泡应显示蓝色「这是一段文字」）。
 
 TODO 69. （状态：已完成）
 允许关系族之间调整位置

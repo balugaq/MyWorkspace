@@ -4,9 +4,9 @@
 // 分区：通用/基础 → 快捷键/键位 → 账户与同步 → AI 助手 → 高级 → GitHub 集成。
 // 各块业务逻辑自旧弹窗原样迁移，仅重排分组；子弹窗（模型/人设/技能/许可证/导入方式）随迁。
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, Trash2, ChevronRight, Check, Braces, History, RotateCcw } from "lucide-react"
+import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, Trash2, ChevronRight, Check, Braces, History, RotateCcw, Tag as TagIcon, Plus, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useWorkspace } from "@/lib/store"
 import {
@@ -71,6 +71,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { normalizeDayStartOffset, firstContributionAt, formatUsageDuration } from "@/lib/contributions"
+import { collectAllTagsWithKnown, collectTagUsage } from "@/lib/tags"
+import { matchTextPinyin } from "@/lib/pinyin"
 import { NOTIFICATION_CHANNELS } from "@/lib/notifications/channels"
 import { LicenseDialog } from "@/components/license-dialog"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
@@ -194,6 +196,219 @@ function exportNotificationLogs(logs: NotificationLogEntry[], format: "txt" | "j
   a.click()
   URL.revokeObjectURL(url)
   toast.success(`已导出 ${logs.length} 条日志`)
+}
+
+// 标签管理（TODO 67）：全站标签体系统一管理（随笔章节 / 思维图节点 / 联系人角色 / 全局标签库）。
+// 列表含使用统计与拼音搜索；支持创建（入标签库）、重命名（撞已有名自动合并）、删除（全站清理）。
+function TagManagerBlock() {
+  const categories = useWorkspace((s) => s.categories)
+  const relationFamilies = useWorkspace((s) => s.relationFamilies)
+  const knownTags = useWorkspace((s) => s.knownTags)
+  const contacts = useWorkspace((s) => s.contacts)
+  const renameTag = useWorkspace((s) => s.renameTag)
+  const deleteTag = useWorkspace((s) => s.deleteTag)
+  const addKnownTags = useWorkspace((s) => s.addKnownTags)
+
+  const [query, setQuery] = useState("")
+  const [creating, setCreating] = useState(false)
+  const [createName, setCreateName] = useState("")
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = useState("")
+  const [confirmDel, setConfirmDel] = useState<string | null>(null)
+  const renameInputRef = useRef<HTMLInputElement>(null)
+
+  const familyList = useMemo(() => Object.values(relationFamilies), [relationFamilies])
+  const usage = useMemo(
+    () => collectTagUsage(categories, familyList, contacts),
+    [categories, familyList, contacts],
+  )
+  const allTags = useMemo(
+    () => collectAllTagsWithKnown(categories, familyList, knownTags),
+    [categories, familyList, knownTags],
+  )
+  const visible = useMemo(() => {
+    const q = query.trim()
+    if (!q) return allTags
+    return allTags.filter((t) => matchTextPinyin(t, q))
+  }, [allTags, query])
+
+  const commitCreate = () => {
+    const name = createName.trim()
+    setCreating(false)
+    setCreateName("")
+    if (!name) return
+    if (allTags.some((t) => t === name)) {
+      toast.error(`标签「${name}」已存在`)
+      return
+    }
+    addKnownTags([name])
+    toast.success(`已创建标签「${name}」`)
+  }
+
+  const commitRename = () => {
+    const from = renaming
+    setRenaming(null)
+    setRenameDraft("")
+    if (!from) return
+    const to = renameDraft.trim()
+    if (!to || to === from) return
+    const merged = allTags.some((t) => t === to)
+    const changed = renameTag(from, to)
+    if (merged) {
+      toast.success(`已合并进「${to}」，更新 ${changed} 处引用`)
+    } else {
+      toast.success(changed > 0 ? `已重命名为「${to}」，更新 ${changed} 处引用` : `已重命名为「${to}」`)
+    }
+  }
+
+  const doDelete = () => {
+    const name = confirmDel
+    setConfirmDel(null)
+    if (!name) return
+    const removed = deleteTag(name)
+    toast.success(removed > 0 ? `已删除标签「${name}」，清理 ${removed} 处引用` : `已删除标签「${name}」`)
+  }
+
+  const delCount = confirmDel ? (usage.get(confirmDel) ?? 0) : 0
+
+  return (
+    <section className="flex flex-col gap-2">
+      <Label className="text-xs font-medium text-muted-foreground">标签管理</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="搜索标签（支持拼音）"
+          className="h-8 flex-1"
+        />
+        {creating ? (
+          <Input
+            autoFocus
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+            onBlur={commitCreate}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                commitCreate()
+              } else if (e.key === "Escape") {
+                e.preventDefault()
+                setCreating(false)
+                setCreateName("")
+              }
+            }}
+            placeholder="新标签名"
+            className="h-8 w-36"
+          />
+        ) : (
+          <Button
+            variant="outline"
+            className="h-8 shrink-0 gap-1.5"
+            onClick={() => {
+              setCreating(true)
+              setCreateName("")
+            }}
+          >
+            <Plus className="size-3.5" />
+            新建标签
+          </Button>
+        )}
+      </div>
+
+      {visible.length > 0 ? (
+        <ul className="native-scroll flex max-h-64 flex-col gap-1 overflow-auto pr-1">
+          {visible.map((t) => (
+            <li
+              key={t}
+              className="group flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs"
+            >
+              {renaming === t ? (
+                <input
+                  autoFocus
+                  ref={renameInputRef}
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      commitRename()
+                    } else if (e.key === "Escape") {
+                      e.preventDefault()
+                      setRenaming(null)
+                      setRenameDraft("")
+                    }
+                  }}
+                  maxLength={30}
+                  className="h-6 min-w-0 flex-1 rounded border bg-background px-1.5 outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              ) : (
+                <>
+                  <TagIcon className="size-3 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-foreground" title={t}>
+                    {t}
+                  </span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {(usage.get(t) ?? 0) > 0 ? `${usage.get(t)} 处使用` : "仅标签库"}
+                  </span>
+                  <button
+                    type="button"
+                    title="重命名"
+                    aria-label={`重命名标签 ${t}`}
+                    onClick={() => {
+                      setRenaming(t)
+                      setRenameDraft(t)
+                    }}
+                    className="hidden size-5 shrink-0 items-center justify-center rounded hover:bg-primary/10 group-hover:flex"
+                  >
+                    <Pencil className="size-3 text-muted-foreground" />
+                  </button>
+                  <button
+                    type="button"
+                    title="删除"
+                    aria-label={`删除标签 ${t}`}
+                    onClick={() => setConfirmDel(t)}
+                    className="hidden size-5 shrink-0 items-center justify-center rounded hover:bg-destructive/10 group-hover:flex"
+                  >
+                    <Trash2 className="size-3 text-destructive" />
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
+          {allTags.length === 0 ? "还没有标签，点击「新建标签」创建。" : "没有匹配的标签。"}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        标签贯穿随笔章节、思维图节点与联系人角色。重命名会全站同步（重命名成已有标签名时自动合并）；
+        删除会从所有使用处与标签库一并清理，不可撤销。
+      </p>
+
+      {/* 删除确认：全站清理不可撤销 */}
+      <AlertDialog
+        open={confirmDel !== null}
+        onOpenChange={(v) => !v && setConfirmDel(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除标签「{confirmDel ?? ""}」？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {delCount > 0
+                ? `将从 ${delCount} 处使用（章节 / 思维图节点 / 联系人角色）及标签库中移除该标签。此操作不可撤销。`
+                : "该标签尚未被任何内容使用，将仅从标签库中移除。"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmDel(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  )
 }
 
 // 分区容器：小标题 + 分隔线 + 内容块
@@ -670,6 +885,9 @@ export function SettingsView() {
               </Select>
               <p className="text-xs text-muted-foreground">应用每次打开时默认进入的界面。</p>
             </section>
+
+            {/* TODO 67：全站标签管理（创建 / 重命名 / 删除，含联系人角色） */}
+            <TagManagerBlock />
             </Section>
             )}
 
