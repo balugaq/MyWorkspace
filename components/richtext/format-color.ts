@@ -14,7 +14,7 @@ import { Mark, mergeAttributes } from "@tiptap/core"
 import type MarkdownIt from "markdown-it"
 import type { MarkdownSerializerState } from "prosemirror-markdown"
 import type { Mark as ProseMirrorMark } from "prosemirror-model"
-import { FORMAT_COLOR_MAP, FORMAT_COLOR_TAG_AT } from "@/lib/format-colors"
+import { FORMAT_COLOR_MAP, FORMAT_COLOR_TAG_PREFIX } from "@/lib/format-colors"
 
 // tiptap-markdown 每次 parse 都会对同一 markdown-it 实例重跑各扩展的 parse.setup，
 // 而 ruler.before 不去重——用 WeakSet 保证规则只注册一次，避免累积。
@@ -71,7 +71,9 @@ export const FormatColor = Mark.create({
             // autolink 的 <https://…> 不匹配色名正则，自然落到 link 规则。
             md.inline.ruler.before("emphasis", "format_color", (state, silent) => {
               if (state.src[state.pos] !== "<") return false
-              const m = FORMAT_COLOR_TAG_AT.exec(state.src.slice(state.pos, state.pos + 32))
+              // 前缀匹配：当前位置起是一个色标签即命中（TODO 68——全锚定会让中间的开标签
+              // 永不命中、末尾的闭标签脱离配对孤立命中，表现为 </blue> 被吞）
+              const m = FORMAT_COLOR_TAG_PREFIX.exec(state.src.slice(state.pos, state.pos + 32))
               if (!m) return false
               if (!silent) {
                 const token = state.push(m[1] ? "format_color_close" : "format_color_open", "", 0)

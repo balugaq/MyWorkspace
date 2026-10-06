@@ -41,8 +41,17 @@ export const FORMAT_COLOR_MAP: Readonly<Record<string, string>> = Object.fromEnt
 
 const FORMAT_COLOR_TAG_SRC = `<(/)?(${FORMAT_COLORS.map((c) => c.tag).join("|")})>`
 
-/** 锚定整串的单标签匹配（开或闭），供逐 token / 逐位置匹配 */
+/** 锚定整串的单标签匹配（开或闭），供「整串恰为一个标签」的判断（marked html token 等） */
 export const FORMAT_COLOR_TAG_AT = new RegExp(`^${FORMAT_COLOR_TAG_SRC}$`)
+
+/**
+ * 前缀匹配（无 $ 尾锚）：判断「从当前位置起是否是一个色标签的开头」，
+ * 供 TipTap 管线（format-color.ts）对滑动窗口 slice(pos, pos+32) 做匹配。
+ * 不能用 FORMAT_COLOR_TAG_AT——全锚定要求窗口整体恰为一个标签，会让
+ * 「文本中间的开标签」永不命中，而「恰好落在字符串末尾的闭标签」脱离
+ * 配对单独命中（孤立 </span>，表现为 </blue> 被吞、<blue> 原样显示，TODO 68 根因）。
+ */
+export const FORMAT_COLOR_TAG_PREFIX = new RegExp(`^${FORMAT_COLOR_TAG_SRC}`)
 
 /** 全局匹配任意色标签（开或闭），供整段扫描；注意 lastIndex，重用前需重置 */
 export const FORMAT_COLOR_TAG_RE = new RegExp(FORMAT_COLOR_TAG_SRC, "g")
