@@ -18,6 +18,7 @@ import { GlobalSearch } from "@/components/global-search"
 import { SettingsView } from "@/components/settings-view"
 import { NotificationsWorkspace } from "@/components/notifications/notifications-workspace"
 import { GithubQueueWorkspace } from "@/components/github-queue-workspace"
+import { VocabularyWorkspace } from "@/components/vocabulary-workspace"
 import { NotificationToastQueue } from "@/components/notifications/notification-toast-queue"
 import { HealthReminderToasts } from "@/components/notifications/health-reminder-toasts"
 import { AutoBackupWatcher } from "@/components/auto-backup-watcher"
@@ -189,6 +190,8 @@ export default function Page() {
             <NotificationsWorkspace />
           ) : view === "github-queue" ? (
             <GithubQueueWorkspace />
+          ) : view === "vocabulary" ? (
+            <VocabularyWorkspace />
           ) : activeCategory ? (
             activeCategory.template === "relation" ? (
               <MindmapWorkspace key={activeCategory.id} category={activeCategory} />

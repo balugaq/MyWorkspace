@@ -351,7 +351,8 @@ export const VIEW_LABEL: Record<
   | "profile"
   | "settings"
   | "notifications"
-  | "github-queue",
+  | "github-queue"
+  | "vocabulary",
   string
 > = {
   calendar: "日历",
@@ -362,6 +363,76 @@ export const VIEW_LABEL: Record<
   settings: "设置",
   notifications: "通知",
   "github-queue": "GitHub 队列",
+  vocabulary: "词汇表",
+}
+
+// ---- 词汇表（TODO 64）：IndexedDB 独立存储（lib/vocab-store.ts），不进 localStorage persist ----
+
+/** 问答评价四档（主人口径）：不符合释义 / 部分符合 / 符合 / 符合且给出更多正确义项 */
+export type VocabRating = "wrong" | "partial" | "correct" | "beyond"
+
+export const VOCAB_RATING_META: Record<
+  VocabRating,
+  { label: string; className: string }
+> = {
+  wrong: { label: "错误", className: "bg-destructive/10 text-destructive" },
+  partial: { label: "部分正确", className: "bg-orange-500/10 text-orange-600 dark:text-orange-400" },
+  correct: { label: "正确", className: "bg-green-500/10 text-green-600 dark:text-green-400" },
+  beyond: { label: "超越", className: "bg-sky-500/10 text-sky-600 dark:text-sky-400" },
+}
+
+/** 词条来源（TODO 64 主人口径）：独立小系统（不与标签共用），底层 id 引用、name 可随意改 */
+export interface VocabSource {
+  id: string
+  name: string
+  createdAt: number
+}
+
+export interface VocabReview {
+  /** 累计被测次数 */
+  total: number
+  /** 最近一次评价 */
+  lastRating?: VocabRating
+  lastAt?: number
+  /** 累计「错误 + 部分正确」次数（出题加权用） */
+  wrongCount: number
+}
+
+export interface VocabEntry {
+  id: string
+  /** 词条本身（显示层可随意改；去重按 word 精确匹配 trim 后） */
+  word: string
+  /** 释义（多行纯文本） */
+  definition: string
+  /** 来源 id（VocabSource.id）；来源被删除时置空，词条保留 */
+  sourceId?: string
+  createdAt: number
+  review: VocabReview
+}
+
+/** 一轮问答的持久化记录（全量保留，IndexedDB records store） */
+export interface VocabQuizRecord {
+  id: string
+  at: number
+  /** 本轮范围（来源名，全部为 null） */
+  sourceName: string | null
+  items: {
+    id: string
+    word: string
+    /** 答题时的释义快照（词义后续可改，记录当时评的是什么） */
+    definition: string
+    answer: string
+    timeMs: number
+    rating: VocabRating
+    comment: string
+  }[]
+}
+
+/** 批量导入的 JSON 词条形状（AI wb_prepare_vocab_import 技能 / 手动粘贴共用） */
+export interface VocabImportItem {
+  word: string
+  definition: string
+  source?: string
 }
 
 // 通知系统日志（TODO 27）：记录每轮扫描检查了哪些仓库、发现哪些新内容，以及是否发送了通知提示。
@@ -693,6 +764,7 @@ export type BackupSectionId =
   | "githubQueue" // GitHub 队列数据（issueQueue）
   | "contacts" // 联系人数据（TODO 48 起持久化，可导出；敏感默认不携带）
   | "vault" // 密码保险库（ZIP 内 vault.json，AES-256 加密 blob）
+  | "vocabulary" // 词汇表（TODO 64：ZIP 内 vocab.json，IndexedDB 词条 + 来源 + 问答记录）
 
 /** 各分区是否导出；缺省 = 不导出（由调用方填默认值） */
 export type BackupSections = Partial<Record<BackupSectionId, boolean>>

@@ -260,6 +260,7 @@ interface WorkspaceState {
     | "settings"
     | "notifications"
     | "github-queue"
+    | "vocabulary"
   selectedDate: string
   hydrated: boolean
 
@@ -352,6 +353,7 @@ interface WorkspaceState {
   goSettings: () => void
   goNotifications: () => void
   goGithubQueue: () => void
+  goVocabulary: () => void
 
   // AI 助手：多会话管理（各自持有上下文）
   createConversation: () => string
@@ -1218,6 +1220,7 @@ export const useWorkspace = create<WorkspaceState>()(
       goNotifications: () =>
         set({ view: "notifications", activeCategoryId: null, lastReadNotificationsAt: Date.now() }),
       goGithubQueue: () => set({ view: "github-queue", activeCategoryId: null }),
+      goVocabulary: () => set({ view: "vocabulary", activeCategoryId: null }),
 
       // ---- AI 助手：多会话（各自持有上下文） ----
       createConversation: () => {

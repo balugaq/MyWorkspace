@@ -8,6 +8,7 @@ import {
 } from "./image-store"
 import { exportVault, importVault } from "./vault-store"
 import { collectReferencedImageIds } from "./image-refs"
+import { exportVocab, importVocab } from "./vocab-store"
 import type { BackupSectionId, BackupSections } from "./types"
 
 /**
@@ -47,6 +48,7 @@ export const BACKUP_SECTION_META: {
   { id: "githubQueue", label: "GitHub 队列数据", description: "Issue / PR 看板队列卡片", sensitive: false, available: true },
   { id: "contacts", label: "联系人数据", description: "通讯录（含界面新建与 yml 导入的条目）", sensitive: true, available: true },
   { id: "vault", label: "密码保险库", description: "加密 blob（AES-256-GCM），恢复需主密码", sensitive: true, available: true },
+  { id: "vocabulary", label: "词汇表", description: "词条 / 来源 / 问答记录（IndexedDB，TODO 64）", sensitive: false, available: true },
 ]
 
 /** 导出分区默认勾选：敏感分区（联系人 / 保险库）默认不携带 */
@@ -121,6 +123,11 @@ export async function exportBackupZip(sections?: BackupSections): Promise<Blob> 
       files["vault.json"] = new TextEncoder().encode(JSON.stringify(vault, null, 2))
     }
   }
+  // 词汇表（TODO 64）：仅勾选 vocabulary 分区时打包词条 / 来源 / 问答记录
+  if (sections?.vocabulary === true) {
+    const vocab = await exportVocab()
+    files["vocab.json"] = new TextEncoder().encode(JSON.stringify(vocab, null, 2))
+  }
   const zip = zipSync(files)
   return new Blob([asBlobPart(zip)], { type: "application/zip" })
 }
@@ -179,6 +186,16 @@ export async function importBackupZip(
     } catch {
       // 保险库恢复失败不应阻断其余数据导入；此处静默忽略，仅日志记录
       console.warn("vault.json 解析或写入失败，已跳过保险库恢复")
+    }
+  }
+
+  // 词汇表（TODO 64）：替换 = 整库覆盖；合并 = id / word 去重并入；仅处理备份携带的分区
+  if (files["vocab.json"]) {
+    try {
+      const vocab = JSON.parse(new TextDecoder().decode(files["vocab.json"]))
+      await importVocab(vocab, mode)
+    } catch {
+      console.warn("vocab.json 解析或写入失败，已跳过词汇表恢复")
     }
   }
 

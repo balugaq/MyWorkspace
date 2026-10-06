@@ -6,6 +6,7 @@
 
 import { ChevronDown, Wrench } from "lucide-react"
 import {
+  BookOpen,
   CalendarDays,
   KeyRound,
   PenLine,
@@ -26,6 +27,7 @@ const TOOL_CARDS = [
   { id: "vault", name: "密码保险库", icon: KeyRound },
   { id: "notifications", name: "通知", icon: Bell },
   { id: "github-queue", name: "GitHub 队列", icon: GitPullRequest },
+  { id: "vocabulary", name: "词汇表", icon: BookOpen },
 ] as const
 
 export function ToolbarPanel() {
@@ -41,6 +43,7 @@ export function ToolbarPanel() {
   const goVault = useWorkspace((s) => s.goVault)
   const goNotifications = useWorkspace((s) => s.goNotifications)
   const goGithubQueue = useWorkspace((s) => s.goGithubQueue)
+  const goVocabulary = useWorkspace((s) => s.goVocabulary)
   // 通知未读数（工具栏「通知」卡片徽标）：createdAt 晚于已读水位的条数；
   // 进通知页（goNotifications）即标记已读，徽标清零
   const notifications = useWorkspace((s) => s.notifications)
@@ -75,6 +78,9 @@ export function ToolbarPanel() {
         break
       case "github-queue":
         goGithubQueue()
+        break
+      case "vocabulary":
+        goVocabulary()
         break
     }
   }

@@ -559,10 +559,25 @@ TODO 63. （状态：已完成）
 
 - 与 TODO 60 内容重复，已随 TODO 60 一并实现（2026-10-05），实现记录见 TODO 60。
 
-TODO 64. （状态：待处理）
+TODO 64. （状态：进行中——批 1 已完成，批 2 待做）
 todo：增加一个词汇表，有搜索就好了
 词汇表结构如下：
 词 -> 词的释义解释
+
+### TODO 64 规划与实施记录（2026-10-07，主人已拍板：IndexedDB 存储 / AI 批量加词方案 A（两段式）/ 出题=随机+错词加权 / 位置=工具栏卡片）
+
+**已确认口径补充**：source 独立小系统（不与标签共用）——底层 id 引用、name 随意改、dropdown 快捷写入 + 独立管理界面（删除来源仅摘标记，词条保留）；词汇底层 id 表示、显示层随意增删改；每轮 quiz result 全量持久化（不设轮数上限）。
+
+**批 1（已完成，2026-10-07）**：
+- 数据模型（lib/types.ts）：VocabRating 四档（wrong/partial/correct/beyond，VOCAB_RATING_META 四色徽标）/ VocabSource / VocabEntry（review: total/lastRating/lastAt/wrongCount）/ VocabQuizRecord（含答题时释义快照）/ VocabImportItem；BackupSectionId 加 "vocabulary"；VIEW_LABEL 加词汇表。
+- 存储层（lib/vocab-store.ts）：IndexedDB workspace-vocab 三 store（entries/sources/records），模块级内存缓存 + 写穿；API：loadVocab / ensureVocabSource（按名幂等）/ renameVocabSource / deleteVocabSource（摘标记回写受影响词条）/ isVocabWordTaken / upsertVocabEntry / removeVocabEntry / addVocabEntries（word trim+忽略大小写去重，跳过保留旧释义；source 按名取建）/ saveQuizResult（记录持久化 + review 回写）/ parseVocabImport（纯函数，导出解析）/ exportVocab / importVocab（replace 整库覆盖；merge 按 id+word O(n) 去重、孤儿 sourceId 置空）。
+- 视图接线：store view 加 "vocabulary" + goVocabulary；toolbar-panel TOOL_CARDS 加「词汇表」（BookOpen）；page.tsx 分发 VocabularyWorkspace。
+- 词汇工作区（components/vocabulary-workspace.tsx）：顶栏（词数/来源数/轮数统计 + 来源管理 + AI 批量导入 + 添加词条）→ 搜索（拼音搜 word+definition）+ 来源筛选（全部/未分类/各来源）→ 列表（词+来源徽标+最近评价四色徽标+练过次数+释义截断，渲染上限 200 条提示总数）；词条编辑弹窗（word 重名拦截 + source Select 选择 + 新来源名快捷写入输入框）；来源管理弹窗（列表/添加/行内重命名/删除确认含受影响词条数）；批量导入弹窗（粘贴 JSON → parseVocabImport 解析 → 有效/无效/重复统计 + 前 3 词预览 → 确认入库）。
+- 备份分区（lib/backup.ts）：exportBackupZip 打包 vocab.json（exportVocab）；importBackupZip 恢复（replace/merge 双模式）；BACKUP_SECTION_META 加「词汇表」（非敏感默认勾选，导出弹窗自动出现）。
+- 测试：tests/vocab-store.test.ts（parseVocabImport 6 用例：纯数组/items 包裹/invalid 计数/trim/非法输入/带围栏文本拒绝）。
+- typecheck / lint / test 全绿（34 用例）。待主人目视确认。
+
+**批 2（待做）**：问答状态机（配置/答题/报告三态 + 每题计时 + 中途退出确认）→ lib/ai/vocab-grader.ts（程序化预搜 wb_web_search execute 注入参考 + 四档评分 prompt + JSON 解析容错 + review 回写，request-queue 纪律仿 relayout）→ wb_prepare_vocab_import 内置技能 + 系统提示词引导。
 
 然后可以点击一个按钮，输入或选择题数，然后就可以开启一轮问答，问答内容就是屏幕中间贴出这个词汇，然后下面textarea输入这个词的意思。
 记录每题分别答题的时间，每题只有最终打完之后才一次性提交给ai（进入评分阶段）
