@@ -49,8 +49,15 @@ export const FormatColor = Mark.create({
     ]
   },
 
-  renderHTML({ HTMLAttributes }) {
-    return ["span", mergeAttributes(HTMLAttributes), 0]
+  renderHTML({ HTMLAttributes, mark }) {
+    // 颜色样式在此单点输出（色值唯一来源：lib/format-colors.ts 的 FORMAT_COLOR_MAP）。
+    // 此前只输出 data-format-color 属性、无任何 CSS 消费它，mark 渲染永远无色（TODO 68 补漏）。
+    const hex = FORMAT_COLOR_MAP[String(mark.attrs.color)]
+    return [
+      "span",
+      mergeAttributes(HTMLAttributes, hex ? { style: `color: ${hex}` } : {}),
+      0,
+    ]
   },
 
   addStorage() {

@@ -594,6 +594,7 @@ todo 32 效果未实现
 - 验证：新建 `tests/format-colors.test.ts`（node:test，17 用例含根因回归样本：AT 仅末尾闭标签孤立命中 / PREFIX 开闭配对 / 16 色遍历 / `<blueberry>` 等误匹配防护 / marked 路径 AT 整串语义回归），`npm test` 全过。
 - 顺带落地测试基建（主人提议，对齐 src/test 习惯）：`tests/` 目录 + `package.json` `test` script（node --test --experimental-strip-types，零新依赖）+ tsconfig `allowImportingTsExtensions` + 新增 `tests/contributions.test.ts`（04:00 翻篇口径常驻回归）；AGENTS.md 验收口径（TL;DR 1 / 第 2 节 / 红线 3、8、9 / Git 工作流 / 第 7 节测试约定）统一加入 `npm test`。
 - typecheck / lint / test 均 0 错误。渲染效果待主人目视确认（`npm run dev` → AI 对话栏输入 `<blue>这是一段文字</blue>` 发送 → 用户气泡应显示蓝色「这是一段文字」）。
+- 补漏（2026-10-06 主人目视反馈「标签匹配正常但仍无颜色」）：32 的第二处欠账——mark 的 `renderHTML` 只输出 `data-format-color` 属性，**全项目没有任何 CSS 消费它**（随笔预览的 marked 管线是自己上内联 style 的，所以只有那边有颜色）。修复：`renderHTML` 直接输出 `style: color: <hex>`（色值唯一来源 lib/format-colors.ts 的 FORMAT_COLOR_MAP），编辑态/只读态一并生效。typecheck / lint / test 复跑全绿；颜色效果待主人再次目视确认。
 
 TODO 69. （状态：已完成）
 允许关系族之间调整位置
