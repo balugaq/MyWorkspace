@@ -13,6 +13,7 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types \"tests/*.test.ts\"",
     "deploy": "next build",
     "serve": "node scripts/serve-static.mjs",
     "deploy:local": "next build && node scripts/serve-static.mjs"

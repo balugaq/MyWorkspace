@@ -6,7 +6,7 @@
 
 ## TL;DR（太长了不看）
 
-1. 本仓库是 **Next.js 16（App Router）+ React 19 + TypeScript 严格模式** 的个人工作台（思维导图 Todo / 分类笔记 / 日历日程 / 通讯录 / AI 助手 / 密码保险库），所有改动必须通过 `npm run typecheck` 与 `npm run lint` **均 0 错误**后才能视为完成。
+1. 本仓库是 **Next.js 16（App Router）+ React 19 + TypeScript 严格模式** 的个人工作台（思维导图 Todo / 分类笔记 / 日历日程 / 通讯录 / AI 助手 / 密码保险库），所有改动必须通过 `npm run typecheck`、`npm run lint` 与 `npm test` **均 0 错误**后才能视为完成。
 2. 状态集中在 `lib/store.ts` 的 Zustand store（localStorage 持久化）；**禁止**到处散落本地 state 承载应属于 store 的数据。新增功能优先复用 `app/` 与 `components/` 既有模块。
 3. 本机直接在当前分支开发（个人仓库），提交信息遵循 Conventional Commits（`feat:` / `fix:` / `docs:` / `refactor:` / `chore:`）。**严禁 AI 执行 `git commit`（提交仅由宿主执行），已有提交保留不撤回**（详见第 5 节红线第 8 条与第 6 节）。
 4. **AI 不得自行开浏览器**（无头/有头 Chrome、Edge、Playwright、Puppeteer、agent-browser、截图工具等一律禁止）。**样式 / 视觉 / 布局类改动由宿主自己在 `npm run dev` 下目视核验**；AI 的验收手段只允许静态核对：`npm run typecheck` + `npm run lint` + grep 确认改动落地（详见第 5 节红线第 9 条）。
@@ -34,7 +34,7 @@
 | 场景 | 命令 |
 | --- | --- |
 | 开发 / 构建 / 静态托管 | `npm run dev` / `npm run deploy` / `npm run serve` / `npm run deploy:local` |
-| 验收（AI 侧，唯一允许的手段） | `npm run typecheck`（=`tsc --noEmit`，0 错误）+ `npm run lint`（=`eslint`，0 错误）+ grep 核对改动落地；开发机可再加 `npm run build`。**AI 不得开浏览器做任何验证**（见第 5 节红线第 9 条） |
+| 验收（AI 侧，唯一允许的手段） | `npm run typecheck`（=`tsc --noEmit`，0 错误）+ `npm run lint`（=`eslint`，0 错误）+ `npm test`（=`node --test --experimental-strip-types`，跑 `tests/*.test.ts` 纯逻辑测试，0 失败）+ grep 核对改动落地；开发机可再加 `npm run build`。**AI 不得开浏览器做任何验证**（见第 5 节红线第 9 条） |
 | 验收（宿主侧·样式/视觉） | 样式 / 视觉 / 布局类改动由**宿主**在 `npm run dev` 下目视核验，AI 不代劳、不代测（见第 5 节红线第 9 条） |
 | 格式化 | `npm run format` |
 | 构建期依赖更新 | `npm run update-dependencies`（由 `predev`/`prebuild` 自动触发；`SKIP_DEP_UPDATE=1` 跳过；当前维护 `lunar-javascript`） |
@@ -69,13 +69,13 @@
 
 1. 禁止改动 `lib/types.ts` 已发布数据结构造成旧 localStorage 读取异常；如需改，在 `store.merge` 做兼容。
 2. 禁止 `git push -f` / 改写共享历史。
-3. 任何改动提交前必须 `npm run typecheck` + `npm run lint` 通过。
+3. 任何改动提交前必须 `npm run typecheck` + `npm run lint` + `npm test` 通过。
 4. 禁止绕过 store 直接改持久化状态（导致刷新丢失/多视图不同步）。
 5. 禁止 Server Component 引用浏览器 API；交互组件必须 `"use client"`。
 6. 禁止叠加 base-ui 的 Radix 旧语法（`asChild` / `data-[state=open]`）。
 7. 禁止手写 ZIP 读写：备份用 `fflate`（`zipSync`/`unzipSync`），见 `lib/backup.ts`。
 8. 禁止 AI 提交 git：`git commit` 仅能由宿主（开发者）执行，AI 不得执行任何提交动作（`git add` 暂存亦须经宿主确认）。**已有的提交一律保留，不得撤回 / reset / rebase 改写历史**；AI 只负责让工作区处于可通过 `typecheck` + `lint` 的改动状态，并把建议的提交信息告知宿主。
-9. **禁止 AI 自行开浏览器**：不得启动或驱动任何浏览器/渲染引擎做验证 —— 包括无头或有头的 Chrome / Edge / Firefox、Playwright、Puppeteer、`agent-browser`，以及任何截图或像素测量工具。**样式 / 视觉 / 布局类改动一律由宿主在 `npm run dev` 下目视核验**，AI 不得代劳。AI 的验收手段仅限于静态核对：`npm run typecheck` + `npm run lint`（均 0 错误）+ grep 确认改动落地；可以对代码 / CSS 做静态推理与级联分析，但**不得把静态结论当作视觉验收结论上报**，必须明确标注「待宿主目视确认」。
+9. **禁止 AI 自行开浏览器**：不得启动或驱动任何浏览器/渲染引擎做验证 —— 包括无头或有头的 Chrome / Edge / Firefox、Playwright、Puppeteer、`agent-browser`，以及任何截图或像素测量工具。**样式 / 视觉 / 布局类改动一律由宿主在 `npm run dev` 下目视核验**，AI 不得代劳。AI 的验收手段仅限于静态核对：`npm run typecheck` + `npm run lint`（均 0 错误）+ `npm test`（0 失败）+ grep 确认改动落地；可以对代码 / CSS 做静态推理与级联分析，但**不得把静态结论当作视觉验收结论上报**，必须明确标注「待宿主目视确认」。
 
 ---
 
@@ -83,14 +83,15 @@
 
 - 本机当前分支直接开发；**提交、发布、推送远程均由宿主（开发者）执行**（见第 5 节红线第 8 条：AI 禁止提交 git）。
 - Conventional Commits：`feat:`/`fix:`/`docs:`/`refactor:`/`chore:`（例 `feat(calendar): 新增月视图已完成统计`）。
-- AI 交付方式：把改动留在工作区，跑通 `npm run typecheck` + `npm run lint`（0 错误），并**在回答里给出建议的提交信息（含 Conventional Commits 前缀与主题化拆分建议）**，由宿主自行 `git add` / `git commit`。
-- 提交前（宿主侧）：`npm run typecheck` + `npm run lint` 0 错误、未触碰第 5 节红线、只提交相关文件（不含 `node_modules/` `.next/` `out/` `.npm-cache/` `*.tsbuildinfo`）。
+- AI 交付方式：把改动留在工作区，跑通 `npm run typecheck` + `npm run lint`（0 错误）+ `npm test`（0 失败），并**在回答里给出建议的提交信息（含 Conventional Commits 前缀与主题化拆分建议）**，由宿主自行 `git add` / `git commit`。
+- 提交前（宿主侧）：`npm run typecheck` + `npm run lint` + `npm test` 全部通过、未触碰第 5 节红线、只提交相关文件（不含 `node_modules/` `.next/` `out/` `.npm-cache/` `*.tsbuildinfo`）。
 
 ---
 
 ## 7. 质量规范
 
 - TS 严格模式，**原则上不引入 `any` 逃逸**；**唯一已知例外**为 `components/richtext/upgrade.ts`（prosemirror `Node` 类型推断异常，回调形参桥接为 `any`，已加注释说明，新增 `any` 须在此报备）。Web Crypto 相关类型统一用 `Uint8Array<ArrayBuffer>` 规避 TS5.9 对 `BufferSource` 的严格校验。
+- 纯逻辑测试（`tests/*.test.ts`，node:test + `--experimental-strip-types`，`npm test` 跑）：给 `lib/` 下无 DOM 依赖的纯 TS 模块配测试（import 源码须带 `.ts` 扩展，tsconfig `allowImportingTsExtensions` 已开）；修 bug 时优先把根因复现沉淀为回归用例；测试不得 import 含浏览器 API / store / React 组件的模块。
 - 组件放 `components/`（业务）或 `components/ui/`（基础）；纯逻辑放 `lib/`（如 `store.ts`、`search.ts`、`image-store.ts`、`crypto.ts`、`vault-store.ts`）。
 - 数据流单向：store → 组件；组件回调调用 store action。
 - 每个改动是能通过 typecheck/lint、逻辑自洽的完整状态；不留死代码/unused import。
