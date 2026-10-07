@@ -7,7 +7,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Loader2, Pencil, Play, Plus, RotateCcw, Trash2, Upload } from "lucide-react"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Pencil,
+  Play,
+  Plus,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,6 +48,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { matchTextPinyin } from "@/lib/pinyin"
+import { useWorkspace } from "@/lib/store"
 import { pickQuizEntries } from "@/lib/vocab-quiz"
 import { gradeVocabAnswer } from "@/lib/ai/vocab-grader"
 import {
@@ -85,9 +96,11 @@ interface QuizState {
   queue: VocabEntry[]
   /** 当前题下标；>= queue.length 即已进入评分/报告阶段 */
   index: number
+  /** 各题当前草稿（随写随存，切题不丢；提交时未填按空白评分） */
   answers: string[]
+  /** 各题累计停留用时 ms（切题 / 提交时结算） */
   times: number[]
-  draft: string
+  /** 当前题最近一次停留起点 */
   questionStart: number
   grades: (QuizGrade | null)[]
   /** 全部评分成功后的自动保存记录 id；null = 尚未保存 */
@@ -126,8 +139,30 @@ export function VocabularyWorkspace() {
   const [quizScope, setQuizScope] = useState("all")
   const [quizCount, setQuizCount] = useState("10")
   const [confirmExitQuiz, setConfirmExitQuiz] = useState(false)
+  /** 提交作答确认：null = 关闭；数字 = 未作答题数 */
+  const [confirmSubmitQuiz, setConfirmSubmitQuiz] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const quizSavingRef = useRef(false)
+  // 作答期间自动收起底部工具栏（提交/退出后恢复；仅记录「是本轮收起的」，不动主人手动收起的状态）
+  const setToolbarCollapsed = useWorkspace((s) => s.setToolbarCollapsed)
+  const quizHidToolbarRef = useRef(false)
+  const hideToolbarForQuiz = () => {
+    setToolbarCollapsed(true)
+    quizHidToolbarRef.current = true
+  }
+  const resumeToolbar = () => {
+    if (quizHidToolbarRef.current) {
+      setToolbarCollapsed(false)
+      quizHidToolbarRef.current = false
+    }
+  }
+  // 直接切走视图丢弃本轮时也要把工具栏还回来
+  useEffect(
+    () => () => {
+      if (quizHidToolbarRef.current) setToolbarCollapsed(false)
+    },
+    [setToolbarCollapsed],
+  )
 
   const refresh = useCallback(() => setVersion((v) => v + 1), [])
 
@@ -185,6 +220,15 @@ export function VocabularyWorkspace() {
   const closeEditor = () => {
     setCreating(false)
     setEditing(null)
+  }
+
+  /** 「已存在」提示旁的切换按钮：把已有词条内容载入表单转编辑态（2026-10-07 主人口径） */
+  const loadExistingEntry = (e: VocabEntry) => {
+    setEditing(e)
+    setDraftWord(e.word)
+    setDraftDefinition(e.definition)
+    setDraftSourceId(e.sourceId ?? "none")
+    setDraftNewSource("")
   }
 
   const commitEntry = async () => {
@@ -300,6 +344,13 @@ export function VocabularyWorkspace() {
 
   const sourceNameOf = (e: VocabEntry) => (e.sourceId ? sourceById.get(e.sourceId)?.name : undefined)
 
+  // 新建态输入的词已存在时，给「已存在」提示 + 一键载入（编辑态不提示，重名保存会被拦）
+  const draftKey = draftWord.trim().toLowerCase()
+  const existingEntry =
+    creating && !editing && draftKey
+      ? (entries.find((e) => e.word.trim().toLowerCase() === draftKey) ?? null)
+      : null
+
   // ---- 问答（批 2）：配置 → 逐题作答 → AI 评分 → 报告/存档 ----
 
   const quizPool = useMemo(
@@ -320,6 +371,8 @@ export function VocabularyWorkspace() {
   const quizErrCount = quiz ? quiz.grades.filter((g) => g !== null && !("rating" in g)).length : 0
   const quizOkCount = quiz ? quiz.grades.filter((g) => quizSuccessOf(g) !== null).length : 0
   const quizAllDone = quiz !== null && quiz.index >= quiz.queue.length
+  /** 作答阶段：问答界面占满全屏（右半屏记录面板让位，工具栏收起） */
+  const quizAnswering = quiz !== null && quiz.index < quiz.queue.length
   const quizAllSuccess = quizAllDone && quizErrCount === 0 && quizOkCount === quiz.queue.length
   const ratingCounts = useMemo(() => {
     const c: Record<VocabRating, number> = { wrong: 0, partial: 0, correct: 0, beyond: 0 }
@@ -343,10 +396,12 @@ export function VocabularyWorkspace() {
       toast.error("该范围内没有词条")
       return
     }
-    const count = Math.max(1, Math.floor(Number(quizCount) || 10))
+    // 一次问答最多 100 题（2026-10-07 主人口径）
+    const count = Math.max(1, Math.min(100, Math.floor(Number(quizCount) || 10)))
     const picked = pickQuizEntries(quizPool, count)
     setQuizConfigOpen(false)
     setNow(Date.now())
+    hideToolbarForQuiz()
     setQuiz({
       scopeLabel:
         quizScope === "all" ? null : quizScope === "none" ? "未分类" : (sourceById.get(quizScope)?.name ?? null),
@@ -354,34 +409,48 @@ export function VocabularyWorkspace() {
       index: 0,
       answers: picked.map(() => ""),
       times: picked.map(() => 0),
-      draft: "",
       questionStart: Date.now(),
       grades: picked.map(() => null),
       savedId: null,
     })
   }
 
-  const submitAnswer = () => {
+  /** 结算当前题的停留用时（切题 / 提交时调用） */
+  const settleCurrent = (q: QuizState): QuizState => {
+    const t = Date.now()
+    const times = [...q.times]
+    times[q.index] = (times[q.index] ?? 0) + Math.max(0, t - q.questionStart)
+    return { ...q, times, questionStart: t }
+  }
+
+  const goToQuestion = (i: number) => {
+    if (!quiz || i < 0 || i >= quiz.queue.length || i === quiz.index) return
+    setQuiz({ ...settleCurrent(quiz), index: i })
+  }
+
+  const requestSubmitQuiz = () => {
     if (!quiz) return
-    const answer = quiz.draft.trim()
-    if (!answer) {
-      toast.error("先输入这个词的意思")
+    const unanswered = quiz.answers.filter((a) => !a.trim()).length
+    if (unanswered > 0) {
+      setConfirmSubmitQuiz(unanswered)
       return
     }
-    const answers = [...quiz.answers]
-    const times = [...quiz.times]
-    answers[quiz.index] = answer
-    times[quiz.index] = Date.now() - quiz.questionStart
+    doSubmitQuiz()
+  }
+
+  /** 一次性提交全部作答（未填按空白），进入逐题评分；提交后恢复工具栏 */
+  const doSubmitQuiz = () => {
+    setConfirmSubmitQuiz(null)
+    if (!quiz) return
+    resumeToolbar()
+    const settled = settleCurrent(quiz)
     const next: QuizState = {
-      ...quiz,
-      answers,
-      times,
-      index: quiz.index + 1,
-      draft: "",
-      questionStart: Date.now(),
+      ...settled,
+      answers: settled.answers.map((a) => a.trim()),
+      index: settled.queue.length,
     }
     setQuiz(next)
-    if (next.index >= next.queue.length) void runGrading(next)
+    void runGrading(next)
   }
 
   /** 逐题串行评分（避免并发打爆 API），进度实时刷新到界面 */
@@ -452,6 +521,7 @@ export function VocabularyWorkspace() {
   /** 报告页返回列表：未自动存档（有失败题）时保存已成功的题 */
   const finishPartial = () => {
     const q = quiz
+    resumeToolbar()
     setQuiz(null)
     if (!q || q.savedId) return
     const idxs = q.grades.map((g, i) => (quizSuccessOf(g) !== null ? i : -1)).filter((i) => i >= 0)
@@ -477,12 +547,14 @@ export function VocabularyWorkspace() {
   }
 
   const restartQuiz = () => {
+    resumeToolbar()
     setQuiz(null)
     openQuizConfig()
   }
 
   const discardQuiz = () => {
     setConfirmExitQuiz(false)
+    resumeToolbar()
     setQuiz(null)
   }
 
@@ -635,35 +707,93 @@ export function VocabularyWorkspace() {
         </>
       )}
 
-      {/* 问答视图：逐题作答 */}
+      {/* 问答视图：自由切题作答，一次性提交（2026-10-07 主人口径） */}
       {quiz && quiz.index < quiz.queue.length && (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 pb-10">
-          <p className="text-xs text-muted-foreground">
-            第 {quiz.index + 1} / {quiz.queue.length} 题 · 已用时{" "}
-            {Math.max(0, Math.floor((now - quiz.questionStart) / 1000))} 秒
-          </p>
-          <p className="max-w-[440px] break-all text-center font-serif text-4xl font-semibold text-foreground">
-            {quiz.queue[quiz.index].word}
-          </p>
-          <textarea
-            value={quiz.draft}
-            onChange={(e) => setQuiz((q) => (q ? { ...q, draft: e.target.value } : q))}
-            rows={5}
-            autoFocus
-            className="native-scroll w-full max-w-[440px] rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            placeholder="输入这个词的意思（释义 / 词性 / 例句均可）"
-          />
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
+          {/* 顶部：上一题 / 下一题 + 结束本轮 */}
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setConfirmExitQuiz(true)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0"
+              disabled={quiz.index === 0}
+              onClick={() => goToQuestion(quiz.index - 1)}
+              aria-label="上一题"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              第 {quiz.index + 1} / {quiz.queue.length} 题 · 已用时{" "}
+              {Math.max(
+                0,
+                Math.floor(((quiz.times[quiz.index] ?? 0) + (now - quiz.questionStart)) / 1000),
+              )}{" "}
+              秒
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0"
+              disabled={quiz.index === quiz.queue.length - 1}
+              onClick={() => goToQuestion(quiz.index + 1)}
+              aria-label="下一题"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+            <div className="flex-1" />
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setConfirmExitQuiz(true)}>
               结束本轮
             </Button>
-            <Button size="sm" className="h-8 text-xs" disabled={!quiz.draft.trim()} onClick={submitAnswer}>
-              提交本题
+          </div>
+
+          {/* 题面 */}
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5">
+            <p className="max-w-[440px] break-all text-center font-serif text-4xl font-semibold text-foreground">
+              {quiz.queue[quiz.index].word}
+            </p>
+            <textarea
+              value={quiz.answers[quiz.index] ?? ""}
+              onChange={(e) => {
+                const v = e.target.value
+                setQuiz((q) =>
+                  q ? { ...q, answers: q.answers.map((old, i) => (i === q.index ? v : old)) } : q,
+                )
+              }}
+              rows={5}
+              className="native-scroll w-full max-w-[440px] rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              placeholder="输入这个词的意思（释义 / 词性 / 例句均可）"
+            />
+          </div>
+
+          {/* 底部：题号选择（未答=蓝圆 / 已答=绿圆，当前题描边）+ 一次性提交 */}
+          <div className="flex flex-col items-center gap-3 border-t pt-3">
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {quiz.queue.map((e, i) => {
+                const answered = (quiz.answers[i] ?? "").trim().length > 0
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    title={`第 ${i + 1} 题 · ${e.word}`}
+                    onClick={() => goToQuestion(i)}
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full text-xs font-medium transition-colors",
+                      answered
+                        ? "bg-green-500/90 text-white hover:bg-green-500"
+                        : "bg-primary/15 text-primary hover:bg-primary/25",
+                      i === quiz.index && "ring-2 ring-ring ring-offset-1 ring-offset-background",
+                    )}
+                  >
+                    {i + 1}
+                  </button>
+                )
+              })}
+            </div>
+            <Button size="sm" className="h-8 text-xs" onClick={requestSubmitQuiz}>
+              提交作答（已答 {quiz.queue.length - quiz.answers.filter((a) => !a.trim()).length} /{" "}
+              {quiz.queue.length} 题）
             </Button>
           </div>
-          <p className="max-w-[440px] text-center text-xs text-muted-foreground">
-            提交后进入下一题；全部答完一次性交给 AI 评分。
-          </p>
         </div>
       )}
 
@@ -751,7 +881,8 @@ export function VocabularyWorkspace() {
 
         </div>
 
-        {/* 右半屏：问答记录 */}
+        {/* 右半屏：问答记录（作答阶段让位，问答界面占满全屏） */}
+        {!quizAnswering && (
         <div className="hidden w-1/2 min-w-0 flex-col border-l md:flex">
           <div className="flex items-center gap-2 border-b px-4 py-2">
             <h2 className="text-sm font-medium">问答记录</h2>
@@ -807,6 +938,7 @@ export function VocabularyWorkspace() {
             </ul>
           )}
         </div>
+        )}
       </div>
 
       {/* 词条编辑弹窗 */}
@@ -833,6 +965,18 @@ export function VocabularyWorkspace() {
                 maxLength={100}
                 placeholder="如：abandon（最多 100 字符）"
               />
+              {existingEntry && (
+                <p className="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400">
+                  <span>该词条已存在</span>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded underline underline-offset-2 hover:text-foreground"
+                    onClick={() => loadExistingEntry(existingEntry)}
+                  >
+                    载入已有内容编辑
+                  </button>
+                </p>
+              )}
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="vocab-def">释义</Label>
@@ -1068,7 +1212,8 @@ export function VocabularyWorkspace() {
           <DialogHeader>
             <DialogTitle>开始一轮问答</DialogTitle>
             <DialogDescription>
-              从所选范围随机抽词（练错过的词权重更高），逐题作答后由 AI 结合词库释义与联网搜索评分。
+              从所选范围随机抽词（练错过的词权重更高），自由切题作答、一次性提交后由 AI
+              结合词库释义与联网搜索评分。一次最多 100 题。
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -1107,7 +1252,7 @@ export function VocabularyWorkspace() {
                 id="quiz-count"
                 type="number"
                 min={1}
-                max={Math.max(1, quizPool.length)}
+                max={Math.min(100, Math.max(1, quizPool.length))}
                 value={quizCount}
                 onChange={(e) => setQuizCount(e.target.value)}
               />
@@ -1134,6 +1279,23 @@ export function VocabularyWorkspace() {
           <AlertDialogFooter>
             <AlertDialogCancel>继续答题</AlertDialogCancel>
             <AlertDialogAction onClick={discardQuiz}>结束</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 提交作答确认（有未答题时） */}
+      <AlertDialog
+        open={confirmSubmitQuiz !== null}
+        onOpenChange={(v) => !v && setConfirmSubmitQuiz(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>还有 {confirmSubmitQuiz ?? 0} 题未作答</AlertDialogTitle>
+            <AlertDialogDescription>未作答的题将按空白提交，AI 会评为错误。确定提交？</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>继续作答</AlertDialogCancel>
+            <AlertDialogAction onClick={doSubmitQuiz}>提交</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -420,7 +420,7 @@
 | 词长上限 | `VOCAB_WORD_MAX = 100`（vocab-store.ts 导出，主人 2026-10-07 口径）：编辑弹窗 Input `maxLength` + 批量导入解析 / 入库两端超长计 invalid |
 | 批量导入解析 | `parseVocabImport`（纯函数）：纯数组或 `{items:[...]}` 两种形状；word/definition 非空且 word ≤ 100 才有效；非法 JSON 返回空结果由调用方判定 |
 | 主区布局 | 左右两栏：左 = 搜索（拼音搜 word+definition，`matchTextPinyin`）+ 来源筛选 + 词条列表（宽 440px 对齐筛选框右缘、卡片居左、长词 `break-all` 换行）；右（`md:` 以上）= **问答记录**半屏面板（每轮：时间 / 范围 / 题数 / 四色评分分布徽标；空态提示并给「开始一轮问答」按钮） |
-| 问答状态机 | 组件本地 state（`QuizState`，不入 store）：配置弹窗（范围 Select 默认当前筛选 + 题数）→ 作答视图（词居中大字 + 每秒实时计时 + textarea，中途退出 AlertDialog 确认且不保存）→ 评分中（逐题串行调 AI，行内进度）→ 报告（四档徽标 + 用时 + 你的作答 + AI 点评 + 评分分布）；全部评分成功自动 `saveQuizResult` 存档，个别失败可行内重试、返回时仅保存成功题 |
+| 问答状态机 | 组件本地 state（`QuizState`，不入 store）：配置弹窗（范围 Select 默认当前筛选 + 题数，**一次最多 100 题**）→ 作答视图（词居中大字 + 每题累计实时计时 + textarea 随写随存切题不丢；顶部左右箭头切上/下一题，底部题号圆点直达任意题——未答蓝圆 / 已答绿圆 / 当前题描边）→ **一次性提交**（「提交作答」在题号下方；有未答题先 AlertDialog 确认，未填按空白评分）→ 评分中（逐题串行调 AI，行内进度）→ 报告（四档徽标 + 用时 + 你的作答 + AI 点评 + 评分分布）；全部评分成功自动 `saveQuizResult` 存档，个别失败可行内重试、返回时仅保存成功题；中途退出 AlertDialog 确认且不保存 |
 | 出题抽样 | `lib/vocab-quiz.ts` `pickQuizEntries(entries, count, rand?)`：加权不重复抽样，权重 = 1 + wrongCount × 2（错词更常出现）；纯函数，`rand` 注入可测（`tests/vocab-quiz.test.ts`） |
 | AI 评分 | `lib/ai/vocab-grader.ts` `gradeVocabAnswer({ word, definition, answer })`：`requestDirectCompletion` 函数式调用（经 `lib/ai/request-queue.ts` 并发纪律，仿 relayout）；评分前程序化预搜——复用 `wb_web_search` 同款本机代理（`/api/ai-search` + `settings.baiduAiSearchApiKey`），失败返 null 不阻塞；SYSTEM_PROMPT 四档标准 + `extractJsonObject` 容错（代码围栏兼容）+ rating 白名单校验 |
 | AI 批量加词（方案 A 两段式） | 内置技能 `wb_prepare_vocab_import`（`lib/ai/builtin-skills.ts`，只读回传导入 JSON 规范）+ `request-queue.ts` SYSTEM_BASE 引导句；AI 输出 JSON → 用户复制粘贴到「AI 批量导入」弹窗（`parseVocabImport` 预览有效/无效/重复）→ `addVocabEntries` 入库；AI 不直接写库 |
