@@ -40,6 +40,17 @@ describe("parseVocabImport", () => {
     assert.ok(!("source" in r.items[0]))
   })
 
+  it("word 超过 100 字符（VOCAB_WORD_MAX）计为 invalid", () => {
+    const long = "a".repeat(101)
+    const ok = "a".repeat(100)
+    const r = parseVocabImport(
+      `[{"word":"${long}","definition":"x"},{"word":"${ok}","definition":"x"}]`
+    )
+    assert.equal(r.items.length, 1)
+    assert.equal(r.items[0].word, ok)
+    assert.equal(r.invalid, 1)
+  })
+
   it("非法 JSON / 非数组 / 空文本返回空结果", () => {
     assert.equal(parseVocabImport("not json").items.length, 0)
     assert.equal(parseVocabImport('{"a":1}').items.length, 0)

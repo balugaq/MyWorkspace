@@ -408,3 +408,29 @@
   - 「添加监听仓库」的存量回扫与 @me 判定都依赖 `settings.githubToken`（`GET /user`）；无 Token 时监听配置仍生效，只是存量卡片不带 @me 标记。
   - 拉取受 GitHub 限流（403/429 + `x-ratelimit-remaining: 0`）约束，触发时 `fetchRepoIssues` 抛 `RATE_LIMITED`，UI 提示稍后重试。
 
+## 8.18 词汇表（`components/vocabulary-workspace.tsx` + `lib/vocab-store.ts`）
+
+> TODO 64：词 → 释义的词汇表与问答（quiz）。存储走 **IndexedDB**（`workspace-vocab`，万级词库会顶爆 localStorage），模块级缓存写穿；来源（source）是独立小系统（不与标签共用），词条底层 id 表示、显示层随意增删改；每轮问答记录全量持久化。
+
+| 功能 | 入口点 |
+| --- | --- |
+| 导航与分发 | 工具栏 `TOOL_CARDS` 「词汇表」（BookOpen）→ store `goVocabulary()` → `app/page.tsx` 按 `view === "vocabulary"` 渲染 `<VocabularyWorkspace />`；`VIEW_LABEL` 补 `"vocabulary"` |
+| 数据模型 | `lib/types.ts`：`VocabRating`（四档 wrong/partial/correct/beyond）+ `VOCAB_RATING_META`（四色徽标）、`VocabSource`、`VocabReview`（total/lastRating/lastAt/wrongCount）、`VocabEntry`、`VocabQuizRecord`（含答题时释义快照）、`VocabImportItem` |
+| 存储层 | `lib/vocab-store.ts`：IndexedDB 三 store（entries/sources/records，keyPath 均 id）+ 模块级内存缓存（首次 `loadVocab` 后常驻，组件直接读缓存渲染）；`ensureVocabSource`（按名幂等）/ `renameVocabSource` / `deleteVocabSource`（**仅摘标记**：引用词条 sourceId 置空、词条保留）/ `isVocabWordTaken` / `upsertVocabEntry` / `removeVocabEntry` / `addVocabEntries`（word trim + 忽略大小写去重跳过、source 按名取建）/ `saveQuizResult`（记录持久化 + 逐题 review 回写）/ `listQuizRecords` / `exportVocab` / `importVocab`（replace 整库 / merge 按 id+wordKey 双 Set O(n) 去重、孤儿 sourceId 置空） |
+| 词长上限 | `VOCAB_WORD_MAX = 100`（vocab-store.ts 导出，主人 2026-10-07 口径）：编辑弹窗 Input `maxLength` + 批量导入解析 / 入库两端超长计 invalid |
+| 批量导入解析 | `parseVocabImport`（纯函数）：纯数组或 `{items:[...]}` 两种形状；word/definition 非空且 word ≤ 100 才有效；非法 JSON 返回空结果由调用方判定 |
+| 主区布局 | 左右两栏：左 = 搜索（拼音搜 word+definition，`matchTextPinyin`）+ 来源筛选 + 词条列表（宽 440px 对齐筛选框右缘、卡片居左、长词 `break-all` 换行）；右（`md:` 以上）= **问答记录**半屏面板（每轮：时间 / 范围 / 题数 / 四色评分分布徽标；空态提示并给「开始一轮问答」按钮） |
+| 问答状态机 | 组件本地 state（`QuizState`，不入 store）：配置弹窗（范围 Select 默认当前筛选 + 题数）→ 作答视图（词居中大字 + 每秒实时计时 + textarea，中途退出 AlertDialog 确认且不保存）→ 评分中（逐题串行调 AI，行内进度）→ 报告（四档徽标 + 用时 + 你的作答 + AI 点评 + 评分分布）；全部评分成功自动 `saveQuizResult` 存档，个别失败可行内重试、返回时仅保存成功题 |
+| 出题抽样 | `lib/vocab-quiz.ts` `pickQuizEntries(entries, count, rand?)`：加权不重复抽样，权重 = 1 + wrongCount × 2（错词更常出现）；纯函数，`rand` 注入可测（`tests/vocab-quiz.test.ts`） |
+| AI 评分 | `lib/ai/vocab-grader.ts` `gradeVocabAnswer({ word, definition, answer })`：`requestDirectCompletion` 函数式调用（经 `lib/ai/request-queue.ts` 并发纪律，仿 relayout）；评分前程序化预搜——复用 `wb_web_search` 同款本机代理（`/api/ai-search` + `settings.baiduAiSearchApiKey`），失败返 null 不阻塞；SYSTEM_PROMPT 四档标准 + `extractJsonObject` 容错（代码围栏兼容）+ rating 白名单校验 |
+| AI 批量加词（方案 A 两段式） | 内置技能 `wb_prepare_vocab_import`（`lib/ai/builtin-skills.ts`，只读回传导入 JSON 规范）+ `request-queue.ts` SYSTEM_BASE 引导句；AI 输出 JSON → 用户复制粘贴到「AI 批量导入」弹窗（`parseVocabImport` 预览有效/无效/重复）→ `addVocabEntries` 入库；AI 不直接写库 |
+| 备份 | `lib/backup.ts` 分区 `vocabulary`（vocab.json = `exportVocab()`），恢复走 `importVocab`（replace/merge 双模式）；`BackupSectionId` 含 `"vocabulary"`（非敏感默认勾选） |
+| 测试 | `tests/vocab-store.test.ts`（parseVocabImport 含词长上限用例）、`tests/vocab-quiz.test.ts`（抽样数量/不重复/错词加权） |
+
+- **数据链路**：IndexedDB `workspace-vocab`（entries/sources/records）→ `loadVocab` 全量载入模块缓存 → 组件读缓存渲染；写操作同步更新缓存 + IndexedDB（写穿）。问答：`pickQuizEntries` 出题 → 组件逐题作答 → `gradeVocabAnswer`（预搜 + AI）→ `saveQuizResult`（records 落库 + entries.review 回写）。
+- **See also**：[`docs/data-storage.md`](./data-storage.md)（IndexedDB 各库字段总表）；§8.13（AI 助手与 request-queue 并发纪律）；`lib/pinyin.ts`（拼音搜索复用）。
+- **Notice**：
+  - 问答状态与进行中的轮次是组件本地 state，切换视图即丢弃；只有完成评分的记录才会持久化（主人未要求恢复中断轮）。
+  - 评分依赖已配置 AI 模型；预搜依赖已配置百度千帆 Key（未配置时仅按词库释义评分，不报错）。
+  - 列表渲染上限 200 条（`LIST_RENDER_LIMIT`），超出提示总数。
+

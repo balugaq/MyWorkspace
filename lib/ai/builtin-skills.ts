@@ -590,6 +590,32 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       },
     }),
   },
+
+  // 词汇表批量导入指南（TODO 64 批 2）：只读回传导入 JSON 规范，
+  // 供 AI 把书单/词表整理成词汇表导入格式（方案 A 两段式：AI 输出 JSON → 用户复制
+  // 粘贴到词汇表「AI 批量导入」弹窗入库，AI 不直接写库）。
+  {
+    name: "wb_prepare_vocab_import",
+    description:
+      "把书单/词汇表内容整理成 MyWorkspace 词汇表的批量导入 JSON。用户要求「批量加词 / 整理词汇 / 把某本书的单词弄进词汇表」时，先调用本技能获取输出规范，再按规范整理并输出 JSON 供用户复制粘贴。",
+    parameters: z.object({}),
+    execute: async () => ({
+      usage:
+        "按 format 与 rules 整理词汇，输出一个 JSON 数组（建议包在 ```json 围栏中，围栏外可简短说明）。用户会整段复制到词汇表的「AI 批量导入」弹窗入库，重复词由程序自动跳过。",
+      format: {
+        word: "词条本身，必填，不超过 100 字符",
+        definition: "释义，必填，可用 \\n 分行，建议「词性. 中文释义；引申义 / 搭配」",
+        source: "来源名，可选（如书名 / 教材名）；不存在时程序自动创建",
+      },
+      rules: [
+        "单次最多整理 50 条，超出请分多轮输出",
+        "只整理真实存在的词汇与义项，不要编造",
+        "同一词不要重复出现",
+        "释义用中文，简洁准确",
+      ],
+      example: '[{"word":"abandon","definition":"v. 放弃；抛弃","source":"书名"}]',
+    }),
+  },
 ]
 
 /** 给 UI 展示用的内置技能清单（名称 + 描述）。 */

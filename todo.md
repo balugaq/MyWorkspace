@@ -559,7 +559,7 @@ TODO 63. （状态：已完成）
 
 - 与 TODO 60 内容重复，已随 TODO 60 一并实现（2026-10-05），实现记录见 TODO 60。
 
-TODO 64. （状态：进行中——批 1 已完成，批 2 待做）
+TODO 64. （状态：已完成，待目视确认）
 todo：增加一个词汇表，有搜索就好了
 词汇表结构如下：
 词 -> 词的释义解释
@@ -577,7 +577,19 @@ todo：增加一个词汇表，有搜索就好了
 - 测试：tests/vocab-store.test.ts（parseVocabImport 6 用例：纯数组/items 包裹/invalid 计数/trim/非法输入/带围栏文本拒绝）。
 - typecheck / lint / test 全绿（34 用例）。待主人目视确认。
 
-**批 2（待做）**：问答状态机（配置/答题/报告三态 + 每题计时 + 中途退出确认）→ lib/ai/vocab-grader.ts（程序化预搜 wb_web_search execute 注入参考 + 四档评分 prompt + JSON 解析容错 + review 回写，request-queue 纪律仿 relayout）→ wb_prepare_vocab_import 内置技能 + 系统提示词引导。
+**批 2（已完成，2026-10-07）**：
+- 问答状态机（components/vocabulary-workspace.tsx）：顶栏「开始问答」→ 配置弹窗（范围 Select 默认当前筛选 + 题数 Input，显示范围内词数）→ 作答视图（词居中大字 font-serif text-4xl + 每秒实时计时 + textarea + 提交本题/结束本轮）→ 评分中（逐题串行评分防打爆 API，行内 Loader2 进度）→ 报告（每题四档徽标 + 用时 + 你的作答 + AI 点评；评分分布统计；全部成功自动存档 saveQuizResult，有失败题可行内重试、返回时保存成功题）→ 再来一轮/返回列表。中途退出 AlertDialog 确认（作答不保存）。
+- AI 评分（lib/ai/vocab-grader.ts，仿 relayout 模式）：requestDirectCompletion 函数式调用（request-queue 并发纪律）；评分前程序化预搜——复用 wb_web_search 同款本机代理（/api/ai-search + settings.baiduAiSearchApiKey），失败不阻塞评分；SYSTEM_PROMPT 四档标准（wrong/partial/correct/beyond）+ extractJsonObject 容错（代码围栏兼容）+ rating 白名单校验；作答截断 2000 字符。
+- 出题抽样（lib/vocab-quiz.ts 纯函数）：pickQuizEntries 加权不重复抽样，权重 = 1 + wrongCount × 2（错词更常出现，主人拍板口径），rand 注入可测。
+- wb_prepare_vocab_import 内置技能（lib/ai/builtin-skills.ts）：只读回传导入 JSON 规范（format/rules/example，单次 ≤50 条、不编造、中文释义）；request-queue.ts SYSTEM_BASE 加一句引导（用户要批量整理词汇时先调此技能）。
+- 词长限制（主人 2026-10-07 口径）：VOCAB_WORD_MAX = 100（vocab-store.ts 导出）——编辑弹窗 Input maxLength=100 + placeholder 提示；parseVocabImport / addVocabEntries 超 100 计 invalid。
+- 测试：tests/vocab-quiz.test.ts（3 用例：数量截断/不重复/错词加权统计性）+ vocab-store.test.ts 补词长上限用例；全套 38 用例通过。
+- typecheck / lint / test 全绿。答题/报告界面与 AI 评分效果待主人目视确认（评分需已配置模型；预搜需已配置百度千帆 Key，未配置时仅按词库释义评分）。
+
+**批 1 修正（2026-10-07，主人目视反馈两处）**：
+- 词汇列表横长占满屏 → 列表（含空态文案）包进 `max-w-[440px]` 容器，右缘对齐筛选框右缘（搜索框 max-w-72 288px + gap-2 8px + 来源下拉 w-36 144px）。
+- 来源下拉选中后显示分类 id → 根因：本项目 Select 是 base-ui 封装，`SelectValue` 不传 children 时渲染**原始 value**（id），项目其他下拉均手写标签兜底、词汇工作区两处漏了。修复：来源筛选下拉与词条编辑弹窗的来源下拉均改为 `<SelectValue>{按 id 查名}</SelectValue>`（未知 id 回落「全部来源」/「未分类」）。
+- typecheck / lint / test 均 0 错误。宽度对齐效果待主人目视确认。
 
 然后可以点击一个按钮，输入或选择题数，然后就可以开启一轮问答，问答内容就是屏幕中间贴出这个词汇，然后下面textarea输入这个词的意思。
 记录每题分别答题的时间，每题只有最终打完之后才一次性提交给ai（进入评分阶段）

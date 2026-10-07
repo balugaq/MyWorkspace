@@ -25,6 +25,9 @@ const STORE_RECORDS = "records"
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
+/** 词条 word 长度上限（2026-10-07 主人口径：禁止超过 100 字符） */
+export const VOCAB_WORD_MAX = 100
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
@@ -233,7 +236,7 @@ export function parseVocabImport(text: string): {
     const r = raw as Record<string, unknown>
     const word = typeof r.word === "string" ? r.word.trim() : ""
     const definition = typeof r.definition === "string" ? r.definition.trim() : ""
-    if (!word || !definition) {
+    if (!word || !definition || word.length > VOCAB_WORD_MAX) {
       invalid++
       continue
     }
@@ -267,7 +270,7 @@ export async function addVocabEntries(
   for (const item of items ?? []) {
     const word = (item?.word ?? "").trim()
     const definition = (item?.definition ?? "").trim()
-    if (!word || !definition) {
+    if (!word || !definition || word.length > VOCAB_WORD_MAX) {
       report.invalid++
       continue
     }
