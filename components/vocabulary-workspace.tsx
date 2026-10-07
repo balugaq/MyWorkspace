@@ -69,6 +69,7 @@ import {
 import {
   VOCAB_RATING_META,
   type VocabEntry,
+  type VocabQuizRecord,
   type VocabRating,
   type VocabSource,
 } from "@/lib/types"
@@ -88,6 +89,16 @@ function quizSuccessOf(g: QuizGrade | null): QuizSuccess | null {
 /** 确认框等窄场景的词名截断（2026-10-07 主人口径：最多 20 字符） */
 function truncateWord(word: string, max = 20): string {
   return word.length > max ? `${word.slice(0, max)}…` : word
+}
+
+/** 问答记录列表/详情共用的时间格式（M/d HH:mm） */
+function formatRecordTime(at: number): string {
+  return new Date(at).toLocaleString("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 }
 
 interface QuizState {
@@ -141,6 +152,8 @@ export function VocabularyWorkspace() {
   const [confirmExitQuiz, setConfirmExitQuiz] = useState(false)
   /** 提交作答确认：null = 关闭；数字 = 未作答题数 */
   const [confirmSubmitQuiz, setConfirmSubmitQuiz] = useState<number | null>(null)
+  /** 正在回看的问答记录（点击右半屏卡片打开） */
+  const [viewingRecord, setViewingRecord] = useState<VocabQuizRecord | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const quizSavingRef = useRef(false)
   // 作答期间自动收起底部工具栏（提交/退出后恢复；仅记录「是本轮收起的」，不动主人手动收起的状态）
@@ -902,16 +915,14 @@ export function VocabularyWorkspace() {
                 const c: Record<VocabRating, number> = { wrong: 0, partial: 0, correct: 0, beyond: 0 }
                 for (const it of r.items) c[it.rating]++
                 return (
-                  <li key={r.id} className="rounded-lg border bg-card px-3 py-2 text-sm">
+                  <li
+                    key={r.id}
+                    title="点击查看当时作答"
+                    onClick={() => setViewingRecord(r)}
+                    className="cursor-pointer rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:border-ring/40"
+                  >
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="shrink-0 font-medium text-foreground">
-                        {new Date(r.at).toLocaleString("zh-CN", {
-                          month: "numeric",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                      <span className="shrink-0 font-medium text-foreground">{formatRecordTime(r.at)}</span>
                       <span className="truncate text-muted-foreground" title={r.sourceName ?? "全部来源"}>
                         {r.sourceName ?? "全部来源"}
                       </span>
@@ -1299,6 +1310,56 @@ export function VocabularyWorkspace() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 问答记录详情：回看当时作答 */}
+      <Dialog
+        open={viewingRecord !== null}
+        onOpenChange={(v) => {
+          if (!v) setViewingRecord(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>问答记录</DialogTitle>
+            <DialogDescription>
+              {viewingRecord &&
+                `${formatRecordTime(viewingRecord.at)} · ${viewingRecord.sourceName ?? "全部来源"} · ${viewingRecord.items.length} 题`}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="native-scroll flex max-h-[60vh] flex-col gap-1.5 overflow-auto">
+            {viewingRecord?.items.map((it, i) => (
+              <li
+                key={`${it.id}-${i}`}
+                className="rounded-lg border bg-card px-3 py-2 text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="min-w-0 break-all font-medium text-foreground">{it.word}</span>
+                  <span
+                    className={cn(
+                      "ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px]",
+                      VOCAB_RATING_META[it.rating].className,
+                    )}
+                  >
+                    {VOCAB_RATING_META[it.rating].label}
+                  </span>
+                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                    {Math.round(it.timeMs / 100) / 10}s
+                  </span>
+                </div>
+                <p className="mt-1 truncate text-xs text-muted-foreground" title={it.answer}>
+                  你的作答：{it.answer}
+                </p>
+                {it.comment && <p className="mt-1 text-xs text-muted-foreground">{it.comment}</p>}
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingRecord(null)}>
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
