@@ -20,6 +20,7 @@ import {
 } from "@/lib/backup"
 import { clearAllImages } from "@/lib/image-store"
 import { clearVault } from "@/lib/vault-store"
+import { parseRepoInput } from "@/lib/github-queue"
 import {
   listAutoBackups,
   saveAutoBackup,
@@ -605,11 +606,13 @@ export function SettingsView() {
   function addNotificationRepo() {
     const v = repoInput.trim()
     if (!v) return
-    if (!REPO_RE.test(v)) {
-      setRepoError("格式应为 owner/name（仅限字母数字与 . - _）")
+    // 支持完整 GitHub 链接（github.com/owner/repo，可带 .git / issues / pulls 后缀），统一解析成 owner/repo
+    const repo = parseRepoInput(v)
+    if (!repo || !REPO_RE.test(repo)) {
+      setRepoError("格式应为 owner/name 或完整 GitHub 链接（仅限字母数字与 . - _）")
       return
     }
-    if (settings.notificationRepos.some((r) => r.repo === v)) {
+    if (settings.notificationRepos.some((r) => r.repo === repo)) {
       setRepoError("该仓库已在列表中")
       return
     }
@@ -619,7 +622,7 @@ export function SettingsView() {
       notificationRepos: [
         ...settings.notificationRepos,
         {
-          repo: v,
+          repo,
           scanTypes: { ...DEFAULT_NOTIFICATION_SCAN_TYPES },
           commitMonitorOnly: false,
           // 扫描起点 = 添加时刻：只扫这之后的内容，不做历史回扫
@@ -1449,7 +1452,7 @@ export function SettingsView() {
               <div className="flex gap-2">
                 <Input
                   value={repoInput}
-                  placeholder="owner/name，如 torvalds/linux"
+                  placeholder="owner/name 或完整链接，如 torvalds/linux"
                   spellCheck={false}
                   className="font-mono"
                   onChange={(e) => {

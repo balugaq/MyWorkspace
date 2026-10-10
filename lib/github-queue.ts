@@ -116,6 +116,35 @@ function toQueueItem(
 }
 
 /**
+ * 解析 owner/repo：支持完整 URL（github.com/owner/repo，可带 .git / issues / pulls 后缀）或裸 owner/repo。
+ * 解析不出 / 不含 / 时返回空串（调用方以 includes("/") 判定）。
+ */
+export function parseRepoInput(input: string): string {
+  let s = input.trim()
+  s = s.replace(/^https?:\/\/github\.com\//i, "").replace(/\.git$/, "")
+  s = s.replace(/\/(issues?|pulls?)\b.*$/, "").replace(/\/$/, "")
+  // 归一结果必须符合 owner/repo 形态（字母数字与 . - _），否则视为无法解析
+  return /^[\w.-]+\/[\w.-]+$/.test(s) ? s : ""
+}
+
+/**
+ * 解析单条 issue/PR 引用（手动添加用）：支持
+ *   完整链接 https://github.com/owner/repo/issues|pull/123（可带 #anchor）
+ *   裸路径 owner/repo/issues|pull/123
+ *   简写 owner/repo#123
+ * 无法识别返回 null。
+ */
+export function parseIssueRef(input: string): { repo: string; number: number } | null {
+  let s = input.trim()
+  s = s.replace(/^https?:\/\/github\.com\//i, "")
+  const pathM = s.match(/^([\w.-]+)\/([\w.-]+)\/(?:issues|pull)\/(\d+)/i)
+  if (pathM) return { repo: `${pathM[1]}/${pathM[2]}`, number: Number(pathM[3]) }
+  const hashM = s.match(/^([\w.-]+)\/([\w.-]+)#(\d+)$/)
+  if (hashM) return { repo: `${hashM[1]}/${hashM[2]}`, number: Number(hashM[3]) }
+  return null
+}
+
+/**
  * 拉取某仓库的 issue/PR（issues API 同时返回 PR，以 `pull_request` 字段区分；state=all 全量）。
  * @param perPage 单次上限（默认 100，也是 API 上限）。达到上限视为 truncated。
  */
@@ -133,6 +162,29 @@ export async function fetchRepoIssues(
     const arr = Array.isArray(data) ? (data as GhIssueRaw[]) : []
     const items = arr.map((r) => toQueueItem(r, repo, opts.currentLogin ?? null))
     return { items, truncated: arr.length >= perPage, rateLimited: state.rateLimited }
+  } catch (e) {
+    if (e instanceof RateLimitError) throw new Error("RATE_LIMITED")
+    throw e
+  }
+}
+
+/**
+ * 拉取单个 issue/PR（手动添加用；issues API 同时覆盖 PR，以 pull_request 字段区分）。
+ * 404（不存在）抛「GitHub API HTTP 404」，限流抛「RATE_LIMITED」。
+ */
+export async function fetchSingleIssue(
+  repo: string,
+  number: number,
+  opts: { token: string; currentLogin?: string | null },
+): Promise<IssueQueueItem> {
+  const [owner, name] = repo.split("/")
+  if (!owner || !name) throw new Error("仓库格式应为 owner/name")
+  const state = { rateLimited: false }
+  try {
+    const data = await ghFetch(`${API_BASE}/repos/${owner}/${name}/issues/${number}`, opts.token, state)
+    const raw = data as GhIssueRaw
+    if (!raw || typeof raw.number !== "number") throw new Error("GitHub API 响应格式异常")
+    return toQueueItem(raw, repo, opts.currentLogin ?? null)
   } catch (e) {
     if (e instanceof RateLimitError) throw new Error("RATE_LIMITED")
     throw e

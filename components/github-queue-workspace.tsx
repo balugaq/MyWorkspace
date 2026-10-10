@@ -19,7 +19,13 @@ import {
 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { matchTextPinyin } from "@/lib/pinyin"
-import { fetchCurrentLogin, fetchRepoIssues } from "@/lib/github-queue"
+import {
+  fetchCurrentLogin,
+  fetchRepoIssues,
+  fetchSingleIssue,
+  parseIssueRef,
+  parseRepoInput,
+} from "@/lib/github-queue"
 import type { IssueQueueColumn, IssueQueueItem } from "@/lib/types"
 import {
   Dialog,
@@ -41,14 +47,6 @@ const COLUMNS: { id: IssueQueueColumn; label: string }[] = [
 
 const PER_PAGE = 100
 
-/** 解析 owner/repo：支持完整 URL / 带 .git / 带 issues 后缀 */
-function parseRepo(input: string): string {
-  let s = input.trim()
-  s = s.replace(/^https?:\/\/github\.com\//, "").replace(/\.git$/, "")
-  s = s.replace(/\/(issues?|pulls?)\b.*$/, "").replace(/\/$/, "")
-  return s
-}
-
 export function GithubQueueWorkspace() {
   const issueQueue = useWorkspace((s) => s.issueQueue)
   const addToIssueQueue = useWorkspace((s) => s.addToIssueQueue)
@@ -61,6 +59,10 @@ export function GithubQueueWorkspace() {
   const [addOpen, setAddOpen] = useState(false)
   const [repoInput, setRepoInput] = useState("")
   const [loading, setLoading] = useState(false)
+  // 手动添加单条 Issue/PR
+  const [addSingleOpen, setAddSingleOpen] = useState(false)
+  const [issueInput, setIssueInput] = useState("")
+  const [singleLoading, setSingleLoading] = useState(false)
   const [query, setQuery] = useState("")
 
   // 实时搜索：按 标题 / 正文 / 仓库 / 提交者 / #编号 过滤四列（拼音增强：纯字母 query 追加全拼/首字母命中）
@@ -75,11 +77,12 @@ export function GithubQueueWorkspace() {
           ),
         )
 
-  // 添加监听仓库：自动创建 GitHub 监听（只开 Issue+PR 扫描）并回扫一次存量 issue/PR 入队
+  // 添加监听仓库：先拉一次存量（同时校验仓库存在，404 不予添加——2026-10-10 主人口径），
+  // 校验通过才落监听配置并入队（自有仓库全量、他人仓库仅 @me）。
   async function handleAdd() {
-    const repo = parseRepo(repoInput)
+    const repo = parseRepoInput(repoInput)
     if (!repo.includes("/")) {
-      toast.error("仓库格式应为 owner/name")
+      toast.error("仓库格式应为 owner/name 或完整 GitHub 链接")
       return
     }
     if (notificationRepos.some((r) => r.repo === repo)) {
@@ -88,7 +91,13 @@ export function GithubQueueWorkspace() {
     }
     setLoading(true)
     try {
-      // 监听配置先生效（存量回扫失败不回滚）
+      const login = await fetchCurrentLogin(githubToken)
+      // 先拉一次：既是存在性校验也是存量回扫；失败（404 / 限流 / 网络）一律不落监听配置
+      const res = await fetchRepoIssues(repo, {
+        token: githubToken,
+        currentLogin: login,
+        perPage: PER_PAGE,
+      })
       updateSettings({
         notificationRepos: [
           ...notificationRepos,
@@ -100,22 +109,14 @@ export function GithubQueueWorkspace() {
           },
         ],
       })
-      const login = await fetchCurrentLogin(githubToken)
-      // 入队范围与调度器口径一致（TODO 46 后续）：自有仓库全量、他人仓库仅 @me；
-      // 无 Token / 取不到登录名时无法判定范围 → 只建监听不回扫（与增量入队统一跳过的口径一致）。
       if (!login) {
         toast.warning(
-          "监听已添加；未填写 GitHub Token，存量回扫与后续自动入队均需 Token（设置 → 账户与同步）"
+          "已添加监听；未填写 GitHub Token，后续自动入队需 Token（设置 → 账户与同步）"
         )
         setAddOpen(false)
         setRepoInput("")
         return
       }
-      const res = await fetchRepoIssues(repo, {
-        token: githubToken,
-        currentLogin: login,
-        perPage: PER_PAGE,
-      })
       const isMine = repo.split("/")[0] === login
       const items = isMine ? res.items : res.items.filter((it) => it.assigneeMe)
       if (items.length === 0) {
@@ -132,12 +133,47 @@ export function GithubQueueWorkspace() {
       setAddOpen(false)
       setRepoInput("")
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "回扫失败"
+      const msg = e instanceof Error ? e.message : "添加失败"
       if (msg === "RATE_LIMITED")
-        toast.error("监听已添加；存量回扫触发 GitHub API 限流（403/429），可稍后在通知中心重试")
-      else toast.error(`监听已添加；存量回扫失败，可稍后重试：${msg}`)
+        toast.error("添加失败：GitHub API 限流（403/429），请稍后重试")
+      else if (msg.includes("404"))
+        toast.error(`仓库不存在（404），未添加：${repo}`)
+      else toast.error(`添加失败：${msg}`)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 手动添加单条 Issue / PR：解析链接或 owner/repo#编号 → 拉取 → 入队（已在队列中则刷新状态）
+  async function handleAddSingle() {
+    const ref = parseIssueRef(issueInput)
+    if (!ref || !ref.repo.includes("/") || !Number.isFinite(ref.number) || ref.number <= 0) {
+      toast.error("无法识别：粘贴 issue/pull 完整链接或 owner/repo#编号")
+      return
+    }
+    setSingleLoading(true)
+    try {
+      const login = await fetchCurrentLogin(githubToken)
+      const item = await fetchSingleIssue(ref.repo, ref.number, {
+        token: githubToken,
+        currentLogin: login,
+      })
+      const existed = issueQueue.some((it) => it.id === item.id)
+      addToIssueQueue([item])
+      toast.success(
+        existed
+          ? `已在队列中（状态已刷新）：${item.repo}#${item.number}`
+          : `已添加：${item.repo}#${item.number}`,
+      )
+      setAddSingleOpen(false)
+      setIssueInput("")
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "添加失败"
+      if (msg === "RATE_LIMITED") toast.error("GitHub API 限流（403/429），请稍后重试")
+      else if (msg.includes("404")) toast.error("该 Issue / PR 不存在（404）")
+      else toast.error(`添加失败：${msg}`)
+    } finally {
+      setSingleLoading(false)
     }
   }
 
@@ -152,11 +188,20 @@ export function GithubQueueWorkspace() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索 issue/PR（标题 / 正文 / 仓库 / 提交者）"
+            placeholder="搜索 issue/PR"
             className="h-8 w-64 text-sm"
           />
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => setAddSingleOpen(true)}
+          >
+            <Plus className="size-4" />
+            添加 Issue/PR
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -214,8 +259,9 @@ export function GithubQueueWorkspace() {
           <DialogHeader>
             <DialogTitle>添加监听仓库</DialogTitle>
             <DialogDescription>
-              输入 owner/name 或完整 GitHub 链接。添加后自动创建 GitHub 监听（只扫描
-              Issue + PR 通知）并回扫一次存量 issue/PR 入队（最多 {PER_PAGE} 条）；此后新动态由监听自动入队。
+              输入 owner/name 或完整 GitHub 链接。添加前会先校验仓库存在（不存在的仓库不予添加）；
+              添加后自动创建 GitHub 监听（只扫描 Issue + PR 通知）并回扫一次存量 issue/PR 入队
+              （最多 {PER_PAGE} 条）；此后新动态由监听自动入队。
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -236,7 +282,50 @@ export function GithubQueueWorkspace() {
                 取消
               </Button>
               <Button onClick={handleAdd} disabled={loading}>
-                {loading ? "添加中…" : "添加"}
+                {loading ? "校验并添加中…" : "添加"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 手动添加单条 Issue/PR 对话框 */}
+      <Dialog
+        open={addSingleOpen}
+        onOpenChange={(v) => {
+          if (!v) {
+            setAddSingleOpen(false)
+            setIssueInput("")
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>添加 Issue / PR</DialogTitle>
+            <DialogDescription>
+              粘贴 issue / pull 完整链接（含 #锚点也可以）或 owner/repo#编号。
+              已在队列中时会刷新其状态，不改变所在列。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="issue-ref">链接或编号</Label>
+              <Input
+                id="issue-ref"
+                placeholder="https://github.com/owner/repo/issues/123 或 owner/repo#123"
+                value={issueInput}
+                onChange={(e) => setIssueInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !singleLoading) handleAddSingle()
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setAddSingleOpen(false)}>
+                取消
+              </Button>
+              <Button onClick={handleAddSingle} disabled={singleLoading}>
+                {singleLoading ? "获取中…" : "添加"}
               </Button>
             </div>
           </div>
