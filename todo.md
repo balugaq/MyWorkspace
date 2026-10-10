@@ -636,9 +636,14 @@ TODO 69. （状态：已完成）
 
 - 已改（2026-10-05）：族 sidebar 行支持 HTML5 DnD 拖拽排序（交互与 app-sidebar 分类拖拽一致：落点行上半=插到它前面、下半=插到它后面；落点在自身原位或紧邻下一位视为没动不落库；重命名编辑态禁用拖拽）。存储不新增字段——顺序继续承载在 relationFamilies 的 key 插入顺序上，store 新增 `moveRelationFamily(familyId, toIndex)`（toIndex 为同分类族数组的目标插入索引，原数组口径；重建对象时同分类族按新顺序填回原有 key 槽位、其余分类族位置原样保留；搬迁弹窗等所有按 categoryId 过滤的消费方自动跟随新顺序）。typecheck / lint 均 0 错误。待主人目视确认拖拽手感与落点指示。
 
-TODO 70. （状态：待处理）
+TODO 70. （状态：已完成，待目视确认）
 当前docs规范风格的滑动条，会在深色主题颜色下，与背景融为一体，导致无法看到滑动条。
 同时，滑动条过长时，在显示屏幕上滑动条的底部会出现白色矩形（这一条尚需多加验证，有时显示有时不显示的）
+
+- 已实现（2026-10-11）：
+  - 融入背景根因：滑块色用 `var(--color-border)`，而 `.dark` 的 border 是 **12% 透明白**（oklch(1 0 0 / 12%)），叠在深背景上几乎隐形；且原生滑条与 Base UI ScrollArea 自绘滑条（`bg-border`）是同一个色，全站一起隐身。修复：globals.css 新增专用变量 `--scrollbar-thumb` / `--scrollbar-thumb-hover`（浅色沿用 border / muted-foreground，观感不变；`.dark` 调亮为 30% / 45% 白），原生 webkit 滑块、html/body 与 Firefox 的 `scrollbar-color`、Base UI 自绘 Thumb（scroll-area.tsx 改 `bg-(--scrollbar-thumb)`）全部走该变量——彩色主题（浅色基调）引用主题自己的 border，自动跟随。
+  - 底部白色矩形：按「横竖滚动条交汇角（scrollbar-corner）默认底色在深色下呈白」处理，全组滚动容器显式 `::-webkit-scrollbar-corner { background: transparent }`。此现象主人自述偶发未稳定复现，**修完仍需主人遇到时再确认**；若复现且不是 corner，需截图定位。
+- typecheck / lint / test 全绿（45 用例）。**颜色可见度与 corner 效果待主人目视确认**（深色主题看侧边栏/长列表/代码块滚动条）。
 
 TODO 71. （状态：已完成，待目视确认）
 GitHub 队列四条（2026-10-10 主人口头）：

@@ -98,6 +98,9 @@
     --sidebar-accent-foreground: oklch(0.34 0.06 275);
     --sidebar-border: oklch(0.9 0.01 270);
     --sidebar-ring: oklch(0.52 0.2 274);
+    /* 滚动条滑块专用（TODO 70）：浅色沿用 border 色（现状观感不变）；.dark 单独调亮 */
+    --scrollbar-thumb: var(--color-border);
+    --scrollbar-thumb-hover: var(--color-muted-foreground);
 }
 
 .dark {
@@ -136,6 +139,10 @@
     --sidebar-accent-foreground: oklch(0.95 0.01 265);
     --sidebar-border: oklch(1 0 0 / 12%);
     --sidebar-ring: oklch(0.68 0.16 275);
+    /* 深色下滑块专用灰（TODO 70 主人复核）：border 12% 白太隐形、30% 白又太亮，
+       取中性灰 oklch(0.5)——可见但不刺眼；hover 略亮一档 */
+    --scrollbar-thumb: oklch(0.5 0.01 270);
+    --scrollbar-thumb-hover: oklch(0.62 0.01 270);
 }
 
 /* TODO 51（改版）：独立彩色主题——settings.theme = green / purple / orange 时，
@@ -553,7 +560,7 @@ html.orange {
 html,
 body {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-border) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 /* 内容容器：切断继承的标准属性（见上注释），否则 ::-webkit-scrollbar 胶囊被禁用 */
@@ -571,7 +578,7 @@ textarea,
   .rich-text-content pre,
   .rich-text-content table {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 }
 
@@ -606,7 +613,7 @@ html::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb,
 .rich-text-content pre::-webkit-scrollbar-thumb,
 .rich-text-content table::-webkit-scrollbar-thumb {
-  background-color: var(--color-border) !important;
+  background-color: var(--scrollbar-thumb) !important;
   border-radius: 9999px !important;
   /* 与 Base UI ScrollArea（侧边栏/对话列表）一致：10px 轨道内留 1px 内边距，
    * 滑块为满宽圆角胶囊（bg-border），可见宽度约 8px。 */
@@ -619,7 +626,17 @@ html::-webkit-scrollbar-thumb:hover,
 body::-webkit-scrollbar-thumb:hover,
 .rich-text-content pre::-webkit-scrollbar-thumb:hover,
 .rich-text-content table::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-muted-foreground) !important;
+  background-color: var(--scrollbar-thumb-hover) !important;
+}
+/* 横竖滚动条交汇角显式透明（TODO 70）：长容器双滚动条同时出现时，
+ * corner 默认底色在深色主题下呈白色矩形；透明后与轨道观感一致。 */
+.native-scroll::-webkit-scrollbar-corner,
+textarea::-webkit-scrollbar-corner,
+html::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-corner,
+.rich-text-content pre::-webkit-scrollbar-corner,
+.rich-text-content table::-webkit-scrollbar-corner {
+  background: transparent !important;
 }
 
 /* xyflow 多选选区矩形（选中节点上方的拖拽框）不拦截指针事件：
