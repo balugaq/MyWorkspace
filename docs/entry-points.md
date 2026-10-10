@@ -395,7 +395,8 @@
 | 排序 | 四列统一按 `queuedAt`（首次加入队列的时间，epoch ms）倒序渲染（最新在上），见 `github-queue-workspace.tsx` 看板渲染处；同一条目重复拉取/同步保留首次入队时间 |
 | 实时搜索 | 顶栏搜索框（`query` state）：按 标题 / 正文 / 仓库 / 提交者 / #编号 大小写不敏感过滤，四列只显示匹配卡片；仅过滤显示，不改数据 |
 | 滚动条 | 看板容器与每列卡片列表均为 `overflow-auto` + `.native-scroll`（`docs/ui-conventions.md` §1 细圆角胶囊规范） |
-| 添加监听仓库 | `GithubQueueWorkspace` 对话框：输入 `owner/repo`（支持完整 URL 解析）→ 写入 `settings.notificationRepos`（只开 Issue+PR 扫描，`scanSince` = 添加时刻）→ `fetchRepoIssues` 回扫一次存量入队（state=all，≤100 条）；已在监听列表则提示；回扫失败仅提示、**不回滚监听配置**。「从监听同步」手动按钮已删除，入队完全由监听自动机制承担 |
+| 添加监听仓库 | `GithubQueueWorkspace` 对话框：输入 `owner/repo`（支持完整 URL 解析，统一走 `lib/github-queue.ts` 的 `parseRepoInput`，设置页监听添加共用）→ **先拉一次存量做存在性校验（404 不予添加，限流/网络失败同样不落配置），通过后才写入 `settings.notificationRepos`**（只开 Issue+PR 扫描，`scanSince` = 添加时刻）→ 回扫存量入队（自有仓库全量、他人仓库仅 @me）；已在监听列表则提示。issue/PR 状态标记全部由监听驱动（close/merge/reopen 只回写 state/merged，不动列） |
+| 手动添加单条 Issue/PR | `GithubQueueWorkspace` 「添加 Issue/PR」按钮 → 对话框粘贴 issue/pull 完整链接（可带 #锚点）、裸路径或 `owner/repo#编号`（`parseIssueRef` 解析）→ `fetchSingleIssue` 拉取（404/限流有专属报错）→ `addToIssueQueue([item])`：已在队列中时刷新数据但保留所在列与 `queuedAt` |
 | 卡片操作 | `QueueCard`：移动到其它列（`moveIssueQueueItem`，**手动搬运 = 重新入队，刷新 `queuedAt` 浮到新列顶**）、删除（`removeIssueQueueItem`）；无整队清空入口（`clearIssueQueue` 已移除，逐卡删除为准）；卡片展示标题（外链）、提交者、正文首行截取、kind 标签、@me / 已合并 / 已关闭 |
 | 监听联动（自动·入队） | `lib/notifications/scheduler.ts` 的 `scanNow()`：本轮 `fresh` 通知里 **event=open（新建）** 的 issue/PR → 取登录名（`fetchCurrentLogin`，有候选才调）：`repo` owner === 登录名 → **全量入队**，`assigneeMe = assignees 含 login`；他人仓库 → 仅 `assignees 含 login` 时入队（`assigneeMe: true`）→ `notificationToBacklogItem` 转 `IssueQueueItem`（Backlog 列）→ `addToIssueQueue`（按 id 去重、保留手动移动过的列，幂等）；token 为空 / 取不到登录名则本轮跳过入队 |
 | 监听联动（自动·标记回写） | `scanNow()` 对 fresh 中 event 为 close / merge / reopen 的 issue/PR 通知：从 `n.url` 提取 number 拼 `iq:{repo}:{kind}:{number}` → store `syncIssueQueueStates` 批量回写 state/merged（close→closed/未合并、merge→closed/已合并、reopen→open/未合并）；**列与排序位次不动**，队列中不存在的 id 忽略；无需 login/token |

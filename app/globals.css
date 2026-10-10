@@ -267,7 +267,7 @@ html.orange {
 
 .rich-text-content blockquote { border-left: 2px solid var(--color-border); padding-left: 0.6em; margin: 0.35em 0; color: var(--color-muted-foreground); font-style: italic; }
 /* 代码块（TODO 38）：NodeView（components/richtext/code-block.ts）结构为
-   .code-block-wrap > (.code-block-gutter 行号 + pre>code 正文 + .code-block-lang 语言角标)。
+   .code-block-wrap > (.code-block-gutter 行号 + pre>code 正文 + .code-block-meta(语言角标+复制按钮))。
    字号偏小的根因是 pre 与内层 code 各 0.85em 双重叠乘（实际 ~0.72em），现统一提到 0.95em。 */
 .rich-text-content .code-block-wrap {
   position: relative;
@@ -289,6 +289,17 @@ html.orange {
   font-size: 0.95em;
   line-height: 1.55;
 }
+/* 代码块正文不软折行（TODO 72）：第一版只恢复 overflow-wrap 未生效（主人实测仍折行），
+   说明折行来源不是 [overflow-wrap:anywhere] 的继承——这里直接命中 pre 与内层 code 显式钉死
+   white-space: pre（作者声明，压过一切继承值与 UA 默认），并连同 overflow-wrap / word-break
+   一起归 normal。white-space: pre 下不存在软换行点，任何断字属性都无法折行；
+   长行回到 pre 自身 overflow-x 内部横滚，gutter 行号与源码行恒一一对应。 */
+.rich-text-content pre,
+.rich-text-content pre code {
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+}
 .rich-text-content .code-block-gutter {
   flex: none;
   padding: 0.45em 0.45em 0.45em 0.6em;
@@ -300,10 +311,16 @@ html.orange {
   opacity: 0.55;
   user-select: none;
 }
-.rich-text-content .code-block-lang {
+/* 语言角标 + 复制按钮（TODO 72）：绝对定位由 .code-block-meta 容器统一承担，二者横排 */
+.rich-text-content .code-block-meta {
   position: absolute;
   top: 0.25em;
   right: 0.55em;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+}
+.rich-text-content .code-block-lang {
   padding: 0.05em 0.5em;
   border-radius: 999px;
   background: rgba(128, 128, 128, 0.18);
@@ -311,6 +328,32 @@ html.orange {
   font-size: 0.66em;
   color: var(--color-muted-foreground);
   pointer-events: none;
+}
+.rich-text-content .code-block-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0.18em;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.18);
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  font-size: 0.66em;
+  line-height: 1;
+  transition: background 0.1s, color 0.1s;
+}
+.rich-text-content .code-block-copy:hover {
+  color: var(--color-foreground);
+  background: rgba(128, 128, 128, 0.32);
+}
+.rich-text-content .code-block-copy.copied {
+  color: var(--color-primary);
+}
+.rich-text-content .code-block-copy svg {
+  width: 1.1em;
+  height: 1.1em;
+  display: block;
 }
 /* 兜底：NodeView 未覆盖的裸 pre（如旧扩展回退），保持原有底色/内边距 */
 .rich-text-content pre { background: var(--color-muted); padding: 0.4em 0.5em; border-radius: var(--radius-sm); overflow-x: auto; font-family: var(--font-mono); font-size: 0.95em; line-height: 1.55; }

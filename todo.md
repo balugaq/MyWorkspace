@@ -552,7 +552,7 @@ xxx最近生日（） 或 最近有n人生日（xxx，xxx）
 - typecheck / lint / test 均 0 错误。待主人目视确认（横幅出现时机、文案、当天高亮、点击跳转、设置项生效）。
 
 TODO 62. (状态：待处理)
-最大的问题就是他没有成为整个桌面的一部分，工具这些本应是小组件一样的
+最大的问题就是他没有成为整个 Windows 桌面的一部分，工具这些本应是小组件一样的
 
 TODO 63. （状态：已完成）
 @ todo 60
@@ -639,3 +639,37 @@ TODO 69. （状态：已完成）
 TODO 70. （状态：待处理）
 当前docs规范风格的滑动条，会在深色主题颜色下，与背景融为一体，导致无法看到滑动条。
 同时，滑动条过长时，在显示屏幕上滑动条的底部会出现白色矩形（这一条尚需多加验证，有时显示有时不显示的）
+
+TODO 71. （状态：已完成，待目视确认）
+GitHub 队列四条（2026-10-10 主人口头）：
+1. 手动添加单个 Issue/PR
+2. 添加监听仓库校验仓库存在（404 不予添加）
+3. 设置里添加监听仓库支持完整链接
+4. 队列搜索框占位符过长溢出，简短
+
+- 已实现：
+  - `lib/github-queue.ts` 新增 `fetchSingleIssue`（GET /repos/{o}/{n}/issues/{number}，issues API 同时覆盖 PR；404/限流有专属错误）+ `parseRepoInput` / `parseIssueRef`（链接/裸路径/owner-repo#编号解析，统一从组件收编进 lib，设置页共用）。
+  - 队列工作区（github-queue-workspace.tsx）：顶栏新增「添加 Issue/PR」按钮 + 弹窗（粘贴链接或 owner/repo#123 → 拉取入队；已在队列中刷新状态保留所在列与 queuedAt）。
+  - 添加监听仓库改为「先回扫校验、通过才落监听配置」——404 报「仓库不存在，未添加」，限流/网络失败同样不落配置（推翻原「监听配置先生效不回滚」口径，主人明确要求 404 不予添加）。
+  - 设置页（settings-view.tsx）添加监听仓库输入先用 parseRepoInput 归一（支持完整链接），再走 REPO_RE 校验与查重；placeholder 文案同步。
+  - 队列搜索框占位符缩短为「搜索 issue/PR」。
+  - 测试：tests/github-queue-parse.test.ts（9 用例）——其中抓到 parseRepoInput 对垃圾输入原样返回的既有缺陷，已修（归一结果不符 owner/repo 形态返回空串）。
+- typecheck / lint / test 全绿（45 用例）。交互效果待主人目视确认。
+
+TODO 72. （状态：已完成，待目视确认）
+1. code block 行号标识可能不会正确对应到正确的行号上（如果一行内容过多挤压到下一行的情况下，会导致下一行行号标识偏移）
+2. 在code block右上角语言标识处添加一个点击复制按钮。
+
+- 已实现（2026-10-11）：
+  - 行号偏移根因：`components/richtext/rich-text-view.tsx` 给 `.rich-text-content` 挂的 `[overflow-wrap:anywhere]` 是**继承属性**，穿透进 pre>code 把长行强制软断成多视觉行，NodeView「行数 = \n 切分」假设失效（源码行 ≠ 视觉行）。修复：globals.css 对 `.rich-text-content pre`（含内层 code）显式恢复 `overflow-wrap:normal; word-break:normal`——长行回到 pre 自身 overflow-x 内部横滚，行号恒对齐（NodeView 头注释同步更新）。
+  - 复制按钮：NodeView 右上角改为 `.code-block-meta` 容器（语言角标 + 复制按钮横排）；点击复制源码纯文本（textContent，Clipboard API + execCommand 降级），成功后图标短暂切 ✓（1.2s 还原）；mousedown preventDefault 防止编辑态点按钮丢选区。按钮为原生 DOM 内联 SVG（NodeView 不走 React）。
+- typecheck / lint / test 全绿（45 用例）。**视觉效果待主人目视确认**（长行代码块：折行变横滚 + 行号对齐；右上角复制按钮 hover/点击反馈；亮暗主题下观感）。
+
+TODO 73. （状态：已完成，待目视确认）
+1. 在词汇表里，当用户添加一个词且这个词已经存在时，在用户输入完词条名后就在词条名的下面添加一个提示显示已经存在并在旁边加一个切换按钮，引导用户直接加载已有内容再进行编辑。
+2. 问答界面需要再改善，改成下面有题号选择点击可以切换到对应题，上面也有左右符号可以点击上一题下一题。
+题目在作答完毕后一次性提交，不用设置单独每题的提交。（提交作答的按钮放在题号选择的下面）
+题号选择呢就是没写的题显示蓝色背景圆，写了的题显示绿色背景圆。
+3. 一次问答最多100题
+
+- 已实现（2026-10-07，与本条登记前口头反馈一致，实施记录见当日日志与 docs/entry-points.md §8.18）：重名词提示 + 「载入已有内容编辑」；quiz 自由切题（左右箭头 + 题号蓝/绿圆点）+ 一次性提交（未答确认按空白）+ 上限 100 题。待主人目视确认。
