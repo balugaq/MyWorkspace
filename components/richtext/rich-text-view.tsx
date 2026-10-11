@@ -4,7 +4,8 @@ import { useEditor, EditorContent } from "@tiptap/react"
 import { useEffect } from "react"
 import { richTextExtensions } from "./extensions"
 import { normalizeLegacyImg } from "./normalize"
-import { upgradeLinkCards } from "./upgrade"
+import { upgradeLinkCards, upgradeInternalLinks } from "./upgrade"
+import { navigateInternalLink } from "./internal-link-mark"
 import { cn } from "@/lib/utils"
 
 /**
@@ -35,7 +36,7 @@ export function RichTextView({
 
   useEffect(() => {
     if (!editor) return
-    // setContent 与 upgradeLinkCards 内部都会触发 TipTap 的 flushSync；
+    // setContent 与 upgrade* 内部都会触发 TipTap 的 flushSync；
     // 若在 React 提交阶段（useEffect 内）同步执行，会抛
     // "flushSync was called from inside a lifecycle method" 错误。
     // 两者都延后到下一个 macrotask 执行，并加 isDestroyed 守卫。
@@ -43,10 +44,24 @@ export function RichTextView({
       if (editor.isDestroyed) return
       editor.commands.setContent(normalizeLegacyImg(content || ""), { emitUpdate: false })
       upgradeLinkCards(editor)
+      // 内链标记（TODO 28）：只读渲染时升级为可点击跳转链接
+      upgradeInternalLinks(editor)
     }, 0)
     return () => window.clearTimeout(t)
   }, [content, editor])
 
+  // 内链点击委托：升级后的 <a data-mw-internal> 在此统一定位跳转
+  function handleInternalLinkClick(e: React.MouseEvent<HTMLDivElement>) {
+    const target = e.target instanceof Element ? e.target.closest("[data-mw-internal]") : null
+    if (!target) return
+    const link = target.getAttribute("data-mw-internal")
+    if (link) navigateInternalLink(link)
+  }
+
   if (!editor) return null
-  return <EditorContent editor={editor} />
+  return (
+    <div onClick={handleInternalLinkClick}>
+      <EditorContent editor={editor} />
+    </div>
+  )
 }

@@ -2,6 +2,7 @@
 
 import type { Editor } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
+import { MW_LINK_RE } from "@/lib/internal-links"
 
 const GH_RE =
   /https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(?:issues|pull)\/\d+|https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/releases\/(?:tag\/[^/?#]+|\d+)(?=[/?#]|$)/i
@@ -102,4 +103,63 @@ export function scheduleUpgradeLinkCards(
     if (opts?.suppressRef) opts.suppressRef.current = false
   }, 0)
   return () => window.clearTimeout(id)
+}
+
+/**
+ * 把正文里的 [[mw:...]] 内链标记（TODO 28）升级为 internalLink mark（可点击跳转）。
+ *
+ * 只在只读渲染（RichTextView）调用：AI 回复 / 预览里标记显示为跳转链接；
+ * 编辑器不调用——编辑态标记保持原样文本，不产生文档改写与回写。
+ * 替换后文本不再含标记，不会死循环；guard 上限防意外。
+ * 原文本节点的 marks（格式色等）在前后文与新链接文本上原样保留。
+ */
+export function upgradeInternalLinks(editor: Editor): void {
+  if (!(editor.schema.marks as Record<string, unknown>).internalLink) return
+  let guard = 0
+  while (guard++ < 200) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let found: any = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(editor.state.doc as any).descendants((node: any, pos: number) => {
+      if (found) return false
+      if (node.isText) {
+        MW_LINK_RE.lastIndex = 0
+        const m = MW_LINK_RE.exec(node.textContent)
+        if (m && m.index !== undefined) {
+          found = {
+            pos,
+            size: node.nodeSize,
+            text: node.textContent,
+            start: m.index,
+            end: m.index + m[0].length,
+            rawLink: m[0],
+            marks: node.marks as JSONContent["marks"],
+          }
+        }
+      }
+      return true
+    })
+    if (!found) break
+    const { pos, size, text, start, end, rawLink, marks } = found as {
+      pos: number
+      size: number
+      text: string
+      start: number
+      end: number
+      rawLink: string
+      marks: JSONContent["marks"]
+    }
+    const title = rawLink.slice(rawLink.indexOf("|") + 1, -2)
+    const before = text.slice(0, start)
+    const after = text.slice(end)
+    const nodes: JSONContent[] = []
+    if (before) nodes.push({ type: "text", text: before, marks })
+    nodes.push({
+      type: "text",
+      text: title,
+      marks: [...(marks ?? []), { type: "internalLink", attrs: { link: rawLink } }],
+    })
+    if (after) nodes.push({ type: "text", text: after, marks })
+    editor.chain().insertContentAt({ from: pos, to: pos + size }, nodes).run()
+  }
 }

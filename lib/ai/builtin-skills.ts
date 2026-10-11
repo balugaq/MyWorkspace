@@ -271,6 +271,26 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
+  // 6.5 列出 AI 会话（TODO 28 内链配套）：供 AI 拿会话 id 生成内链标记
+  {
+    name: "wb_list_conversations",
+    description:
+      "列出当前所有 AI 对话会话（id、标题、消息数、更新时间）。用户让你引用 / 跳转到某个 AI 对话时，先调用本技能拿到会话 id，再按 wb_internal_link_guide 的内链语法输出跳转链接。",
+    parameters: z.object({}),
+    execute: async () => {
+      const conversations = useWorkspace.getState().conversations
+      return {
+        count: conversations.length,
+        conversations: conversations.map((c) => ({
+          id: c.id,
+          title: c.title,
+          messages: c.messages.length,
+          updatedAt: c.updatedAt,
+        })),
+      }
+    },
+  },
+
   // 7. 获取某一分类下所有子分类（章节）名称（仅 NovelWorkspace 类）
   {
     name: "wb_get_chapters",
@@ -614,6 +634,37 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
         "释义用中文，简洁准确",
       ],
       example: '[{"word":"abandon","definition":"v. 放弃；抛弃","source":"书名"}]',
+    }),
+  },
+
+  // 内链标记指南（TODO 28）：只读回传内链语法。
+  // AI 可在回复里输出内链标记，读者点击即跳转到对应 AI 会话 / 思维导图节点（只读渲染时升级为链接）。
+  {
+    name: "wb_internal_link_guide",
+    description:
+      "获取内链标记语法：在回复中生成可点击跳转的站内链接（跳到某个 AI 对话 / 思维导图节点）。用户要求「跳转到 / 打开 / 引用某个对话或节点」或在回复中引用站内内容时，先调用本技能获取语法，并先用 wb_list_conversations / wb_get_mindmap_graph 核实目标 id 真实存在。",
+    parameters: z.object({}),
+    execute: async () => ({
+      usage:
+        "在回复文本中输出标记 [[mw:类型:id|显示标题]]，渲染后会变成可点击的跳转链接。标记必须在回复正文里独立完整出现，不要嵌进代码块。",
+      types: {
+        conv: {
+          syntax: "[[mw:conv:会话id|显示标题]]",
+          example: "[[mw:conv:m_1710000000000_ab12cd34|上周的旅行规划对话]]",
+          id_source: "调用 wb_list_conversations 技能获取会话 id",
+        },
+        node: {
+          syntax: "[[mw:node:族id:节点id|显示标题]]",
+          example: "[[mw:node:fam_abc12345_n98765432|完成登录模块的待办]]",
+          id_source:
+            "调用 wb_get_mindmap_graph 技能获取族 id（familyId）与节点 id（nodeId）",
+        },
+      },
+      rules: [
+        "id 必须来自技能返回的真实数据，禁止编造；目标不存在时点击会提示「已不存在」",
+        "显示标题用简短的人类可读文案（如节点标题、会话标题）",
+        "同一回复里内链数量克制，只在真正需要跳转引用时使用",
+      ],
     }),
   },
 ]

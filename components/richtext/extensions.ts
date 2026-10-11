@@ -11,6 +11,7 @@ import { StoredImage } from "./stored-image"
 import { GitHubCard } from "./github-card"
 import { BilibiliCard } from "./bilibili-card"
 import { FormatColor } from "./format-color"
+import { InternalLinkMark } from "./internal-link-mark"
 
 // 语法高亮引擎：lowlight（基于 highlight.js），common 含约 37 种常用语言。
 const lowlight = createLowlight(common)
@@ -46,6 +47,8 @@ export const richTextExtensions = [
   BilibiliCard,
   // 16 色文本标签 mark（TODO 32）：<blue>…</blue> 等，解析与序列化见 format-color.ts
   FormatColor,
+  // 内链 mark（TODO 28）：[[mw:...]] 标记升级后的跳转链接（只在只读渲染激活）
+  InternalLinkMark,
   Markdown.configure({
     html: false, // 不解析原始 HTML（XSS 防护，沿用原 safeHref 思路）
     tightLists: true,

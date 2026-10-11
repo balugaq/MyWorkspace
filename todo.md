@@ -276,8 +276,16 @@ TODO 26. （状态：已完成）
 TODO 27. （状态：已完成）
 新增日志存储，如 GitHub 监听仓库需要日志记录当前检查了哪个commit/issue/pr/release等，然后说明要不要发送通知提示
 
-TODO 28. （状态：待处理）
+TODO 28. （状态：已完成，待目视确认）
 增加一些内链访问。。。自动跳转到某个AI对话、思维导图节点等
+
+- 已实现（2026-10-11）：
+  - 标记协议（lib/internal-links.ts 纯函数）：`[[mw:conv:{会话id}|显示标题]]` 跳 AI 会话；`[[mw:node:{族id}:{节点id}|显示标题]]` 跳思维导图节点。段数校验在 parse 层（RE 只管形状）。
+  - 渲染激活范围＝只读：`upgradeInternalLinks(editor)`（仿 upgradeLinkCards 模式，components/richtext/upgrade.ts）在 RichTextView 的 setContent 后把标记文本替换为 `internalLink` mark（原文本 marks 原样保留、guard 防死循环）；**编辑器不调用**——编辑态标记保持原样文本，无文档改写与回写风险。mark 输出 `<a data-mw-internal="完整标记">`，点击由 RichTextView 容器事件委托统一处理。
+  - 跳转执行（internal-link-mark.ts `navigateInternalLink`）：conv→`goAIChat`+`selectConversation`；node→`setActiveCategory`+`setPendingFamilyId`+`setActiveItem`（补选高亮，TODO 54 机制）；目标已删 toast 提示不跳转。
+  - AI 侧：新内置技能 `wb_internal_link_guide`（只读回传内链语法 + 规则：id 必须来自真实数据、标记不要进代码块）+ `wb_list_conversations`（列会话拿 id；节点 id 走既有 wb_get_mindmap_graph）；SYSTEM_BASE 加一句引导。
+  - 测试：tests/internal-links.test.ts（7 用例：两种类型匹配 / uuid id / 非法形状 / 段数校验分层）。
+- typecheck / lint / test 全绿（52 用例）。**点击跳转与链接观感待主人目视确认**（验收路径：AI 对话里让 AI「引用某个已有对话生成内链」或手动在章节正文里写一条 `[[mw:conv:...|xx]]` 后切预览；注意编辑态标记显示为原文属预期）。
 
 TODO 29. （状态：已完成）
 AI 接入联网搜索
