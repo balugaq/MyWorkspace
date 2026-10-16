@@ -18,11 +18,13 @@ import {
   Copy,
   RefreshCw,
   ChevronDown,
+  Volume2,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { useWorkspace } from "@/lib/store"
 import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
+import { extractSpeakableText, startSpeaking, stopSpeaking } from "@/lib/tts"
 import { RichTextView } from "@/components/richtext/rich-text-view"
 import { ModelManagerDialog } from "@/components/ai-models-dialog"
 import { SkillsToggleDialog } from "@/components/ai-skills-dialog"
@@ -138,6 +140,34 @@ export function AIChatWorkspace() {
   const [input, setInput] = useState("")
   const [skillsOpen, setSkillsOpen] = useState(false)
   const [modelsOpen, setModelsOpen] = useState(false)
+  // 语音朗读（TODO 17）：当前正在朗读的消息 id（null = 未在朗读）
+  const [speakingId, setSpeakingId] = useState<string | null>(null)
+
+  // 切走视图 / 组件卸载时停掉朗读，别让声音挂在后台
+  useEffect(() => () => stopSpeaking(), [])
+
+  const toggleSpeak = (m: { id: string; content: string }) => {
+    if (speakingId === m.id) {
+      stopSpeaking()
+      setSpeakingId(null)
+      return
+    }
+    const text = extractSpeakableText(m.content)
+    if (!text) {
+      toast.info("这条消息没有可朗读的文字")
+      return
+    }
+    const ok = startSpeaking(text, () => {
+      // 仅当仍在朗读这条消息时清状态（新一轮朗读不被旧回调覆盖）
+      setSpeakingId((cur) => (cur === m.id ? null : cur))
+    })
+    if (!ok) {
+      toast.error("当前浏览器不支持语音朗读")
+      setSpeakingId(null)
+      return
+    }
+    setSpeakingId(m.id)
+  }
 
   const modelLabel = activeModel?.label ?? "未配置模型"
   const hasKey = !!activeModel && activeModel.apiKey.trim().length > 0
@@ -452,6 +482,21 @@ export function AIChatWorkspace() {
                     aria-label="复制"
                   >
                     <Copy className="size-3.5" />
+                  </button>
+                  {/* 语音朗读（TODO 17）：用户与 AI 消息均可；流式进行中禁用（内容未定稿） */}
+                  <button
+                    type="button"
+                    onClick={() => toggleSpeak(m)}
+                    disabled={isLoading}
+                    className="rounded p-1 transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                    title={speakingId === m.id ? "停止朗读" : "朗读"}
+                    aria-label={speakingId === m.id ? "停止朗读" : "朗读"}
+                  >
+                    {speakingId === m.id ? (
+                      <Square className="size-3.5" />
+                    ) : (
+                      <Volume2 className="size-3.5" />
+                    )}
                   </button>
                   {!isUser && (
                     <button
