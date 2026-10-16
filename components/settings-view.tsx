@@ -21,6 +21,9 @@ import {
 import { clearAllImages } from "@/lib/image-store"
 import { clearVault } from "@/lib/vault-store"
 import { parseRepoInput } from "@/lib/github-queue"
+import { useTranslation } from "react-i18next"
+import { syncLocale, APP_LOCALES } from "@/lib/i18n"
+import type { UILanguage } from "@/lib/types"
 import {
   listAutoBackups,
   saveAutoBackup,
@@ -151,13 +154,13 @@ const SCAN_TYPE_META: { key: keyof NotificationScanTypes; label: string }[] = [
 
 // 设置分类清单（TODO 25 打磨）：左侧导航按钮按此渲染，右侧只显示选中分类的内容
 const SETTINGS_SECTIONS = [
-  { id: "general", label: "通用 / 基础" },
-  { id: "shortcuts", label: "快捷键 / 键位" },
-  { id: "account", label: "账户与同步" },
-  { id: "ai", label: "AI 助手" },
-  { id: "advanced", label: "高级" },
-  { id: "notifications", label: "GitHub 集成" },
-  { id: "news", label: "新闻精选" },
+  { id: "general", labelKey: "settings.sections.general" },
+  { id: "shortcuts", labelKey: "settings.sections.shortcuts" },
+  { id: "account", labelKey: "settings.sections.account" },
+  { id: "ai", labelKey: "settings.sections.ai" },
+  { id: "advanced", labelKey: "settings.sections.advanced" },
+  { id: "notifications", labelKey: "settings.sections.notifications" },
+  { id: "news", labelKey: "settings.sections.news" },
 ] as const
 
 // 通知日志导出（TODO 27 配套）：把 store 里持久化的扫描/条目日志落成文件下载。
@@ -563,6 +566,7 @@ function AutoBackupManager() {
 
 export function SettingsView() {
   const settings = useWorkspace((s) => s.settings)
+  const { t } = useTranslation()
   const notificationLogs = useWorkspace((s) => s.notificationLogs)
   const contributions = useWorkspace((s) => s.contributions)
   // 软件使用时长：复用贡献账本派生（lib/contributions.ts），不另存字段（与 Profile 页同源）
@@ -758,7 +762,7 @@ export function SettingsView() {
     <div className="flex h-full min-h-0 flex-col">
       {/* 顶栏：标题（风格与 Profile 等工作区一致） */}
       <header className="flex items-center px-8 py-6">
-        <h1 className="text-2xl font-bold leading-tight text-foreground">设置</h1>
+        <h1 className="text-2xl font-bold leading-tight text-foreground">{t("settings.title")}</h1>
       </header>
 
       {/* 分类导航 + 内容区（TODO 25 打磨）：左侧分类按钮，右侧只显示选中分类的设置内容 */}
@@ -777,7 +781,7 @@ export function SettingsView() {
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                {s.label}
+                {t(s.labelKey)}
               </button>
             ))}
           </div>
@@ -786,9 +790,11 @@ export function SettingsView() {
         <ScrollArea className="min-h-0 flex-1">
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-8 pb-8">
             {activeSectionId === "general" && (
-              <Section title="通用 / 基础">
+              <Section title={t("settings.sections.general")}>
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">主题</Label>
+              <Label className="text-xs font-medium text-muted-foreground">
+                {t("settings.general.theme")}
+              </Label>
               <Select
                 value={settings.theme}
                 onValueChange={(v) => {
@@ -797,35 +803,57 @@ export function SettingsView() {
               >
                 <SelectTrigger className="w-full">
                   <SelectValue>
-                    {THEMES.find((t) => t.value === settings.theme)?.label ?? "选择主题"}
+                    {THEMES.find((th) => th.value === settings.theme)?.value
+                      ? t(`settings.general.themeOptions.${settings.theme}`)
+                      : t("settings.general.pickTheme")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {THEMES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
+                  {THEMES.map((th) => (
+                    <SelectItem key={th.value} value={th.value}>
+                      {t(`settings.general.themeOptions.${th.value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </section>
 
+            {/* 语言切换（TODO 40）：zh 中文（源文案）/ en English；字典见 lib/i18n/locales */}
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">语言</Label>
-              <Select value="zh-CN" disabled>
+              <Label className="text-xs font-medium text-muted-foreground">
+                {t("settings.general.language")}
+              </Label>
+              <Select
+                value={settings.uiLanguage}
+                onValueChange={(v) => {
+                  if (!v) return
+                  syncLocale(v)
+                  updateSettings({ uiLanguage: v as UILanguage })
+                }}
+              >
                 <SelectTrigger className="w-full">
-                  <SelectValue>中文</SelectValue>
+                  <SelectValue>
+                    {APP_LOCALES.find((l) => l.value === settings.uiLanguage)?.label ?? "中文"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="zh-CN">中文</SelectItem>
+                  {APP_LOCALES.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>
+                      {l.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">更多语言支持计划中。</p>
+              <p className="text-xs text-muted-foreground">
+                {t("settings.general.languageDesc")}
+              </p>
             </section>
 
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium text-muted-foreground">字体大小</Label>
+                <Label className="text-xs font-medium text-muted-foreground">
+                  {t("settings.general.fontSize")}
+                </Label>
                 <span className="text-xs text-muted-foreground">{settings.fontSize}px</span>
               </div>
               <input
@@ -837,9 +865,11 @@ export function SettingsView() {
                 onChange={(e) => updateSettings({ fontSize: Number(e.target.value) })}
                 className="w-full accent-primary"
               />
-              <p className="text-xs text-muted-foreground">调整全局基础字号（12–24px），实时应用到整个界面。</p>
+              <p className="text-xs text-muted-foreground">{t("settings.general.fontSizeDesc")}</p>
               <div className="mt-2 flex items-center justify-between">
-                <Label className="text-xs font-medium text-muted-foreground">字体家族</Label>
+                <Label className="text-xs font-medium text-muted-foreground">
+                  {t("settings.general.fontFamily")}
+                </Label>
               </div>
               <Select
                 value={settings.uiFontFamily}
@@ -849,23 +879,26 @@ export function SettingsView() {
               >
                 <SelectTrigger className="w-full">
                   <SelectValue>
-                    {FONT_FAMILIES.find((f) => f.value === settings.uiFontFamily)?.label ??
-                      "选择字体家族"}
+                    {FONT_FAMILIES.find((f) => f.value === settings.uiFontFamily)?.value
+                      ? t(`settings.general.fontFamilyOptions.${settings.uiFontFamily}`)
+                      : t("settings.general.pickFontFamily")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {FONT_FAMILIES.map((f) => (
                     <SelectItem key={f.value} value={f.value}>
-                      {f.label}
+                      {t(`settings.general.fontFamilyOptions.${f.value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">切换界面整体字体（系统默认 / 衬线 / 等宽）。</p>
+              <p className="text-xs text-muted-foreground">{t("settings.general.fontFamilyDesc")}</p>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">启动行为</Label>
+              <Label className="text-xs font-medium text-muted-foreground">
+                {t("settings.general.startup")}
+              </Label>
               <Select
                 value={settings.defaultView}
                 onValueChange={(v) => {
@@ -874,25 +907,26 @@ export function SettingsView() {
               >
                 <SelectTrigger className="w-full">
                   <SelectValue>
-                    {DEFAULT_VIEWS.find((v) => v.value === settings.defaultView)?.label ??
-                      "选择默认视图"}
+                    {DEFAULT_VIEWS.find((v) => v.value === settings.defaultView)?.value
+                      ? t(`settings.general.viewOptions.${settings.defaultView}`)
+                      : t("settings.general.pickView")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {DEFAULT_VIEWS.map((v) => (
                     <SelectItem key={v.value} value={v.value}>
-                      {v.label}
+                      {t(`settings.general.viewOptions.${v.value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">应用每次打开时默认进入的界面。</p>
+              <p className="text-xs text-muted-foreground">{t("settings.general.startupDesc")}</p>
             </section>
 
             {/* TODO 61：生日横幅提前天数（brandHeader 横幅） */}
             <section className="flex flex-col gap-2">
               <Label htmlFor="birthday-banner-days" className="text-xs font-medium text-muted-foreground">
-                生日横幅提前天数
+                {t("settings.general.birthdayBannerDays")}
               </Label>
               <Input
                 id="birthday-banner-days"
@@ -910,8 +944,7 @@ export function SettingsView() {
                 className="max-w-24"
               />
               <p className="text-xs text-muted-foreground">
-                顶栏生日横幅提前 n 天显示临近生日（含当天，0 = 仅当天；上限 60）。
-                数据源：联系人生日（含农历换算）与账户里的自己生日。
+                {t("settings.general.birthdayBannerDesc")}
               </p>
             </section>
 
@@ -921,7 +954,7 @@ export function SettingsView() {
             )}
 
             {activeSectionId === "shortcuts" && (
-              <Section title="快捷键 / 键位">
+              <Section title={t("settings.sections.shortcuts")}>
             <section className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5">
                 <Keyboard className="size-3.5 text-muted-foreground" />
@@ -945,7 +978,7 @@ export function SettingsView() {
             )}
 
             {activeSectionId === "account" && (
-              <Section title="账户与同步">
+              <Section title={t("settings.sections.account")}>
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">登录信息</Label>
               <div className="flex items-center gap-3">
@@ -1159,7 +1192,7 @@ export function SettingsView() {
             )}
 
             {activeSectionId === "ai" && (
-              <Section title="AI 助手">
+              <Section title={t("settings.sections.ai")}>
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
                 <div className="min-w-0">
@@ -1304,7 +1337,7 @@ export function SettingsView() {
             )}
 
             {activeSectionId === "advanced" && (
-              <Section title="高级">
+              <Section title={t("settings.sections.advanced")}>
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">图片缓存</Label>
               <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setImagesOpen(true)}>
@@ -1368,7 +1401,7 @@ export function SettingsView() {
             )}
 
             {activeSectionId === "notifications" && (
-              <Section title="GitHub 集成">
+              <Section title={t("settings.sections.notifications")}>
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">GitHub 令牌</Label>
               <input
@@ -1575,7 +1608,7 @@ export function SettingsView() {
             )}
 
             {activeSectionId === "news" && (
-              <Section title="新闻精选">
+              <Section title={t("settings.sections.news")}>
             <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
               <div className="min-w-0">
                 <Label className="text-xs font-medium">新闻精选开关</Label>

@@ -453,6 +453,8 @@ export type ThemePreference = "light" | "dark" | "system" | "green" | "purple" |
 export type DefaultView = "workspace" | "calendar" | "ai-chat" | "last"
 /** 界面字体家族：映射根元素 fontFamily 的 CSS 变量（--font-sans / --font-serif / --font-mono） */
 export type UIFontFamily = "system" | "serif" | "mono"
+/** 界面显示语言（TODO 40）：zh = 中文（源文案）；en = English */
+export type UILanguage = "zh" | "en"
 
 // AI 模型条目：支持配置多个模型，每条独立保存 provider / key / baseUrl / model。
 // 各 Key 仅存于本机 localStorage（纯前端静态站，无后端），互不干扰。
@@ -472,6 +474,9 @@ export interface Settings {
   fontSize: number // 全局基础字号 rem，例如 16（对应 --font-size-base）
   // 界面字体家族：映射根元素 fontFamily（system → var(--font-sans) 等，见 components/theme-provider.tsx）
   uiFontFamily: UIFontFamily
+  // 界面显示语言（TODO 40 多语言）：zh 中文（源文案）/ en English；字典见 lib/i18n/locales。
+  // 注意：全站文案按批次渐进抽取，未用 t() 的组件在任何语言下都显示中文。
+  uiLanguage: UILanguage
   githubToken: string // GitHub 个人访问令牌（PAT），用于提升 GitHub 预览卡的 API 限额；留空则匿名（60 次/小时/IP）
   // UAPI（uapis.cn）令牌：天气接口（/api/v1/misc/weather）的可选 Bearer 令牌；
   // 留空则匿名调用（免费基础数据，限流较紧，429 时前端冷却 10 分钟）。
@@ -656,6 +661,7 @@ export const DEFAULT_SETTINGS: Settings = {
   >,
   fontSize: 16,
   uiFontFamily: "system",
+  uiLanguage: "zh",
   githubToken: "",
   uapiToken: "",
   aiModels: [],

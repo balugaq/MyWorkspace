@@ -1,0 +1,61 @@
+// lib/i18n 的测试（node:test，`npm test` 跑）：i18next 可在 node 直接 init（无 DOM 依赖）。
+// 覆盖 TODO 40：中英字典切换 / 回落 / {lang:key} 正文占位符替换（含代码块豁免与坏 key 保留）。
+import { describe, it } from "node:test"
+import assert from "node:assert/strict"
+import { getI18n, replaceLangTokens, syncLocale } from "../lib/i18n/index.ts"
+
+describe("i18n 初始化与切换", () => {
+  it("默认中文；changeLanguage 后切英文", () => {
+    syncLocale("zh")
+    assert.equal(getI18n().t("settings.title"), "设置")
+    syncLocale("en")
+    assert.equal(getI18n().t("settings.title"), "Settings")
+    assert.equal(getI18n().t("settings.general.theme"), "Theme")
+  })
+
+  it("en 缺 key 回落中文", () => {
+    syncLocale("en")
+    // en 字典未抽取的 key（后续批次补）回落 zh
+    assert.equal(getI18n().t("not.extracted.yet"), "not.extracted.yet")
+  })
+
+  it("非法语言值回落中文", () => {
+    syncLocale("fr")
+    assert.equal(getI18n().language, "fr") // i18next 允许未知 lng，资源回落 fallbackLng=zh
+    assert.equal(getI18n().t("settings.title"), "设置")
+  })
+})
+
+describe("replaceLangTokens", () => {
+  it("替换正文里的 {lang:key} 为当前语言文本", () => {
+    syncLocale("zh")
+    assert.equal(
+      replaceLangTokens("当前主题见{lang:settings.general.theme}设置。"),
+      "当前主题见主题设置。",
+    )
+    syncLocale("en")
+    assert.equal(
+      replaceLangTokens("See {lang:settings.general.theme} settings."),
+      "See Theme settings.",
+    )
+  })
+
+  it("未命中 key 保留原文（方便发现坏 key）", () => {
+    syncLocale("zh")
+    const text = "坏 key：{lang:not.a.real_key} 保留。"
+    assert.equal(replaceLangTokens(text), text)
+  })
+
+  it("围栏代码块内的 token 不替换", () => {
+    syncLocale("en")
+    const text = "正文 {lang:settings.title}\n```\n{lang:settings.title}\n```"
+    const out = replaceLangTokens(text)
+    assert.ok(out.includes("Settings"))
+    assert.ok(out.includes("{lang:settings.title}"))
+  })
+
+  it("普通代码/花括号不受影响", () => {
+    syncLocale("zh")
+    assert.equal(replaceLangTokens("a { b } {lang} c"), "a { b } {lang} c")
+  })
+})

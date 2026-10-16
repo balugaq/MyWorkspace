@@ -23,6 +23,7 @@ import { NotificationToastQueue } from "@/components/notifications/notification-
 import { HealthReminderToasts } from "@/components/notifications/health-reminder-toasts"
 import { AutoBackupWatcher } from "@/components/auto-backup-watcher"
 import { startNotificationScheduler } from "@/lib/notifications/scheduler"
+import { syncLocale } from "@/lib/i18n"
 import { ConfigEditorDialog } from "@/components/config-editor-dialog"
 import { ImageCacheDialog } from "@/components/image-cache-dialog"
 import { StatusBar } from "@/components/status-bar"
@@ -33,6 +34,7 @@ import { LayoutGrid } from "lucide-react"
 export default function Page() {
   const hydrated = useWorkspace((s) => s.hydrated)
   const view = useWorkspace((s) => s.view)
+  const uiLanguage = useWorkspace((s) => s.settings.uiLanguage)
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const categories = useWorkspace((s) => s.categories)
   const configEditorOpen = useWorkspace((s) => s.configEditorOpen)
@@ -82,6 +84,11 @@ export default function Page() {
 
   // 统一的全局快捷键（Ctrl+M 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
   useGlobalShortcuts()
+
+  // 界面语言（TODO 40）：hydrate 后按 settings.uiLanguage 同步 i18next；切换语言时跟随
+  useEffect(() => {
+    if (hydrated) syncLocale(uiLanguage)
+  }, [hydrated, uiLanguage])
 
   // 工具栏自动收展（TODO 25 打磨）：打开个人主页时收起，其他页面自动展开
   const setToolbarCollapsed = useWorkspace((s) => s.setToolbarCollapsed)

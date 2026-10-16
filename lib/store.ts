@@ -914,6 +914,9 @@ export const useWorkspace = create<WorkspaceState>()(
                   birthdayBannerDays: normalizeBirthdayBannerDays(
                     (bSettings as Record<string, unknown>).birthdayBannerDays
                   ),
+                  // 兜底（TODO 40）：界面语言非法 → 默认中文
+                  uiLanguage:
+                    (bSettings as Record<string, unknown>).uiLanguage === "en" ? "en" : "zh",
                 } as Settings)
               : cur.settings,
             conversations: convs ?? cur.conversations,
@@ -2159,6 +2162,8 @@ export const useWorkspace = create<WorkspaceState>()(
             profileWidgetOrder: normalizeProfileWidgetOrder(rawSettings.profileWidgetOrder),
             // 兜底（TODO 61）：缺失 / 非法 / 越界 → 默认 7 天
             birthdayBannerDays: normalizeBirthdayBannerDays(rawSettings.birthdayBannerDays),
+            // 兜底（TODO 40）：界面语言非法 → 默认中文
+            uiLanguage: rawSettings.uiLanguage === "en" ? "en" : "zh",
           },
         }
       },

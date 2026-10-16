@@ -1,0 +1,61 @@
+// 英文字典（TODO 40）：key 与 zh.ts 一一对应；缺 key 时 i18next 回落中文（fallbackLng: zh）。
+
+export const en = {
+  common: {
+    save: "Save",
+    cancel: "Cancel",
+    add: "Add",
+    delete: "Delete",
+    edit: "Edit",
+    rename: "Rename",
+    confirm: "Confirm",
+    close: "Close",
+    enabled: "On",
+    disabled: "Off",
+  },
+  settings: {
+    title: "Settings",
+    sections: {
+      general: "General",
+      shortcuts: "Shortcuts",
+      account: "Account & Sync",
+      ai: "AI Assistant",
+      advanced: "Advanced",
+      notifications: "GitHub Integration",
+      news: "News Digest",
+    },
+    general: {
+      theme: "Theme",
+      themeOptions: {
+        light: "Light",
+        dark: "Dark",
+        system: "System",
+        green: "Green",
+        purple: "Purple",
+        orange: "Orange",
+      },
+      pickTheme: "Pick a theme",
+      language: "Language",
+      languageDesc: "UI display language, takes effect immediately.",
+      langOptions: { zh: "中文", en: "English" },
+      fontSize: "Font size",
+      fontSizeDesc: "Adjust the global base font size (12–24px), applied live across the UI.",
+      fontFamily: "Font family",
+      fontFamilyDesc: "Switch the UI-wide font (system default / serif / mono).",
+      fontFamilyOptions: { system: "System default", serif: "Serif", mono: "Mono" },
+      pickFontFamily: "Pick a font family",
+      startup: "Startup view",
+      startupDesc: "The view the app opens into by default.",
+      viewOptions: {
+        "ai-chat": "AI Chat",
+        workspace: "Notes",
+        calendar: "Calendar",
+        last: "Reopen last view",
+      },
+      pickView: "Pick the default view",
+      birthdayBannerDays: "Birthday banner lead days",
+      birthdayBannerDesc:
+        "Show the top-bar birthday banner n days ahead of upcoming birthdays (including the day itself, 0 = only that day; max 60). Sources: contact birthdays (with lunar conversion) and your own birthday in Account.",
+    },
+  },
+}

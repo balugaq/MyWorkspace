@@ -417,8 +417,17 @@ TODO 38. （状态：已完成）
 TODO 39. （状态：已完成）
 个人主页里面有一个待办事项，在这里加一个ai按钮，然后点击就可以 askAiAbout，引导ai结合具体各项skill支持访问的数据来综合给出待办事项，再切到对应对话。
 
-TODO 40. （状态：待处理）
+TODO 40. （状态：已完成，待目视确认）
 多语言支持，找找有没有现成库吧
+
+- 已实现（2026-10-11，主人拍板：react-i18next / 中英 / 框架+设置页样板+`{lang:key}` 正文占位符）：
+  - 依赖：`i18next` 26 + `react-i18next` 17（纯前端 static export + 单页 view 切换无路由，客户端单例即可，不用 next-intl 的路由能力）；licenses.ts 已补两条声明。
+  - 框架：`lib/i18n/index.ts`（i18next 单例 + initReactI18next，fallbackLng=zh，en 缺 key 回落中文）+ `locales/zh.ts` / `en.ts` 字典；`syncLocale()` 统一切换；`Settings.uiLanguage`（"zh"|"en"）持久化，设置 → 通用/基础「语言」Select 激活（原 disabled 占位退役），启动同步挂 app/page.tsx（hydrate 后 syncLocale）。
+  - store settings 组装兜底（importData / mergeData 非法值回落 zh；persist merge settings 原样并入、uiLanguage 经 DEFAULT_SETTINGS 与组件 `?? "zh"` 读取兜底——动 settings 组装前先 grep 全部三处再下结论）。
+  - 样板抽取：settings-view 标题 + 七个分区导航（labelKey）+ 通用分区全部文案（含主题/字体/启动视图选项 label 动态 key）。
+  - `{lang:key}` 正文占位符（主人口径）：`replaceLangTokens`（围栏代码块内不替换、坏 key 保留原文），接入 RichTextView setContent 前 + MarkdownView lexer 前；**编辑器不替换**——token 是存储协议（与内链同思路），编辑态显示原文。
+  - 测试：tests/i18n.test.ts（7 用例：中英切换 / 回落 / 占位符 / 代码块豁免 / 坏 key）。
+- typecheck / lint / test 全绿（67 用例）。**待主人目视确认**（设置页切 English → 标题/分区/通用分区变英文；正文写 `{lang:settings.title}` 预览显示「设置」；其余视图仍中文属预期——后续批次渐进抽取）。
 
 TODO 41. （状态：已完成）
 导出增加一个可以选择导出哪些内容，包括AI对话数据，随笔数据，日历数据，联系人数据，密码保险，通知数据，github队列数据（等等的，未来如果写新功能也要加进来，需要添加到docs中说明），比如联系人（todo 48）和密码这些敏感信息可以选择导出时不顺带（默认就这2个不携带导出）

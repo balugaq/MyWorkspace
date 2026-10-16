@@ -255,6 +255,20 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
   {
+    name: "i18next",
+    author: "i18next",
+    description: "国际化框架（TODO 40）：字典管理 / 插值 / 回落策略，配合 react-i18next 支撑界面多语言。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
+    name: "react-i18next",
+    author: "i18next",
+    description: "i18next 的 React 绑定（TODO 40）：useTranslation() 组件级跟随语言切换 re-render。",
+    license: "MIT",
+    licenseUrl: "https://opensource.org/licenses/MIT",
+  },
+  {
     name: "lowlight",
     author: "Titus Wormer",
     description: "基于 highlight.js 的语法高亮引擎，被 @tiptap/extension-code-block-lowlight 用来做代码着色（common 含约 37 种常用语言）。",

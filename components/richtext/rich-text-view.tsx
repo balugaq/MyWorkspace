@@ -6,6 +6,7 @@ import { richTextExtensions } from "./extensions"
 import { normalizeLegacyImg } from "./normalize"
 import { upgradeLinkCards, upgradeInternalLinks } from "./upgrade"
 import { navigateInternalLink } from "./internal-link-mark"
+import { replaceLangTokens } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 /**
@@ -42,7 +43,10 @@ export function RichTextView({
     // 两者都延后到下一个 macrotask 执行，并加 isDestroyed 守卫。
     const t = window.setTimeout(() => {
       if (editor.isDestroyed) return
-      editor.commands.setContent(normalizeLegacyImg(content || ""), { emitUpdate: false })
+      // {lang:key} 占位符（TODO 40）在只读渲染时替换为当前语言文本（编辑态保留原 token）
+      editor.commands.setContent(replaceLangTokens(normalizeLegacyImg(content || "")), {
+        emitUpdate: false,
+      })
       upgradeLinkCards(editor)
       // 内链标记（TODO 28）：只读渲染时升级为可点击跳转链接
       upgradeInternalLinks(editor)

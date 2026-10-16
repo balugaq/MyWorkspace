@@ -9,6 +9,7 @@ import {
   stripFormatColorTags,
 } from "@/lib/format-colors"
 import { cn } from "@/lib/utils"
+import { replaceLangTokens } from "@/lib/i18n"
 import { StoredImg, MarkdownImg } from "@/components/rich-text"
 
 /**
@@ -274,7 +275,11 @@ export function MarkdownView({
   /** true = 紧凑单行化预览（列表卡片用）：块级标记渲染为行内，整体最多两行截断 */
   clamp?: boolean
 }) {
-  const tokens = useMemo(() => marked.lexer(text) as unknown as MdToken[], [text])
+  // {lang:key} 占位符（TODO 40）：预览渲染时替换为当前语言文本
+  const tokens = useMemo(
+    () => marked.lexer(replaceLangTokens(text)) as unknown as MdToken[],
+    [text],
+  )
   if (clamp) {
     return (
       <div className={cn("line-clamp-2 text-sm leading-relaxed [overflow-wrap:anywhere]", className)}>

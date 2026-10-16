@@ -436,3 +436,22 @@
   - 评分依赖已配置 AI 模型；预搜依赖已配置百度千帆 Key（未配置时仅按词库释义评分，不报错）。
   - 列表渲染上限 200 条（`LIST_RENDER_LIMIT`），超出提示总数。
 
+
+## 8.19 多语言 i18n（`lib/i18n/*` + react-i18next）
+
+> TODO 40（2026-10-11 主人拍板：react-i18next / 中英 / 框架+设置页样板+`{lang:key}` 正文占位符）。项目是纯前端 static export + 单页 view 切换（无多路由），故用 i18next 客户端单例，不用 next-intl 的路由能力。
+
+| 功能 | 入口点 |
+| --- | --- |
+| 初始化 | `lib/i18n/index.ts`：i18next 单例 + `initReactI18next`；resources = `locales/zh.ts` / `locales/en.ts`（key 对齐，en 缺 key 回落中文 `fallbackLng: zh`）；`syncLocale(locale)` 统一切换入口（同值 no-op）；`interpolation.escapeValue: false`（React 渲染防注入） |
+| 语言设置 | `Settings.uiLanguage`（`"zh" \| "en"`，默认 zh）；设置 → 通用/基础 → 「语言」Select（激活，原占位下拉退役）；启动同步在 `app/page.tsx`（`hydrated` 后 `syncLocale`，切换语言实时跟随）；store 三处 settings 组装（persist merge / importData / mergeData 各自兜底，非法值 → zh） |
+| 抽取范围（样板批次） | settings-view：标题 / 分区导航（`SETTINGS_SECTIONS.labelKey`）/ 通用分区全部文案；主题、字体家族、启动视图选项的 label 改为 `t(\`settings.general.xxxOptions.${value}\`)` 动态 key；后续视图按批次渐进（未用 t() 的组件在任何语言下显示中文） |
+| 正文占位符 | `{lang:settings.general.theme}` 形态的 token 写在**数据内容**（随笔正文 / 节点内容）里，只读渲染时替换为当前语言字典文本：`replaceLangTokens`（围栏代码块内不替换、未命中 key 保留原文）；接入 `RichTextView`（setContent 前）与 `MarkdownView`（lexer 前）；**编辑器不替换**——token 是存储协议，编辑态显示原文 |
+| 测试 | `tests/i18n.test.ts`：中英切换 / en 缺 key 回落 / 未知语言回落 / 占位符替换与代码块豁免 / 坏 key 保留 |
+
+- **数据链路**：settings.uiLanguage（localStorage persist）→ 启动 / 切换时 `syncLocale` → i18next.changeLanguage → `useTranslation()` 组件自动 re-render；正文 token 在渲染管线入口替换（存储层永远是 token 原文，与内链协议同一思路）。
+- **See also**：§8.8（设置页分区）；§8.10（RichTextView / MarkdownView 渲染管线）。
+- **Notice**：
+  - 新增文案 key 时 zh / en 字典必须同时补（en 缺失会回落中文显示，不会报错）。
+  - 语言切换只影响已用 `useTranslation()` 的组件；硬编码中文的旧组件属后续批次。
+  - 依赖新增已同步 `lib/licenses.ts`（i18next / react-i18next，MIT）。
