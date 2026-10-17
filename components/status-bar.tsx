@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from "react"
 import { useWorkspace } from "@/lib/store"
 import { VIEW_LABEL } from "@/lib/types"
+import { useTranslation } from "react-i18next"
 
 /**
  * 底部状态栏：根据当前视图对聚合数据做轻量摘要。
@@ -14,6 +15,7 @@ import { VIEW_LABEL } from "@/lib/types"
  * 纯展示组件，只订阅 store，不修改任何数据。
  */
 export function StatusBar() {
+  const { t } = useTranslation()
   const view = useWorkspace((s) => s.view)
   const categories = useWorkspace((s) => s.categories)
   const relationFamilies = useWorkspace((s) => s.relationFamilies)
@@ -47,15 +49,15 @@ export function StatusBar() {
         if (famNodes) {
           const done = famNodes.filter((n) => n.done).length
           return [
-            <Stat key="nodes" value={famNodes.length} label="节点" />,
-            <Stat key="done" value={done} label="已完成" />,
+            <Stat key="nodes" value={famNodes.length} label={t("statusBar.nodes")} />,
+            <Stat key="done" value={done} label={t("statusBar.done")} />,
           ]
         }
         const total = (activeCategory?.chapters ?? []).length
-        return [<Stat key="items" value={total} label="项" />]
+        return [<Stat key="items" value={total} label={t("statusBar.items")} />]
       }
       case "contacts":
-        return [<Stat key="people" value={contactCount ?? 0} label="人" />]
+        return [<Stat key="people" value={contactCount ?? 0} label={t("statusBar.people")} />]
       case "vault":
         return []
       case "ai-chat": {
@@ -73,13 +75,13 @@ export function StatusBar() {
         }
         return [
           <span key="rounds">
-            <span className="font-medium text-foreground">{rounds}</span> 轮
+            <span className="font-medium text-foreground">{rounds}</span> {t("statusBar.rounds")}
           </span>,
           <span key="sep1" className="text-border">
             |
           </span>,
           <span key="tokens">
-            输入 {formatTokens(input)} tok · 输出 {formatTokens(output)} tok
+            {t("statusBar.tokensIn", { n: formatTokens(input) })} · {t("statusBar.tokensOut", { n: formatTokens(output) })}
           </span>,
           <span key="sep2" className="text-border">
             |
@@ -89,13 +91,13 @@ export function StatusBar() {
       default:
         return []
     }
-  }, [view, activeCategory, famNodes, contactCount, activeConversation])
+  }, [view, activeCategory, famNodes, contactCount, activeConversation, t])
 
   return (
     <footer className="flex h-8 shrink-0 items-center gap-4 border-t bg-background/80 px-4 text-[11px] text-muted-foreground backdrop-blur">
       {left}
       <span className="ml-auto hidden truncate sm:inline">
-        {view === "workspace" ? (activeCategory?.name ?? "工作台") : VIEW_LABEL[view]}
+        {view === "workspace" ? (activeCategory?.name ?? t("statusBar.workspace")) : VIEW_LABEL[view]}
       </span>
     </footer>
   )

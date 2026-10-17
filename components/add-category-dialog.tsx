@@ -18,6 +18,7 @@ import { useWorkspace } from "@/lib/store"
 import { TEMPLATES, type TemplateType } from "@/lib/types"
 import { getIcon } from "@/lib/icons"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 import { useEscapeClose } from "@/hooks/use-escape-close"
 
 export function AddCategoryDialog({
@@ -28,6 +29,7 @@ export function AddCategoryDialog({
   onOpenChange: (v: boolean) => void
 }) {
   const addCategory = useWorkspace((s) => s.addCategory)
+  const { t } = useTranslation()
   const [name, setName] = useState("")
   const [template, setTemplate] = useState<TemplateType>("novel")
   const [autoNumber, setAutoNumber] = useState(true)
@@ -47,11 +49,11 @@ export function AddCategoryDialog({
 
   function submit() {
     if (!name.trim()) {
-      toast.error("请填写分类名称")
+      toast.error(t("addCategory.errEmpty"))
       return
     }
     if (name.trim().length > 20) {
-      toast.error("分类名称不能超过 20 个字")
+      toast.error(t("addCategory.errTooLong"))
       return
     }
     addCategory(
@@ -59,13 +61,13 @@ export function AddCategoryDialog({
       template,
       // 关系类没有条目概念：不传条目单位
       template === "novel"
-        ? { autoNumber, unit: unit.trim() || "章" }
+        ? { autoNumber, unit: unit.trim() || t("addCategory.defaultUnit") }
         : template === "relation"
           ? {}
-          : { unit: unit.trim() || "章" },
+          : { unit: unit.trim() || t("addCategory.defaultUnit") },
       template === "novel" ? Math.max(0, Math.min(300, count)) : 0,
     )
-    toast.success(`已创建分类「${name.trim()}」`)
+    toast.success(t("addCategory.created", { name: name.trim() }))
     reset()
     onOpenChange(false)
   }
@@ -74,35 +76,35 @@ export function AddCategoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>新建分类</DialogTitle>
-          <DialogDescription>选择模板并配置，创建后可在侧边栏管理内容。</DialogDescription>
+          <DialogTitle>{t("addCategory.title")}</DialogTitle>
+          <DialogDescription>{t("addCategory.desc")}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-5 py-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="cat-name">分类名称</Label>
+            <Label htmlFor="cat-name">{t("addCategory.name")}</Label>
             <Input
               id="cat-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：我的超级无敌小说"
+              placeholder={t("addCategory.namePlaceholder")}
               maxLength={20}
               autoFocus
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label>模板类型</Label>
+            <Label>{t("addCategory.template")}</Label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {TEMPLATES.map((t) => {
-                const Icon = getIcon(t.icon)
-                const active = template === t.type
+              {TEMPLATES.map((tpl) => {
+                const Icon = getIcon(tpl.icon)
+                const active = template === tpl.type
                 return (
                   <button
-                    key={t.type}
+                    key={tpl.type}
                     type="button"
                     onClick={() => {
-                      setTemplate(t.type)
+                      setTemplate(tpl.type)
                     }}
                     className={cn(
                       "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
@@ -112,31 +114,31 @@ export function AddCategoryDialog({
                     )}
                   >
                     <Icon className="size-4 text-primary" />
-                    <span className="text-sm font-medium">{t.label}</span>
+                    <span className="text-sm font-medium">{t(`templates.${tpl.type}.label`)}</span>
                   </button>
                 )
               })}
             </div>
             <p className="text-xs text-muted-foreground text-pretty">
-              {TEMPLATES.find((t) => t.type === template)?.description}
+              {t(`templates.${template}.desc`)}
             </p>
           </div>
 
           {/* 条目单位仅对有「条目」概念的模板有意义；关系类（思维导图）没有条目，隐藏 */}
           {template !== "relation" && (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="unit">条目单位（可选）</Label>
+              <Label htmlFor="unit">{t("addCategory.unit")}</Label>
               <div className="flex items-center gap-3">
                 <Input
                   id="unit"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  placeholder="章"
+                  placeholder={t("addCategory.defaultUnit")}
                   className="max-w-24"
                   maxLength={4}
                 />
                 <span className="text-xs text-muted-foreground">
-                  如 章 / 首 / 回 / 条 / 课；留空则用「章」。同时决定底部翻页（上一X/下一X）与自动编号标题（第%X → 第一章）
+                  {t("addCategory.unitHint")}
                 </span>
               </div>
             </div>
@@ -146,12 +148,12 @@ export function AddCategoryDialog({
             <div className="flex flex-col gap-4 rounded-lg border bg-muted/40 p-4">
               <div className="flex items-center justify-between gap-4">
                 <Label htmlFor="auto" className="cursor-pointer">
-                  自动中文编号
+                  {t("addCategory.autoNumber")}
                 </Label>
                 <Switch id="auto" checked={autoNumber} onCheckedChange={setAutoNumber} />
               </div>
               <div className="flex items-center justify-between gap-4">
-                <Label htmlFor="count">初始条目数量</Label>
+                <Label htmlFor="count">{t("addCategory.count")}</Label>
                 <Input
                   id="count"
                   type="number"

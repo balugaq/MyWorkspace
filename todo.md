@@ -705,3 +705,19 @@ TODO 73. （状态：已完成）
 TODO 74. （状态：待处理）
 加一个 ai 会话标题生成的，就调用当前的ai生成标题。
 默认先就现在的截断，然后ai回复完之后再静默让ai生成一个标题。（要求不超过10个字且没有句号结尾，如果ai给的过长就还是自动截断就行）
+
+### TODO 40 后续批次（2026-10-17 主人口径：逐批套用模板，文本只写 zh，en 暂不写——缺 key 自动回落中文）
+- ~~批 1：全局外壳（toolbar-panel / status-bar / brand-header 静态项 / global-search / add-category-dialog / page 空态 / app-sidebar）~~ ✅ 2026-10-17 完成（新增命名空间 toolbar/statusBar/brandHeader/search/home/addCategory/templates/sidebar + common 扩充）。
+- 批 2：AI 对话（ai-chat / ai-sessions-panel / ai-models-dialog / ai-personas-dialog）
+- 批 3：随笔（novel-workspace / text-context-menu / rich-text-editor 可视化态文案）
+- 批 4：思维导图（mindmap-workspace / node-inspector / mindmap/nodes）
+- 批 5：日历（calendar-workspace + 自定义节日弹窗）
+- 批 6：联系人（contacts-workspace）
+- 批 7：保险库（vault-workspace / vault-provider）
+- 批 8：个人主页（profile-workspace / weather-widget）
+- 批 9：通知（notifications-workspace / notification-toast-queue / health-reminder-toasts）
+- 批 10：GitHub 队列（github-queue-workspace）
+- 批 11：词汇表（vocabulary-workspace）
+- 批 12：设置页剩余分区（shortcuts / account / ai / advanced / notifications / news 六个分区的文案）
+- 批 13：lib 层系统文案（store toast / notifications senders / scheduler / qq-channel——非组件内直接 i18n.t()，语言切换后新文案按当前语言）
+- 专项遗留：brand-header 生日横幅模板串（复杂插值，待专项）、search.ts 数据层 typeLabel（已改渲染处动态 t，数据字段留着无碍）。

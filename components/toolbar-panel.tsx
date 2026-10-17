@@ -5,6 +5,7 @@
 // 收起/展开用 grid-rows 0fr↔1fr 过渡做高度动画。
 
 import { ChevronDown, Wrench } from "lucide-react"
+import type { ComponentType } from "react"
 import {
   BookOpen,
   CalendarDays,
@@ -15,22 +16,24 @@ import {
   GitPullRequest,
 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { AiIcon, AiText } from "@/components/ai-brand"
 
 // 工具卡片清单：点击切换主区域视图；id 与 view 值对应。
-const TOOL_CARDS = [
-  { id: "ai-chat", name: "AI 对话", icon: AiIcon },
-  { id: "workspace", name: "随笔", icon: PenLine },
-  { id: "calendar", name: "日历", icon: CalendarDays },
-  { id: "contacts", name: "联系人", icon: Users },
-  { id: "vault", name: "密码保险库", icon: KeyRound },
-  { id: "notifications", name: "通知", icon: Bell },
-  { id: "github-queue", name: "GitHub 队列", icon: GitPullRequest },
-  { id: "vocabulary", name: "词汇表", icon: BookOpen },
+const TOOL_CARDS: { id: string; nameKey: string; icon: ComponentType<{ className?: string }> }[] = [
+  { id: "ai-chat", nameKey: "toolbar.aiChat", icon: AiIcon },
+  { id: "workspace", nameKey: "toolbar.notes", icon: PenLine },
+  { id: "calendar", nameKey: "toolbar.calendar", icon: CalendarDays },
+  { id: "contacts", nameKey: "toolbar.contacts", icon: Users },
+  { id: "vault", nameKey: "toolbar.vault", icon: KeyRound },
+  { id: "notifications", nameKey: "toolbar.notifications", icon: Bell },
+  { id: "github-queue", nameKey: "toolbar.githubQueue", icon: GitPullRequest },
+  { id: "vocabulary", nameKey: "toolbar.vocabulary", icon: BookOpen },
 ] as const
 
 export function ToolbarPanel() {
+  const { t } = useTranslation()
   const collapsed = useWorkspace((s) => s.toolbarCollapsed)
   const setCollapsed = useWorkspace((s) => s.setToolbarCollapsed)
   const sidebarCollapsed = useWorkspace((s) => s.sidebarCollapsed)
@@ -93,10 +96,10 @@ export function ToolbarPanel() {
           type="button"
           onClick={() => setCollapsed(!collapsed)}
           className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-          title={collapsed ? "展开工具栏" : "收起工具栏"}
+          title={collapsed ? t("toolbar.expand") : t("toolbar.collapse")}
         >
           <Wrench className="size-3.5 shrink-0" />
-          <span>工具</span>
+          <span>{t("toolbar.title")}</span>
           <ChevronDown
             className={cn("size-3.5 shrink-0 transition-transform", collapsed && "-rotate-90")}
           />
@@ -112,16 +115,16 @@ export function ToolbarPanel() {
       >
         <div className="min-h-0 overflow-hidden">
           <div className="grid grid-cols-3 gap-1 px-2 pb-2">
-            {TOOL_CARDS.map((t) => {
-              const Icon = t.icon
-              const active = view === t.id
-              const showBadge = t.id === "notifications" && unreadCount > 0
+            {TOOL_CARDS.map((tc) => {
+              const Icon = tc.icon
+              const active = view === tc.id
+              const showBadge = tc.id === "notifications" && unreadCount > 0
               return (
                 <button
-                  key={t.id}
+                  key={tc.id}
                   type="button"
-                  onClick={() => activate(t.id)}
-                  title={t.name}
+                  onClick={() => activate(tc.id)}
+                  title={t(tc.nameKey)}
                   className={cn(
                     "relative flex flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[11px] transition-colors",
                     active
@@ -132,12 +135,12 @@ export function ToolbarPanel() {
                   <Icon className="size-4 shrink-0" />
                   {/* AI 对话按钮文本里的「AI」用渐变彩色字（TODO 57） */}
                   <span className="w-full truncate text-center">
-                    {t.id === "ai-chat" ? (
+                    {tc.id === "ai-chat" ? (
                       <>
-                        <AiText /> 对话
+                        <AiText /> {t("toolbar.chatSuffix")}
                       </>
                     ) : (
-                      t.name
+                      t(tc.nameKey)
                     )}
                   </span>
                   {showBadge && (

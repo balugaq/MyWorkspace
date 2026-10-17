@@ -1,5 +1,5 @@
 // 全局顶栏（TODO 25 打磨）：左侧 = 移动端导航按钮 + 品牌区（点击回到主界面 AI 对话）；
-// 右侧 = 搜索框 + 设置 + 头像（最右，点击弹出「打开个人主页 / 打开设置」菜单）。
+// 右侧 = 搜索框 + 设置 + 头像（最右，点击弹出「{t("brandHeader.openProfile")} / {t("brandHeader.openSettings")}」菜单）。
 // 主题切换已移入设置页「外观主题」，顶栏不再提供。
 
 "use client"
@@ -17,6 +17,7 @@ import {
 import { upcomingBirthdays } from "@/lib/birthday"
 import type { Person } from "@/lib/address-book"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 // 生日横幅（TODO 61）：brandHeader 中间段，临近生日（settings.birthdayBannerDays 天内，含当天）
 // 时显示；单人文案「xxx 最近生日（M月D日，还有 n 天）」，多人文案「最近有 n 人生日（xxx、xxx）」；
@@ -81,6 +82,7 @@ export function BrandHeader({
   onOpenSearch: () => void
 }) {
   const settings = useWorkspace((s) => s.settings)
+  const { t } = useTranslation()
   const view = useWorkspace((s) => s.view)
   const goAIChat = useWorkspace((s) => s.goAIChat)
   const goProfile = useWorkspace((s) => s.goProfile)
@@ -113,20 +115,20 @@ export function BrandHeader({
           onClick={onOpenNav}
         >
           <PanelLeft className="size-4" />
-          <span className="sr-only">打开导航</span>
+          <span className="sr-only">{t("brandHeader.openNav")}</span>
         </Button>
 
         {/* 品牌区：点击回到主界面（AI 对话）。图标用应用 favicon（TODO 25 打磨） */}
         <button
           type="button"
           onClick={goAIChat}
-          title="回到主界面"
+          title={t("brandHeader.home")}
           className="flex cursor-pointer items-center gap-2 transition-opacity hover:opacity-80"
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- 应用图标直接用 favicon */}
           <img src="/favicon.ico" alt="My Workspace" className="size-8 rounded-lg" />
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold">全能工作台</span>
+            <span className="text-sm font-semibold">{t("brandHeader.appName")}</span>
             <span className="text-[11px] text-muted-foreground">My Workspace</span>
           </div>
         </button>
@@ -144,7 +146,7 @@ export function BrandHeader({
             className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border bg-muted/50 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted"
           >
             <Search className="size-4" />
-            <span className="hidden text-left sm:inline">搜索全部内容…</span>
+            <span className="hidden text-left sm:inline">{t("brandHeader.searchAll")}</span>
             <kbd className="hidden items-center gap-0.5 rounded border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground sm:flex">
               {settings.shortcuts.search.modifier &&
                 (isMac ? <Command className="size-2.5" /> : <span className="text-[10px] font-medium">Ctrl</span>)}
@@ -153,29 +155,29 @@ export function BrandHeader({
           </button>
         )}
 
-        {/* 头像（最右）：点击弹出「打开个人主页 / 打开设置」（设置按钮与头像菜单功能重复，已移除独立按钮） */}
+        {/* 头像（最右）：点击弹出「{t("brandHeader.openProfile")} / {t("brandHeader.openSettings")}」（设置按钮与头像菜单功能重复，已移除独立按钮） */}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <button
                 type="button"
-                title="账号"
+                title={t("brandHeader.account")}
                 className="flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent transition-colors hover:bg-sidebar-accent/70"
               >
                 {avatar}
               </button>
             }
           >
-            <span className="sr-only">账号菜单</span>
+            <span className="sr-only">{t("brandHeader.accountMenu")}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={goProfile}>
               <UserCircle className="size-4" />
-              打开个人主页
+              {t("brandHeader.openProfile")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={goSettings}>
               <Settings2 className="size-4" />
-              打开设置
+              {t("brandHeader.openSettings")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

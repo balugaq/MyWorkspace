@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 import { useWorkspace } from "@/lib/store"
+import { useTranslation } from "react-i18next"
 import { useGlobalShortcuts } from "@/hooks/use-shortcuts"
 import { AppSidebar, SidebarContent } from "@/components/app-sidebar"
 import { BrandHeader } from "@/components/brand-header"
@@ -35,6 +36,7 @@ export default function Page() {
   const hydrated = useWorkspace((s) => s.hydrated)
   const view = useWorkspace((s) => s.view)
   const uiLanguage = useWorkspace((s) => s.settings.uiLanguage)
+  const { t } = useTranslation()
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const categories = useWorkspace((s) => s.categories)
   const configEditorOpen = useWorkspace((s) => s.configEditorOpen)
@@ -152,7 +154,7 @@ export default function Page() {
               onMouseDown={startResizeSidebar}
               role="separator"
               aria-orientation="vertical"
-              aria-label="调整侧边栏宽度"
+              aria-label={t("home.resizeSidebar")}
               className="hidden w-1.5 shrink-0 cursor-col-resize items-stretch bg-border/40 transition-colors hover:bg-primary/50 md:flex"
             >
               <div className="mx-auto my-auto h-10 w-0.5 rounded-full bg-border" />
@@ -170,7 +172,7 @@ export default function Page() {
         {/* 悬浮 sidebar：移动端 PanelLeft 按钮呼出；仅保留折叠按钮 */}
         <Sheet open={mobileNav} onOpenChange={setMobileNav}>
           <SheetContent side="left" className="w-72 p-0" showCloseButton={false}>
-            <SheetTitle className="sr-only">导航</SheetTitle>
+            <SheetTitle className="sr-only">{t("home.nav")}</SheetTitle>
             <AppSidebar onCollapse={() => setMobileNav(false)} />
           </SheetContent>
         </Sheet>
@@ -179,7 +181,7 @@ export default function Page() {
         <main className="min-h-0 flex-1 overflow-hidden">
           {!hydrated ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              正在加载工作台…
+              {t("home.loading")}
             </div>
           ) : view === "calendar" ? (
             <CalendarWorkspace />
@@ -215,14 +217,14 @@ export default function Page() {
                   {/* TODO 58：有分类但未打开 → 提示打开；一个分类都没有 → 引导创建 */}
                   {categories.length > 0 ? (
                     <>
-                      <EmptyTitle>打开一个分类</EmptyTitle>
-                      <EmptyDescription>在左侧选择一个分类开始使用。</EmptyDescription>
+                      <EmptyTitle>{t("home.openCategory")}</EmptyTitle>
+                      <EmptyDescription>{t("home.pickFromSidebar")}</EmptyDescription>
                     </>
                   ) : (
                     <>
-                      <EmptyTitle>还没有分类</EmptyTitle>
+                      <EmptyTitle>{t("home.noCategories")}</EmptyTitle>
                       <EmptyDescription>
-                        在左侧点击“添加分类”，选择小说、学习、工作或关系图模板开始使用。
+                        {t("home.createGuide")}
                       </EmptyDescription>
                     </>
                   )}
