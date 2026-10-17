@@ -18,6 +18,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -119,6 +120,7 @@ interface QuizState {
 }
 
 export function VocabularyWorkspace() {
+  const { t } = useTranslation()
   const [, setVersion] = useState(0)
   const [loaded, setLoaded] = useState(false)
   const [query, setQuery] = useState("")
@@ -188,11 +190,11 @@ export function VocabularyWorkspace() {
           refresh()
         }
       })
-      .catch(() => toast.error("词汇表加载失败"))
+      .catch(() => toast.error(t("vocab.loadFail")))
     return () => {
       cancelled = true
     }
-  }, [refresh])
+  }, [refresh, t])
 
   const entries = listVocabEntries()
   const sources = listVocabSources()
@@ -248,11 +250,11 @@ export function VocabularyWorkspace() {
     const word = draftWord.trim()
     const definition = draftDefinition.trim()
     if (!word || !definition) {
-      toast.error("词条与释义均不能为空")
+      toast.error(t("vocab.errEmpty"))
       return
     }
     if (isVocabWordTaken(word, editing?.id)) {
-      toast.error(`词条「${word}」已存在`)
+      toast.error(t("vocab.errDuplicate", { word }))
       return
     }
     let sourceId: string | undefined
@@ -269,7 +271,7 @@ export function VocabularyWorkspace() {
       createdAt: editing?.createdAt ?? Date.now(),
       review: editing?.review ?? { total: 0, wrongCount: 0 },
     })
-    toast.success(editing ? "已保存修改" : "已添加词条")
+    toast.success(editing ? t("common.saved") : t("vocab.entryAdded"))
     closeEditor()
     refresh()
   }
@@ -280,7 +282,7 @@ export function VocabularyWorkspace() {
     setConfirmDelEntry(null)
     if (!e) return
     await removeVocabEntry(e.id)
-    toast.success(`已删除词条「${e.word}」`)
+    toast.success(t("vocab.entryDeleted", { word: e.word }))
     refresh()
   }
 
@@ -290,12 +292,12 @@ export function VocabularyWorkspace() {
     const name = newSourceName.trim()
     if (!name) return
     if (sources.some((s) => s.name === name)) {
-      toast.error(`来源「${name}」已存在`)
+      toast.error(t("vocab.sourceExists", { name }))
       return
     }
     await ensureVocabSource(name)
     setNewSourceName("")
-    toast.success(`已添加来源「${name}」`)
+    toast.success(t("vocab.sourceAdded", { name }))
     refresh()
   }
 
@@ -307,11 +309,11 @@ export function VocabularyWorkspace() {
     const name = renameSourceDraft.trim()
     if (!name) return
     if (sources.some((s) => s.id !== id && s.name === name)) {
-      toast.error(`来源「${name}」已存在`)
+      toast.error(t("vocab.sourceExists", { name }))
       return
     }
     await renameVocabSource(id, name)
-    toast.success("已重命名来源")
+    toast.success(t("vocab.sourceRenamed"))
     refresh()
   }
 
@@ -322,7 +324,7 @@ export function VocabularyWorkspace() {
     const affected = entries.filter((e) => e.sourceId === s.id).length
     await deleteVocabSource(s.id)
     toast.success(
-      affected > 0 ? `已删除来源「${s.name}」，${affected} 个词条变为未分类` : `已删除来源「${s.name}」`,
+      affected > 0 ? t("vocab.sourceDeletedWith", { name: s.name, n: affected }) : t("vocab.sourceDeleted", { name: s.name }),
     )
     refresh()
   }
@@ -341,15 +343,24 @@ export function VocabularyWorkspace() {
     try {
       const report = await addVocabEntries(parsedImport.items)
       toast.success(
-        `导入完成：新增 ${report.added} 条，跳过重复 ${report.skippedDuplicate} 条` +
-          (report.invalid > 0 ? `，无效 ${report.invalid} 条` : "") +
-          (report.sourcesCreated.length > 0 ? `；新建来源：${report.sourcesCreated.join("、")}` : ""),
+        t("vocab.importDone", {
+          added: report.added,
+          skipped: report.skippedDuplicate,
+          invalidTail:
+            report.invalid > 0
+              ? t("vocab.importInvalidTail", { n: report.invalid })
+              : "",
+          sourcesTail:
+            report.sourcesCreated.length > 0
+              ? t("vocab.importSourcesTail", { sources: report.sourcesCreated.join("、") })
+              : "",
+        }),
       )
       setImportOpen(false)
       setImportText("")
       refresh()
     } catch {
-      toast.error("导入失败")
+      toast.error(t("vocab.importFail"))
     } finally {
       setImporting(false)
     }
@@ -406,7 +417,7 @@ export function VocabularyWorkspace() {
 
   const startQuiz = () => {
     if (quizPool.length === 0) {
-      toast.error("该范围内没有词条")
+      toast.error(t("vocab.emptyPool"))
       return
     }
     // 一次问答最多 100 题（2026-10-07 主人口径）
@@ -417,7 +428,7 @@ export function VocabularyWorkspace() {
     hideToolbarForQuiz()
     setQuiz({
       scopeLabel:
-        quizScope === "all" ? null : quizScope === "none" ? "未分类" : (sourceById.get(quizScope)?.name ?? null),
+        quizScope === "all" ? null : quizScope === "none" ? t("vocab.uncategorized") : (sourceById.get(quizScope)?.name ?? null),
       queue: picked,
       index: 0,
       answers: picked.map(() => ""),
@@ -523,13 +534,13 @@ export function VocabularyWorkspace() {
     })
       .then((saved) => {
         setQuiz((q) => (q ? { ...q, savedId: saved.id } : q))
-        toast.success("本轮问答已保存")
+        toast.success(t("vocab.quizSaved"))
       })
-      .catch(() => toast.error("问答记录保存失败"))
+      .catch(() => toast.error(t("vocab.quizSaveFail")))
       .finally(() => {
         quizSavingRef.current = false
       })
-  }, [quiz])
+  }, [quiz, t])
 
   /** 报告页返回列表：未自动存档（有失败题）时保存已成功的题 */
   const finishPartial = () => {
@@ -555,8 +566,8 @@ export function VocabularyWorkspace() {
         }
       }),
     })
-      .then(() => toast.success(`已保存 ${idxs.length} 题评分（失败题未计入）`))
-      .catch(() => toast.error("问答记录保存失败"))
+      .then(() => toast.success(t("vocab.ratingsSaved", { n: idxs.length })))
+      .catch(() => toast.error(t("vocab.quizSaveFail")))
   }
 
   const restartQuiz = () => {
@@ -575,9 +586,9 @@ export function VocabularyWorkspace() {
     <div className="flex h-full flex-col">
       {/* 顶栏：标题 + 统计 + 操作 */}
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-        <h1 className="font-serif text-lg font-semibold">词汇表</h1>
+        <h1 className="font-serif text-lg font-semibold">{t("vocab.title")}</h1>
         <span className="text-xs text-muted-foreground">
-          {entries.length} 词 · {sources.length} 来源 · 已练 {records.length} 轮
+          {t("vocab.stats", { words: entries.length, sources: sources.length, rounds: records.length })}
         </span>
         <div className="flex-1" />
         <Button
@@ -588,18 +599,18 @@ export function VocabularyWorkspace() {
           onClick={openQuizConfig}
         >
           <Play className="size-3.5" />
-          开始问答
+          {t("vocab.startQuiz")}
         </Button>
         <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setSourcesOpen(true)}>
-          来源管理
+          {t("vocab.sourceManage")}
         </Button>
         <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
           <Upload className="size-3.5" />
-          AI 批量导入
+          {t("vocab.aiImport")}
         </Button>
         <Button size="sm" className="h-7 gap-1.5 text-xs" onClick={openCreate}>
           <Plus className="size-3.5" />
-          添加词条
+          {t("vocab.addEntry")}
         </Button>
       </div>
 
@@ -613,7 +624,7 @@ export function VocabularyWorkspace() {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜索词条 / 释义（支持拼音）"
+          placeholder={t("vocab.searchPlaceholder")}
           className="h-8 max-w-72"
         />
         <Select
@@ -626,15 +637,15 @@ export function VocabularyWorkspace() {
           <SelectTrigger className="h-8 w-36">
             <SelectValue>
               {sourceFilter === "all"
-                ? "全部来源"
+                ? t("vocab.allSources")
                 : sourceFilter === "none"
-                  ? "未分类"
-                  : (sourceById.get(sourceFilter)?.name ?? "全部来源")}
+                  ? t("vocab.uncategorized")
+                  : (sourceById.get(sourceFilter)?.name ?? t("vocab.allSources"))}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部来源</SelectItem>
-            <SelectItem value="none">未分类</SelectItem>
+            <SelectItem value="all">{t("vocab.allSources")}</SelectItem>
+            <SelectItem value="none">{t("vocab.uncategorized")}</SelectItem>
             {sources.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}
@@ -644,7 +655,7 @@ export function VocabularyWorkspace() {
         </Select>
         <div className="flex-1" />
         <span className="text-xs text-muted-foreground">
-          {filtered.length} 条{filtered.length > LIST_RENDER_LIMIT ? `（仅渲染前 ${LIST_RENDER_LIMIT} 条）` : ""}
+          {t("vocab.filteredCount", { n: filtered.length, limit: filtered.length > LIST_RENDER_LIMIT ? t("vocab.renderLimited", { n: LIST_RENDER_LIMIT }) : "" })}
         </span>
       </div>
 
@@ -652,12 +663,12 @@ export function VocabularyWorkspace() {
       <div className="native-scroll min-h-0 flex-1 overflow-auto px-4 py-2">
         <div className="w-full max-w-[440px]">
         {!loaded ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">加载中…</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{t("common.loading")}</p>
         ) : filtered.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
             {entries.length === 0
-              ? "词库还是空的。点右上角「AI 批量导入」或「添加词条」开始。"
-              : "没有匹配的词条。"}
+              ? t("vocab.emptyLibrary")
+              : t("vocab.noMatch")}
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5">
@@ -674,7 +685,7 @@ export function VocabularyWorkspace() {
                       <span className="min-w-0 break-all font-medium text-foreground">{e.word}</span>
                       {e.sourceId && (
                         <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {sourceNameOf(e) ?? "未知来源"}
+                          {sourceNameOf(e) ?? t("vocab.unknownSource")}
                         </span>
                       )}
                       {ratingMeta && (
@@ -684,7 +695,7 @@ export function VocabularyWorkspace() {
                       )}
                       {e.review.total > 0 && (
                         <span className="shrink-0 text-[10px] text-muted-foreground">
-                          练过 {e.review.total} 次
+                          {t("vocab.reviewed", { n: e.review.total })}
                         </span>
                       )}
                     </div>
@@ -694,8 +705,8 @@ export function VocabularyWorkspace() {
                   </div>
                   <button
                     type="button"
-                    title="编辑"
-                    aria-label={`编辑词条 ${e.word}`}
+                    title={t("common.edit")}
+                    aria-label={t("vocab.editEntryAria", { word: e.word })}
                     onClick={() => openEdit(e)}
                     className="hidden size-6 shrink-0 items-center justify-center rounded hover:bg-primary/10 group-hover:flex"
                   >
@@ -703,8 +714,8 @@ export function VocabularyWorkspace() {
                   </button>
                   <button
                     type="button"
-                    title="删除"
-                    aria-label={`删除词条 ${e.word}`}
+                    title={t("common.delete")}
+                    aria-label={t("vocab.deleteEntryAria", { word: e.word })}
                     onClick={() => setConfirmDelEntry(e)}
                     className="hidden size-6 shrink-0 items-center justify-center rounded hover:bg-destructive/10 group-hover:flex"
                   >
@@ -731,17 +742,17 @@ export function VocabularyWorkspace() {
               className="size-7 shrink-0"
               disabled={quiz.index === 0}
               onClick={() => goToQuestion(quiz.index - 1)}
-              aria-label="上一题"
+              aria-label={t("vocab.prevQ")}
             >
               <ChevronLeft className="size-4" />
             </Button>
             <span className="text-xs text-muted-foreground">
-              第 {quiz.index + 1} / {quiz.queue.length} 题 · 已用时{" "}
+              {t("vocab.questionPos", { cur: quiz.index + 1, total: quiz.queue.length })} · {t("vocab.elapsed")}{" "}
               {Math.max(
                 0,
                 Math.floor(((quiz.times[quiz.index] ?? 0) + (now - quiz.questionStart)) / 1000),
               )}{" "}
-              秒
+              {t("vocab.seconds")}
             </span>
             <Button
               variant="ghost"
@@ -749,13 +760,13 @@ export function VocabularyWorkspace() {
               className="size-7 shrink-0"
               disabled={quiz.index === quiz.queue.length - 1}
               onClick={() => goToQuestion(quiz.index + 1)}
-              aria-label="下一题"
+              aria-label={t("vocab.nextQ")}
             >
               <ChevronRight className="size-4" />
             </Button>
             <div className="flex-1" />
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setConfirmExitQuiz(true)}>
-              结束本轮
+              {t("vocab.finishRound")}
             </Button>
           </div>
 
@@ -774,7 +785,7 @@ export function VocabularyWorkspace() {
               }}
               rows={5}
               className="native-scroll w-full max-w-[440px] rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              placeholder="输入这个词的意思（释义 / 词性 / 例句均可）"
+              placeholder={t("vocab.answerPlaceholder")}
             />
           </div>
 
@@ -787,7 +798,7 @@ export function VocabularyWorkspace() {
                   <button
                     key={e.id}
                     type="button"
-                    title={`第 ${i + 1} 题 · ${e.word}`}
+                    title={t("vocab.questionN", { n: i + 1, word: e.word })}
                     onClick={() => goToQuestion(i)}
                     className={cn(
                       "flex size-7 items-center justify-center rounded-full text-xs font-medium transition-colors",
@@ -803,8 +814,7 @@ export function VocabularyWorkspace() {
               })}
             </div>
             <Button size="sm" className="h-8 text-xs" onClick={requestSubmitQuiz}>
-              提交作答（已答 {quiz.queue.length - quiz.answers.filter((a) => !a.trim()).length} /{" "}
-              {quiz.queue.length} 题）
+              {t("vocab.submitAnswers", { done: quiz.queue.length - quiz.answers.filter((a) => !a.trim()).length, total: quiz.queue.length })}
             </Button>
           </div>
         </div>
@@ -825,7 +835,7 @@ export function VocabularyWorkspace() {
                       {g === null ? (
                         <span className="ml-auto flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                           <Loader2 className="size-3 animate-spin" />
-                          评分中
+                          {t("vocab.rating")}
                         </span>
                       ) : ok ? (
                         <>
@@ -848,17 +858,17 @@ export function VocabularyWorkspace() {
                           onClick={() => void retryGrade(i)}
                         >
                           <RotateCcw className="size-3" />
-                          重试评分
+                          {t("vocab.retryRating")}
                         </button>
                       )}
                     </div>
                     <p className="mt-1 truncate text-xs text-muted-foreground" title={quiz.answers[i]}>
-                      你的作答：{quiz.answers[i]}
+                      {t("vocab.yourAnswer")}：{quiz.answers[i]}
                     </p>
                     {ok ? (
                       <p className="mt-1 text-xs text-muted-foreground">{ok.comment}</p>
                     ) : g && "error" in g ? (
-                      <p className="mt-1 text-xs text-destructive">评分失败：{g.error}</p>
+                      <p className="mt-1 text-xs text-destructive">{t("vocab.ratingFail")}：{g.error}</p>
                     ) : null}
                   </div>
                 )
@@ -868,23 +878,23 @@ export function VocabularyWorkspace() {
           <div className="flex flex-wrap items-center gap-2 border-t px-4 py-2 text-xs text-muted-foreground">
             {quizAllSuccess ? (
               <span>
-                本轮{quiz.savedId ? "已保存" : "保存中…"} · 错误 {ratingCounts.wrong} / 部分正确{" "}
-                {ratingCounts.partial} / 正确 {ratingCounts.correct} / 超越 {ratingCounts.beyond}
+                {t("vocab.roundSavedState", { saved: quiz.savedId ? t("vocab.saved") : t("vocab.saving") })} · {t("vocab.wrong")} {ratingCounts.wrong} / {t("vocab.partial")}{" "}
+                {ratingCounts.partial} / {t("vocab.correct")} {ratingCounts.correct} / {t("vocab.beyond")} {ratingCounts.beyond}
               </span>
             ) : (
-              <span>有 {quizErrCount} 题评分失败，可单独重试。</span>
+              <span>{t("vocab.someRatingFailed", { n: quizErrCount })}</span>
             )}
             <div className="flex-1" />
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={restartQuiz}>
-              再来一轮
+              {t("vocab.again")}
             </Button>
             {quizAllSuccess ? (
               <Button size="sm" className="h-7 text-xs" onClick={() => setQuiz(null)}>
-                返回列表
+                {t("vocab.backToList")}
               </Button>
             ) : (
               <Button size="sm" className="h-7 text-xs" onClick={finishPartial}>
-                返回列表（保存成功 {quizOkCount} 题）
+                {t("vocab.backToList")}（保存成功 {quizOkCount} 题）
               </Button>
             )}
           </div>
@@ -898,15 +908,15 @@ export function VocabularyWorkspace() {
         {!quizAnswering && (
         <div className="hidden w-1/2 min-w-0 flex-col border-l md:flex">
           <div className="flex items-center gap-2 border-b px-4 py-2">
-            <h2 className="text-sm font-medium">问答记录</h2>
-            <span className="text-xs text-muted-foreground">{records.length} 轮</span>
+            <h2 className="text-sm font-medium">{t("vocab.quizRecords")}</h2>
+            <span className="text-xs text-muted-foreground">{t("vocab.rounds", { n: records.length })}</span>
           </div>
           {records.length === 0 ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-              <p className="text-sm text-muted-foreground">还没有问答记录</p>
+              <p className="text-sm text-muted-foreground">{t("vocab.noRecords")}</p>
               <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={openQuizConfig}>
                 <Play className="size-3.5" />
-                开始一轮问答
+                {t("vocab.startOneQuiz")}
               </Button>
             </div>
           ) : (
@@ -917,16 +927,16 @@ export function VocabularyWorkspace() {
                 return (
                   <li
                     key={r.id}
-                    title="点击查看当时作答"
+                    title={t("vocab.viewAnswer")}
                     onClick={() => setViewingRecord(r)}
                     className="cursor-pointer rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:border-ring/40"
                   >
                     <div className="flex items-center gap-2 text-xs">
                       <span className="shrink-0 font-medium text-foreground">{formatRecordTime(r.at)}</span>
-                      <span className="truncate text-muted-foreground" title={r.sourceName ?? "全部来源"}>
-                        {r.sourceName ?? "全部来源"}
+                      <span className="truncate text-muted-foreground" title={r.sourceName ?? t("vocab.allSources")}>
+                        {r.sourceName ?? t("vocab.allSources")}
                       </span>
-                      <span className="ml-auto shrink-0 text-muted-foreground">{r.items.length} 题</span>
+                      <span className="ml-auto shrink-0 text-muted-foreground">{t("vocab.nQuestions", { n: r.items.length })}</span>
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {(Object.keys(VOCAB_RATING_META) as VocabRating[]).map((k) =>
@@ -961,47 +971,47 @@ export function VocabularyWorkspace() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editing ? "编辑词条" : "添加词条"}</DialogTitle>
+            <DialogTitle>{editing ? t("vocab.editEntry") : t("vocab.addEntryTitle")}</DialogTitle>
             <DialogDescription>
-              {editing ? "词条与释义均可修改；改成已有词条会被拦截。" : "词条重复会被拦截（与现有库精确匹配）。"}
+              {editing ? t("vocab.editEntryDesc") : t("vocab.addEntryDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="vocab-word">词条</Label>
+              <Label htmlFor="vocab-word">{t("vocab.word")}</Label>
               <Input
                 id="vocab-word"
                 value={draftWord}
                 onChange={(e) => setDraftWord(e.target.value)}
                 maxLength={100}
-                placeholder="如：abandon（最多 100 字符）"
+                placeholder={t("vocab.wordPlaceholder")}
               />
               {existingEntry && (
                 <p className="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400">
-                  <span>该词条已存在</span>
+                  <span>{t("vocab.wordExists")}</span>
                   <button
                     type="button"
                     className="shrink-0 rounded underline underline-offset-2 hover:text-foreground"
                     onClick={() => loadExistingEntry(existingEntry)}
                   >
-                    载入已有内容编辑
+                    {t("vocab.loadExisting")}
                   </button>
                 </p>
               )}
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="vocab-def">释义</Label>
+              <Label htmlFor="vocab-def">{t("vocab.definition")}</Label>
               <textarea
                 id="vocab-def"
                 value={draftDefinition}
                 onChange={(e) => setDraftDefinition(e.target.value)}
                 rows={4}
                 className="native-scroll min-h-0 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                placeholder="v. 放弃；抛弃"
+                placeholder={t("vocab.defPlaceholder")}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label>来源</Label>
+              <Label>{t("vocab.source")}</Label>
               <div className="flex items-center gap-2">
                 <Select
                   value={draftSourceId}
@@ -1015,12 +1025,12 @@ export function VocabularyWorkspace() {
                   <SelectTrigger className="flex-1">
                     <SelectValue>
                       {draftSourceId === "none"
-                        ? "未分类"
-                        : (sourceById.get(draftSourceId)?.name ?? "未分类")}
+                        ? t("vocab.uncategorized")
+                        : (sourceById.get(draftSourceId)?.name ?? t("vocab.uncategorized"))}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">未分类</SelectItem>
+                    <SelectItem value="none">{t("vocab.uncategorized")}</SelectItem>
                     {sources.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
@@ -1033,16 +1043,16 @@ export function VocabularyWorkspace() {
               <Input
                 value={draftNewSource}
                 onChange={(e) => setDraftNewSource(e.target.value)}
-                placeholder="或输入新来源名，保存时自动创建（优先于上方选择）"
+                placeholder={t("vocab.newSourcePlaceholder")}
                 className="h-7 text-xs"
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeEditor}>
-              取消
+              {t("common.cancel")}
             </Button>
-            <Button onClick={commitEntry}>{editing ? "保存" : "添加"}</Button>
+            <Button onClick={commitEntry}>{editing ? t("common.save") : t("common.add")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1054,12 +1064,12 @@ export function VocabularyWorkspace() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除词条「{truncateWord(confirmDelEntry?.word ?? "")}」？</AlertDialogTitle>
-            <AlertDialogDescription>此操作不可撤销。</AlertDialogDescription>
+            <AlertDialogTitle>{t("vocab.deleteEntryTitle", { word: truncateWord(confirmDelEntry?.word ?? "") })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("vault.deleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmDelEntry(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={doDeleteEntry}>删除</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setConfirmDelEntry(null)}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={doDeleteEntry}>{t("common.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1068,9 +1078,9 @@ export function VocabularyWorkspace() {
       <Dialog open={sourcesOpen} onOpenChange={setSourcesOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>来源管理</DialogTitle>
+            <DialogTitle>{t("vocab.sourceManage")}</DialogTitle>
             <DialogDescription>
-              来源是独立小系统：词条按 id 引用，重命名不影响词条；删除来源仅摘标记，词条保留。
+              {t("vocab.sourceDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2">
@@ -1083,17 +1093,17 @@ export function VocabularyWorkspace() {
                   void addSource()
                 }
               }}
-              placeholder="新来源名（如：书名 / 教材名）"
+              placeholder={t("vocab.newSourcePlaceholder2")}
               className="h-8 flex-1"
             />
             <Button variant="outline" className="h-8 shrink-0 gap-1" onClick={() => void addSource()}>
               <Plus className="size-3.5" />
-              添加
+              {t("common.add")}
             </Button>
           </div>
           <ul className="native-scroll flex max-h-64 flex-col gap-1 overflow-auto">
             {sources.length === 0 && (
-              <li className="py-4 text-center text-xs text-muted-foreground">还没有来源。</li>
+              <li className="py-4 text-center text-xs text-muted-foreground">{t("vocab.noSources")}</li>
             )}
             {sources.map((s) => {
               const count = entries.filter((e) => e.sourceId === s.id).length
@@ -1122,11 +1132,11 @@ export function VocabularyWorkspace() {
                       <span className="min-w-0 flex-1 truncate text-foreground" title={s.name}>
                         {s.name}
                       </span>
-                      <span className="shrink-0 text-muted-foreground">{count} 词</span>
+                      <span className="shrink-0 text-muted-foreground">{t("vocab.nWords", { n: count })}</span>
                       <button
                         type="button"
-                        title="重命名"
-                        aria-label={`重命名来源 ${s.name}`}
+                        title={t("common.rename")}
+                        aria-label={t("vocab.renameSourceAria", { name: s.name })}
                         onClick={() => {
                           setRenamingSourceId(s.id)
                           setRenameSourceDraft(s.name)
@@ -1137,8 +1147,8 @@ export function VocabularyWorkspace() {
                       </button>
                       <button
                         type="button"
-                        title="删除"
-                        aria-label={`删除来源 ${s.name}`}
+                        title={t("common.delete")}
+                        aria-label={t("vocab.deleteSourceAria", { name: s.name })}
                         onClick={() => setConfirmDelSource(s)}
                         className="hidden size-5 shrink-0 items-center justify-center rounded hover:bg-destructive/10 group-hover:flex"
                       >
@@ -1160,16 +1170,16 @@ export function VocabularyWorkspace() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除来源「{confirmDelSource?.name ?? ""}」？</AlertDialogTitle>
+            <AlertDialogTitle>{t("vocab.deleteSourceTitle", { name: confirmDelSource?.name ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
               {entries.filter((e) => e.sourceId === confirmDelSource?.id).length > 0
-                ? `${entries.filter((e) => e.sourceId === confirmDelSource?.id).length} 个词条将变为「未分类」，词条本身保留。`
-                : "该来源暂无词条引用。"}
+                ? t("vocab.deleteSourceDesc", { n: entries.filter((e) => e.sourceId === confirmDelSource?.id).length })
+                : t("vocab.sourceUnused")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmDelSource(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={doDeleteSource}>删除</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setConfirmDelSource(null)}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={doDeleteSource}>{t("common.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1178,11 +1188,11 @@ export function VocabularyWorkspace() {
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>AI 批量导入</DialogTitle>
+            <DialogTitle>{t("vocab.aiImportTitle")}</DialogTitle>
             <DialogDescription>
-              在 AI 对话里让 AI 用 wb_prepare_vocab_import 技能把书单整理成 JSON，复制其输出粘贴到此处。
-              格式：数组，每项含 word / definition / source（来源可选）。
-              重复词条自动跳过（保留旧释义），source 不存在时自动创建。
+              {t("vocab.aiImportDesc1")}
+              {t("vocab.aiImportDesc2")}
+              {t("vocab.aiImportDesc3")}
             </DialogDescription>
           </DialogHeader>
           <code className="block overflow-x-auto rounded bg-muted px-2 py-1.5 font-mono text-[10px] break-all text-muted-foreground">
@@ -1197,21 +1207,21 @@ export function VocabularyWorkspace() {
           />
           {importText.trim() && (
             <p className="text-xs text-muted-foreground">
-              解析结果：有效 {parsedImport.items.length} 条
-              {parsedImport.invalid > 0 ? `，无效 ${parsedImport.invalid} 条` : ""}
-              {duplicatesInDb > 0 ? `，与现有词库重复 ${duplicatesInDb} 条（将跳过）` : ""}
-              {parsedImport.items.length > 0 && `。预览：${parsedImport.items.slice(0, 3).map((it) => it.word).join("、")}${parsedImport.items.length > 3 ? " …" : ""}`}
+              {t("vocab.parseResult", { n: parsedImport.items.length })}
+              {parsedImport.invalid > 0 ? t("vocab.parseInvalid", { n: parsedImport.invalid }) : ""}
+              {duplicatesInDb > 0 ? t("vocab.parseDuplicates", { n: duplicatesInDb }) : ""}
+              {parsedImport.items.length > 0 && t("vocab.parsePreview", { words: parsedImport.items.slice(0, 3).map((it) => it.word).join("、"), more: parsedImport.items.length > 3 ? " …" : "" })}
             </p>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setImportOpen(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => void doImport()}
               disabled={importing || parsedImport.items.length === 0}
             >
-              {importing ? "导入中…" : `导入 ${parsedImport.items.length} 条`}
+              {importing ? t("vocab.importing") : t("vocab.importN", { n: parsedImport.items.length })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1221,15 +1231,14 @@ export function VocabularyWorkspace() {
       <Dialog open={quizConfigOpen} onOpenChange={setQuizConfigOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>开始一轮问答</DialogTitle>
+            <DialogTitle>{t("vocab.startQuizTitle")}</DialogTitle>
             <DialogDescription>
-              从所选范围随机抽词（练错过的词权重更高），自由切题作答、一次性提交后由 AI
-              结合词库释义与联网搜索评分。一次最多 100 题。
+              {t("vocab.startQuizDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <Label>出题范围</Label>
+              <Label>{t("vocab.quizScope")}</Label>
               <Select
                 value={quizScope}
                 onValueChange={(v) => {
@@ -1239,15 +1248,15 @@ export function VocabularyWorkspace() {
                 <SelectTrigger className="w-full">
                   <SelectValue>
                     {quizScope === "all"
-                      ? "全部来源"
+                      ? t("vocab.allSources")
                       : quizScope === "none"
-                        ? "未分类"
-                        : (sourceById.get(quizScope)?.name ?? "全部来源")}
+                        ? t("vocab.uncategorized")
+                        : (sourceById.get(quizScope)?.name ?? t("vocab.allSources"))}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">全部来源</SelectItem>
-                  <SelectItem value="none">未分类</SelectItem>
+                  <SelectItem value="all">{t("vocab.allSources")}</SelectItem>
+                  <SelectItem value="none">{t("vocab.uncategorized")}</SelectItem>
                   {sources.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
@@ -1255,10 +1264,10 @@ export function VocabularyWorkspace() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">范围内共 {quizPool.length} 词</p>
+              <p className="text-xs text-muted-foreground">{t("vocab.poolSize", { n: quizPool.length })}</p>
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="quiz-count">题数</Label>
+              <Label htmlFor="quiz-count">{t("vocab.questionCount")}</Label>
               <Input
                 id="quiz-count"
                 type="number"
@@ -1271,10 +1280,10 @@ export function VocabularyWorkspace() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setQuizConfigOpen(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button disabled={quizPool.length === 0} onClick={startQuiz}>
-              开始
+              {t("profile.start")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1284,12 +1293,12 @@ export function VocabularyWorkspace() {
       <AlertDialog open={confirmExitQuiz} onOpenChange={setConfirmExitQuiz}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>结束本轮问答？</AlertDialogTitle>
-            <AlertDialogDescription>已提交的作答将不保存、不评分。</AlertDialogDescription>
+            <AlertDialogTitle>{t("vocab.quitQuizTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("vocab.quitQuizDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>继续答题</AlertDialogCancel>
-            <AlertDialogAction onClick={discardQuiz}>结束</AlertDialogAction>
+            <AlertDialogCancel>{t("vocab.keepAnswering")}</AlertDialogCancel>
+            <AlertDialogAction onClick={discardQuiz}>{t("profile.finish")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1301,12 +1310,12 @@ export function VocabularyWorkspace() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>还有 {confirmSubmitQuiz ?? 0} 题未作答</AlertDialogTitle>
-            <AlertDialogDescription>未作答的题将按空白提交，AI 会评为错误。确定提交？</AlertDialogDescription>
+            <AlertDialogTitle>{t("vocab.unansweredTitle", { n: confirmSubmitQuiz ?? 0 })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("vocab.unansweredDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>继续作答</AlertDialogCancel>
-            <AlertDialogAction onClick={doSubmitQuiz}>提交</AlertDialogAction>
+            <AlertDialogCancel>{t("vocab.continueAnswering")}</AlertDialogCancel>
+            <AlertDialogAction onClick={doSubmitQuiz}>{t("vocab.submit")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1320,10 +1329,10 @@ export function VocabularyWorkspace() {
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>问答记录</DialogTitle>
+            <DialogTitle>{t("vocab.quizRecords")}</DialogTitle>
             <DialogDescription>
               {viewingRecord &&
-                `${formatRecordTime(viewingRecord.at)} · ${viewingRecord.sourceName ?? "全部来源"} · ${viewingRecord.items.length} 题`}
+                `${formatRecordTime(viewingRecord.at)} · ${viewingRecord.sourceName ?? t("vocab.allSources")} · ${viewingRecord.items.length} 题`}
             </DialogDescription>
           </DialogHeader>
           <ul className="native-scroll flex max-h-[60vh] flex-col gap-1.5 overflow-auto">
@@ -1347,7 +1356,7 @@ export function VocabularyWorkspace() {
                   </span>
                 </div>
                 <p className="mt-1 truncate text-xs text-muted-foreground" title={it.answer}>
-                  你的作答：{it.answer}
+                  {t("vocab.yourAnswer")}：{it.answer}
                 </p>
                 {it.comment && <p className="mt-1 text-xs text-muted-foreground">{it.comment}</p>}
               </li>
@@ -1355,7 +1364,7 @@ export function VocabularyWorkspace() {
           </ul>
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewingRecord(null)}>
-              关闭
+              {t("common.close")}
             </Button>
           </DialogFooter>
         </DialogContent>

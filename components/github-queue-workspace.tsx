@@ -17,6 +17,7 @@ import {
   User as UserIcon,
   Search,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { useWorkspace } from "@/lib/store"
 import { matchTextPinyin } from "@/lib/pinyin"
 import {
@@ -48,6 +49,7 @@ const COLUMNS: { id: IssueQueueColumn; label: string }[] = [
 const PER_PAGE = 100
 
 export function GithubQueueWorkspace() {
+  const { t } = useTranslation()
   const issueQueue = useWorkspace((s) => s.issueQueue)
   const addToIssueQueue = useWorkspace((s) => s.addToIssueQueue)
   const moveIssueQueueItem = useWorkspace((s) => s.moveIssueQueueItem)
@@ -82,11 +84,11 @@ export function GithubQueueWorkspace() {
   async function handleAdd() {
     const repo = parseRepoInput(repoInput)
     if (!repo.includes("/")) {
-      toast.error("仓库格式应为 owner/name 或完整 GitHub 链接")
+      toast.error(t("queue.errRepoFormat"))
       return
     }
     if (notificationRepos.some((r) => r.repo === repo)) {
-      toast.info("该仓库已在监听列表中")
+      toast.info(t("queue.repoExists"))
       return
     }
     setLoading(true)
@@ -111,7 +113,7 @@ export function GithubQueueWorkspace() {
       })
       if (!login) {
         toast.warning(
-          "已添加监听；未填写 GitHub Token，后续自动入队需 Token（设置 → 账户与同步）"
+          t("queue.addedNoToken")
         )
         setAddOpen(false)
         setRepoInput("")
@@ -121,24 +123,24 @@ export function GithubQueueWorkspace() {
       const items = isMine ? res.items : res.items.filter((it) => it.assigneeMe)
       if (items.length === 0) {
         toast.info(
-          `已添加监听（${repo} 暂无${isMine ? "" : "分配给你的"}存量 issue/PR）`
+          t("queue.addedNoBacklog", { repo, mine: isMine ? "" : t("queue.assignedToYou") })
         )
       } else {
         addToIssueQueue(items)
-        toast.success(`已添加监听并回扫 ${items.length} 条 issue/PR 入队`)
+        toast.success(t("queue.addedBackscanned", { n: items.length }))
       }
       if (res.truncated) {
-        toast.warning(`该仓库 issue/PR 超过 ${PER_PAGE} 条，仅导入前 ${PER_PAGE} 条；如需更多请缩小范围。`)
+        toast.warning(t("queue.backlogTruncated", { n: PER_PAGE }))
       }
       setAddOpen(false)
       setRepoInput("")
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "添加失败"
+      const msg = e instanceof Error ? e.message : t("queue.addFailed")
       if (msg === "RATE_LIMITED")
-        toast.error("添加失败：GitHub API 限流（403/429），请稍后重试")
+        toast.error(t("queue.rateLimitedAdd"))
       else if (msg.includes("404"))
-        toast.error(`仓库不存在（404），未添加：${repo}`)
-      else toast.error(`添加失败：${msg}`)
+        toast.error(t("queue.repoNotFound", { repo }))
+      else toast.error(t("queue.addFailedWith", { msg }))
     } finally {
       setLoading(false)
     }
@@ -148,7 +150,7 @@ export function GithubQueueWorkspace() {
   async function handleAddSingle() {
     const ref = parseIssueRef(issueInput)
     if (!ref || !ref.repo.includes("/") || !Number.isFinite(ref.number) || ref.number <= 0) {
-      toast.error("无法识别：粘贴 issue/pull 完整链接或 owner/repo#编号")
+      toast.error(t("queue.errUnrecognized"))
       return
     }
     setSingleLoading(true)
@@ -162,16 +164,16 @@ export function GithubQueueWorkspace() {
       addToIssueQueue([item])
       toast.success(
         existed
-          ? `已在队列中（状态已刷新）：${item.repo}#${item.number}`
-          : `已添加：${item.repo}#${item.number}`,
+          ? t("queue.duplicateRefreshed", { repo: item.repo, n: item.number })
+          : t("queue.addedSingle", { repo: item.repo, n: item.number }),
       )
       setAddSingleOpen(false)
       setIssueInput("")
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "添加失败"
-      if (msg === "RATE_LIMITED") toast.error("GitHub API 限流（403/429），请稍后重试")
-      else if (msg.includes("404")) toast.error("该 Issue / PR 不存在（404）")
-      else toast.error(`添加失败：${msg}`)
+      const msg = e instanceof Error ? e.message : t("queue.addFailed")
+      if (msg === "RATE_LIMITED") toast.error(t("queue.rateLimited"))
+      else if (msg.includes("404")) toast.error(t("queue.notFound404"))
+      else toast.error(t("queue.addFailedWith", { msg }))
     } finally {
       setSingleLoading(false)
     }
@@ -182,13 +184,13 @@ export function GithubQueueWorkspace() {
       {/* 顶栏 */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <GitPullRequest className="size-5 text-primary" />
-        <h1 className="text-base font-semibold">GitHub 队列</h1>
+        <h1 className="text-base font-semibold">{t("queue.title")}</h1>
         <div className="ml-3 flex items-center gap-2">
           <Search className="size-4 shrink-0 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索 issue/PR"
+            placeholder={t("queue.searchPlaceholder")}
             className="h-8 w-64 text-sm"
           />
         </div>
@@ -200,7 +202,7 @@ export function GithubQueueWorkspace() {
             onClick={() => setAddSingleOpen(true)}
           >
             <Plus className="size-4" />
-            添加 Issue/PR
+            {t("queue.addIssue")}
           </Button>
           <Button
             size="sm"
@@ -209,7 +211,7 @@ export function GithubQueueWorkspace() {
             onClick={() => setAddOpen(true)}
           >
             <Plus className="size-4" />
-            添加监听仓库
+            {t("queue.addRepo")}
           </Button>
         </div>
       </div>
@@ -228,7 +230,7 @@ export function GithubQueueWorkspace() {
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto native-scroll p-2">
                 {items.length === 0 ? (
-                  <p className="px-1 py-4 text-center text-xs text-muted-foreground">空</p>
+                  <p className="px-1 py-4 text-center text-xs text-muted-foreground">{t("queue.emptyColumn")}</p>
                 ) : (
                   items.map((it) => (
                     <QueueCard
@@ -257,16 +259,14 @@ export function GithubQueueWorkspace() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>添加监听仓库</DialogTitle>
+            <DialogTitle>{t("queue.addRepoTitle")}</DialogTitle>
             <DialogDescription>
-              输入 owner/name 或完整 GitHub 链接。添加前会先校验仓库存在（不存在的仓库不予添加）；
-              添加后自动创建 GitHub 监听（只扫描 Issue + PR 通知）并回扫一次存量 issue/PR 入队
-              （最多 {PER_PAGE} 条）；此后新动态由监听自动入队。
+              {t("queue.addRepoDesc", { n: PER_PAGE })}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="repo">仓库</Label>
+              <Label htmlFor="repo">{t("queue.repo")}</Label>
               <Input
                 id="repo"
                 placeholder="owner/repo 或 https://github.com/owner/repo"
@@ -279,10 +279,10 @@ export function GithubQueueWorkspace() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setAddOpen(false)}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAdd} disabled={loading}>
-                {loading ? "校验并添加中…" : "添加"}
+                {loading ? t("queue.verifying") : t("common.add")}
               </Button>
             </div>
           </div>
@@ -301,15 +301,14 @@ export function GithubQueueWorkspace() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>添加 Issue / PR</DialogTitle>
+            <DialogTitle>{t("queue.addIssueTitle")}</DialogTitle>
             <DialogDescription>
-              粘贴 issue / pull 完整链接（含 #锚点也可以）或 owner/repo#编号。
-              已在队列中时会刷新其状态，不改变所在列。
+              {t("queue.addIssueDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="issue-ref">链接或编号</Label>
+              <Label htmlFor="issue-ref">{t("queue.linkOrNumber")}</Label>
               <Input
                 id="issue-ref"
                 placeholder="https://github.com/owner/repo/issues/123 或 owner/repo#123"
@@ -322,10 +321,10 @@ export function GithubQueueWorkspace() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setAddSingleOpen(false)}>
-                取消
+                {t("common.cancel")}
               </Button>
               <Button onClick={handleAddSingle} disabled={singleLoading}>
-                {singleLoading ? "获取中…" : "添加"}
+                {singleLoading ? t("queue.fetching") : t("common.add")}
               </Button>
             </div>
           </div>
@@ -344,6 +343,7 @@ function QueueCard({
   onMove: (c: IssueQueueColumn) => void
   onRemove: () => void
 }) {
+  const { t } = useTranslation()
   const isPr = item.kind === "pr"
   return (
     <div className="rounded-md border bg-card p-2.5 text-sm shadow-sm">
@@ -373,8 +373,8 @@ function QueueCard({
         <span className="rounded bg-muted px-1 py-0.5">
           {item.repo}#{item.number}
         </span>
-        {item.merged && <span className="text-green-600">已合并</span>}
-        {item.state === "closed" && !item.merged && <span>已关闭</span>}
+        {item.merged && <span className="text-green-600">{t("queue.merged")}</span>}
+        {item.state === "closed" && !item.merged && <span>{t("queue.closed")}</span>}
         {item.assigneeMe && <span className="text-emerald-600">@me</span>}
         <a
           href={item.htmlUrl}
@@ -383,7 +383,7 @@ function QueueCard({
           className="inline-flex items-center gap-0.5 hover:text-foreground"
         >
           <ExternalLink className="size-3" />
-          打开
+          {t("queue.open")}
         </a>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1">
@@ -402,7 +402,7 @@ function QueueCard({
           onClick={onRemove}
           className="ml-auto rounded border px-1.5 py-0.5 text-[11px] text-destructive transition-colors hover:bg-destructive/10"
         >
-          删除
+          {t("common.delete")}
         </button>
       </div>
     </div>

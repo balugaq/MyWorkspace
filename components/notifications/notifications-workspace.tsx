@@ -13,6 +13,7 @@ import { matchTextPinyin } from "@/lib/pinyin"
 import type { NewsDetail, NotificationItem } from "@/lib/types"
 import { GH_EVENT_LABEL } from "@/lib/types"
 import { SENDER_META, senderDisplayName } from "@/lib/notifications/senders"
+import { useTranslation, getI18n } from "react-i18next"
 import { triggerNewsManually } from "@/lib/notifications/news-sender"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -20,11 +21,11 @@ import { Bell, ChevronDown, Link2, RefreshCw, Search, Settings as SettingsIcon }
 import { Input } from "@/components/ui/input"
 
 const KIND_META: Record<string, { label: string; className: string }> = {
-  commit: { label: "提交", className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
+  commit: { label: "notif.type.commit", className: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
   issue: { label: "Issue", className: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
   pr: { label: "PR", className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
-  release: { label: "发布", className: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
-  news: { label: "新闻", className: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
+  release: { label: "notif.type.release", className: "bg-violet-500/10 text-violet-600 dark:text-violet-400" },
+  news: { label: "notif.type.news", className: "bg-rose-500/10 text-rose-600 dark:text-rose-400" },
 }
 
 /** 相对时间：N 分钟前 / N 小时前 / N 天前；超 30 天回落绝对日期。 */
@@ -32,12 +33,13 @@ function relativeTimeMs(at: number): string {
   if (!Number.isFinite(at)) return ""
   const diff = Date.now() - at
   const minutes = Math.floor(diff / 60_000)
-  if (minutes < 1) return "刚刚"
-  if (minutes < 60) return `${minutes} 分钟前`
+  const gt = (key: string, params?: Record<string, unknown>) => getI18n().t(key, params)
+  if (minutes < 1) return gt("notif.justNow") as string
+  if (minutes < 60) return gt("notif.minutesAgo", { n: minutes }) as string
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} 小时前`
+  if (hours < 24) return gt("notif.hoursAgo", { n: hours }) as string
   const days = Math.floor(hours / 24)
-  if (days <= 30) return `${days} 天前`
+  if (days <= 30) return gt("notif.daysAgo", { n: days }) as string
   const d = new Date(at)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
@@ -60,13 +62,14 @@ function DetailRow({ label, value }: { label: string; value: string }) {
  * 浅色主题回落主题 token（bg-card / muted / border）给合理对应。
  */
 function NewsDetailCard({ detail }: { detail: NewsDetail }) {
+  const { t } = useTranslation()
   const rows: [string, string][] = [
-    ["时间", detail.time],
-    ["地点", detail.place],
-    ["人物", detail.individuals],
-    ["经过", detail.throughout],
-    ["影响", detail.effect],
-    ["精神", detail.spirit],
+    ["notif.detail.time", detail.time],
+    ["notif.detail.place", detail.place],
+    ["notif.detail.people", detail.individuals],
+    ["notif.detail.throughout", detail.throughout],
+    ["notif.detail.effect", detail.effect],
+    ["notif.detail.spirit", detail.spirit],
   ]
   return (
     <article className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 pl-6 text-left dark:border-[#2a2a2d] dark:bg-[#151517] dark:text-[#e8e8e8]">
@@ -75,10 +78,10 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           <span className="shrink-0 rounded-md bg-[#e86c3a] px-2.5 py-1 text-xs font-semibold tracking-wide text-white">
-            {detail.field || "新闻"}
+            {detail.field || t("notif.type.newsShort")}
           </span>
           <h3 className="min-w-0 break-words text-base font-bold leading-snug dark:text-white">
-            {detail.title || "（无标题）"}
+            {detail.title || t("notif.untitled")}
           </h3>
         </div>
         {detail.time && (
@@ -104,7 +107,7 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
       {detail.essayExample && (
         <div className="mt-5 rounded-lg border border-border bg-muted/60 p-4 dark:border-[#2e2e33] dark:bg-[#1c1c20]">
           <p className="text-xs font-semibold tracking-widest text-muted-foreground dark:text-[#88898c]">
-            作文素材
+            {t("notif.essayMaterial")}
           </p>
           <p className="mt-2 break-words text-left text-sm font-medium leading-relaxed text-foreground/90 dark:text-[#e8e8e8]">
             {detail.essayExample}
@@ -122,7 +125,7 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-3.5 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground dark:border-[#2a2a2d] dark:bg-[#1e1e22] dark:text-[#88898c] dark:hover:bg-[#2a2a30] dark:hover:text-[#e8e8e8]"
             >
               <Link2 className="size-3.5" aria-hidden />
-              相关链接 {detail.link.length > 1 ? i + 1 : ""}
+              {t("notif.relatedLinks")} {detail.link.length > 1 ? i + 1 : ""}
             </a>
           ))}
         </div>
@@ -133,6 +136,7 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
 
 /** 新闻包卡片（TODO 44 / 57 改版）：一轮精选 1 条；点击「展开」在列表内直接铺开全部 ref.txt 样式小新闻卡（默认收起），不再弹 Dialog */
 function NewsPackCard({ item }: { item: NotificationItem }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const pack = item.newsPack ?? []
   return (
@@ -144,10 +148,10 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
             KIND_META.news.className,
           )}
         >
-          新闻包
+          {t("notif.newsPack")}
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
-        <span className="min-w-0 truncate text-muted-foreground">共 {pack.length} 条精选</span>
+        <span className="min-w-0 truncate text-muted-foreground">{t("notif.packCount", { n: pack.length })}</span>
         <span className="ml-auto shrink-0 text-muted-foreground/70">
           {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
         </span>
@@ -160,11 +164,11 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
           onClick={() => setExpanded((v) => !v)}
         >
           <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} aria-hidden />
-          {expanded ? "收起" : `展开 ${pack.length} 条`}
+          {expanded ? t("common.collapse") : t("notif.expand", { n: pack.length })}
         </Button>
       </div>
       <p className="truncate text-sm font-medium text-foreground" title={item.title}>
-        {item.title || "（无标题）"}
+        {item.title || t("notif.untitled")}
       </p>
       {item.brief && (
         <p className="truncate text-xs text-muted-foreground" title={item.brief}>
@@ -186,9 +190,10 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
  *  用 div + role="button" 而非 <button>：button 内部 flex 子项的 min-content 计算有浏览器怪癖，
  *  min-w-0 压不住 nowrap 长文（issue/pr 卡实测溢出），div 容器无此问题。 */
 function NewsCard({ item }: { item: NotificationItem }) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const d: NewsDetail | undefined = item.news
-  const isDomestic = (d?.field ?? "").includes("国内")
+  const isDomestic = (d?.field ?? "").includes("国内") // 国内判定走数据原文，与语言无关
   return (
     <div
       role="button"
@@ -214,7 +219,7 @@ function NewsCard({ item }: { item: NotificationItem }) {
               : "bg-sky-500/10 text-sky-600 dark:text-sky-400",
           )}
         >
-          {d?.field || "新闻"}
+          {d?.field || t("notif.type.newsShort")}
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
         {item.brief && (
@@ -231,20 +236,20 @@ function NewsCard({ item }: { item: NotificationItem }) {
         </span>
       </div>
       <p className="truncate text-sm font-medium text-foreground" title={item.title}>
-        {item.title || "（无标题）"}
+        {item.title || t("notif.untitled")}
       </p>
       {expanded && d && (
         <div className="mt-1 flex flex-col gap-1.5 border-t pt-2">
-          <DetailRow label="时间" value={d.time} />
-          <DetailRow label="地点" value={d.place} />
-          <DetailRow label="人物" value={d.individuals} />
-          <DetailRow label="经过" value={d.throughout} />
-          <DetailRow label="影响" value={d.effect} />
-          <DetailRow label="精神" value={d.spirit} />
+          <DetailRow label={t("notif.detail.time")} value={d.time} />
+          <DetailRow label={t("notif.detail.place")} value={d.place} />
+          <DetailRow label={t("notif.detail.people")} value={d.individuals} />
+          <DetailRow label={t("notif.detail.throughout")} value={d.throughout} />
+          <DetailRow label={t("notif.detail.effect")} value={d.effect} />
+          <DetailRow label={t("notif.detail.spirit")} value={d.spirit} />
           {d.essayExample && (
             <div className="mt-1 rounded-md border-l-2 border-l-primary/40 bg-background/60 px-3 py-2">
               <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                作文素材
+                {t("notif.essayMaterial")}
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-foreground/90">{d.essayExample}</p>
             </div>
@@ -261,7 +266,7 @@ function NewsCard({ item }: { item: NotificationItem }) {
                   className="inline-flex items-center gap-1 rounded border bg-background px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <Link2 className="size-3" aria-hidden />
-                  相关链接 {d.link.length > 1 ? i + 1 : ""}
+                  {t("notif.relatedLinks")} {d.link.length > 1 ? i + 1 : ""}
                 </a>
               ))}
             </div>
@@ -274,6 +279,7 @@ function NewsCard({ item }: { item: NotificationItem }) {
 
 /** 失败通知等无富字段的 news 条目（TODO 44）：news / newsPack 均缺省时的兜底渲染 */
 function PlainNewsCard({ item }: { item: NotificationItem }) {
+  const { t } = useTranslation()
   return (
     <div className="flex w-full min-w-0 flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left">
       <div className="flex items-center gap-2 text-xs">
@@ -286,7 +292,7 @@ function PlainNewsCard({ item }: { item: NotificationItem }) {
         </span>
       </div>
       <p className="truncate text-sm font-medium text-foreground" title={item.title}>
-        {item.title || "（无标题）"}
+        {item.title || t("notif.untitled")}
       </p>
       {item.brief && (
         <p className="truncate text-xs text-muted-foreground" title={item.brief}>
@@ -299,6 +305,7 @@ function PlainNewsCard({ item }: { item: NotificationItem }) {
 
 /** GitHub sender 卡片：div + role="button"（button 内部 flex 子项 min-content 怪癖会让 truncate 失效，见 NewsCard 注释） */
 function GithubCard({ item }: { item: NotificationItem }) {
+  const { t } = useTranslation()
   const meta = KIND_META[item.kind]
   const open = () => window.open(item.url, "_blank", "noopener")
   return (
@@ -316,7 +323,7 @@ function GithubCard({ item }: { item: NotificationItem }) {
     >
       <div className="flex items-center gap-2 text-xs">
         <span className={cn("shrink-0 rounded px-1.5 py-0.5 font-medium", meta.className)}>
-          {item.number != null ? `${meta.label} #${item.number}` : meta.label}
+          {item.number != null ? `${t(meta.label)} #${item.number}` : t(meta.label)}
           {(item.event ?? "open") !== "open" && ` · ${GH_EVENT_LABEL[item.event ?? "open"]}`}
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
@@ -326,7 +333,7 @@ function GithubCard({ item }: { item: NotificationItem }) {
         </span>
       </div>
       <p className="min-w-0 truncate text-sm font-medium text-foreground" title={item.title}>
-        {item.title || "（无标题）"}
+        {item.title || t("notif.untitled")}
       </p>
       {item.brief && (
         <p className="min-w-0 truncate text-xs text-muted-foreground" title={item.brief}>
@@ -343,6 +350,7 @@ type SenderFilter = "all" | "github" | "news"
  * 手动触发新闻精选（仅「新闻精选」tab 显示）：改版后随时可点（仅受 newsEnabled 开关与防重入约束）。
  */
 function TriggerNewsButton() {
+  const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const newsEnabled = useWorkspace((s) => s.settings.newsEnabled)
   const handle = async () => {
@@ -351,31 +359,31 @@ function TriggerNewsButton() {
     try {
       const r = await triggerNewsManually()
       if (r === "disabled") {
-        toast.error("新闻精选未开启，请先到「设置 → 新闻精选」开启")
+        toast.error(t("notif.newsDisabled"))
         return
       }
       if (r === "running") {
-        toast.info("上一轮新闻精选仍在生成中，请稍候")
+        toast.info(t("notif.newsBusy"))
         return
       }
       if (r.status === "no-ai") {
-        toast.error("未配置可用的 AI 模型，请先在 AI 助手设置中配置")
+        toast.error(t("notif.noModel"))
         return
       }
       if (r.status === "no-entries") {
-        toast.error(`热榜拉取失败（${r.failedSources.join("、") || "全部平台"}），本轮未触发`)
+        toast.error(t("notif.hotFetchFail", { sources: r.failedSources.join("、") || t("notif.allPlatforms") }))
         return
       }
       if (r.status === "error") {
-        toast.error("新闻精选执行失败，请稍后重试")
+        toast.error(t("notif.newsFail"))
         return
       }
       if (r.picked > 0 && r.fresh > 0) {
-        toast.success(`已精选 ${r.picked} 条新闻，生成新闻包通知`)
+        toast.success(t("notif.newsPicked", { n: r.picked }))
       } else if (r.picked === 0 && r.fresh > 0) {
-        toast.warning("本轮运行失败，已发失败通知（详见通知中心）")
+        toast.warning(t("notif.roundFail"))
       } else {
-        toast.info("本轮结果已在通知中心，无新增")
+        toast.info(t("notif.noNew"))
       }
     } finally {
       setBusy(false)
@@ -392,13 +400,14 @@ function TriggerNewsButton() {
         onClick={handle}
       >
         <RefreshCw className={cn("size-3.5", busy && "animate-spin")} aria-hidden />
-        {busy ? "生成中…" : "手动触发"}
+        {busy ? t("notif.generating") : t("notif.manualTrigger")}
       </Button>
     </span>
   )
 }
 
 export function NotificationsWorkspace() {
+  const { t } = useTranslation()
   const notifications = useWorkspace((s) => s.notifications)
   const goSettings = useWorkspace((s) => s.goSettings)
   const [senderFilter, setSenderFilter] = useState<SenderFilter>("all")
@@ -427,7 +436,7 @@ export function NotificationsWorkspace() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center px-8 py-6">
-        <h1 className="text-2xl font-bold leading-tight text-foreground">通知</h1>
+        <h1 className="text-2xl font-bold leading-tight text-foreground">{t("notif.title")}</h1>
       </header>
 
       <div className="native-scroll min-h-0 flex-1 overflow-auto px-8">
@@ -448,7 +457,7 @@ export function NotificationsWorkspace() {
                         : "bg-muted/60 text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {f === "all" ? "全部" : (SENDER_META[f]?.name ?? f)}
+                    {f === "all" ? t("notif.allSenders") : (SENDER_META[f]?.name ?? f)}
                   </button>
                 ))}
                 {senderFilter === "news" && (
@@ -463,7 +472,7 @@ export function NotificationsWorkspace() {
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="搜索通知…"
+                  placeholder={t("notif.searchPlaceholder")}
                   className="pl-8"
                 />
               </div>
@@ -473,25 +482,25 @@ export function NotificationsWorkspace() {
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
               <Bell className="size-8 text-muted-foreground/60" />
-              <p className="text-sm font-medium">暂无通知</p>
+              <p className="text-sm font-medium">{t("notif.empty")}</p>
               <p className="text-xs text-muted-foreground">
-                GitHub 动态与新闻精选出现后都会聚合到这里；可在设置中配置扫描仓库或开启新闻精选。
+                {t("notif.emptyDesc")}
               </p>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={goSettings}>
                 <SettingsIcon className="size-3.5" />
-                去设置
+                {t("notif.goSettings")}
               </Button>
             </div>
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed px-6 py-10 text-center">
               <Bell className="size-8 text-muted-foreground/60" />
-              <p className="text-sm font-medium">{search.trim() ? "没有匹配的通知" : "该来源暂无通知"}</p>
+              <p className="text-sm font-medium">{search.trim() ? t("notif.noMatch") : t("notif.noneFromSender")}</p>
               <p className="text-xs text-muted-foreground">
                 {search.trim()
-                  ? "换个关键词试试，或清空搜索查看全部。"
+                  ? t("notif.tryOtherKeyword")
                   : senderFilter === "news"
-                    ? "新闻精选每天最多触发一次（18:00 为一天分界），可手动触发本轮。"
-                    : "在设置页配置要扫描的仓库后，commit、Issue、PR 与 Release 动态会出现在这里。"}
+                    ? t("notif.newsOnceDaily")
+                    : t("notif.repoHint")}
               </p>
               {!search.trim() && senderFilter === "news" && <TriggerNewsButton />}
             </div>

@@ -715,9 +715,9 @@ TODO 74. （状态：待处理）
 - ~~批 6：联系人（contacts-workspace）~~ ✅ 2026-10-17 完成（contacts 命名空间；TYPE_LABEL 改 key 映射、自定义类型原文直显）
 - ~~批 7：保险库（vault-workspace）~~ ✅ 2026-10-17 完成（vault 命名空间；provider 的 throw error message 属 lib 层，归批 13）
 - ~~批 8：个人主页（profile-workspace / weather-widget）~~ ✅ 2026-10-17 完成（profile/weather 命名空间；CN_MONTHS/月大小/星期改 key 化；「今日待办」AI prompt 整段插值）
-- 批 9：通知（notifications-workspace / notification-toast-queue / health-reminder-toasts）
-- 批 10：GitHub 队列（github-queue-workspace）
-- 批 11：词汇表（vocabulary-workspace）
+- ~~批 9：通知（notifications-workspace / notification-toast-queue / health-reminder-toasts）~~ ✅ 2026-10-17 完成（notif/health 命名空间；relativeTimeMs 用 getI18n()；国内判定走数据原文与语言无关）
+- ~~批 10：GitHub 队列（github-queue-workspace）~~ ✅ 2026-10-17 完成（queue 命名空间，监听/单条添加全套错误 toast）
+- ~~批 11：词汇表（vocabulary-workspace）~~ ✅ 2026-10-17 完成（vocab 命名空间 ~90 key；导入报告改尾段插值拼接）
 - 批 12：设置页剩余分区（shortcuts / account / ai / advanced / notifications / news 六个分区的文案）
 - 批 13：lib 层系统文案（store toast / notifications senders / scheduler / qq-channel——非组件内直接 i18n.t()，语言切换后新文案按当前语言）
 - 专项遗留：brand-header 生日横幅模板串（复杂插值，待专项）、search.ts 数据层 typeLabel（已改渲染处动态 t，数据字段留着无碍）。

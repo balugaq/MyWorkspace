@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { CupSoda, PersonStanding, X } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { useWorkspace } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
@@ -28,18 +29,19 @@ const CHECK_MS = 60 * 1000
 
 const REMINDER_META: Record<ReminderCard["kind"], { title: string; message: string; icon: typeof CupSoda }> = {
   water: {
-    title: "喝水提醒",
-    message: "已经工作 2 小时啦，记得喝杯水休息一下",
+    title: "health.waterTitle",
+    message: "health.waterMessage",
     icon: CupSoda,
   },
   stand: {
-    title: "站立提醒",
-    message: "不能久坐，已经 4 小时了，起来站立活动一下吧",
+    title: "health.standTitle",
+    message: "health.standMessage",
     icon: PersonStanding,
   },
 }
 
 export function HealthReminderToasts() {
+  const { t } = useTranslation()
   const [cards, setCards] = useState<ReminderCard[]>([])
   const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set())
 
@@ -124,12 +126,12 @@ export function HealthReminderToasts() {
           >
             <Icon className="mt-0.5 size-5 shrink-0 text-primary" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{meta.title}</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{meta.message}</p>
+              <p className="text-sm font-medium">{t(meta.title)}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{t(meta.message)}</p>
             </div>
             <button
               type="button"
-              aria-label="关闭提醒"
+              aria-label={t("notif.closeToast")}
               className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground"
               onClick={() => dismiss(card.id)}
             >

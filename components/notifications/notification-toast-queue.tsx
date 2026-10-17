@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { X } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { useWorkspace } from "@/lib/store"
 import type { NotificationItem } from "@/lib/types"
 import { subscribeNotificationToasts } from "@/lib/notifications/toast-bus"
@@ -27,6 +28,7 @@ function clip(text: string, max = 20): string {
 }
 
 export function NotificationToastQueue() {
+  const { t } = useTranslation()
   const goNotifications = useWorkspace((s) => s.goNotifications)
   // FIFO 队列 + 当前展示条 + 滑入/滑出可视态；summaryCount 非空时展示合并摘要（TODO 42）
   const [queue, setQueue] = useState<NotificationItem[]>([])
@@ -166,11 +168,11 @@ export function NotificationToastQueue() {
     >
       <div className="flex items-center gap-2 border-b px-3 py-1.5">
         <span className="text-xs font-semibold">
-          {current ? senderDisplayName(current.senderId) : "通知中心"}
+          {current ? senderDisplayName(current.senderId) : t("notif.title")}
         </span>
         <button
           type="button"
-          aria-label="关闭通知"
+          aria-label={t("notif.closeToast")}
           onClick={(e) => {
             e.stopPropagation()
             dismiss()
@@ -183,14 +185,14 @@ export function NotificationToastQueue() {
       <div className="flex flex-col gap-0.5 px-3 py-2">
         {current ? (
           <>
-            <p className="truncate text-sm font-medium">{clip(current.title) || "（无标题）"}</p>
+            <p className="truncate text-sm font-medium">{clip(current.title) || t("notif.untitled")}</p>
             {current.brief.trim() && (
               <p className="truncate text-xs text-muted-foreground">{clip(current.brief)}</p>
             )}
           </>
         ) : (
           // TODO 42：堆积合并摘要
-          <p className="truncate text-sm font-medium">你有 {summaryCount} 条新消息</p>
+          <p className="truncate text-sm font-medium">{t("notif.summaryCount", { n: summaryCount })}</p>
         )}
       </div>
     </div>
