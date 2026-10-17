@@ -21,7 +21,7 @@ import {
 import { clearAllImages } from "@/lib/image-store"
 import { clearVault } from "@/lib/vault-store"
 import { parseRepoInput } from "@/lib/github-queue"
-import { useTranslation } from "react-i18next"
+import { useTranslation, getI18n } from "react-i18next"
 import { syncLocale, APP_LOCALES } from "@/lib/i18n"
 import type { UILanguage } from "@/lib/types"
 import {
@@ -146,10 +146,10 @@ const REPO_RE = /^[\w.-]+\/[\w.-]+$/
 
 // 扫描类型开关元信息（键对应 NotificationScanTypes；label 用于仓库行内的紧凑勾选）
 const SCAN_TYPE_META: { key: keyof NotificationScanTypes; label: string }[] = [
-  { key: "commits", label: "提交" },
+  { key: "commits", label: "settings.scanType.commits" },
   { key: "issues", label: "Issue" },
   { key: "prs", label: "PR" },
-  { key: "releases", label: "发布" },
+  { key: "releases", label: "settings.scanType.releases" },
 ]
 
 // 设置分类清单（TODO 25 打磨）：左侧导航按钮按此渲染，右侧只显示选中分类的内容
@@ -173,7 +173,7 @@ function stamp(at: number): string {
 
 function exportNotificationLogs(logs: NotificationLogEntry[], format: "txt" | "json"): void {
   if (logs.length === 0) {
-    toast.info("暂无日志可导出")
+    toast.info(getI18n().t("settings.logsEmpty"))
     return
   }
   const ts = stamp(Date.now()).replace(/[-: ]/g, "")
@@ -199,12 +199,13 @@ function exportNotificationLogs(logs: NotificationLogEntry[], format: "txt" | "j
   a.download = `notification-logs-${ts}.${format}`
   a.click()
   URL.revokeObjectURL(url)
-  toast.success(`已导出 ${logs.length} 条日志`)
+  toast.success(getI18n().t("settings.logsExported", { n: logs.length }))
 }
 
 // 标签管理（TODO 67）：全站标签体系统一管理（随笔章节 / 思维图节点 / 联系人角色 / 全局标签库）。
 // 列表含使用统计与拼音搜索；支持创建（入标签库）、重命名（撞已有名自动合并）、删除（全站清理）。
 function TagManagerBlock() {
+  const { t } = useTranslation()
   const categories = useWorkspace((s) => s.categories)
   const relationFamilies = useWorkspace((s) => s.relationFamilies)
   const knownTags = useWorkspace((s) => s.knownTags)
@@ -242,11 +243,11 @@ function TagManagerBlock() {
     setCreateName("")
     if (!name) return
     if (allTags.some((t) => t === name)) {
-      toast.error(`标签「${name}」已存在`)
+      toast.error(t("settings.tagExists", { name }))
       return
     }
     addKnownTags([name])
-    toast.success(`已创建标签「${name}」`)
+    toast.success(t("settings.tagCreated", { name }))
   }
 
   const commitRename = () => {
@@ -259,9 +260,9 @@ function TagManagerBlock() {
     const merged = allTags.some((t) => t === to)
     const changed = renameTag(from, to)
     if (merged) {
-      toast.success(`已合并进「${to}」，更新 ${changed} 处引用`)
+      toast.success(t("settings.tagMerged", { to, n: changed }))
     } else {
-      toast.success(changed > 0 ? `已重命名为「${to}」，更新 ${changed} 处引用` : `已重命名为「${to}」`)
+      toast.success(changed > 0 ? t("settings.tagRenamedWith", { to, n: changed }) : t("settings.tagRenamed", { to }))
     }
   }
 
@@ -270,19 +271,19 @@ function TagManagerBlock() {
     setConfirmDel(null)
     if (!name) return
     const removed = deleteTag(name)
-    toast.success(removed > 0 ? `已删除标签「${name}」，清理 ${removed} 处引用` : `已删除标签「${name}」`)
+    toast.success(removed > 0 ? t("settings.tagDeletedWith", { name, n: removed }) : t("settings.tagDeleted", { name }))
   }
 
   const delCount = confirmDel ? (usage.get(confirmDel) ?? 0) : 0
 
   return (
     <section className="flex flex-col gap-2">
-      <Label className="text-xs font-medium text-muted-foreground">标签管理</Label>
+      <Label className="text-xs font-medium text-muted-foreground">{t("settings.tagManage")}</Label>
       <div className="flex items-center gap-2">
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜索标签（支持拼音）"
+          placeholder={t("settings.tagSearchPlaceholder")}
           className="h-8 flex-1"
         />
         {creating ? (
@@ -301,7 +302,7 @@ function TagManagerBlock() {
                 setCreateName("")
               }
             }}
-            placeholder="新标签名"
+            placeholder={t("settings.newTagPlaceholder")}
             className="h-8 w-36"
           />
         ) : (
@@ -314,19 +315,19 @@ function TagManagerBlock() {
             }}
           >
             <Plus className="size-3.5" />
-            新建标签
+            {t("settings.createTag")}
           </Button>
         )}
       </div>
 
       {visible.length > 0 ? (
         <ul className="native-scroll flex max-h-64 flex-col gap-1 overflow-auto pr-1">
-          {visible.map((t) => (
+          {visible.map((tg) => (
             <li
-              key={t}
+              key={tg}
               className="group flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-xs"
             >
-              {renaming === t ? (
+              {renaming === tg ? (
                 <input
                   autoFocus
                   ref={renameInputRef}
@@ -349,19 +350,19 @@ function TagManagerBlock() {
               ) : (
                 <>
                   <TagIcon className="size-3 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-foreground" title={t}>
-                    {t}
+                  <span className="min-w-0 flex-1 truncate text-foreground" title={tg}>
+                    {tg}
                   </span>
                   <span className="shrink-0 text-muted-foreground">
-                    {(usage.get(t) ?? 0) > 0 ? `${usage.get(t)} 处使用` : "仅标签库"}
+                    {(usage.get(tg) ?? 0) > 0 ? t("settings.tagUsage", { n: usage.get(tg) ?? 0 }) : t("settings.tagOnlyLib")}
                   </span>
                   <button
                     type="button"
-                    title="重命名"
-                    aria-label={`重命名标签 ${t}`}
+                    title={t("common.rename")}
+                    aria-label={t("settings.renameTagAria", { name: tg })}
                     onClick={() => {
-                      setRenaming(t)
-                      setRenameDraft(t)
+                      setRenaming(tg)
+                      setRenameDraft(tg)
                     }}
                     className="hidden size-5 shrink-0 items-center justify-center rounded hover:bg-primary/10 group-hover:flex"
                   >
@@ -369,9 +370,9 @@ function TagManagerBlock() {
                   </button>
                   <button
                     type="button"
-                    title="删除"
-                    aria-label={`删除标签 ${t}`}
-                    onClick={() => setConfirmDel(t)}
+                    title={t("common.delete")}
+                    aria-label={t("settings.deleteTagAria", { name: tg })}
+                    onClick={() => setConfirmDel(tg)}
                     className="hidden size-5 shrink-0 items-center justify-center rounded hover:bg-destructive/10 group-hover:flex"
                   >
                     <Trash2 className="size-3 text-destructive" />
@@ -383,12 +384,11 @@ function TagManagerBlock() {
         </ul>
       ) : (
         <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
-          {allTags.length === 0 ? "还没有标签，点击「新建标签」创建。" : "没有匹配的标签。"}
+          {allTags.length === 0 ? t("settings.noTags") : t("settings.noTagMatch")}
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        标签贯穿随笔章节、思维图节点与联系人角色。重命名会全站同步（重命名成已有标签名时自动合并）；
-        删除会从所有使用处与标签库一并清理，不可撤销。
+        {t("settings.tagDesc")}
       </p>
 
       {/* 删除确认：全站清理不可撤销 */}
@@ -398,16 +398,16 @@ function TagManagerBlock() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除标签「{confirmDel ?? ""}」？</AlertDialogTitle>
+            <AlertDialogTitle>{t("settings.deleteTagTitle", { name: confirmDel ?? "" })}</AlertDialogTitle>
             <AlertDialogDescription>
               {delCount > 0
-                ? `将从 ${delCount} 处使用（章节 / 思维图节点 / 联系人角色）及标签库中移除该标签。此操作不可撤销。`
-                : "该标签尚未被任何内容使用，将仅从标签库中移除。"}
+                ? t("settings.deleteTagDescUsed", { n: delCount })
+                : t("settings.deleteTagDescUnused")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmDel(null)}>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={doDelete}>删除</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setConfirmDel(null)}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={doDelete}>{t("common.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -428,6 +428,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // 自动备份管理（TODO 60）：列表 / 立即备份 / 恢复（替换导入）/ 删除。
 // 日常备份由 AutoBackupWatcher 在页面隐藏/关闭时自动做（当天一次），此处提供手动兜底与恢复入口。
 function AutoBackupManager() {
+  const { t } = useTranslation()
   const [list, setList] = useState<AutoBackupEntry[]>([])
   const [busy, setBusy] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState<AutoBackupEntry | null>(null)
@@ -445,10 +446,10 @@ function AutoBackupManager() {
     setBusy(true)
     try {
       await saveAutoBackup(true)
-      toast.success("已保存一份自动备份")
+      toast.success(t("settings.backupSaved"))
       refresh()
     } catch {
-      toast.error("自动备份保存失败")
+      toast.error(t("settings.backupFail"))
     } finally {
       setBusy(false)
     }
@@ -459,12 +460,12 @@ function AutoBackupManager() {
     try {
       const ok = await restoreAutoBackup(entry.json)
       if (ok) {
-        toast.success(`已恢复 ${new Date(entry.at).toLocaleString()} 的备份（替换导入）`)
+        toast.success(t("settings.restored", { time: new Date(entry.at).toLocaleString() }))
       } else {
-        toast.error("恢复失败：备份数据解析不通过")
+        toast.error(t("settings.restoreParseFail"))
       }
     } catch {
-      toast.error("恢复失败")
+      toast.error(t("settings.restoreFail"))
     } finally {
       setBusy(false)
       setConfirmRestore(null)
@@ -482,13 +483,13 @@ function AutoBackupManager() {
 
   return (
     <section className="flex flex-col gap-2">
-      <Label className="text-xs font-medium text-muted-foreground">自动备份（保留最近 {AUTO_BACKUP_KEEP} 份）</Label>
+      <Label className="text-xs font-medium text-muted-foreground">{t("settings.autoBackup", { n: AUTO_BACKUP_KEEP })}</Label>
       <div className="flex items-center gap-2">
         <Button variant="outline" className="gap-2" onClick={doBackup} disabled={busy}>
           <History className="size-4" />
-          立即备份
+          {t("settings.backupNow")}
         </Button>
-        <span className="text-xs text-muted-foreground">{list.length} 份备份</span>
+        <span className="text-xs text-muted-foreground">{t("settings.backupCount", { n: list.length })}</span>
       </div>
       {list.length > 0 && (
         <ul className="flex flex-col gap-1">
@@ -509,8 +510,8 @@ function AutoBackupManager() {
               </span>
               <button
                 type="button"
-                title="恢复此备份（替换当前数据，除保险库外全部分区）"
-                aria-label="恢复此备份"
+                title={t("settings.restoreThisTitle")}
+                aria-label={t("settings.restoreThis")}
                 onClick={() => setConfirmRestore(entry)}
                 className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-primary/10"
               >
@@ -518,8 +519,8 @@ function AutoBackupManager() {
               </button>
               <button
                 type="button"
-                title="删除此备份"
-                aria-label="删除此备份"
+                title={t("settings.deleteBackup")}
+                aria-label={t("settings.deleteBackup")}
                 onClick={() => doDelete(entry)}
                 className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-destructive/10"
               >
@@ -530,9 +531,7 @@ function AutoBackupManager() {
         </ul>
       )}
       <p className="text-xs text-muted-foreground">
-        每天关闭应用时自动保存 1 份（按「每天翻篇时间」计天），保留最近 {AUTO_BACKUP_KEEP} 份。
-        当前数据量与最新备份相差超 50% 时，启动后会弹窗提醒可能的数据丢失。
-        恢复为替换导入（除保险库外全部分区）；图片不随快照携带，仍在本地图片库中。
+        {t("settings.autoBackupDesc", { n: AUTO_BACKUP_KEEP })}
       </p>
 
       {/* 恢复确认：替换导入不可撤销 */}
@@ -542,20 +541,19 @@ function AutoBackupManager() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>恢复这份自动备份？</AlertDialogTitle>
+            <AlertDialogTitle>{t("settings.restoreTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              将用 {confirmRestore ? new Date(confirmRestore.at).toLocaleString() : ""} 的备份
-              （{confirmRestore?.size ?? 0} 字符）替换当前全部数据（除密码保险库）。此操作不可撤销。
+              {t("settings.restoreConfirmDesc", { time: confirmRestore ? new Date(confirmRestore.at).toLocaleString() : "", size: confirmRestore?.size ?? 0 })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmRestore(null)}>取消</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setConfirmRestore(null)}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (confirmRestore) doRestore(confirmRestore)
               }}
             >
-              恢复
+              {t("settings.restore")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -573,7 +571,7 @@ export function SettingsView() {
   const usageFirstAt = firstContributionAt(contributions)
   const usageText =
     usageFirstAt == null
-      ? "暂无记录"
+      ? t("settings.noUsage")
       : formatUsageDuration(Date.now() - usageFirstAt, Date.now())
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setShortcut = useWorkspace((s) => s.setShortcut)
@@ -613,11 +611,11 @@ export function SettingsView() {
     // 支持完整 GitHub 链接（github.com/owner/repo，可带 .git / issues / pulls 后缀），统一解析成 owner/repo
     const repo = parseRepoInput(v)
     if (!repo || !REPO_RE.test(repo)) {
-      setRepoError("格式应为 owner/name 或完整 GitHub 链接（仅限字母数字与 . - _）")
+      setRepoError(t("settings.errRepoFormat"))
       return
     }
     if (settings.notificationRepos.some((r) => r.repo === repo)) {
-      setRepoError("该仓库已在列表中")
+      setRepoError(t("settings.repoInList"))
       return
     }
     setRepoError("")
@@ -638,12 +636,12 @@ export function SettingsView() {
 
   const activeModelEntry =
     settings.aiModels.find((m) => m.id === settings.aiActiveModelId) ?? settings.aiModels[0]
-  const modelLabel = activeModelEntry?.label ?? "未配置"
+  const modelLabel = activeModelEntry?.label ?? t("settings.unconfigured")
 
   async function onExport() {
     // 一个分区都没勾 → 不产出空备份
     if (!BACKUP_SECTION_META.some((m) => exportSel[m.id] === true)) {
-      toast.error("请至少勾选一个要导出的内容分区")
+      toast.error(t("settings.errNoSection"))
       return
     }
     try {
@@ -658,9 +656,9 @@ export function SettingsView() {
       a.click()
       URL.revokeObjectURL(url)
       setExportOpen(false)
-      toast.success("已导出备份（ZIP：按所选分区携带数据与全部图片）")
+      toast.success(t("settings.exportedZip"))
     } catch {
-      toast.error("导出失败")
+      toast.error(t("settings.exportFail"))
     }
   }
 
@@ -670,7 +668,7 @@ export function SettingsView() {
       const parsed = await parseBackupFile(file)
       if (parsed.kind === "zip") {
         if (!parsed.files["workspace.json"]) {
-          toast.error("不是有效的备份文件（缺少 workspace.json）")
+          toast.error(t("settings.errNotBackup"))
           return
         }
         setPendingFiles(parsed.files)
@@ -678,13 +676,13 @@ export function SettingsView() {
         // 旧版纯 JSON 备份：按替换方式导入
         const res = await importBackup(parsed.json)
         if (res.ok) {
-          toast.success(`导入成功，已恢复数据与 ${res.images} 张图片`)
+          toast.success(t("settings.importedZip", { n: res.images }))
         } else {
-          toast.error("导入失败：文件格式不正确")
+          toast.error(t("settings.importFormatFail"))
         }
       }
     } catch {
-      toast.error("导入失败：无法读取文件")
+      toast.error(t("settings.importReadFail"))
     }
   }
 
@@ -695,12 +693,12 @@ export function SettingsView() {
     try {
       const res = await importBackupZip(files, mode)
       if (res.ok) {
-        toast.success(`已${mode === "replace" ? "替换" : "合并"}导入，恢复 ${res.images} 张图片`)
+        toast.success(t(mode === "replace" ? "settings.importedReplace" : "settings.importedMerge", { n: res.images }))
       } else {
-        toast.error(`导入失败：${res.reason ?? "数据解析失败"}`)
+        toast.error(t("settings.importFailWith", { reason: res.reason ?? t("settings.parseFail") }))
       }
     } catch {
-      toast.error("导入失败：文件格式不正确")
+      toast.error(t("settings.importFormatFail"))
     }
   }
 
@@ -719,18 +717,18 @@ export function SettingsView() {
       if (book) {
         const people = withIds(book.people ?? [])
         setContacts(people)
-        parts.push(`联系人 ${people.length} 条`)
+        parts.push(t("settings.yamlPeople", { n: people.length }))
       } else {
-        toast.error("address_book.yml 读取失败，联系人未导入")
+        toast.error(t("settings.yamlPeopleFail"))
       }
       if (fests) {
         const defs = fests.festivals ?? []
         setCustomFestivals(defs)
-        parts.push(`自定义节日 ${defs.length} 条`)
+        parts.push(t("settings.yamlFestivals", { n: defs.length }))
       } else {
-        toast.error("custom_festivals.yml 读取失败，节日未导入")
+        toast.error(t("settings.yamlFestivalsFail"))
       }
-      if (parts.length > 0) toast.success(`已导入：${parts.join("、")}（整表覆盖）`)
+      if (parts.length > 0) toast.success(t("settings.yamlImported", { parts: parts.join("、") }))
     } finally {
       setImportingYaml(false)
     }
@@ -753,7 +751,7 @@ export function SettingsView() {
     } catch {
       /* 忽略清理失败 */
     }
-    toast.success("数据已删除，正在重置…")
+    toast.success(t("settings.dataDeleted"))
     // 重载后 store 以默认状态重新初始化；页面卸载前待刷新的持久化定时器不会触发
     window.location.reload()
   }
@@ -958,7 +956,7 @@ export function SettingsView() {
             <section className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5">
                 <Keyboard className="size-3.5 text-muted-foreground" />
-                <Label className="text-xs font-medium text-muted-foreground">快捷键</Label>
+                <Label className="text-xs font-medium text-muted-foreground">{t("settings.shortcuts")}</Label>
               </div>
               <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-3">
                 {SHORTCUT_META.map((meta) => (
@@ -968,7 +966,7 @@ export function SettingsView() {
                     binding={settings.shortcuts[meta.action]}
                     onSave={(b) => {
                       setShortcut(meta.action, b)
-                      toast.success(`已更新「${meta.label}」快捷键`)
+                      toast.success(t("settings.shortcutUpdated", { label: t(meta.label) }))
                     }}
                   />
                 ))}
@@ -980,7 +978,7 @@ export function SettingsView() {
             {activeSectionId === "account" && (
               <Section title={t("settings.sections.account")}>
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">登录信息</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.loginInfo")}</Label>
               <div className="flex items-center gap-3">
                 <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-1 ring-border">
                   {settings.aiUserAvatar ? (
@@ -1003,7 +1001,7 @@ export function SettingsView() {
                     onClick={() => avatarInputRef.current?.click()}
                   >
                     <ImageIcon className="size-3.5" />
-                    {settings.aiUserAvatar ? "更换头像" : "上传头像"}
+                    {settings.aiUserAvatar ? t("settings.changeAvatar") : t("settings.uploadAvatar")}
                   </Button>
                   {settings.aiUserAvatar && (
                     <Button
@@ -1013,7 +1011,7 @@ export function SettingsView() {
                       className="gap-1 text-muted-foreground"
                       onClick={() => updateSettings({ aiUserAvatar: "" })}
                     >
-                      清除
+                      {t("settings.clear")}
                     </Button>
                   )}
                 </div>
@@ -1030,25 +1028,25 @@ export function SettingsView() {
                       const dataUrl = await compressAvatar(f)
                       updateSettings({ aiUserAvatar: dataUrl })
                     } catch {
-                      toast.error("头像读取失败，请换一张图片")
+                      toast.error(t("settings.avatarFail"))
                     }
                   }}
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <Label htmlFor="account-name" className="text-xs font-medium text-muted-foreground">名称</Label>
+                <Label htmlFor="account-name" className="text-xs font-medium text-muted-foreground">{t("settings.accountName")}</Label>
                 <Input
                   id="account-name"
                   value={settings.userName}
-                  placeholder="未命名用户"
+                  placeholder={t("profile.unnamed")}
                   onChange={(e) => updateSettings({ userName: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  个人主页展示的昵称；留空显示「未命名用户」。GitHub 贡献比对也使用该名称。
+                  {t("settings.accountNameDesc")}
                 </p>
               </div>
               <div className="flex flex-col gap-1">
-                <Label htmlFor="account-location" className="text-xs font-medium text-muted-foreground">地理位置</Label>
+                <Label htmlFor="account-location" className="text-xs font-medium text-muted-foreground">{t("settings.location")}</Label>
                 <Input
                   id="account-location"
                   value={settings.location}
@@ -1056,16 +1054,16 @@ export function SettingsView() {
                   onChange={(e) => updateSettings({ location: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  个人主页头像下方展示的所在地区标签；留空显示「中国」。
+                  {t("settings.locationDesc")}
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                登录信息仅作本地展示，无实际账号体系。
+                {t("settings.loginInfoDesc")}
               </p>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">生日</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("contacts.birthday")}</Label>
               <Input
                 type="date"
                 value={settings.birthday}
@@ -1073,12 +1071,12 @@ export function SettingsView() {
                 className="max-w-48"
               />
               <p className="text-xs text-muted-foreground">
-                用于日历侧栏的「人生进度条」（按 30000 天 ≈ 82 年计）。
+                {t("settings.birthdayDesc")}
               </p>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">版本信息</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.versionInfo")}</Label>
               <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
                 <span className="text-sm font-medium">My Workspace</span>
                 <span className="text-xs text-muted-foreground">v{pkg.version}</span>
@@ -1086,11 +1084,11 @@ export function SettingsView() {
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">数据备份（含图片）</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.dataBackup")}</Label>
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1 gap-2" onClick={() => setExportOpen(true)}>
                   <Download className="size-4" />
-                  导出备份
+                  {t("settings.exportBackup")}
                 </Button>
                 <Button
                   variant="outline"
@@ -1098,7 +1096,7 @@ export function SettingsView() {
                   onClick={() => fileRef.current?.click()}
                 >
                   <Upload className="size-4" />
-                  导入备份
+                  {t("settings.importBackup")}
                 </Button>
                 <input
                   ref={fileRef}
@@ -1112,7 +1110,7 @@ export function SettingsView() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                导出为 ZIP，可勾选携带的数据分区（联系人 / 密码保险库默认不携带）。导入时可选「替换」或「合并」，仅恢复备份携带的分区。
+                {t("settings.backupDesc")}
               </p>
             </section>
 
@@ -1122,7 +1120,7 @@ export function SettingsView() {
             {/* TODO 48：联系人 / 自定义节日已持久化，public/*.yml 降级为手动导入源 */}
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">
-                从 yml 导入（联系人 / 自定义节日）
+                {t("settings.yamlImport")}
               </Label>
               <Button
                 variant="outline"
@@ -1131,18 +1129,17 @@ export function SettingsView() {
                 disabled={importingYaml}
               >
                 <Upload className="size-4" />
-                {importingYaml ? "导入中…" : "导入 public/*.yml 数据"}
+                {importingYaml ? t("vocab.importing") : t("settings.yamlImportBtn")}
               </Button>
               <p className="text-xs text-muted-foreground">
-                联系人与自定义节日已改为本地持久化（联系人可在联系人页增删改，节日可在日历页管理）。
-                public/address_book.yml 与 public/custom_festivals.yml 不再自动加载——
-                手改 yml 后点此导入，整表覆盖当前联系人 / 节日数据。
+                {t("settings.yamlMigrated")}
+                {t("settings.yamlMigratedDesc")}
               </p>
             </section>
 
             <section className="flex flex-col gap-2">
               <Label htmlFor="day-start-offset" className="text-xs font-medium text-muted-foreground">
-                每天翻篇时间
+                {t("settings.dayStartOffset")}
               </Label>
               <Input
                 id="day-start-offset"
@@ -1157,22 +1154,22 @@ export function SettingsView() {
                 className="w-40"
               />
               <p className="text-xs text-muted-foreground">
-                {settings.dayStartOffset} 之前仍算前一天（影响贡献热力图与后续签到）。
+                {t("settings.dayStartOffsetDesc", { time: settings.dayStartOffset })}
               </p>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">开源许可证</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.licenses")}</Label>
               <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setLicenseOpen(true)}>
                 <Scale className="size-4" />
-                查看开源软件许可证
+                {t("settings.viewLicenses")}
               </Button>
             </section>
 
             <section className="flex flex-col gap-2 border-t border-destructive/30 pt-4">
-              <Label className="text-xs font-medium text-destructive">删除数据</Label>
+              <Label className="text-xs font-medium text-destructive">{t("settings.deleteData")}</Label>
               <p className="text-xs text-muted-foreground">
-                删除将清空全部分类、笔记、日历、思维图、AI 对话、图片与密码保险库等全部本地数据，且不可恢复。
+                {t("settings.deleteDataDesc")}
               </p>
               <Button
                 type="button"
@@ -1185,7 +1182,7 @@ export function SettingsView() {
                 }}
               >
                 <Trash2 className="size-4" />
-                删除全部数据
+                {t("settings.deleteAllData")}
               </Button>
             </section>
             </Section>
@@ -1199,8 +1196,8 @@ export function SettingsView() {
                   <Label className="text-xs font-medium">模型</Label>
                   <p className="truncate text-xs text-muted-foreground">
                     {settings.aiModels.length === 0
-                      ? "尚未配置（点击添加）"
-                      : `已配置 ${settings.aiModels.length} 个 · 当前：${modelLabel}`}
+                      ? t("settings.aiNotConfigured")
+                      : t("settings.aiConfigured", { n: settings.aiModels.length, model: modelLabel })}
                   </p>
                 </div>
                 <Button
@@ -1211,7 +1208,7 @@ export function SettingsView() {
                   onClick={() => setModelsOpen(true)}
                 >
                   <Sparkles className="size-4" />
-                  管理模型
+                  {t("models.title")}
                 </Button>
               </div>
 
@@ -1222,31 +1219,31 @@ export function SettingsView() {
                 onClick={() => setSkillsOpen(true)}
               >
                 <Wrench className="size-4" />
-                技能启停
+                {t("aiChat.skillsToggle")}
               </Button>
 
               <div className="flex flex-col gap-1">
-                <Label className="text-xs font-medium">联网搜索 API Key（百度千帆 AI 搜索）</Label>
+                <Label className="text-xs font-medium">{t("settings.webSearchKey")}</Label>
                 <Input
                   type="password"
                   autoComplete="off"
                   spellCheck={false}
                   value={settings.baiduAiSearchApiKey}
-                  placeholder="bce-v3/…（可选；配置后 AI 可使用 wb_web_search 联网搜索技能）"
+                  placeholder={t("settings.webSearchKeyPlaceholder")}
                   onChange={(e) => updateSettings({ baiduAiSearchApiKey: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  配置后 AI 需要实时信息时会自动调用联网搜索技能（千帆 AI 搜索，有免费额度）。Key 仅本机存储，经本地代理转发。
+                  {t("settings.webSearchKeyDesc")}
                 </p>
               </div>
 
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium">人设</Label>
+                  <Label className="text-xs font-medium">{t("personas.title")}</Label>
                   <p className="truncate text-xs text-muted-foreground">
                     {settings.aiActivePersonaId
-                      ? `当前：${settings.aiPersonas.find((p) => p.id === settings.aiActivePersonaId)?.name ?? "—"}`
-                      : "未使用（仅默认提示词）"}
+                      ? t("settings.personaCurrent", { name: settings.aiPersonas.find((p) => p.id === settings.aiActivePersonaId)?.name ?? "—" })
+                      : t("settings.personaUnused")}
                   </p>
                 </div>
                 <Button
@@ -1257,7 +1254,7 @@ export function SettingsView() {
                   onClick={() => setPersonasOpen(true)}
                 >
                   <Sparkles className="size-4" />
-                  管理人设
+                  {t("personas.title")}
                 </Button>
               </div>
               <div className="mt-2 flex items-center gap-3">
@@ -1274,7 +1271,7 @@ export function SettingsView() {
                   )}
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">AI 头像</span>
+                  <span className="text-xs text-muted-foreground">{t("settings.aiAvatar")}</span>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -1284,7 +1281,7 @@ export function SettingsView() {
                       onClick={() => aiAvatarInputRef.current?.click()}
                     >
                       <ImageIcon className="size-3.5" />
-                      {settings.aiAssistantAvatar ? "更换" : "上传"}
+                      {settings.aiAssistantAvatar ? t("settings.change") : t("settings.upload")}
                     </Button>
                     {settings.aiAssistantAvatar && (
                       <Button
@@ -1294,7 +1291,7 @@ export function SettingsView() {
                         className="gap-1 text-muted-foreground"
                         onClick={() => updateSettings({ aiAssistantAvatar: "" })}
                       >
-                        清除
+                        {t("settings.clear")}
                       </Button>
                     )}
                   </div>
@@ -1311,20 +1308,20 @@ export function SettingsView() {
                         const dataUrl = await compressAvatar(f)
                         updateSettings({ aiAssistantAvatar: dataUrl })
                       } catch {
-                        toast.error("头像读取失败，请换一张图片")
+                        toast.error(t("settings.avatarFail"))
                       }
                     }}
                   />
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                仅本机明文存储于 localStorage，请不要在共享环境使用。
+                {t("settings.plaintextWarn")}
               </p>
               <div className="mt-2 flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium">AI 对话强制同步</Label>
+                  <Label className="text-xs font-medium">{t("settings.aiForceSync")}</Label>
                   <p className="text-xs text-muted-foreground">
-                    开启后，所有对话的用户请求统一进入单队列、串行处理；关闭则允许并发。无论是否开启，切换会话 / 切走视图都不会中断在途请求。
+                    {t("settings.aiForceSyncDesc")}
                   </p>
                 </div>
                 <Switch
@@ -1339,42 +1336,42 @@ export function SettingsView() {
             {activeSectionId === "advanced" && (
               <Section title={t("settings.sections.advanced")}>
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">图片缓存</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.imageCache")}</Label>
               <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setImagesOpen(true)}>
                 <ImageIcon className="size-4" />
-                查看并管理图片缓存 / 暂存区
+                {t("settings.manageImageCache")}
               </Button>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">配置文件</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.configFile")}</Label>
               <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setConfigEditorOpen(true)}>
                 <FileCog className="size-4" />
-                编辑器打开配置文件（源文本）
+                {t("settings.openConfig")}
               </Button>
               <p className="text-xs text-muted-foreground">
-                直接查看/编辑持久化 JSON（分类/日历/设置/脚本）。高风险，仅供高级用户。
+                {t("settings.openConfigDesc")}
               </p>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">UAPI 令牌</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.uapiToken")}</Label>
               <input
                 type="password"
                 autoComplete="off"
                 spellCheck={false}
                 value={settings.uapiToken}
-                placeholder="UAPI（uapis.cn）访问令牌，可选"
+                placeholder={t("settings.uapiPlaceholder")}
                 onChange={(e) => updateSettings({ uapiToken: e.target.value })}
                 className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               />
               <p className="text-xs text-muted-foreground">
-                天气接口（uapis.cn）的可选 Bearer 令牌，以 Authorization 头携带。留空也可调用（匿名限流较紧，触发 429 后前端会冷却 10 分钟）。仅本机明文存储于 localStorage，请勿在共享环境使用。
+                {t("settings.uapiDesc")}
               </p>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">日志导出</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.logExport")}</Label>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -1382,7 +1379,7 @@ export function SettingsView() {
                   onClick={() => exportNotificationLogs(notificationLogs, "txt")}
                 >
                   <Download className="size-4" />
-                  导出为文本（.txt）
+                  {t("settings.exportTxt")}
                 </Button>
                 <Button
                   variant="outline"
@@ -1390,11 +1387,11 @@ export function SettingsView() {
                   onClick={() => exportNotificationLogs(notificationLogs, "json")}
                 >
                   <Braces className="size-4" />
-                  导出为 JSON
+                  {t("settings.exportJson")}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                导出通知系统的扫描与内容日志（每轮扫描检查了哪些仓库、发现了哪些新 commit / Issue / PR / 发布、是否发送了通知提示）。按时间倒序，上限 500 条。
+                {t("settings.logExportDesc")}
               </p>
             </section>
             </Section>
@@ -1403,23 +1400,23 @@ export function SettingsView() {
             {activeSectionId === "notifications" && (
               <Section title={t("settings.sections.notifications")}>
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">GitHub 令牌</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.githubTokenLabel")}</Label>
               <input
                 type="password"
                 autoComplete="off"
                 spellCheck={false}
                 value={settings.githubToken}
-                placeholder="ghp_…（GitHub 个人访问令牌，可选）"
+                placeholder={t("settings.githubTokenPlaceholder")}
                 onChange={(e) => updateSettings({ githubToken: e.target.value })}
                 className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               />
               <p className="text-xs text-muted-foreground">
-                GitHub 预览卡与仓库扫描共用的 API 限额令牌（仅本机明文存储于 localStorage，请勿在共享环境使用）。留空则匿名访问（60 次/小时/IP）。
+                {t("settings.githubTokenDesc")}
               </p>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">通知方式</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.notifyChannels")}</Label>
               <div className="flex flex-col gap-1.5">
                 {NOTIFICATION_CHANNELS.map((c) => (
                   <label
@@ -1447,7 +1444,7 @@ export function SettingsView() {
                 ))}
               </div>
               <div className="flex flex-col gap-1">
-                <Label className="text-xs font-medium text-muted-foreground">QQ 中转服务地址</Label>
+                <Label className="text-xs font-medium text-muted-foreground">{t("settings.qqRelayUrl")}</Label>
                 <Input
                   value={settings.qqRelayUrl}
                   placeholder={DEFAULT_QQ_RELAY_URL}
@@ -1460,12 +1457,12 @@ export function SettingsView() {
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                两个都不勾选时，新通知仍会入库到通知中心，只是不做任何弹窗或推送。
+                {t("settings.notifyChannelsDesc")}
               </p>
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">扫描仓库</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.scanRepos")}</Label>
               {/* TODO 49：扫描间隔自适应开关（默认开）——按监听功能数量自动放慢扫描 */}
               <label className="flex cursor-pointer items-start gap-2 text-sm">
                 <input
@@ -1475,17 +1472,16 @@ export function SettingsView() {
                   onChange={(e) => updateSettings({ scanAdaptive: e.target.checked })}
                 />
                 <span className="flex flex-col gap-0.5">
-                  <span>扫描间隔自适应</span>
+                  <span>{t("settings.adaptiveScan")}</span>
                   <span className="text-xs text-muted-foreground">
-                    开启后按监听功能数量（各仓库开启的扫描类型总数）自动放慢扫描：基准 5
-                    分钟，每满 16 个延长 1 分钟。关闭则固定 5 分钟。
+                    {t("settings.adaptiveScanDesc")}
                   </span>
                 </span>
               </label>
               <div className="flex gap-2">
                 <Input
                   value={repoInput}
-                  placeholder="owner/name 或完整链接，如 torvalds/linux"
+                  placeholder={t("settings.repoPlaceholder")}
                   spellCheck={false}
                   className="font-mono"
                   onChange={(e) => {
@@ -1497,7 +1493,7 @@ export function SettingsView() {
                   }}
                 />
                 <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={addNotificationRepo}>
-                  添加
+                  {t("common.add")}
                 </Button>
               </div>
               {repoError && <p className="text-xs text-destructive">{repoError}</p>}
@@ -1519,11 +1515,11 @@ export function SettingsView() {
                             render={
                               <button
                                 type="button"
-                                aria-label={`${r.repo} 的 commit 监听方式`}
+                                aria-label={t("settings.commitListenAria", { repo: r.repo })}
                                 title={
                                   r.commitMonitorOnly
-                                    ? "仅监听：commit 计贡献但不弹通知（点击更改）"
-                                    : "commit 监听方式（点击设置仅监听）"
+                                    ? t("settings.listenOnlyOn")
+                                    : t("settings.commitListenMode")
                                 }
                                 className={cn(
                                   "flex size-5 items-center justify-center rounded transition-colors hover:bg-muted",
@@ -1549,29 +1545,29 @@ export function SettingsView() {
                               }
                             >
                               {r.commitMonitorOnly ? <Check className="text-primary" /> : <span className="size-4" aria-hidden />}
-                              仅监听
+                              {t("settings.listenOnly")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                        {SCAN_TYPE_META.map((t) => (
+                        {SCAN_TYPE_META.map((st) => (
                           <label
-                            key={t.key}
+                            key={st.key}
                             className="flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                           >
                             <input
                               type="checkbox"
                               className="accent-primary"
-                              checked={r.scanTypes[t.key]}
+                              checked={r.scanTypes[st.key]}
                               onChange={(e) =>
                                 updateSettings({
                                   notificationRepos: settings.notificationRepos.map((cfg) =>
                                     cfg.repo === r.repo
                                       ? {
                                           ...cfg,
-                                          scanTypes: { ...cfg.scanTypes, [t.key]: e.target.checked },
+                                          scanTypes: { ...cfg.scanTypes, [st.key]: e.target.checked },
                                           // 启用（关→开）某类扫描时重置扫描起点 = 当前时刻，只扫之后的内容
                                           scanSince:
-                                            e.target.checked && !cfg.scanTypes[t.key]
+                                            e.target.checked && !cfg.scanTypes[st.key]
                                               ? Date.now()
                                               : cfg.scanSince,
                                         }
@@ -1580,13 +1576,13 @@ export function SettingsView() {
                                 })
                               }
                             />
-                            {t.label}
+                            {st.label}
                           </label>
                         ))}
                       </div>
                       <button
                         type="button"
-                        aria-label={`移除 ${r.repo}`}
+                        aria-label={t("settings.removeRepo", { repo: r.repo })}
                         className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                         onClick={() =>
                           updateSettings({
@@ -1601,7 +1597,7 @@ export function SettingsView() {
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。扫描到的 commit / Issue / PR 若作者与「账户与同步 → 名称」一致，会计入个人主页贡献热力图（commit 计 1，Issue / PR 各计 2）。改动在下一轮扫描（5 分钟内）生效。扫描起点为添加仓库 / 勾选启用某类扫描的时刻，此前产生的历史内容不做回扫。
+                {t("settings.scanReposDesc")}
               </p>
             </section>
             </Section>
@@ -1611,9 +1607,9 @@ export function SettingsView() {
               <Section title={t("settings.sections.news")}>
             <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
               <div className="min-w-0">
-                <Label className="text-xs font-medium">新闻精选开关</Label>
+                <Label className="text-xs font-medium">{t("settings.newsSwitch")}</Label>
                 <p className="text-xs text-muted-foreground">
-                  功能总开关：开启后可在通知中心「新闻精选」页手动触发（每天最多一次，18:00 为一天分界；本周期已拉取需等下一周期）。关闭后手动触发一并禁用。
+                  {t("settings.newsSwitchDesc")}
                 </p>
               </div>
               <Switch
@@ -1623,12 +1619,12 @@ export function SettingsView() {
             </div>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">工作流说明</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("settings.newsWorkflow")}</Label>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                触发时自动从哔哩哔哩 / 知乎 / 知乎日报 / 抖音 / 澎湃新闻 5 个平台拉取实时热榜（uapis.cn 聚合接口，复用「高级 → UAPI 令牌」，可选），汇总后在 AI 助手里静默新建一个「新闻精选」会话，由当前选中的 AI 模型挑选最多 10 条最有价值的新闻并生成解读，解析后生成 1 条新闻包通知（内含全部精选条目，走「GitHub 集成 → 通知方式」勾选的渠道投递：内置弹窗与 QQ 各推 1 条汇总）。AI 请求失败（如 HTTP 429）、回复超时或解析不出条目时，会发一条「新闻精选运行失败」通知；热榜部分平台失败不发通知，仅记录通知日志。
+                {t("settings.newsWorkflowDesc")}
               </p>
               <p className="text-xs text-muted-foreground">
-                前提：已在「AI 助手」中配置至少一个可用模型（含 API Key）。AI 会话可在 AI 页随时回看，通知在通知中心按「新闻精选」来源筛选查看。
+                {t("settings.newsWorkflowPrereq")}
               </p>
             </section>
             </Section>
@@ -1643,9 +1639,9 @@ export function SettingsView() {
           <Dialog open={exportOpen} onOpenChange={setExportOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>选择导出内容</DialogTitle>
+                <DialogTitle>{t("settings.exportTitle")}</DialogTitle>
                 <DialogDescription>
-                  勾选备份要携带的数据分区（应用设置与图片始终携带）。联系人 / 密码保险库属敏感数据，默认不携带。
+                  {t("settings.exportSectionDesc")}
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-1.5">
@@ -1670,10 +1666,10 @@ export function SettingsView() {
                       <span>
                         {m.label}
                         {!m.available && (
-                          <span className="ml-2 text-xs text-muted-foreground">（暂不可导出）</span>
+                          <span className="ml-2 text-xs text-muted-foreground">{t("settings.notExportable")}</span>
                         )}
                         {m.sensitive && m.available && (
-                          <span className="ml-2 text-xs text-muted-foreground">（敏感，默认不携带）</span>
+                          <span className="ml-2 text-xs text-muted-foreground">{t("settings.sensitive")}</span>
                         )}
                       </span>
                       <span className="text-xs text-muted-foreground">{m.description}</span>
@@ -1684,10 +1680,10 @@ export function SettingsView() {
               <div className="flex gap-2">
                 <Button className="flex-1" onClick={onExport}>
                   <Download className="size-4" />
-                  导出
+                  {t("settings.export")}
                 </Button>
                 <Button variant="ghost" onClick={() => setExportOpen(false)}>
-                  取消
+                  {t("common.cancel")}
                 </Button>
               </div>
             </DialogContent>
@@ -1697,18 +1693,18 @@ export function SettingsView() {
           <Dialog open={!!pendingFiles} onOpenChange={(v) => { if (!v) setPendingFiles(null) }}>
             <DialogContent className="sm:max-w-sm">
               <DialogHeader>
-                <DialogTitle>选择导入方式</DialogTitle>
+                <DialogTitle>{t("settings.importModeTitle")}</DialogTitle>
                 <DialogDescription>
-                  备份按分区携带数据（含设置与图片）。替换会以备份内容覆盖对应分区；合并则按 id / 日期合并、保留现有数据。备份未携带的分区不受影响。
+                  {t("settings.importModeDesc")}
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-2">
-                <Button onClick={() => doImport("replace")}>替换导入（覆盖当前数据）</Button>
+                <Button onClick={() => doImport("replace")}>{t("settings.importReplace")}</Button>
                 <Button variant="outline" onClick={() => doImport("merge")}>
-                  合并导入（保留现有，按 id / 日期合并）
+                  {t("settings.importMerge")}
                 </Button>
                 <Button variant="ghost" onClick={() => setPendingFiles(null)}>
-                  取消
+                  {t("common.cancel")}
                 </Button>
               </div>
             </DialogContent>
@@ -1759,7 +1755,7 @@ export function SettingsView() {
                     </Button>
                     <div className="flex gap-2">
                       <Button variant="ghost" className="flex-1" onClick={() => setDeleteOpen(false)}>
-                        取消
+                        {t("common.cancel")}
                       </Button>
                       <Button
                         variant="destructive"

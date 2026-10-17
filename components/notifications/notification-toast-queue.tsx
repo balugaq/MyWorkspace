@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next"
 import { useWorkspace } from "@/lib/store"
 import type { NotificationItem } from "@/lib/types"
 import { subscribeNotificationToasts } from "@/lib/notifications/toast-bus"
-import { senderDisplayName } from "@/lib/notifications/senders"
+import { senderDisplayNameLocalized } from "@/lib/notifications/senders"
 
 const DWELL_MS = 5000
 /** 滑出动画时长（与下方 transition-transform duration-300 对应）+ 兜底余量 */
@@ -168,7 +168,7 @@ export function NotificationToastQueue() {
     >
       <div className="flex items-center gap-2 border-b px-3 py-1.5">
         <span className="text-xs font-semibold">
-          {current ? senderDisplayName(current.senderId) : t("notif.title")}
+          {current ? senderDisplayNameLocalized(current.senderId) : t("notif.title")}
         </span>
         <button
           type="button"

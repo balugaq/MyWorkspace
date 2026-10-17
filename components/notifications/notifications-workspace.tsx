@@ -12,7 +12,7 @@ import { useWorkspace } from "@/lib/store"
 import { matchTextPinyin } from "@/lib/pinyin"
 import type { NewsDetail, NotificationItem } from "@/lib/types"
 import { GH_EVENT_LABEL } from "@/lib/types"
-import { SENDER_META, senderDisplayName } from "@/lib/notifications/senders"
+import { SENDER_META, senderDisplayNameLocalized } from "@/lib/notifications/senders"
 import { useTranslation, getI18n } from "react-i18next"
 import { triggerNewsManually } from "@/lib/notifications/news-sender"
 import { cn } from "@/lib/utils"
@@ -150,7 +150,7 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
         >
           {t("notif.newsPack")}
         </span>
-        <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
+        <span className="shrink-0 text-muted-foreground/80">{senderDisplayNameLocalized(item.senderId)}</span>
         <span className="min-w-0 truncate text-muted-foreground">{t("notif.packCount", { n: pack.length })}</span>
         <span className="ml-auto shrink-0 text-muted-foreground/70">
           {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
@@ -221,7 +221,7 @@ function NewsCard({ item }: { item: NotificationItem }) {
         >
           {d?.field || t("notif.type.newsShort")}
         </span>
-        <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
+        <span className="shrink-0 text-muted-foreground/80">{senderDisplayNameLocalized(item.senderId)}</span>
         {item.brief && (
           <span className="min-w-0 truncate text-muted-foreground" title={item.brief}>
             {item.brief}
@@ -286,7 +286,7 @@ function PlainNewsCard({ item }: { item: NotificationItem }) {
         <span className={cn("shrink-0 rounded px-1.5 py-0.5 font-medium", KIND_META.news.className)}>
           {KIND_META.news.label}
         </span>
-        <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
+        <span className="shrink-0 text-muted-foreground/80">{senderDisplayNameLocalized(item.senderId)}</span>
         <span className="ml-auto shrink-0 text-muted-foreground/70">
           {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
         </span>
@@ -326,7 +326,7 @@ function GithubCard({ item }: { item: NotificationItem }) {
           {item.number != null ? `${t(meta.label)} #${item.number}` : t(meta.label)}
           {(item.event ?? "open") !== "open" && ` · ${GH_EVENT_LABEL[item.event ?? "open"]}`}
         </span>
-        <span className="shrink-0 text-muted-foreground/80">{senderDisplayName(item.senderId)}</span>
+        <span className="shrink-0 text-muted-foreground/80">{senderDisplayNameLocalized(item.senderId)}</span>
         <span className="min-w-0 truncate text-muted-foreground">{item.repo}</span>
         <span className="ml-auto shrink-0 text-muted-foreground/70">
           {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
@@ -429,7 +429,7 @@ export function NotificationsWorkspace() {
         matchTextPinyin(n.title, q) ||
         matchTextPinyin(n.brief, q) ||
         (n.repo ?? "").toLowerCase().includes(q) ||
-        matchTextPinyin(senderDisplayName(n.senderId), q),
+        matchTextPinyin(senderDisplayNameLocalized(n.senderId), q),
     )
   }, [sorted, search])
 
