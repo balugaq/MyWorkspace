@@ -16,6 +16,7 @@ import { z } from "zod"
 
 import { useWorkspace } from "@/lib/store"
 import { resolveProvider } from "./providers"
+import { sanitizeGeneratedTitle } from "./title"
 import { loadSkills } from "./skills"
 import { BUILTIN_SKILLS } from "./builtin-skills"
 import type { AIChatMessage, AIProviderId } from "@/lib/types"
@@ -317,6 +318,43 @@ function patchProviderRequestBody(init?: RequestInit): RequestInit | undefined {
   }
 }
 
+// 标题自动生成（TODO 74）：首轮回复完成后，若会话标题仍是「首条消息截断」形态（从未重命名/生成过），
+// 静默调用当前模型生成一个 ≤10 字、无句号结尾的标题写回；失败保持截断形态，不提示。
+// titleAttempted 防重复请求：每个会话只尝试一次。
+const titleAttempted = new Set<string>()
+
+async function maybeGenerateTitle(job: Job, finalContent: string) {
+  const { conversationId, config, userMsg } = job
+  if (titleAttempted.has(conversationId)) return
+  const conv = useWorkspace.getState().conversations.find((c) => c.id === conversationId)
+  if (!conv) return
+  // 与 renameConversation / 新建会话的截断口径一致（10 字）：标题 ≠ 截断形态即视为已被命名，跳过
+  const truncated = userMsg.content.trim().slice(0, 10) || "新对话"
+  if (conv.title !== truncated) return
+  titleAttempted.add(conversationId)
+  try {
+    const resolved = resolveProvider(config.providerId, config.apiKey, config.baseURL)
+    const provider = createOpenAICompatible({
+      name: config.providerId,
+      baseURL: resolved.baseURL,
+      apiKey: resolved.apiKey,
+    })
+    const model = provider.chatModel(resolved.model)
+    const { text } = await generateText({
+      model,
+      prompt:
+        "请为以下对话生成一个不超过10个字的简短标题。要求：直接输出标题本身，不要任何引号或解释，不要以句号结尾。\n\n用户：" +
+        userMsg.content.slice(0, 500) +
+        "\n助手：" +
+        finalContent.slice(0, 500),
+    })
+    const clean = sanitizeGeneratedTitle(text)
+    if (clean) useWorkspace.getState().renameConversation(conversationId, clean)
+  } catch {
+    // 静默失败：标题保持截断形态
+  }
+}
+
 async function runJob(job: Job) {
   const { conversationId, config, assistantId, history, userMsg, controller } = job
   let text = ""
@@ -501,6 +539,10 @@ async function runJob(job: Job) {
     streaming.delete(conversationId)
     activeJobs.delete(conversationId)
     notify()
+    // 首轮正常收尾 → 静默生成会话标题（TODO 74）；仅成功路径触发，错误回复不生成
+    if (!sawError && finalContent && !finalContent.startsWith("⚠️")) {
+      void maybeGenerateTitle(job, finalContent)
+    }
     pump()
   }
 

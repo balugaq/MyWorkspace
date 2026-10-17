@@ -702,9 +702,14 @@ TODO 73. （状态：已完成）
 
 - 已实现（2026-10-07，与本条登记前口头反馈一致，实施记录见当日日志与 docs/entry-points.md §8.18）：重名词提示 + 「载入已有内容编辑」；quiz 自由切题（左右箭头 + 题号蓝/绿圆点）+ 一次性提交（未答确认按空白）+ 上限 100 题。待主人目视确认。
 
-TODO 74. （状态：待处理）
+TODO 74. （状态：已完成，待目视确认）
 加一个 ai 会话标题生成的，就调用当前的ai生成标题。
 默认先就现在的截断，然后ai回复完之后再静默让ai生成一个标题。（要求不超过10个字且没有句号结尾，如果ai给的过长就还是自动截断就行）
+
+- 已实现（2026-10-17 深夜）：
+  - `lib/ai/title.ts`：sanitizeGeneratedTitle 纯函数（去首尾引号 → 取首行 → 截断 10 字 → 去尾部句读；顺序为先截断再清尾，保证第 10 字恰为句号时结尾无残留）。
+  - `lib/ai/request-queue.ts`：首轮 finalize 成功后（非错误回复）静默触发 maybeGenerateTitle——generateText 非流式调用当前模型，结果经清洗后走 renameConversation 写回；titleAttempted Set 防重复（每会话仅尝试一次）；触发条件=标题仍是「首条消息截断 10 字」形态（重命名/已生成过即跳过）；失败静默保持截断形态。
+  - 测试：tests/ai-title.test.ts 7 用例（引号/句读/多行/截断/空串）。全绿 76 用例。待目视确认：新建会话发一条消息，AI 回完后侧边栏标题应自动变为语义标题（≤10 字）。
 
 ### TODO 40 后续批次（2026-10-17 主人口径：逐批套用模板，文本只写 zh，en 暂不写——缺 key 自动回落中文）
 - ~~批 1：全局外壳（toolbar-panel / status-bar / brand-header 静态项 / global-search / add-category-dialog / page 空态 / app-sidebar）~~ ✅ 2026-10-17 完成（新增命名空间 toolbar/statusBar/brandHeader/search/home/addCategory/templates/sidebar + common 扩充）。
