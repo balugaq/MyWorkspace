@@ -75,7 +75,7 @@ export function SidebarToggleFab() {
         (centered ? "top-1/2 -translate-y-1/2" : "")
       }
       style={top != null ? { top } : undefined}
-      title="展开侧边栏（可上下拖动）"
+      title={t("sidebar.expandFabHint")}
     >
       <PanelLeft className="size-4" />
       <span className="sr-only">{t("sidebar.expand")}</span>

@@ -364,6 +364,7 @@ const templates = {
 const sidebar = {
   collapse: "收起侧边栏",
   expand: "展开侧边栏",
+  expandFabHint: "展开侧边栏（可上下拖动）",
   calendar: "日历",
   aiQuickTip: "点击任意问题，自动开启一段新对话并发送。",
   lifeBar: "人生进度条",

@@ -324,6 +324,7 @@ const templates = {
 const sidebar = {
   collapse: "Collapse sidebar",
   expand: "Expand sidebar",
+  expandFabHint: "Expand sidebar (draggable vertically)",
   calendar: "Calendar",
   aiQuickTip: "Click any question to start a new conversation and send it automatically.",
   lifeBar: "Life progress bar",

@@ -37,9 +37,14 @@ export function getI18n(): I18nInstance {
   return i18next
 }
 
-/** 切换语言（同值 no-op）；settings.uiLanguage 变化与启动同步都走这里 */
+/** 切换语言（同值 no-op）；settings.uiLanguage 变化与启动同步都走这里。
+ * changeLanguage 失败会打日志——排查「下拉显示 A 语言但内容回落中文」类问题（en 缺 key 回落 zh 的表象）。 */
 export function syncLocale(locale: string): void {
-  if (i18next.language !== locale) void i18next.changeLanguage(locale)
+  if (i18next.language !== locale) {
+    void i18next.changeLanguage(locale).catch((err: unknown) => {
+      console.error(`[MyWorkspace] i18n 切换到 ${locale} 失败`, err)
+    })
+  }
 }
 
 const LANG_TOKEN_G = /\{lang:([a-zA-Z0-9_.-]+)\}/g
