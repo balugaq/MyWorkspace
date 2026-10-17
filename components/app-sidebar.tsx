@@ -6,7 +6,7 @@
 // - AppSidebar：移动端 Sheet 的复合体（内容区 + 底部工具栏）。
 // - 工具栏本体在 components/toolbar-panel.tsx，桌面端由 page.tsx 单独渲染、钉在左下角。
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   Plus,
   ChevronRight,
@@ -77,7 +77,7 @@ function PanelHeader({
   count,
 }: {
   icon: LucideIcon
-  title: string
+  title: ReactNode
   count?: number
 }) {
   const setSidebarCollapsed = useWorkspace((s) => s.setSidebarCollapsed)
@@ -127,7 +127,7 @@ function CalendarSidePanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader icon={CalendarDays} title={t("sidebar.calendar") as string} />
+      <PanelHeader icon={CalendarDays} title={t("sidebar.calendar")} />
       <div className="flex flex-col gap-1.5 p-3">
         {PRESET_QUESTIONS.map((q) => (
           <button
@@ -233,7 +233,7 @@ function VaultSidePanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <PanelHeader icon={Dices} title={t("sidebar.pwdGen") as string} />
+      <PanelHeader icon={Dices} title={t("sidebar.pwdGen")} />
 
       <div className="flex flex-col gap-3 p-3">
         {/* 生成结果 + 复制 */}

@@ -1,5 +1,6 @@
 "use client"
 
+import { getI18n } from "@/lib/i18n"
 import { Node, mergeAttributes } from "@tiptap/core"
 import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tiptap/react"
 import { useEffect, useState } from "react"
@@ -55,7 +56,7 @@ function GitHubCardView({ node }: NodeViewProps) {
       <NodeViewWrapper className="my-2">
         <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <span className="size-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
-          加载 GitHub 预览…
+          {getI18n().t("richtext.ghLoading")}
         </div>
       </NodeViewWrapper>
     )

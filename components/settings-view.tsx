@@ -1,8 +1,8 @@
 "use client"
 
-// 设置工作区（独立 view，由顶栏设置按钮经 goSettings() 进入；原 settings-dialog 弹窗改造而来）。
-// 分区：通用/基础 → 快捷键/键位 → 账户与同步 → AI 助手 → 高级 → GitHub 集成。
-// 各块业务逻辑自旧弹窗原样迁移，仅重排分组；子弹窗（模型/人设/技能/许可证/导入方式）随迁。
+// 设置工作区（独立 view，由顶栏设置按钮经 goSettings() 进入；原 settings-dialog 弹窗改造而来）
+// 分区：通用/基础 → 快捷键/键位 → 账户与同步 → AI 助手 → 高级 → GitHub 集成
+// 各块业务逻辑自旧弹窗原样迁移，仅重排分组；子弹窗（模型/人设/技能/许可证/导入方式）随迁
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -114,7 +114,7 @@ const FONT_FAMILIES: { value: UIFontFamily; label: string }[] = [
   { value: "mono", label: "等宽" },
 ]
 
-// 用户头像压缩：限制最长边 256px，转 JPEG 控制体积（避免撑爆 localStorage）。
+// 用户头像压缩：限制最长边 256px，转 JPEG 控制体积（避免撑爆 localStorage）
 const MAX_AVATAR = 256
 function compressAvatar(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -163,8 +163,8 @@ const SETTINGS_SECTIONS = [
   { id: "news", labelKey: "settings.sections.news" },
 ] as const
 
-// 通知日志导出（TODO 27 配套）：把 store 里持久化的扫描/条目日志落成文件下载。
-// txt = 人类可读的时间线；json = 原始结构化数据（便于程序处理或归档）。
+// 通知日志导出（TODO 27 配套）：把 store 里持久化的扫描/条目日志落成文件下载
+// txt = 人类可读的时间线；json = 原始结构化数据（便于程序处理或归档）
 function stamp(at: number): string {
   const d = new Date(at)
   const p = (n: number) => String(n).padStart(2, "0")
@@ -202,8 +202,8 @@ function exportNotificationLogs(logs: NotificationLogEntry[], format: "txt" | "j
   toast.success(getI18n().t("settings.logsExported", { n: logs.length }))
 }
 
-// 标签管理（TODO 67）：全站标签体系统一管理（随笔章节 / 思维图节点 / 联系人角色 / 全局标签库）。
-// 列表含使用统计与拼音搜索；支持创建（入标签库）、重命名（撞已有名自动合并）、删除（全站清理）。
+// 标签管理（TODO 67）：全站标签体系统一管理（随笔章节 / 思维图节点 / 联系人角色 / 全局标签库）
+// 列表含使用统计与拼音搜索；支持创建（入标签库）、重命名（撞已有名自动合并）、删除（全站清理）
 function TagManagerBlock() {
   const { t } = useTranslation()
   const categories = useWorkspace((s) => s.categories)
@@ -425,8 +425,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-// 自动备份管理（TODO 60）：列表 / 立即备份 / 恢复（替换导入）/ 删除。
-// 日常备份由 AutoBackupWatcher 在页面隐藏/关闭时自动做（当天一次），此处提供手动兜底与恢复入口。
+// 自动备份管理（TODO 60）：列表 / 立即备份 / 恢复（替换导入）/ 删除
+// 日常备份由 AutoBackupWatcher 在页面隐藏/关闭时自动做（当天一次），此处提供手动兜底与恢复入口
 function AutoBackupManager() {
   const { t } = useTranslation()
   const [list, setList] = useState<AutoBackupEntry[]>([])
@@ -703,8 +703,8 @@ export function SettingsView() {
   }
 
   // 从 yml 导入（TODO 48）：联系人 / 自定义节日已改为 store 持久化，public/*.yml
-  // 不再自动加载。用户手改 yml 后点此按钮：先清 fetch 缓存（否则拿到旧数据），
-  // 再拉两个文件整表覆盖 store。两文件独立处理，任一失败不影响另一个。
+  // 不再自动加载用户手改 yml 后点此按钮：先清 fetch 缓存（否则拿到旧数据），
+  // 再拉两个文件整表覆盖 store两文件独立处理，任一失败不影响另一个
   async function importYamlData() {
     setImportingYaml(true)
     try {
@@ -734,7 +734,7 @@ export function SettingsView() {
     }
   }
 
-  // 删除全部数据：清空 IndexedDB（图片库 + 保险库）与持久化状态，再重载以默认状态重置。
+  // 删除全部数据：清空 IndexedDB（图片库 + 保险库）与持久化状态，再重载以默认状态重置
   async function wipeAllData() {
     try {
       await clearVault()
@@ -1725,33 +1725,32 @@ export function SettingsView() {
               {deleteStep === "confirm" ? (
                 <>
                   <DialogHeader>
-                    <DialogTitle>删除全部数据？</DialogTitle>
+                    <DialogTitle>{t("settings.wipeTitle")}</DialogTitle>
                     <DialogDescription>
-                      此操作不可恢复，将清空你在本机存储的全部数据。
+                      {t("settings.wipeDesc")}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="flex flex-col gap-3">
                     <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm">
-                      你已经使用本软件{" "}
+                      {t("settings.wipeUsage1")}
                       <span className="font-semibold text-destructive">
                         {usageText}
                       </span>
-                      。
                     </div>
                     {settings.userName.trim() ? (
                       <p className="text-xs text-muted-foreground">
-                        为防止误删，下一步需要输入你的名字「
+                        {t("settings.wipeVerify1")}
                         <span className="font-medium text-foreground">{settings.userName}</span>
-                        」进行二次确认。
+                        {t("settings.wipeVerify2")}
                       </p>
                     ) : (
                       <p className="text-xs text-muted-foreground">
-                        你尚未设置用户名，点击「继续删除」将直接进入删除（无二次确认）。
+                        {t("settings.wipeNoName")}
                       </p>
                     )}
                     <Button variant="outline" className="w-full gap-2" onClick={onExport}>
                       <Download className="size-4" />
-                      先导出备份（建议）
+                      {t("settings.wipeExportFirst")}
                     </Button>
                     <div className="flex gap-2">
                       <Button variant="ghost" className="flex-1" onClick={() => setDeleteOpen(false)}>
@@ -1768,7 +1767,7 @@ export function SettingsView() {
                           }
                         }}
                       >
-                        继续删除
+                        {t("settings.wipeContinue")}
                       </Button>
                     </div>
                   </div>
@@ -1776,11 +1775,11 @@ export function SettingsView() {
               ) : (
                 <>
                   <DialogHeader>
-                    <DialogTitle>二次确认：输入名字以删除</DialogTitle>
+                    <DialogTitle>{t("settings.wipeVerifyTitle")}</DialogTitle>
                     <DialogDescription>
-                      请输入你的名字{" "}
+                      {t("settings.wipeVerify3")}{" "}
                       <span className="font-semibold text-foreground">{settings.userName}</span>{" "}
-                      以确认删除全部数据。
+                      {t("settings.wipeVerify4")}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="flex flex-col gap-3">
@@ -1804,7 +1803,7 @@ export function SettingsView() {
                         className="flex-1"
                         onClick={() => setDeleteStep("confirm")}
                       >
-                        返回
+                        {t("common.back")}
                       </Button>
                       <Button
                         variant="destructive"
@@ -1812,7 +1811,7 @@ export function SettingsView() {
                         disabled={confirmName.trim() !== settings.userName.trim()}
                         onClick={() => void wipeAllData()}
                       >
-                        确认删除
+                        {t("settings.wipeConfirm")}
                       </Button>
                     </div>
                   </div>
@@ -1868,7 +1867,7 @@ function ShortcutRow({
       <div className="flex shrink-0 items-center gap-1.5">
         {recording ? (
           <span className="rounded-md border border-primary bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-            按下组合键…
+            {t("settings.pressKeys")}
           </span>
         ) : (
           <kbd className="rounded-md border bg-background px-2 py-1 text-xs font-semibold uppercase">
@@ -1894,7 +1893,7 @@ function ShortcutRow({
           onClick={() => onSave({ ...meta.defaults })}
         >
           <RefreshCw className="size-3.5" />
-          <span className="sr-only">重置</span>
+          <span className="sr-only">{t("common.reset")}</span>
         </Button>
       </div>
     </div>

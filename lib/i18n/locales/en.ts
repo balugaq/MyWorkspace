@@ -20,6 +20,11 @@ const common = {
   doneBtn: "Done",
   untitled: "Untitled",
   deleted: "Deleted",
+  back: "Back",
+  reset: "Reset",
+  selectAll: "Select all",
+  quote: "Quote",
+  loadingImage: "[Loading image…]",
 }
 
 const settings = {
@@ -295,6 +300,8 @@ const addCategory = {
   name: "Category name",
   namePlaceholder: "e.g. My Super Novel",
   template: "Template",
+  relationTip: "The mindmap template creates a blank canvas. After creation you can add todo nodes, connect cause–effect edges and attach solutions on the canvas.",
+  create: "Create",
   unit: "Item unit (optional)",
   defaultUnit: "ch.",
   unitHint: "E.g. ch / poem / chapter / entry / lesson; falls back to \"ch\" when empty. Also drives the bottom pager (prev-X / next-X) and auto-numbered titles (Ch.%X → Chapter 1).",
@@ -316,6 +323,7 @@ const templates = {
 
 const sidebar = {
   collapse: "Collapse sidebar",
+  expand: "Expand sidebar",
   calendar: "Calendar",
   aiQuickTip: "Click any question to start a new conversation and send it automatically.",
   lifeBar: "Life progress bar",
@@ -992,7 +1000,17 @@ const push = {
   monitorOnlyTail: " (listen-only, not notified)",
   fetchFail: "Fetch failed",
   newsTitle: "News digest {{date}}",
+  newsFailTitle: "News digest run failed",
+  newsFailTimeoutBrief: "AI reply timed out or the conversation was deleted — nothing picked this round",
+  newsFailTimeout: "News digest: AI reply timed out, no notification generated this round{{tail}}",
+  newsFailParseBrief: "AI reply could not be parsed into picked entries (see the original output in the AI conversation)",
+  newsFailParse: "News digest: failed to parse AI output, no notification generated this round{{tail}}",
+  newsFailRequest: "News digest: AI request failed ({{err}}), no notification generated this round{{tail}}",
+  newsPackTitle: "News digest · {{n}} entries",
+  newsPackSummary: "News digest: fetched {{entries}} hot-list entries from {{ok}}/{{total}} platforms, AI picked {{picked}} — news-pack notification generated{{tail}}",
   failSuffix: " failed",
+  rqEarlyEnd: "Response ended early (no finish_reason) {{diag}}",
+  rqProviderError: "Provider returned an error: {{err}}",
   links: "Links",
   mergedBy: "merged by {{who}}",
   merged: "merged",
@@ -1009,9 +1027,136 @@ const push = {
   type: { bilibili: "Bilibili", zhihu: "Zhihu", "zhihu-daily": "Zhihu Daily", douyin: "Douyin", thepaper: "The Paper" },
 }
 
+const settingsExtra = {
+  // ===== 残留清扫批（弹窗与 lib 诊断文案），2026-10-17 深夜 =====
+  skills: {
+    desc: "When off, the skill cannot be called in this workspace's AI conversations. All skills stay enabled by default.",
+    empty: "No skills found.",
+    builtin: "Built-in",
+    user: "User",
+  },
+  autoBk: {
+    title: "Data size differs greatly from the backup",
+    desc1: "Current data ({{cur}} chars) vs the latest auto backup",
+    desc2: "({{bk}} chars, {{time}})",
+    desc3: "differs by {{pct}}%. Data loss or accidental import is possible —",
+    desc4: "check the backup list under Settings → Account & Sync → Auto backups, and restore if needed.",
+    gotIt: "Got it",
+  },
+  cfg: {
+    title: "Config file (raw text)",
+    desc: "Edit the persisted JSON (categories / calendar / settings) directly. Be careful — invalid formats are rejected on save.",
+    reloaded: "Current config reloaded",
+    errJson: "Invalid JSON — cannot save",
+    saved: "Config saved and applied",
+    errInvalid: "Invalid config content (must contain categories/calendar)",
+    reload: "Reload",
+    note: "Changes take effect immediately; data outside browser localStorage is not included.",
+  },
+  imgCache: {
+    title: "Image cache / staging",
+    desc: "View pasted/inserted images. Unreferenced images go to staging where you can decide to delete them; referenced images cannot be deleted here.",
+    stats: "{{all}} total · {{used}} in use · {{staged}} staged",
+    scan: "Scan staging",
+    empty: "No images yet — paste with Ctrl+V while editing, or click \"Insert image\".",
+    stagedToast: "Moved {{n}} unreferenced images to staging",
+    nothingToStage: "Nothing to move to staging",
+    deleted: "Images deleted",
+    inUse: "In use",
+    staged: "Staged",
+    unreferenced: "Unreferenced",
+    deleteTitle: "Delete (only when unreferenced)",
+  },
+  licenses: {
+    title: "Open-source licenses",
+    desc: "Open-source software used by this project and their licenses.",
+    author: "Author",
+    descLabel: "Description",
+    license: "License",
+  },
+  wipeTitle: "Delete all data?",
+  wipeDesc: "This cannot be recovered — it wipes everything you stored locally.",
+  wipeUsage1: "You have been using this app for",
+  wipeVerify1: "To prevent accidents, type your name \"",
+  wipeVerify2: "\" to confirm.",
+  wipeNoName: "No username set — clicking \"Continue\" deletes directly (no second confirmation).",
+  wipeExportFirst: "Export a backup first (recommended)",
+  wipeVerifyTitle: "Second confirmation: type your name to delete",
+  wipeVerify3: "Type your name",
+  wipeVerify4: "to confirm deleting all data.",
+  wipeContinue: "Continue",
+  wipeConfirm: "Confirm delete",
+  pressKeys: "Press the key combination…",
+  aiModelLabel: "Model",
+  qqRelayDesc: "URL of the local relay service (POST JSON {\"text\":\"...\"}); falls back to the default when empty. QQ notifications only work when the workspace runs locally with the relay service up.",
+  shortcut: {
+    newCategory: "New category",
+    newCategoryDesc: "Open the \"Add category\" dialog",
+    goCalendar: "Open calendar",
+    goCalendarDesc: "Switch to the calendar view",
+    search: "Global search",
+    searchDesc: "Open global search",
+  },
+}
+
+const skills = {
+  desc: "When off, the skill cannot be called in this workspace's AI conversations. All skills stay enabled by default.",
+  empty: "No skills found.",
+  builtin: "Built-in",
+  user: "User",
+}
+
+const autoBk = {
+  title: "Data size differs greatly from the backup",
+  desc1: "Current data ({{cur}} chars) vs the latest auto backup",
+  desc2: "({{bk}} chars, {{time}})",
+  desc3: "differs by {{pct}}%. Data loss or accidental import is possible —",
+  desc4: "check the backup list under Settings → Account & Sync → Auto backups, and restore if needed.",
+  gotIt: "Got it",
+}
+
+const cfg = {
+  title: "Config file (raw text)",
+  desc: "Edit the persisted JSON (categories / calendar / settings) directly. Be careful — invalid formats are rejected on save.",
+  reloaded: "Current config reloaded",
+  errJson: "Invalid JSON — cannot save",
+  saved: "Config saved and applied",
+  errInvalid: "Invalid config content (must contain categories/calendar)",
+  reload: "Reload",
+  note: "Changes take effect immediately; data outside browser localStorage is not included.",
+}
+
+const imgCache = {
+  title: "Image cache / staging",
+  desc: "View pasted/inserted images. Unreferenced images go to staging where you can decide to delete them; referenced images cannot be deleted here.",
+  stats: "{{all}} total · {{used}} in use · {{staged}} staged",
+  scan: "Scan staging",
+  empty: "No images yet — paste with Ctrl+V while editing, or click \"Insert image\".",
+  stagedToast: "Moved {{n}} unreferenced images to staging",
+  nothingToStage: "Nothing to move to staging",
+  deleted: "Images deleted",
+  inUse: "In use",
+  staged: "Staged",
+  unreferenced: "Unreferenced",
+  deleteTitle: "Delete (only when unreferenced)",
+}
+
+const licenses = {
+  title: "Open-source licenses",
+  desc: "Open-source software used by this project and their licenses.",
+  author: "Author",
+  descLabel: "Description",
+  license: "License",
+}
+
+const rt = {
+  copyPlain: "Copy as plain text",
+  copyRich: "Copy as rich text",
+}
+
 export const en = {
   common,
-  settings,
+  settings: { ...settings, ...settingsExtra },
   toolbar,
   statusBar,
   brandHeader,
@@ -1037,4 +1182,10 @@ export const en = {
   queue,
   vocab,
   push,
+  skills,
+  autoBk,
+  cfg,
+  imgCache,
+  licenses,
+  rt,
 }

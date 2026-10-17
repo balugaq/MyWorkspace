@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslation } from "react-i18next"
 import { BubbleMenu } from "@tiptap/react/menus"
 import type { Editor } from "@tiptap/core"
 import { Copy, ClipboardCopy, TextSelect, Quote } from "lucide-react"
@@ -13,6 +14,7 @@ import { copySelectionRich } from "./clipboard"
  *  - 引用：把选区包进引用块
  */
 export function SelectionToolbar({ editor }: { editor: Editor }) {
+  const { t } = useTranslation()
   const copyPlain = () => {
     const { from, to } = editor.state.selection
     const text = editor.state.doc.textBetween(from, to, "\n")
@@ -41,21 +43,21 @@ export function SelectionToolbar({ editor }: { editor: Editor }) {
       }}
     >
       <div className="flex items-center gap-0.5 rounded-lg border bg-popover p-1 shadow-md">
-        <button type="button" className={btn} onClick={copyPlain} title="复制为纯文本">
+        <button type="button" className={btn} onClick={copyPlain} title={t("rt.copyPlain")}>
           <Copy className="size-3.5" />
-          复制
+          {t("common.copy")}
         </button>
-        <button type="button" className={btn} onClick={() => void copyRich()} title="复制为富文本">
+        <button type="button" className={btn} onClick={() => void copyRich()} title={t("rt.copyRich")}>
           <ClipboardCopy className="size-3.5" />
-          X 复制
+          X {t("common.copy")}
         </button>
-        <button type="button" className={btn} onClick={selectAll} title="全选">
+        <button type="button" className={btn} onClick={selectAll} title={t("common.selectAll")}>
           <TextSelect className="size-3.5" />
-          全选
+          {t("common.selectAll")}
         </button>
-        <button type="button" className={btn} onClick={quote} title="引用">
+        <button type="button" className={btn} onClick={quote} title={t("common.quote")}>
           <Quote className="size-3.5" />
-          引用
+          {t("common.quote")}
         </button>
       </div>
     </BubbleMenu>

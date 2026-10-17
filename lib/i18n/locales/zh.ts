@@ -19,7 +19,12 @@ const common = {
   done: "已完成",
   doneBtn: "完成",
   untitled: "未命名",
-  deleted: "已删除"
+  deleted: "已删除",
+  back: "返回",
+  reset: "重置",
+  selectAll: "全选",
+  quote: "引用",
+  loadingImage: "[加载图片…]",
 }
 
 const settings = {
@@ -317,6 +322,8 @@ const addCategory = {
   name: "分类名称",
   namePlaceholder: "例如：我的超级无敌小说",
   template: "模板类型",
+  relationTip: "关系类将以思维导图模式创建空白画布。创建后可在画布中添加 Todo 节点、连接因果关系并附加解决方案。",
+  create: "创建",
   unit: "条目单位（可选）",
   defaultUnit: "章",
   unitHint: "如 章 / 回；留空则用「章」",
@@ -356,6 +363,7 @@ const templates = {
 
 const sidebar = {
   collapse: "收起侧边栏",
+  expand: "展开侧边栏",
   calendar: "日历",
   aiQuickTip: "点击任意问题，自动开启一段新对话并发送。",
   lifeBar: "人生进度条",
@@ -1073,7 +1081,17 @@ const push = {
   monitorOnlyTail: "（仅监听，未通知）",
   fetchFail: "拉取失败",
   newsTitle: "新闻精选 {{date}}",
+  newsFailTitle: "新闻精选运行失败",
+  newsFailTimeoutBrief: "AI 回复超时或会话被删除，本轮未生成精选",
+  newsFailTimeout: "新闻精选：AI 回复超时，本轮未生成通知{{tail}}",
+  newsFailParseBrief: "AI 回复无法解析出精选条目（可在 AI 助手对应会话查看原始输出）",
+  newsFailParse: "新闻精选：AI 输出解析失败，本轮未生成通知{{tail}}",
+  newsFailRequest: "新闻精选：AI 请求失败（{{err}}），本轮未生成通知{{tail}}",
+  newsPackTitle: "新闻精选 · {{n}} 条",
+  newsPackSummary: "新闻精选：已拉取 {{ok}}/{{total}} 个平台共 {{entries}} 条热榜，AI 精选 {{picked}} 条，生成新闻包通知{{tail}}",
   failSuffix: "失败",
+  rqEarlyEnd: "响应被提前结束（未收到 finish_reason）{{diag}}",
+  rqProviderError: "供应商返回错误：{{err}}",
   links: "链接",
   mergedBy: "由 {{who}} 合并",
   merged: "已合并",
@@ -1102,9 +1120,136 @@ const push = {
   }
 }
 
+const settingsExtra = {
+  // ===== 残留清扫批（弹窗与 lib 诊断文案），2026-10-17 深夜 =====
+  skills: {
+    desc: "关闭后该技能在本工作台的 AI 对话中不可被调用。所有技能保持默认开启。",
+    empty: "未找到任何技能。",
+    builtin: "内置",
+    user: "用户",
+  },
+  autoBk: {
+    title: "数据量与备份差异较大",
+    desc1: "当前数据量（{{cur}} 字符）与最近一次自动备份",
+    desc2: "（{{bk}} 字符，{{time}}）",
+    desc3: "相差 {{pct}}%。可能有数据丢失或误导入，",
+    desc4: "请到 设置 → 账户与同步 → 自动备份 核对备份列表，必要时恢复备份。",
+    gotIt: "知道了",
+  },
+  cfg: {
+    title: "配置文件（源文本）",
+    desc: "直接编辑持久化配置 JSON（分类 / 日历 / 系统设置）。谨慎修改，格式错误会拒绝保存。",
+    reloaded: "已重新载入当前配置",
+    errJson: "JSON 格式错误，无法保存",
+    saved: "配置已保存并应用",
+    errInvalid: "配置内容不合法（需含 categories/calendar）",
+    reload: "重新载入",
+    note: "修改后应用会即时生效；不包含浏览器 localStorage 之外的数据。",
+  },
+  imgCache: {
+    title: "图片缓存 / 暂存区",
+    desc: "查看已粘贴/插入的图片。无引用的图片会进入暂存区，可在此决定删除；仍被引用的图片不可直接删除。",
+    stats: "共 {{all}} 张 · 使用中 {{used}} · 暂存区 {{staged}}",
+    scan: "扫描暂存区",
+    empty: "还没有图片，可在正文编辑时 Ctrl+V 粘贴或点「插图」添加。",
+    stagedToast: "已将 {{n}} 张无引用图片移入暂存区",
+    nothingToStage: "没有需要移入暂存区的图片",
+    deleted: "已删除图片",
+    inUse: "使用中",
+    staged: "暂存",
+    unreferenced: "未引用",
+    deleteTitle: "删除（仅无引用时允许）",
+  },
+  licenses: {
+    title: "开源许可证",
+    desc: "本项目所使用开源软件及其许可证。",
+    author: "作者",
+    descLabel: "描述",
+    license: "许可证",
+  },
+  wipeTitle: "删除全部数据？",
+  wipeDesc: "此操作不可恢复，将清空你在本机存储的全部数据。",
+  wipeUsage1: "你已经使用本软件",
+  wipeVerify1: "为防止误删，下一步需要输入你的名字「",
+  wipeVerify2: "」进行二次确认。",
+  wipeNoName: "你尚未设置用户名，点击「继续删除」将直接进入删除（无二次确认）。",
+  wipeExportFirst: "先导出备份（建议）",
+  wipeVerifyTitle: "二次确认：输入名字以删除",
+  wipeVerify3: "请输入你的名字",
+  wipeVerify4: "以确认删除全部数据。",
+  wipeContinue: "继续删除",
+  wipeConfirm: "确认删除",
+  pressKeys: "按下组合键…",
+  aiModelLabel: "模型",
+  qqRelayDesc: "本机常驻中转服务的地址（POST JSON {\"text\":\"...\"}）；留空回落默认值。QQ 通知仅在本机运行工作台且中转服务常驻时可用。",
+  shortcut: {
+    newCategory: "新建分类",
+    newCategoryDesc: "打开“添加分类”弹窗",
+    goCalendar: "打开日历",
+    goCalendarDesc: "切换到日历视图",
+    search: "全局搜索",
+    searchDesc: "打开全局搜索",
+  },
+}
+
+const skills = {
+  desc: "关闭后该技能在本工作台的 AI 对话中不可被调用。所有技能保持默认开启。",
+  empty: "未找到任何技能。",
+  builtin: "内置",
+  user: "用户",
+}
+
+const autoBk = {
+  title: "数据量与备份差异较大",
+  desc1: "当前数据量（{{cur}} 字符）与最近一次自动备份",
+  desc2: "（{{bk}} 字符，{{time}}）",
+  desc3: "相差 {{pct}}%。可能有数据丢失或误导入，",
+  desc4: "请到 设置 → 账户与同步 → 自动备份 核对备份列表，必要时恢复备份。",
+  gotIt: "知道了",
+}
+
+const cfg = {
+  title: "配置文件（源文本）",
+  desc: "直接编辑持久化配置 JSON（分类 / 日历 / 系统设置）。谨慎修改，格式错误会拒绝保存。",
+  reloaded: "已重新载入当前配置",
+  errJson: "JSON 格式错误，无法保存",
+  saved: "配置已保存并应用",
+  errInvalid: "配置内容不合法（需含 categories/calendar）",
+  reload: "重新载入",
+  note: "修改后应用会即时生效；不包含浏览器 localStorage 之外的数据。",
+}
+
+const imgCache = {
+  title: "图片缓存 / 暂存区",
+  desc: "查看已粘贴/插入的图片。无引用的图片会进入暂存区，可在此决定删除；仍被引用的图片不可直接删除。",
+  stats: "共 {{all}} 张 · 使用中 {{used}} · 暂存区 {{staged}}",
+  scan: "扫描暂存区",
+  empty: "还没有图片，可在正文编辑时 Ctrl+V 粘贴或点「插图」添加。",
+  stagedToast: "已将 {{n}} 张无引用图片移入暂存区",
+  nothingToStage: "没有需要移入暂存区的图片",
+  deleted: "已删除图片",
+  inUse: "使用中",
+  staged: "暂存",
+  unreferenced: "未引用",
+  deleteTitle: "删除（仅无引用时允许）",
+}
+
+const licenses = {
+  title: "开源许可证",
+  desc: "本项目所使用开源软件及其许可证。",
+  author: "作者",
+  descLabel: "描述",
+  license: "许可证",
+}
+
+const rt = {
+  copyPlain: "复制为纯文本",
+  copyRich: "复制为富文本",
+}
+
 export const zh = {
   common,
-  settings,
+  settings: { ...settings, ...settingsExtra },
   toolbar,
   statusBar,
   brandHeader,
@@ -1130,4 +1275,10 @@ export const zh = {
   queue,
   vocab,
   push,
+  skills,
+  autoBk,
+  cfg,
+  imgCache,
+  licenses,
+  rt,
 }

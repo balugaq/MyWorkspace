@@ -356,10 +356,10 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
       {
         ...buildNewsItemBase(),
         id: `news-fail:${cycle}`,
-        title: "新闻精选运行失败",
-        brief: "AI 回复超时或会话被删除，本轮未生成精选",
+        title: getI18n().t("push.newsFailTitle"),
+        brief: getI18n().t("push.newsFailTimeoutBrief"),
       },
-      `新闻精选：AI 回复超时，本轮未生成通知${failedNote}`,
+      getI18n().t("push.newsFailTimeout", { tail: failedNote }),
     )
     return { status: "ok", picked: 0, fresh, failedSources }
   }
@@ -371,10 +371,10 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
       {
         ...buildNewsItemBase(),
         id: `news-fail:${cycle}`,
-        title: "新闻精选运行失败",
+        title: getI18n().t("push.newsFailTitle"),
         brief: requestFailure,
       },
-      `新闻精选：AI 请求失败（${requestFailure}），本轮未生成通知${failedNote}`,
+      getI18n().t("push.newsFailRequest", { err: requestFailure, tail: failedNote }),
     )
     return { status: "ok", picked: 0, fresh, failedSources }
   }
@@ -391,10 +391,10 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
       {
         ...buildNewsItemBase(),
         id: `news-fail:${cycle}`,
-        title: "新闻精选运行失败",
-        brief: "AI 回复无法解析出精选条目（可在 AI 助手对应会话查看原始输出）",
+        title: getI18n().t("push.newsFailTitle"),
+        brief: getI18n().t("push.newsFailParseBrief"),
       },
-      `新闻精选：AI 输出解析失败，本轮未生成通知${failedNote}`,
+      getI18n().t("push.newsFailParse", { tail: failedNote }),
     )
     return { status: "ok", picked: 0, fresh, failedSources }
   }
@@ -403,7 +403,7 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
   const packItem: NotificationItem = {
     ...buildNewsItemBase(),
     id: `news:${cycle}:0`,
-    title: `新闻精选 · ${details.length} 条`,
+    title: getI18n().t("push.newsPackTitle", { n: details.length }),
     brief: details
       .slice(0, 3)
       .map((d) => d.title)
@@ -412,7 +412,13 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
   }
   const fresh = commitNotification(
     packItem,
-    `新闻精选：已拉取 ${NEWS_TYPES.length - failed.length} 个平台共 ${entries.length} 条热榜，AI 精选 ${details.length} 条，生成新闻包通知${failedNote}`,
+    getI18n().t("push.newsPackSummary", {
+      ok: NEWS_TYPES.length - failed.length,
+      total: NEWS_TYPES.length,
+      entries: entries.length,
+      picked: details.length,
+      tail: failedNote,
+    }),
   )
 
   return { status: "ok", picked: details.length, fresh, failedSources }

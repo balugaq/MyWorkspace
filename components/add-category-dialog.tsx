@@ -169,16 +169,16 @@ export function AddCategoryDialog({
 
           {template === "relation" && (
             <div className="rounded-lg border border-primary/30 bg-accent/40 p-4 text-sm text-accent-foreground text-pretty">
-              关系类将以思维导图模式创建空白画布。创建后可在画布中添加 Todo 节点、连接因果关系并附加解决方案。
+              {t("addCategory.relationTip")}
             </div>
           )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            取消
+            {t("common.cancel")}
           </Button>
-          <Button onClick={submit}>创建</Button>
+          <Button onClick={submit}>{t("addCategory.create")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

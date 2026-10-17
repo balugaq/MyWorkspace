@@ -894,7 +894,7 @@ export function VocabularyWorkspace() {
               </Button>
             ) : (
               <Button size="sm" className="h-7 text-xs" onClick={finishPartial}>
-                {t("vocab.backToList")}（保存成功 {quizOkCount} 题）
+                {t("vocab.backToListSaved", { n: quizOkCount })}
               </Button>
             )}
           </div>

@@ -1,5 +1,6 @@
 "use client"
 
+import { getI18n } from "react-i18next"
 import { useEffect, useState } from "react"
 import { getImageURL } from "@/lib/image-store"
 import { cn } from "@/lib/utils"
@@ -29,7 +30,7 @@ export function StoredImg({ imgId, fullSize }: { imgId: string; fullSize?: boole
       active = false
     }
   }, [imgId])
-  if (!url) return <span className="text-muted-foreground">[加载图片…]</span>
+  if (!url) return <span className="text-muted-foreground">{getI18n().t("common.loadingImage")}</span>
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 图片来自 IndexedDB blob URL，无法走 next/image 优化
     <img src={url} alt="" className={fullSize ? IMG_FULL : cn(IMG_FIT, "max-h-56 max-w-full")} />

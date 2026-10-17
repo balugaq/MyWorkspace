@@ -1,5 +1,6 @@
 "use client"
 
+import { getI18n } from "@/lib/i18n"
 import { useEffect, useState } from "react"
 import { Node, mergeAttributes } from "@tiptap/core"
 import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tiptap/react"
@@ -49,7 +50,7 @@ function BilibiliCardView({ node }: NodeViewProps) {
       >
         {/* 文字在上、封面在下（TODO 21：与 GitHub 卡统一顺序） */}
         <div className="space-y-1.5 p-3">
-          <p className="text-sm font-medium leading-snug">B 站视频</p>
+          <p className="text-sm font-medium leading-snug">{getI18n().t("richtext.biliTitle")}</p>
           {/* 保留原始链接文字，可点击跳转 */}
           <p className="truncate text-xs text-muted-foreground">{url} ↗</p>
         </div>

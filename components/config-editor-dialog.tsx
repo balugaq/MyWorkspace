@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { FileJson, RotateCcw, Save } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { useEscapeClose } from "@/hooks/use-escape-close"
@@ -26,6 +27,7 @@ export function ConfigEditorDialog({
   open: boolean
   onOpenChange: (v: boolean) => void
 }) {
+  const { t } = useTranslation()
   const exportData = useWorkspace((s) => s.exportData)
   const importData = useWorkspace((s) => s.importData)
   const [text, setText] = useState("")
@@ -42,22 +44,22 @@ export function ConfigEditorDialog({
 
   function reload() {
     setText(exportData() ?? "{}")
-    toast.success("已重新载入当前配置")
+    toast.success(t("cfg.reloaded"))
   }
 
   function save() {
     try {
       JSON.parse(text) // 先校验
     } catch {
-      toast.error("JSON 格式错误，无法保存")
+      toast.error(t("cfg.errJson"))
       return
     }
     const ok = importData(text)
     if (ok) {
-      toast.success("配置已保存并应用")
+      toast.success(t("cfg.saved"))
       onOpenChange(false)
     } else {
-      toast.error("配置内容不合法（需含 categories/calendar）")
+      toast.error(t("cfg.errInvalid"))
     }
   }
 
@@ -65,9 +67,9 @@ export function ConfigEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>配置文件（源文本）</DialogTitle>
+          <DialogTitle>{t("cfg.title")}</DialogTitle>
           <DialogDescription>
-            直接编辑持久化配置 JSON（分类 / 日历 / 系统设置）。谨慎修改，格式错误会拒绝保存。
+            {t("cfg.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -83,22 +85,22 @@ export function ConfigEditorDialog({
         <div className="flex justify-between gap-2">
           <Button variant="outline" className="gap-2" onClick={reload}>
             <RotateCcw className="size-4" />
-            重新载入
+            {t("cfg.reload")}
           </Button>
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
-              取消
+              {t("common.cancel")}
             </Button>
             <Button className="gap-2" onClick={save}>
               <Save className="size-4" />
-              保存
+              {t("common.save")}
             </Button>
           </div>
         </div>
 
         <p className="flex items-start gap-1 text-xs text-muted-foreground">
           <FileJson className="mt-0.5 size-3 shrink-0" />
-          修改后应用会即时生效；不包含浏览器 localStorage 之外的数据。
+          {t("cfg.note")}
         </p>
       </DialogContent>
     </Dialog>

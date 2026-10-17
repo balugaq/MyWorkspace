@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { ImagePlus, Trash2, RefreshCw } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import {
   getImageURL,
@@ -35,6 +36,7 @@ export function ImageCacheDialog({
   open: boolean
   onOpenChange: (v: boolean) => void
 }) {
+  const { t } = useTranslation()
   const [all, setAll] = useState<StoredImage[]>([])
   const [referenced, setReferenced] = useState<Set<string>>(new Set())
   const [tiles, setTiles] = useState<Record<string, string>>({})
@@ -71,13 +73,13 @@ export function ImageCacheDialog({
       }
     }
     await refresh()
-    toast.success(stagedCount ? `已将 ${stagedCount} 张无引用图片移入暂存区` : "没有需要移入暂存区的图片")
+    toast.success(stagedCount ? t("imgCache.stagedToast", { n: stagedCount }) : t("imgCache.nothingToStage"))
   }
 
   async function remove(id: string) {
     await deleteImage(id)
     await refresh()
-    toast.success("已删除图片")
+    toast.success(t("imgCache.deleted"))
   }
 
   const staged = all.filter((i) => i.staged)
@@ -87,41 +89,41 @@ export function ImageCacheDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>图片缓存 / 暂存区</DialogTitle>
+          <DialogTitle>{t("imgCache.title")}</DialogTitle>
           <DialogDescription>
-            查看已粘贴/插入的图片。无引用的图片会进入暂存区，可在此决定删除；仍被引用的图片不可直接删除。
+            {t("imgCache.desc")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            共 {all.length} 张 · 使用中 {used.length} · 暂存区 {staged.length}
+            {t("imgCache.stats", { all: all.length, used: used.length, staged: staged.length })}
           </span>
           <Button size="sm" variant="outline" onClick={runScan}>
             <RefreshCw className="size-3.5" />
-            扫描暂存区
+            {t("imgCache.scan")}
           </Button>
         </div>
 
         <ScrollArea className="h-64">
           {all.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">
-              还没有图片，可在正文编辑时 Ctrl+V 粘贴或点「插图」添加。
+              {t("imgCache.empty")}
             </p>
           ) : (
             <div className="grid grid-cols-3 gap-3">
               {all.map((img) => {
                 const inUse = referenced.has(img.id)
-                const t = tiles[img.id]
+                const tile = tiles[img.id]
                 return (
                   <div
                     key={img.id}
                     className="flex flex-col gap-1.5 overflow-hidden rounded-lg border bg-card p-2"
                   >
                     <div className="flex h-20 items-center justify-center overflow-hidden bg-muted">
-                      {t ? (
+                      {tile ? (
                         // eslint-disable-next-line @next/next/no-img-element -- IndexedDB 缩略图
-                        <img src={t} alt="" className="max-h-full max-w-full object-contain" />
+                        <img src={tile} alt="" className="max-h-full max-w-full object-contain" />
                       ) : (
                         <ImagePlus className="size-5 text-muted-foreground" />
                       )}
@@ -134,14 +136,14 @@ export function ImageCacheDialog({
                             : "rounded bg-warning/15 px-1 text-[10px] text-foreground"
                         }
                       >
-                        {inUse ? "使用中" : img.staged ? "暂存" : "未引用"}
+                        {inUse ? t("imgCache.inUse") : img.staged ? t("imgCache.staged") : t("imgCache.unreferenced")}
                       </span>
                       {!inUse && (
                         <button
                           type="button"
                           onClick={() => remove(img.id)}
                           className="text-muted-foreground transition-colors hover:text-destructive"
-                          title="删除（仅无引用时允许）"
+                          title={t("imgCache.deleteTitle")}
                         >
                           <Trash2 className="size-3.5" />
                         </button>

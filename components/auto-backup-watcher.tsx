@@ -5,6 +5,7 @@
 //    lib 内按「当天（dayStartOffset 翻篇口径）已备份」去重，双保险覆盖不同退出路径。
 // 2. 数据量异常提醒——启动稳定后比较当前快照与最新备份的数据量，相差超 50% 弹窗提醒。
 
+import { useTranslation } from "react-i18next"
 import { useEffect, useState } from "react"
 import {
   AlertDialog,
@@ -25,6 +26,7 @@ function fmtSize(n: number): string {
 }
 
 export function AutoBackupWatcher() {
+  const { t } = useTranslation()
   const [loss, setLoss] = useState<DataLossCheck | null>(null)
 
   // 关机备份监听（两条路径都挂，lib 内当天去重，重复触发无副作用）
@@ -61,16 +63,16 @@ export function AutoBackupWatcher() {
     <AlertDialog open={loss !== null} onOpenChange={(v) => !v && setLoss(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>数据量与备份差异较大</AlertDialogTitle>
+          <AlertDialogTitle>{t("autoBk.title")}</AlertDialogTitle>
           <AlertDialogDescription>
-            当前数据量（{fmtSize(loss?.currentSize ?? 0)} 字符）与最近一次自动备份
-            （{fmtSize(loss?.backupSize ?? 0)} 字符，{loss ? new Date(loss.backupAt).toLocaleString() : ""}）
-            相差 {(loss ? Math.round(loss.ratio * 100) : 0)}%。可能有数据丢失或误导入，
-            请到 设置 → 账户与同步 → 自动备份 核对备份列表，必要时恢复备份。
+            {t("autoBk.desc1", { cur: fmtSize(loss?.currentSize ?? 0) })}
+            {t("autoBk.desc2", { bk: fmtSize(loss?.backupSize ?? 0), time: loss ? new Date(loss.backupAt).toLocaleString() : "" })}
+            {t("autoBk.desc3", { pct: loss ? Math.round(loss.ratio * 100) : 0 })}
+            {t("autoBk.desc4")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogAction>知道了</AlertDialogAction>
+          <AlertDialogAction>{t("autoBk.gotIt")}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

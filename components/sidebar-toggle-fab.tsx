@@ -5,6 +5,7 @@
 // - 未拖动过（store 无记录）时默认垂直居中。
 // - 点击（位移 < 4px 视为点击而非拖动）展开侧边栏。
 
+import { useTranslation } from "react-i18next"
 import { useRef, useState } from "react"
 import { PanelLeft } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
@@ -14,6 +15,7 @@ const TOP_MIN = 64 // 拖动范围上界：BrandHeader（h-14）之下——开�
 const EDGE = 8
 
 export function SidebarToggleFab() {
+  const { t } = useTranslation()
   const setSidebarCollapsed = useWorkspace((s) => s.setSidebarCollapsed)
   const persistedY = useWorkspace((s) => s.sidebarToggleY)
   const setSidebarToggleY = useWorkspace((s) => s.setSidebarToggleY)
@@ -76,7 +78,7 @@ export function SidebarToggleFab() {
       title="展开侧边栏（可上下拖动）"
     >
       <PanelLeft className="size-4" />
-      <span className="sr-only">展开侧边栏</span>
+      <span className="sr-only">{t("sidebar.expand")}</span>
     </button>
   )
 }

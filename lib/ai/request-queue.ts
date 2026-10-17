@@ -9,6 +9,7 @@
 
 "use client"
 
+import { getI18n } from "@/lib/i18n"
 import { streamText, generateText, tool, stepCountIs, zodSchema, type ModelMessage, type ToolSet } from "ai"
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
 import { z } from "zod"
@@ -464,14 +465,14 @@ async function runJob(job: Job) {
         }
         if (parts.length > 0) diag = `：\n${parts.join("\n")}`
       }
-      finalContent = body + (sawError ? `\n\n⚠️ 响应被提前结束（未收到 finish_reason）${diag}` : "")
+      finalContent = body + (sawError ? `\n\n⚠️ ${getI18n().t("push.rqEarlyEnd", { diag })}` : "")
     } else {
       const providerErr = extractProviderError(rawBody)
       const reason =
         httpStatus != null && httpStatus !== 200
           ? `HTTP ${httpStatus} ${httpStatusText}`
           : providerErr
-            ? `供应商返回错误：${providerErr}`
+            ? getI18n().t("push.rqProviderError", { err: providerErr })
             : errorMsg ?? "未知错误"
       // 非 2xx 时把服务器真实返回的响应体（已限长）一并附上，便于排查
       // （如 429 的限流说明、具体错误码等）；避免只看到状态码却不知因由。

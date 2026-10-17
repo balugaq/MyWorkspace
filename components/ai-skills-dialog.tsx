@@ -6,6 +6,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { useWorkspace } from "@/lib/store"
 import { loadSkills, type Skill } from "@/lib/ai/skills"
@@ -33,6 +34,7 @@ export function SkillsToggleDialog({
   open: boolean
   onOpenChange: (o: boolean) => void
 }) {
+  const { t } = useTranslation()
   const settings = useWorkspace((s) => s.settings)
   const updateSettings = useWorkspace((s) => s.updateSettings)
 
@@ -77,15 +79,15 @@ export function SkillsToggleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>技能启停</DialogTitle>
+          <DialogTitle>{t("aiChat.skillsToggle")}</DialogTitle>
           <DialogDescription>
-            关闭后该技能在本工作台的 AI 对话中不可被调用。所有技能保持默认开启。
+            {t("skills.desc")}
           </DialogDescription>
         </DialogHeader>
 
         {rows.length === 0 ? (
           <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-            未找到任何技能。
+            {t("skills.empty")}
           </p>
         ) : (
           <ul className="native-scroll flex max-h-80 flex-col gap-1.5 overflow-y-auto pr-1">
@@ -105,7 +107,7 @@ export function SkillsToggleDialog({
                           : "bg-muted text-muted-foreground",
                       )}
                     >
-                      {r.source}
+                      {r.source === "内置" ? t("skills.builtin") : t("skills.user")}
                     </span>
                   </div>
                   <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
