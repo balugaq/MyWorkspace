@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 // —— 对话列表按时间分组 ——
 // 锚点时间：以「最后一条用户消息的创建时间」为准（继续对话后自然变为最新，实现自动置顶）；
@@ -64,14 +65,13 @@ function bucketKey(c: Conversation, now: number): string {
 }
 
 const GROUP_LABEL: Record<string, string> = {
-  pinned: "置顶",
-  today: "今天",
-  yesterday: "昨天",
-  week: "7 天内",
-  month30: "30 天内",
+  pinned: "sessions.bucket.pinned",
+  today: "sessions.bucket.today",
+  yesterday: "sessions.bucket.yesterday",
+  week: "sessions.bucket.week",
+  month30: "sessions.bucket.month30",
 }
 function groupLabel(key: string): string {
-  if (key.startsWith("ym-")) return key.slice(3)
   return GROUP_LABEL[key] ?? key
 }
 
@@ -84,17 +84,19 @@ function groupRank(key: string): number {
 
 // 对话列表中某个会话是否正在生成（流式或排队中）——订阅全局队列，仅在状态变化时重渲染该小圆点。
 function StreamingDot({ id }: { id: string }) {
+  const { t } = useTranslation()
   const working = useSyncExternalStore(subscribeQueue, () => isWorking(id), () => false)
   if (!working) return null
   return (
     <span
       className="ml-1 size-1.5 shrink-0 animate-pulse rounded-full bg-primary"
-      title="正在生成…"
+      title={t("sessions.generating")}
     />
   )
 }
 
 export function AiSessionsPanel() {
+  const { t } = useTranslation()
   const conversations = useWorkspace((s) => s.conversations)
   const activeId = useWorkspace((s) => s.activeConversationId)
   const createConversation = useWorkspace((s) => s.createConversation)
@@ -150,17 +152,17 @@ export function AiSessionsPanel() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b px-3 py-2">
         <BotMessageSquare className="size-4 text-primary" />
-        <span className="text-sm font-semibold">AI 对话</span>
+        <span className="text-sm font-semibold">{t("toolbar.aiChat")}</span>
         <span className="text-xs text-muted-foreground">{conversations.length}</span>
         {/* 侧边栏折叠按钮：归位到标题行最右 */}
         <button
           type="button"
           onClick={() => setSidebarCollapsed(true)}
           className="ml-auto flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          title="收起侧边栏"
+          title={t("sidebar.collapse")}
         >
           <PanelLeftClose className="size-4" />
-          <span className="sr-only">收起侧边栏</span>
+          <span className="sr-only">{t("sidebar.collapse")}</span>
         </button>
       </div>
       <Button
@@ -172,17 +174,17 @@ export function AiSessionsPanel() {
           if (empty) selectConversation(empty.id)
           else createConversation()
         }}
-        title="开启新对话"
+        title={t("sessions.newChat")}
       >
         <Plus className="size-4" />
-        开启新对话
+        {t("sessions.newChat")}
       </Button>
       <ScrollArea className="min-h-0 flex-1 overflow-hidden">
         <ul className="flex flex-col gap-0.5 p-2">
           {groups.map((g) => (
             <Fragment key={g.key}>
               <li className="px-2 pb-1 pt-3 text-xs font-medium text-muted-foreground first:pt-0">
-                {groupLabel(g.key)}
+                {groupLabel(g.key).startsWith("ym-") ? groupLabel(g.key).slice(3) : t(groupLabel(g.key))}
               </li>
               {g.items.map((c) => (
                 <li key={c.id}>
@@ -224,7 +226,7 @@ export function AiSessionsPanel() {
                         <DropdownMenuTrigger
                           className="shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 data-[popup-open]:opacity-100 focus-visible:opacity-100"
                           onClick={(e) => e.stopPropagation()}
-                          aria-label="更多操作"
+                          aria-label={t("sessions.more")}
                         >
                           <MoreVertical className="size-3.5" />
                         </DropdownMenuTrigger>
@@ -238,12 +240,12 @@ export function AiSessionsPanel() {
                             {c.pinned ? (
                               <>
                                 <PinOff className="size-4" />
-                                取消置顶
+                                {t("sessions.unpin")}
                               </>
                             ) : (
                               <>
                                 <Pin className="size-4" />
-                                置顶
+                                {t("sessions.pin")}
                               </>
                             )}
                           </DropdownMenuItem>
@@ -254,7 +256,7 @@ export function AiSessionsPanel() {
                             }}
                           >
                             <Pencil className="size-4" />
-                            重命名
+                            {t("common.rename")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -265,7 +267,7 @@ export function AiSessionsPanel() {
                             }}
                           >
                             <Trash2 className="size-4" />
-                            删除
+                            {t("common.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -287,13 +289,13 @@ export function AiSessionsPanel() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除这个对话？</AlertDialogTitle>
+            <AlertDialogTitle>{t("sessions.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              删除后不可恢复，该对话的所有消息都会丢失。
+              {t("sessions.deleteDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
@@ -301,7 +303,7 @@ export function AiSessionsPanel() {
                 setDelTarget(null)
               }}
             >
-              删除
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

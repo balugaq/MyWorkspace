@@ -708,10 +708,10 @@ TODO 74. （状态：待处理）
 
 ### TODO 40 后续批次（2026-10-17 主人口径：逐批套用模板，文本只写 zh，en 暂不写——缺 key 自动回落中文）
 - ~~批 1：全局外壳（toolbar-panel / status-bar / brand-header 静态项 / global-search / add-category-dialog / page 空态 / app-sidebar）~~ ✅ 2026-10-17 完成（新增命名空间 toolbar/statusBar/brandHeader/search/home/addCategory/templates/sidebar + common 扩充）。
-- 批 2：AI 对话（ai-chat / ai-sessions-panel / ai-models-dialog / ai-personas-dialog）
-- 批 3：随笔（novel-workspace / text-context-menu / rich-text-editor 可视化态文案）
-- 批 4：思维导图（mindmap-workspace / node-inspector / mindmap/nodes）
-- 批 5：日历（calendar-workspace + 自定义节日弹窗）
+- ~~批 2：AI 对话（ai-chat / ai-sessions-panel / ai-models-dialog / ai-personas-dialog）~~ ✅ 2026-10-17 完成（命名空间 aiChat/sessions/models/personas；PRESET_QUESTIONS 改 key 数组、两处消费渲染 t(q)、applyPreset/askAiAbout 传翻译后文本）
+- ~~批 3：随笔（novel-workspace / text-context-menu / rich-text-editor）~~ ✅ 2026-10-17 完成（novel 命名空间；「问 AI」前缀整段抽插值）
+- ~~批 4：思维导图（mindmap-workspace / node-inspector / mindmap/nodes）~~ ✅ 2026-10-17 完成（mindmap/inspector 命名空间；AI 分析 prompt 整段插值；局部变量 t×2 改名防撞）
+- ~~批 5：日历（calendar-workspace + 自定义节日弹窗）~~ ✅ 2026-10-17 完成（calendar 命名空间；WEEKDAYS 改 key 数组；AI prompt 与 date-fns zhCN 日期格式留遗留）
 - 批 6：联系人（contacts-workspace）
 - 批 7：保险库（vault-workspace / vault-provider）
 - 批 8：个人主页（profile-workspace / weather-widget）

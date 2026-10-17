@@ -8,6 +8,7 @@ import { useState } from "react"
 import { Check, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { useWorkspace } from "@/lib/store"
+import { useTranslation } from "react-i18next"
 import type { AIPersona } from "@/lib/types"
 import {
   Dialog,
@@ -31,6 +32,7 @@ export function PersonaManagerDialog({
   onOpenChange: (o: boolean) => void
 }) {
   const settings = useWorkspace((s) => s.settings)
+  const { t } = useTranslation()
   const updateSettings = useWorkspace((s) => s.updateSettings)
 
   const personas = settings.aiPersonas
@@ -47,7 +49,7 @@ export function PersonaManagerDialog({
   }
 
   const save = (p: AIPersona) => {
-    const name = p.name.trim() || "未命名人设"
+    const name = p.name.trim() || t("personas.untitled")
     const exists = personas.some((x) => x.id === p.id)
     const next = exists
       ? personas.map((x) => (x.id === p.id ? { ...p, name } : x))
@@ -59,7 +61,7 @@ export function PersonaManagerDialog({
   }
 
   const remove = (id: string) => {
-    if (!confirm("确定删除这个人设？")) return
+    if (!confirm(t("personas.deleteConfirm"))) return
     const next = personas.filter((x) => x.id !== id)
     const nextActive = activeId === id ? (next[0]?.id ?? null) : activeId
     updateSettings({ aiPersonas: next, aiActivePersonaId: nextActive })
@@ -71,9 +73,9 @@ export function PersonaManagerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="native-scroll max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>人设管理</DialogTitle>
+          <DialogTitle>{t("personas.title")}</DialogTitle>
           <DialogDescription>
-            可创建多个人设并选择「全局当前人设」；选中的人设会注入每一段 AI 对话的系统提示词。
+            {t("personas.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -97,16 +99,16 @@ export function PersonaManagerDialog({
                 <span className="size-4 shrink-0" />
               )}
               <span className="min-w-0">
-                <span className="block text-sm font-medium">不使用人设</span>
+                <span className="block text-sm font-medium">{t("personas.none")}</span>
                 <span className="block text-xs text-muted-foreground">
-                  仅使用默认系统提示词
+                  {t("personas.noneDesc")}
                 </span>
               </span>
             </button>
 
             {personas.length === 0 ? (
               <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-                还没有任何人设，点击下方「添加人设」创建第一个。
+                {t("personas.empty")}
               </p>
             ) : (
               <ul className="native-scroll flex max-h-72 flex-col gap-1.5 overflow-y-auto pr-1">
@@ -124,7 +126,7 @@ export function PersonaManagerDialog({
                         type="button"
                         className="flex min-w-0 flex-1 items-center gap-2 text-left"
                         onClick={() => selectActive(p.id)}
-                        title="点击设为全局当前人设"
+                        title={t("personas.setActive")}
                       >
                         {isActive ? (
                           <Check className="size-4 shrink-0 text-primary" />
@@ -137,7 +139,7 @@ export function PersonaManagerDialog({
                             {p.content.trim()
                               ? p.content.trim().slice(0, 28) +
                                 (p.content.trim().length > 28 ? "…" : "")
-                              : "（空人设）"}
+                              : t("personas.emptyPersona")}
                           </span>
                         </span>
                       </button>
@@ -146,7 +148,7 @@ export function PersonaManagerDialog({
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => setEditing(p)}
-                        title="编辑"
+                        title={t("common.edit")}
                       >
                         <Pencil />
                       </Button>
@@ -155,7 +157,7 @@ export function PersonaManagerDialog({
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => remove(p.id)}
-                        title="删除"
+                        title={t("common.delete")}
                       >
                         <Trash2 />
                       </Button>
@@ -165,7 +167,7 @@ export function PersonaManagerDialog({
               </ul>
             )}
             <Button type="button" variant="outline" className="gap-1.5" onClick={startAdd}>
-              <Plus className="size-4" /> 添加人设
+              <Plus className="size-4" /> {t("personas.add")}
             </Button>
           </div>
         )}
@@ -183,6 +185,7 @@ function PersonaForm({
   onCancel: () => void
   onSave: (p: AIPersona) => void
 }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(initial.name)
   const [content, setContent] = useState(initial.content)
   const id = initial.id
@@ -190,34 +193,34 @@ function PersonaForm({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <Label className="text-xs">名称</Label>
+        <Label className="text-xs">{t("personas.name")}</Label>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="如：严谨的软件工程师 / 温柔的陪聊"
+          placeholder={t("personas.namePlaceholder")}
         />
       </div>
       <div className="flex flex-col gap-1">
-        <Label className="text-xs">人设正文（自定义指令）</Label>
+        <Label className="text-xs">{t("personas.body")}</Label>
         <NativeScrollArea>
           <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="例如：你是一位严谨的软件工程师，回答偏好给出可运行的代码片段与根因分析。"
+            placeholder={t("personas.bodyPlaceholder")}
             className="min-h-28 max-h-64 overflow-y-auto resize-none text-sm"
           />
         </NativeScrollArea>
       </div>
       <div className="mt-1 flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onCancel}>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button
           type="button"
           onClick={() => onSave({ id, name, content })}
           disabled={!content.trim()}
         >
-          保存
+          {t("common.save")}
         </Button>
       </div>
     </div>

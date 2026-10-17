@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
+import { useTranslation } from "react-i18next"
 import type { Category, MindNode, RelationFamily } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
@@ -65,6 +66,7 @@ import { cn } from "@/lib/utils"
 const nodeTypes = { todo: TodoNode, solution: SolutionNode }
 
 export function MindmapWorkspace({ category }: { category: Category }) {
+  const { t } = useTranslation()
   // 关系族（TODO 54）：当前分类下的所有族；当前族为组件内 state（默认第一个族）
   const relationFamilies = useWorkspace((s) => s.relationFamilies)
   const pendingFamilyId = useWorkspace((s) => s.pendingFamilyId)
@@ -106,14 +108,14 @@ export function MindmapWorkspace({ category }: { category: Category }) {
               onClick={() => setFamilyView(family.id, "mindmap")}
             >
               <Workflow className="size-3.5" />
-              思维导图
+              {t("mindmap.graphView")}
             </ViewBtn>
             <ViewBtn
               active={view === "list"}
               onClick={() => setFamilyView(family.id, "list")}
             >
               <List className="size-3.5" />
-              列表
+              {t("mindmap.listView")}
             </ViewBtn>
           </div>
         )}
@@ -133,7 +135,7 @@ export function MindmapWorkspace({ category }: { category: Category }) {
             </ReactFlowProvider>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              该分类下还没有关系族。
+              {t("mindmap.noFamilies")}
             </div>
           )
         ) : family ? (
@@ -182,6 +184,7 @@ function FamilySidebar({
   families: RelationFamily[]
   onSelect: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const addRelationFamily = useWorkspace((s) => s.addRelationFamily)
   const renameRelationFamily = useWorkspace((s) => s.renameRelationFamily)
   const deleteRelationFamily = useWorkspace((s) => s.deleteRelationFamily)
@@ -206,7 +209,7 @@ function FamilySidebar({
     setAdding(false)
     setNewName("")
     onSelect(id)
-    toast.success("已新建关系族")
+    toast.success(t("mindmap.familyCreated"))
   }
 
   // 重命名提交：重名（同分类内、排除自身）时 toast 提示并保留编辑态与焦点，不落库
@@ -220,7 +223,7 @@ function FamilySidebar({
     }
     const dup = families.some((f) => f.id !== renamingId && f.name === next)
     if (dup) {
-      toast.error(`已存在同名关系族「${next}」，请换个名字`)
+      toast.error(t("mindmap.familyExists", { name: next }))
       renameInputRef.current?.focus()
       return false
     }
@@ -233,10 +236,14 @@ function FamilySidebar({
   // AI 分析（只读）：askAiAbout 新建会话并携带族上下文，AI 用既有只读技能拉数据出报告
   const handleAiAnalyze = () => {
     const prompt =
-      `请分析「${category.name}」分类下关系族「${family.name}」的思维导图（共 ${family.nodes.length} 个节点、${family.edges.length} 条连线）。` +
-      `请用 wb_get_mindmap_graph 技能获取节点与连线结构（categoryId "${category.id}"，familyId "${family.id}"），` +
-      `必要时用 wb_get_mindmap_node 查看节点详情，` +
-      `然后输出结构分析报告：任务依赖与层级是否合理、孤立节点、循环依赖、可合并/拆分的节点、下一步建议。`
+t("mindmap.aiAnalyzePrompt", {
+        cat: category.name,
+        family: family.name,
+        nodes: family.nodes.length,
+        edges: family.edges.length,
+        categoryId: category.id,
+        familyId: family.id,
+      })
     askAiAbout(prompt)
   }
 
@@ -246,9 +253,9 @@ function FamilySidebar({
     setRelayoutBusy(true)
     try {
       const n = await relayoutFamilyNodes(family.id)
-      toast.success(`AI 已重排 ${n} 个节点位置`)
+      toast.success(t("mindmap.relaidOut", { n }))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "AI 整理布局失败")
+      toast.error(e instanceof Error ? e.message : t("mindmap.relayoutFail"))
     } finally {
       setRelayoutBusy(false)
     }
@@ -258,11 +265,11 @@ function FamilySidebar({
     <div className="flex w-48 shrink-0 flex-col border-r bg-card/50">
       <div className="flex items-center gap-1.5 border-b px-3 py-2.5">
         <Layers className="size-3.5 text-muted-foreground" />
-        <span className="text-xs font-semibold text-foreground">关系族</span>
+        <span className="text-xs font-semibold text-foreground">{t("mindmap.families")}</span>
         <button
           type="button"
-          title="新建族"
-          aria-label="新建族"
+          title={t("mindmap.newFamily")}
+          aria-label={t("mindmap.newFamily")}
           onClick={() => {
             addStateRef.current = "idle"
             setAdding(true)
@@ -296,7 +303,7 @@ function FamilySidebar({
                 }
               }}
               maxLength={20}
-              placeholder="族名称（≤20 字）"
+              placeholder={t("mindmap.familyNamePlaceholder")}
               className="h-7 text-xs"
             />
           </div>
@@ -362,8 +369,8 @@ function FamilySidebar({
                 </button>
                 <button
                   type="button"
-                  title="重命名"
-                  aria-label="重命名族"
+                  title={t("common.rename")}
+                  aria-label={t("mindmap.renameFamily")}
                   onClick={(e) => {
                     e.stopPropagation()
                     setRenamingId(f.id)
@@ -375,14 +382,14 @@ function FamilySidebar({
                 </button>
                 <button
                   type="button"
-                  title="删除族"
-                  aria-label="删除族"
+                  title={t("mindmap.deleteFamily")}
+                  aria-label={t("mindmap.deleteFamily")}
                   onClick={(e) => {
                     e.stopPropagation()
                     // TODO 66：空族（无节点）直接删除，不打扰确认
                     if (f.nodes.length === 0) {
                       deleteRelationFamily(f.id)
-                      toast.success("已删除关系族")
+                      toast.success(t("mindmap.familyDeleted"))
                     } else {
                       setConfirmDelId(f.id)
                     }
@@ -405,7 +412,7 @@ function FamilySidebar({
           onClick={handleAiAnalyze}
         >
           <Sparkles className="size-3.5" />
-          AI 分析
+          {t("mindmap.aiAnalyze")}
         </Button>
         <Button
           size="sm"
@@ -415,7 +422,7 @@ function FamilySidebar({
           disabled={relayoutBusy || family.nodes.length === 0}
         >
           <Wand2 className={cn("size-3.5", relayoutBusy && "animate-pulse")} />
-          {relayoutBusy ? "整理中…" : "整理布局"}
+          {relayoutBusy ? t("mindmap.relayouting") : t("mindmap.relayout")}
         </Button>
       </div>
 
@@ -427,25 +434,24 @@ function FamilySidebar({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              删除关系族「
-              {families.find((f) => f.id === confirmDelId)?.name || "未命名"}」？
+              {t("mindmap.deleteFamilyTitle", { name: families.find((f) => f.id === confirmDelId)?.name || t("common.untitled") })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              将删除该族及其下全部节点与连线，并清理对应贡献记录。此操作不可撤销。
+              {t("mindmap.deleteFamilyDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setConfirmDelId(null)}>
-              取消
+              {t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (confirmDelId) deleteRelationFamily(confirmDelId)
                 setConfirmDelId(null)
-                toast.success("已删除关系族")
+                toast.success(t("mindmap.familyDeleted"))
               }}
             >
-              删除
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -469,6 +475,7 @@ function MoveNodesDialog({
   currentFamily: RelationFamily
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const relationFamilies = useWorkspace((s) => s.relationFamilies)
   const categories = useWorkspace((s) => s.categories)
   const moveNodesToFamily = useWorkspace((s) => s.moveNodesToFamily)
@@ -512,7 +519,7 @@ function MoveNodesDialog({
       setActiveCategory(dst.categoryId)
       setPendingFamilyId(target)
     }
-    toast.success(`已搬迁 ${nodeIds.length} 个节点`)
+    toast.success(t("mindmap.movedNodes", { n: nodeIds.length }))
     onClose()
   }
 
@@ -520,9 +527,9 @@ function MoveNodesDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>搬迁 {nodeIds.length} 个节点</DialogTitle>
+          <DialogTitle>{t("mindmap.moveTitle", { n: nodeIds.length })}</DialogTitle>
           <DialogDescription>
-            选择目标关系族；搬迁只移动节点，两端都被选中的连线会一并随迁。
+            {t("mindmap.moveDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -530,7 +537,7 @@ function MoveNodesDialog({
           {/* 当前分类的族 */}
           <section className="flex flex-col gap-1.5">
             <p className="text-xs font-medium text-muted-foreground">
-              「{category.name}」的关系族
+              {t("mindmap.familiesOf", { name: category.name })}
             </p>
             {sameCatFams.map((f) => {
               const isCurrent = f.id === currentFamily.id
@@ -550,7 +557,7 @@ function MoveNodesDialog({
                   )}
                 >
                   {f.name}
-                  {isCurrent && <span className="text-xs">当前所在</span>}
+                  {isCurrent && <span className="text-xs">{t("mindmap.currentFamily")}</span>}
                 </button>
               )
             })}
@@ -565,7 +572,7 @@ function MoveNodesDialog({
                     createInline()
                   }
                 }}
-                placeholder="新建族名称…"
+                placeholder={t("mindmap.newFamilyPlaceholder")}
                 className="h-8 flex-1 text-xs"
               />
               <Button
@@ -575,7 +582,7 @@ function MoveNodesDialog({
                 onClick={createInline}
               >
                 <Plus className="size-3.5" />
-                新建
+                {t("mindmap.create")}
               </Button>
             </div>
           </section>
@@ -583,7 +590,7 @@ function MoveNodesDialog({
           {/* 搬迁至其他图 */}
           {otherRelCats.length > 0 && (
             <section className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-muted-foreground">搬迁至其他图</p>
+              <p className="text-xs font-medium text-muted-foreground">{t("mindmap.moveToOther")}</p>
               {otherRelCats.map((c) => (
                 <div key={c.id} className="flex flex-col gap-1">
                   <p className="px-1 text-[11px] text-muted-foreground/80">{c.name}</p>
@@ -613,10 +620,10 @@ function MoveNodesDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button onClick={confirm} disabled={!target || target === currentFamily.id}>
-            搬迁
+            {t("mindmap.move")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -637,6 +644,7 @@ function Canvas({
   families: RelationFamily[]
   onSelectFamily: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const activeItemId = useWorkspace((s) => s.activeItemId)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const addNode = useWorkspace((s) => s.addNode)
@@ -700,8 +708,8 @@ function Canvas({
     } else {
       addNode(family.id)
     }
-    toast.success("已添加节点，右侧编辑详情")
-  }, [screenToFlowPosition, addNode, family.id])
+    toast.success(t("mindmap.nodeAdded"))
+  }, [screenToFlowPosition, addNode, family.id, t])
 
   // 是否正在从节点手柄拖拽连线（拖拽中不播放连线动画，松手后再播放）
   const [isConnecting, setIsConnecting] = useState(false)
@@ -797,8 +805,8 @@ function Canvas({
         }
         toast.success(
           nextDone
-            ? `已标记 ${targets.length} 个节点完成`
-            : `已取消 ${targets.length} 个节点的完成态`
+            ? t("mindmap.markedDone", { n: targets.length })
+            : t("mindmap.unmarkedDone", { n: targets.length })
         )
         return
       }
@@ -810,16 +818,16 @@ function Canvas({
         return
       }
       if (action.startsWith("tag:")) {
-        const t = action.slice(4).trim()
-        if (!t) return
+        const tag = action.slice(4).trim()
+        if (!tag) return
         let added = 0
         for (const n of targets) {
-          if (!(n.tags ?? []).includes(t)) {
-            updateNode(family.id, n.id, { tags: [...(n.tags ?? []), t] })
+          if (!(n.tags ?? []).includes(tag)) {
+            updateNode(family.id, n.id, { tags: [...(n.tags ?? []), tag] })
             added++
           }
         }
-        if (added === 0) toast.info("选区内节点均已存在该标签")
+        if (added === 0) toast.info(t("mindmap.tagAlreadyAll"))
         return
       }
       if (action.startsWith("style-border:")) {
@@ -846,7 +854,7 @@ function Canvas({
         return
       }
     },
-    [selectedIds, family.nodes, family.id, addChildNode, setActiveItem, updateNode],
+    [selectedIds, family.nodes, family.id, addChildNode, setActiveItem, updateNode, t],
   )
 
   // 按 Delete / Backspace 请求删除当前选中的节点（弹出确认，避开文本输入框）
@@ -858,8 +866,8 @@ function Canvas({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Delete" && e.key !== "Backspace") return
       if (!(e.target instanceof HTMLElement)) return
-      const t = e.target
-      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return
+      const el = e.target
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable) return
       if (!activeItemId) return
       const keyNode = family.nodes.find((n) => n.id === activeItemId)
       if (!keyNode) return
@@ -867,14 +875,14 @@ function Canvas({
       e.preventDefault()
       if (isPristineNode(keyNode, family.edges)) {
         removeNode(family.id, keyNode.id)
-        toast.success("已删除节点")
+        toast.success(t("mindmap.nodeDeleted"))
         return
       }
       setPendingDeleteId(activeItemId)
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [activeItemId, family.nodes, family.edges, family.id, removeNode])
+  }, [activeItemId, family.nodes, family.edges, family.id, removeNode, t])
 
   // ---- 渲染防风暴缓存：只改 1 个节点不再重建整张画布 ----
   // rfNode 逐节点缓存：node 引用 / 折叠态 / 选中态 / 多选态 / 多选数量都没变就复用同一对象（含回调闭包），
@@ -1165,11 +1173,11 @@ function Canvas({
     (c: Connection) => {
       if (c.source && c.target) {
         const res = connectNodes(family.id, c.source, c.target, "flow")
-        if (res === "exists") toast.error("已经连接过此节点了！")
-        else if (res === "created") toast.success("已建立连线")
+        if (res === "exists") toast.error(t("mindmap.edgeExists"))
+        else if (res === "created") toast.success(t("mindmap.edgeCreated"))
       }
     },
-    [connectNodes, family.id],
+    [connectNodes, family.id, t],
   )
 
   // 视口存档：useCallback 稳定引用 + 数值级守卫（xyflow 的 panZoom end / fitView 可能重复
@@ -1204,10 +1212,10 @@ function Canvas({
     (_: React.MouseEvent, e: Edge) => {
       if (!e.id.startsWith("sol-edge-")) {
         removeEdge(family.id, e.id)
-        toast.success("已删除连线")
+        toast.success(t("mindmap.edgeDeleted"))
       }
     },
-    [removeEdge, family.id],
+    [removeEdge, family.id, t],
   )
 
   const onNodeDoubleClick = useCallback(
@@ -1241,12 +1249,12 @@ function Canvas({
         paneClickRef.current = null
         const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
         addNode(family.id, pos)
-        toast.success("已添加节点，右侧编辑详情")
+        toast.success(t("mindmap.nodeAdded"))
       } else {
         paneClickRef.current = { t: now, x: e.clientX, y: e.clientY }
       }
     },
-    [screenToFlowPosition, addNode, family.id, setActiveItem]
+    [screenToFlowPosition, addNode, family.id, setActiveItem, t]
   )
 
   // 搬迁弹窗：多选批量 / 单节点
@@ -1267,17 +1275,17 @@ function Canvas({
         <div className="pointer-events-none absolute right-3 top-3 z-10 flex flex-col items-end gap-2">
           <Button size="sm" className="pointer-events-auto gap-1.5" onClick={addAtCenter}>
             <Plus className="size-4" />
-            添加节点
+            {t("mindmap.addNode")}
           </Button>
           <Button
             size="sm"
             variant={birdView ? "default" : "secondary"}
             className="pointer-events-auto gap-1.5"
             onClick={() => setBirdView((b) => !b)}
-            title={birdView ? "退出鸟瞰（恢复正常缩放）" : "鸟瞰模式（允许无限缩小查看全局）"}
+            title={birdView ? t("mindmap.exitBirdView") : t("mindmap.birdView")}
           >
             {birdView ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            鸟瞰
+            {t("mindmap.birdViewShort")}
           </Button>
         </div>
         <ReactFlow
@@ -1317,10 +1325,10 @@ function Canvas({
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-center">
             <Workflow className="size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              「{family.name}」还是空的，双击画布或点击右上角「添加节点」开始。
+              {t("mindmap.emptyCanvas", { name: family.name })}
             </p>
             <p className="text-xs text-muted-foreground/70">
-              Shift+左键拖框可多选节点；拖拽节点底部圆点可连线，点击连线可删除。
+              {t("mindmap.canvasHint")}
             </p>
           </div>
         )}
@@ -1360,21 +1368,21 @@ function Canvas({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              删除节点「{family.nodes.find((n) => n.id === pendingDeleteId)?.title || "未命名"}」？
+              {t("mindmap.deleteNodeTitle", { name: family.nodes.find((n) => n.id === pendingDeleteId)?.title || t("common.untitled") })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              将删除该节点及其关联连线；若它是其它节点的子任务，也会从父节点移除。此操作不可撤销。
+              {t("mindmap.deleteNodeDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingDeleteId(null)}>取消</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setPendingDeleteId(null)}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (pendingDeleteId) removeNode(family.id, pendingDeleteId)
                 setPendingDeleteId(null)
               }}
             >
-              删除
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1384,6 +1392,7 @@ function Canvas({
 }
 
 function ListView({ family }: { family: RelationFamily }) {
+  const { t } = useTranslation()
   const nodes = family.nodes
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const setFamilyView = useWorkspace((s) => s.setFamilyView)
@@ -1397,16 +1406,16 @@ function ListView({ family }: { family: RelationFamily }) {
             size="sm"
             onClick={() => {
               addNode(family.id)
-              toast.success("已添加节点，右侧编辑详情")
+              toast.success(t("mindmap.nodeAdded"))
             }}
           >
             <Plus className="size-4" />
-            添加节点
+            {t("mindmap.addNode")}
           </Button>
         </div>
         {nodes.length === 0 && (
           <p className="py-16 text-center text-sm text-muted-foreground">
-            还没有节点。
+            {t("mindmap.listEmpty")}
           </p>
         )}
         {nodes.map((n: MindNode) => (
@@ -1425,11 +1434,11 @@ function ListView({ family }: { family: RelationFamily }) {
                 {n.title}
               </span>
               {n.hidden && (
-                <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">已隐藏</span>
+                <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">{t("mindmap.hidden")}</span>
               )}
               {n.done && (
                 <span className="rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-                  已完成
+                  {t("common.done")}
                 </span>
               )}
               {n.solution?.content && (
@@ -1443,13 +1452,13 @@ function ListView({ family }: { family: RelationFamily }) {
               )}
             </div>
             <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-3">
-              {n.cause && <span className="truncate">原因：{n.cause}</span>}
-              {n.leadTo && <span className="truncate">导向：{n.leadTo}</span>}
-              {n.result && <span className="truncate">结果：{n.result}</span>}
+              {n.cause && <span className="truncate">{t("mindmap.cause")}：{n.cause}</span>}
+              {n.leadTo && <span className="truncate">{t("mindmap.leadTo")}：{n.leadTo}</span>}
+              {n.result && <span className="truncate">{t("mindmap.result")}：{n.result}</span>}
             </div>
             {n.solution?.content && (
               <p className="line-clamp-2 rounded-md bg-solution/10 px-2 py-1 text-xs text-foreground">
-                解决方案：{n.solution.content}
+                {t("mindmap.solution")}：{n.solution.content}
               </p>
             )}
           </button>

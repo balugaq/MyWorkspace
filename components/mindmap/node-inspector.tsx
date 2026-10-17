@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { TagPicker } from "@/components/tag-picker"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 import {
   NODE_PALETTE,
   parseArgb,
@@ -52,6 +53,7 @@ export function NodeInspector({
   node: MindNode
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const updateNode = useWorkspace((s) => s.updateNode)
   const removeNode = useWorkspace((s) => s.removeNode)
   const setNodeSolution = useWorkspace((s) => s.setNodeSolution)
@@ -145,7 +147,7 @@ export function NodeInspector({
   return (
     <div className="flex h-full w-80 shrink-0 flex-col border-l bg-card">
       <div className="flex items-center justify-between border-b px-4 py-3">
-        <h2 className="text-sm font-semibold">节点详情</h2>
+        <h2 className="text-sm font-semibold">{t("inspector.title")}</h2>
         <Button
           variant="ghost"
           size="icon"
@@ -153,17 +155,17 @@ export function NodeInspector({
           onClick={onClose}
         >
           <X className="size-4" />
-          <span className="sr-only">关闭</span>
+          <span className="sr-only">{t("inspector.close")}</span>
         </Button>
       </div>
 
       <ScrollArea className="min-h-0 flex-1 overflow-hidden">
         <div className="flex flex-col gap-4 p-4">
-          <Field label="标题">
+          <Field label={t("inspector.titleLabel")}>
             <Input
               value={node.title}
               onChange={(e) => patch({ title: e.target.value })}
-              placeholder="节点标题"
+              placeholder={t("inspector.titlePlaceholder")}
             />
           </Field>
 
@@ -174,11 +176,11 @@ export function NodeInspector({
               className="w-full gap-2 bg-solution text-solution-foreground hover:bg-solution/90"
             >
               <Plus className="size-4" />
-              添加子节点
+              {t("inspector.addChild")}
             </Button>
           </div>
 
-          <Field label="内容">
+          <Field label={t("inspector.contentLabel")}>
             <RichTextEditor
               value={contentValue}
               onChange={handleContentChange}
@@ -189,25 +191,25 @@ export function NodeInspector({
 
           <Separator />
 
-          <Field label="原因 (cause)">
+          <Field label={t("inspector.causeLabel")}>
             <Input
               value={node.cause}
               onChange={(e) => patch({ cause: e.target.value })}
-              placeholder="为什么要做"
+              placeholder={t("inspector.causePlaceholder")}
             />
           </Field>
-          <Field label="导向 (lead to)">
+          <Field label={t("inspector.leadLabel")}>
             <Input
               value={node.leadTo}
               onChange={(e) => patch({ leadTo: e.target.value })}
-              placeholder="会带来什么"
+              placeholder={t("inspector.leadPlaceholder")}
             />
           </Field>
-          <Field label="结果 (result)">
+          <Field label={t("inspector.resultLabel")}>
             <Input
               value={node.result}
               onChange={(e) => patch({ result: e.target.value })}
-              placeholder="最终结果"
+              placeholder={t("inspector.resultPlaceholder")}
             />
           </Field>
 
@@ -217,7 +219,7 @@ export function NodeInspector({
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
               <Tag className="size-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">标签</span>
+              <span className="text-xs font-medium text-muted-foreground">{t("inspector.tags")}</span>
             </div>
             <TagPicker tags={tags} onChange={(next) => patch({ tags: next })} />
           </div>
@@ -228,10 +230,10 @@ export function NodeInspector({
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
               <Palette className="size-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">节点风格</span>
+              <span className="text-xs font-medium text-muted-foreground">{t("inspector.style")}</span>
             </div>
-            <ColorField label="边框" value={node.borderColor} onChange={(v) => patch({ borderColor: v })} />
-            <ColorField label="背景" value={node.bgColor} onChange={(v) => patch({ bgColor: v })} />
+            <ColorField label={t("inspector.borderColor")} value={node.borderColor} onChange={(v) => patch({ borderColor: v })} />
+            <ColorField label={t("inspector.bgColor")} value={node.bgColor} onChange={(v) => patch({ bgColor: v })} />
           </div>
 
           <Separator />
@@ -240,7 +242,7 @@ export function NodeInspector({
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
               <CalendarClock className="size-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">截止日期</span>
+              <span className="text-xs font-medium text-muted-foreground">{t("inspector.dueDate")}</span>
             </div>
             <div className="flex gap-2">
               <Input
@@ -258,13 +260,13 @@ export function NodeInspector({
                 className="h-8 shrink-0"
                 onClick={() => patch({ longTerm: !node.longTerm, dueDate: null })}
               >
-                {node.longTerm ? "长期任务" : "设为长期"}
+                {node.longTerm ? t("inspector.longTerm") : t("inspector.setLongTerm")}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
               {node.longTerm
-                ? "这是一个长期任务，无固定日期，不出现在日历中。"
-                : "选择日期后，该任务会作为“截止任务”显示在日历对应日期。"}
+                ? t("inspector.longTermDesc")
+                : t("inspector.dueDateDesc")}
             </p>
           </div>
 
@@ -277,17 +279,17 @@ export function NodeInspector({
                 checked={!!node.done}
                 onCheckedChange={(v) => patch({ done: !!v })}
               />
-              已完成
+              {t("common.done")}
             </label>
             <label className="flex cursor-pointer select-none items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
               <Checkbox
                 checked={!!node.hidden}
                 onCheckedChange={(v) => patch({ hidden: !!v })}
               />
-              {node.hidden ? "已隐藏（仅在列表显示）" : "在图里隐藏"}
+              {node.hidden ? t("inspector.hidden") : t("inspector.hideInGraph")}
             </label>
             <p className="text-xs text-muted-foreground">
-              隐藏后节点不再显示在思维导图画布上，仍可在列表视图中查看与恢复。
+              {t("inspector.hideDesc")}
             </p>
           </div>
 
@@ -296,7 +298,7 @@ export function NodeInspector({
           <div className="flex flex-col gap-2 rounded-lg border border-solution/40 bg-solution/5 p-3">
             <div className="flex items-center gap-1.5">
               <Lightbulb className="size-4 text-solution" />
-              <span className="text-sm font-medium">解决方案</span>
+              <span className="text-sm font-medium">{t("inspector.solution")}</span>
             </div>
             <NativeScrollArea>
               <textarea
@@ -304,7 +306,7 @@ export function NodeInspector({
                 onChange={(e) =>
                   setNodeSolution(family.id, node.id, e.target.value, solStatus)
                 }
-                placeholder="记录解决方案，将以绿线连接到节点…"
+                placeholder={t("inspector.solutionPlaceholder")}
                 className="min-h-16 w-full resize-none rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               />
             </NativeScrollArea>
@@ -344,7 +346,7 @@ export function NodeInspector({
           onClick={() => {
             if (isPristine) {
               removeNode(family.id, node.id)
-              toast.success("已删除节点")
+              toast.success(t("mindmap.nodeDeleted"))
               onClose()
             } else {
               setConfirmDel(true)
@@ -352,28 +354,28 @@ export function NodeInspector({
           }}
         >
           <Trash2 className="size-4" />
-          删除节点
+          {t("inspector.deleteNode")}
         </Button>
       </div>
 
       <AlertDialog open={confirmDel} onOpenChange={setConfirmDel}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除节点「{node.title || "未命名"}」？</AlertDialogTitle>
+            <AlertDialogTitle>{t("mindmap.deleteNodeTitle", { name: node.title || t("common.untitled") })}</AlertDialogTitle>
             <AlertDialogDescription>
-              将删除该节点及其关联连线；若它是其它节点的子任务，也会从父节点移除。此操作不可撤销。
+              {t("mindmap.deleteNodeDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 removeNode(family.id, node.id)
-                toast.success("已删除节点")
+                toast.success(t("mindmap.nodeDeleted"))
                 onClose()
               }}
             >
-              删除
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -411,13 +413,14 @@ function ColorField({
   value: string | undefined
   onChange: (v: string | undefined) => void
 }) {
+  const { t } = useTranslation()
   const { rgb, alpha } = parseArgb(value)
   return (
     <div className="flex flex-col gap-2 rounded-md border bg-background p-2">
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">{label}</span>
         <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-          {value ?? "默认"}
+          {value ?? t("inspector.default")}
         </span>
       </div>
 
@@ -427,7 +430,7 @@ function ColorField({
           value={rgb}
           onChange={(e) => onChange(toArgb(e.target.value, alpha))}
           className="size-8 shrink-0 cursor-pointer rounded border bg-transparent p-0.5"
-          aria-label={`${label}颜色`}
+          aria-label={t("inspector.colorOf", { label })}
         />
         <div className="flex flex-wrap gap-1">
           {NODE_PALETTE.map((c) => (
@@ -444,7 +447,7 @@ function ColorField({
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[10px] text-muted-foreground">透明</span>
+        <span className="text-[10px] text-muted-foreground">{t("inspector.transparent")}</span>
         <input
           type="range"
           min={0}
@@ -452,7 +455,7 @@ function ColorField({
           value={alpha}
           onChange={(e) => onChange(toArgb(rgb, Number(e.target.value)))}
           className="h-1.5 flex-1 cursor-pointer accent-primary"
-          aria-label={`${label}透明度`}
+          aria-label={t("inspector.alphaOf", { label })}
         />
         <span className="w-9 text-right text-[10px] tabular-nums text-muted-foreground">
           {alpha}%
@@ -468,7 +471,7 @@ function ColorField({
           onClick={() => onChange(randomHarmoniousColor())}
         >
           <Shuffle className="size-3" />
-          随机
+          {t("inspector.random")}
         </Button>
         <Button
           type="button"
@@ -478,7 +481,7 @@ function ColorField({
           onClick={() => onChange(undefined)}
         >
           <RotateCcw className="size-3" />
-          清除
+          {t("inspector.clear")}
         </Button>
       </div>
     </div>

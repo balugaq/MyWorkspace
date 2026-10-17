@@ -10,6 +10,7 @@ import { isGithubIssueUrl } from "@/lib/gh-card"
 import { isBilibiliUrl } from "@/lib/bilibili"
 import { addImage } from "@/lib/image-store"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 import { TextContextMenu } from "@/components/text-context-menu"
 import { copySelectionRich } from "./clipboard"
@@ -49,6 +50,7 @@ export function RichTextEditor({
   /** 「AI」右键项回调（传选中文字）；不传则不显示 AI 项（如日历笔记、节点卡不需要） */
   onAiText?: (text: string) => void
 }) {
+  const { t } = useTranslation()
   const onChangeRef = useRef(onChange)
   useEffect(() => {
     onChangeRef.current = onChange
@@ -264,7 +266,7 @@ export function RichTextEditor({
             onClick={toggleMode}
             className="rounded border px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
           >
-            {mode === "visual" ? "源码" : "可视化"}
+            {mode === "visual" ? t("novel.srcMode") : t("novel.visualMode")}
           </button>
         )}
       </div>

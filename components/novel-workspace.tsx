@@ -15,6 +15,7 @@ import { TagPicker } from "@/components/tag-picker"
 import { RichTextEditor } from "@/components/richtext/rich-text-editor"
 import { MarkdownView } from "@/components/markdown-view"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 /** 隐藏图片引用 token，仅留文本（用于列表卡片预览） */
 function stripImageTokens(text: string): string {
@@ -50,6 +51,7 @@ function ChapterOverview({
   chapters: Chapter[]
   scrollRef: { current: number }
 }) {
+  const { t } = useTranslation()
   const addChapter = useWorkspace((s) => s.addChapter)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const isNovel = category.template === "novel"
@@ -88,17 +90,17 @@ function ChapterOverview({
           <div>
             <h1 className="font-serif text-2xl font-semibold text-balance">{category.name}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              共 {chapters.length} {isNovel ? "篇" : "条"}内容
+              {t("novel.totalCount", { n: chapters.length, unit: t(isNovel ? "novel.unitPian" : "novel.unitTiao") })}
             </p>
           </div>
           <Button
             onClick={() => {
               addChapter(category.id)
-              toast.success("已添加")
+              toast.success(t("novel.added"))
             }}
           >
             <Plus className="size-4" />
-            添加{isNovel ? "篇目" : "笔记"}
+            {t("novel.addItem", { unit: t(isNovel ? "novel.unitPian" : "novel.unitTiao") })}
           </Button>
         </div>
       </div>
@@ -107,7 +109,7 @@ function ChapterOverview({
         <div className="mx-auto flex w-full max-w-4xl flex-1 items-center justify-center px-6">
           <div className="flex w-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-20 text-center">
             <FileText className="size-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">还没有内容，点击右上角添加。</p>
+            <p className="text-sm text-muted-foreground">{t("novel.empty")}</p>
           </div>
         </div>
       ) : (
@@ -123,12 +125,12 @@ function ChapterOverview({
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className={cn("truncate font-medium", ch.done && "text-muted-foreground line-through")}>
-                        {ch.title || "未命名"}
+                        {ch.title || t("common.untitled")}
                       </span>
                       <span className="flex shrink-0 items-center gap-1.5">
                         {ch.done && (
                           <Badge variant="secondary" className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                            ✓ 已完成
+                            ✓ {t("common.done")}
                           </Badge>
                         )}
                         {ch.tags.length > 0 && (
@@ -145,9 +147,9 @@ function ChapterOverview({
                       )}
                     >
                       {ch.content ? (
-                        <MarkdownView text={stripImageTokens(ch.content) || "（含图片）"} clamp />
+                        <MarkdownView text={stripImageTokens(ch.content) || t("novel.withImages")} clamp />
                       ) : (
-                        "（空白）"
+                        t("novel.blank")
                       )}
                     </div>
                   </button>
@@ -170,6 +172,7 @@ function ChapterEditor({
   chapter: Chapter
   chapters: Chapter[]
 }) {
+  const { t } = useTranslation()
   const updateChapter = useWorkspace((s) => s.updateChapter)
   const removeChapter = useWorkspace((s) => s.removeChapter)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
@@ -183,7 +186,7 @@ function ChapterEditor({
 
   const isNovel = category.template === "novel"
   // 导航单位：配置了 unit 才用它（上一X/下一X），否则回退默认「章」。
-  const unit = category.config.unit?.trim() || "章"
+  const unit = category.config.unit?.trim() || t("novel.defaultUnit")
 
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-6 py-6">
@@ -199,7 +202,7 @@ function ChapterEditor({
             onCheckedChange={(v) => updateChapter(category.id, chapter.id, { done: !!v })}
             id={`done-${chapter.id}`}
           />
-          完成
+          {t("common.doneBtn")}
         </label>
         <Button
           variant="ghost"
@@ -207,18 +210,18 @@ function ChapterEditor({
           className="size-8 text-muted-foreground hover:text-destructive"
           onClick={() => {
             removeChapter(category.id, chapter.id)
-            toast.success("已删除")
+            toast.success(t("common.deleted"))
           }}
         >
           <Trash2 className="size-4" />
-          <span className="sr-only">删除</span>
+          <span className="sr-only">{t("common.delete")}</span>
         </Button>
       </div>
 
       <Input
         value={chapter.title}
         onChange={(e) => updateChapter(category.id, chapter.id, { title: e.target.value })}
-        placeholder="标题"
+        placeholder={t("novel.titlePlaceholder")}
         className="h-auto border-0 px-0 font-serif text-2xl font-semibold shadow-none focus-visible:ring-0 md:text-3xl"
       />
 
@@ -240,7 +243,7 @@ function ChapterEditor({
           onAiText={(selected) =>
             askAiAbout(
               // prompt 形如 "{selectedContent} {location}"：选中内容 + 随笔内位置，便于 AI 结合上下文解读
-              `${selected}\n\n（以上内容选自随笔「${category.name}」的章节「${chapter.title}」。）\n请解释这段内容是什么意思；若其中是问题，请直接回答。`,
+              t("novel.askAiPrefix", { cat: category.name, chapter: chapter.title, selected }),
             )
           }
         />
@@ -255,7 +258,7 @@ function ChapterEditor({
           className="gap-1"
         >
           <ChevronLeft className="size-4" />
-          上一{unit}
+          {t("novel.prev", { unit })}
         </Button>
         <Button
           variant="outline"
@@ -264,7 +267,7 @@ function ChapterEditor({
           onClick={() => next && setActiveItem(next.id)}
           className="gap-1"
         >
-          下一{unit}
+          {t("novel.next", { unit })}
           <ChevronRight className="size-4" />
         </Button>
       </div>

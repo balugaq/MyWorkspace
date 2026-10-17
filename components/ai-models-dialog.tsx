@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 
 export function ModelManagerDialog({
   open,
@@ -37,6 +38,7 @@ export function ModelManagerDialog({
   onOpenChange: (o: boolean) => void
 }) {
   const settings = useWorkspace((s) => s.settings)
+  const { t } = useTranslation()
   const updateSettings = useWorkspace((s) => s.updateSettings)
 
   const models = settings.aiModels
@@ -56,7 +58,7 @@ export function ModelManagerDialog({
   }
 
   const save = (entry: AIModelEntry) => {
-    const label = entry.label.trim() || AI_PROVIDERS[entry.provider]?.label || "未命名模型"
+    const label = entry.label.trim() || AI_PROVIDERS[entry.provider]?.label || t("models.untitled")
     const exists = models.some((m) => m.id === entry.id)
     const next = exists
       ? models.map((m) => (m.id === entry.id ? { ...entry, label } : m))
@@ -71,7 +73,7 @@ export function ModelManagerDialog({
   }
 
   const remove = (id: string) => {
-    if (!confirm("确定删除这个模型配置？")) return
+    if (!confirm(t("models.deleteConfirm"))) return
     const next = models.filter((m) => m.id !== id)
     const nextActive = activeId === id ? (next[0]?.id ?? null) : activeId
     updateSettings({ aiModels: next, aiActiveModelId: nextActive })
@@ -83,9 +85,9 @@ export function ModelManagerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>模型管理</DialogTitle>
+          <DialogTitle>{t("models.title")}</DialogTitle>
           <DialogDescription>
-            可添加多个模型并随时切换；每条模型独立保存供应商与密钥（仅本机存储）。
+            {t("models.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -95,7 +97,7 @@ export function ModelManagerDialog({
           <div className="flex flex-col gap-2">
             {models.length === 0 ? (
               <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-                还没有配置任何模型，点击下方「添加模型」开始。
+                {t("models.empty")}
               </p>
             ) : (
               <ul className="native-scroll flex max-h-72 flex-col gap-1.5 overflow-y-auto pr-1">
@@ -112,7 +114,7 @@ export function ModelManagerDialog({
                       <button
                         className="flex min-w-0 flex-1 items-center gap-2 text-left"
                         onClick={() => selectActive(m.id)}
-                        title="点击设为当前模型"
+                        title={t("models.setActive")}
                       >
                         {isActive ? (
                           <Check className="size-4 shrink-0 text-primary" />
@@ -123,7 +125,7 @@ export function ModelManagerDialog({
                           <span className="block truncate text-sm font-medium">{m.label}</span>
                           <span className="block truncate text-xs text-muted-foreground">
                             {AI_PROVIDERS[m.provider]?.label ?? m.provider}
-                            {m.model ? ` · ${m.model}` : " · 默认模型"}
+                            {m.model ? ` · ${m.model}` : t("models.defaultModel")}
                           </span>
                         </span>
                       </button>
@@ -131,7 +133,7 @@ export function ModelManagerDialog({
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => setEditing(m)}
-                        title="编辑"
+                        title={t("common.edit")}
                       >
                         <Pencil />
                       </Button>
@@ -139,7 +141,7 @@ export function ModelManagerDialog({
                         variant="ghost"
                         size="icon-sm"
                         onClick={() => remove(m.id)}
-                        title="删除"
+                        title={t("common.delete")}
                       >
                         <Trash2 />
                       </Button>
@@ -149,7 +151,7 @@ export function ModelManagerDialog({
               </ul>
             )}
             <Button variant="outline" className="gap-1.5" onClick={startAdd}>
-              <Plus className="size-4" /> 添加模型
+              <Plus className="size-4" /> {t("models.add")}
             </Button>
           </div>
         )}
@@ -167,6 +169,7 @@ function ModelForm({
   onCancel: () => void
   onSave: (e: AIModelEntry) => void
 }) {
+  const { t } = useTranslation()
   const [provider, setProvider] = useState<AIProviderId>(initial.provider)
   const [label, setLabel] = useState(initial.label)
   const [apiKey, setApiKey] = useState(initial.apiKey)
@@ -177,15 +180,15 @@ function ModelForm({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <Label className="text-xs">名称</Label>
+        <Label className="text-xs">{t("models.name")}</Label>
         <Input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="如：我的 DeepSeek / GPT-4o"
+          placeholder={t("models.namePlaceholder")}
         />
       </div>
       <div className="flex flex-col gap-1">
-        <Label className="text-xs">供应商</Label>
+        <Label className="text-xs">{t("models.provider")}</Label>
         <Select
           value={provider}
           onValueChange={(v) => {
@@ -193,7 +196,7 @@ function ModelForm({
           }}
         >
           <SelectTrigger className="w-full">
-            <SelectValue>{AI_PROVIDERS[provider]?.label ?? "选择供应商"}</SelectValue>
+            <SelectValue>{AI_PROVIDERS[provider]?.label ?? t("models.pickProvider")}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {Object.values(AI_PROVIDERS).map((p) => (
@@ -224,7 +227,7 @@ function ModelForm({
         </div>
       )}
       <div className="flex flex-col gap-1">
-        <Label className="text-xs">模型名（留空用供应商默认）</Label>
+        <Label className="text-xs">{t("models.modelName")}</Label>
         <Input
           value={model}
           onChange={(e) => setModel(e.target.value)}
@@ -233,13 +236,13 @@ function ModelForm({
       </div>
       <div className="mt-1 flex justify-end gap-2">
         <Button variant="ghost" onClick={onCancel}>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button
           onClick={() => onSave({ id, label, provider, apiKey, baseUrl, model })}
           disabled={!apiKey.trim()}
         >
-          保存
+          {t("common.save")}
         </Button>
       </div>
     </div>

@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner"
 
 import { useWorkspace } from "@/lib/store"
+import { useTranslation, getI18n } from "react-i18next"
 import { useAIChat, type AIChatConfig } from "@/lib/ai/use-ai-chat"
 import { extractSpeakableText, startSpeaking, stopSpeaking } from "@/lib/tts"
 import { RichTextView } from "@/components/richtext/rich-text-view"
@@ -37,18 +38,18 @@ import { cn } from "@/lib/utils"
 // 新对话空状态下的预置问题；第三个由我们替用户补充。
 // （导出供日历侧边栏的「AI 快捷提问」面板复用，TODO 25。）
 export const PRESET_QUESTIONS = [
-  "今天适合做什么？",
-  "最近有什么新兴的开源项目？",
-  "用通俗的语言给我讲讲 AI Agent 是什么？",
+  "aiChat.preset.today",
+  "aiChat.preset.opensource",
+  "aiChat.preset.agent",
 ]
 
 // 复制消息原文（raw 文本）到剪贴板，并给出轻量提示。
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text)
-    toast.success("已复制")
+    toast.success(getI18n().t("common.copied"))
   } catch {
-    toast.error("复制失败")
+    toast.error(getI18n().t("common.copyFailed"))
   }
 }
 
@@ -85,6 +86,7 @@ function animateScrollTop(
 }
 
 export function AIChatWorkspace() {
+  const { t } = useTranslation()
   const settings = useWorkspace((s) => s.settings)
   const conversations = useWorkspace((s) => s.conversations)
   const activeId = useWorkspace((s) => s.activeConversationId)
@@ -154,7 +156,7 @@ export function AIChatWorkspace() {
     }
     const text = extractSpeakableText(m.content)
     if (!text) {
-      toast.info("这条消息没有可朗读的文字")
+      toast.info(t("aiChat.noSpeakable"))
       return
     }
     const ok = startSpeaking(text, () => {
@@ -162,14 +164,14 @@ export function AIChatWorkspace() {
       setSpeakingId((cur) => (cur === m.id ? null : cur))
     })
     if (!ok) {
-      toast.error("当前浏览器不支持语音朗读")
+      toast.error(t("aiChat.ttsUnsupported"))
       setSpeakingId(null)
       return
     }
     setSpeakingId(m.id)
   }
 
-  const modelLabel = activeModel?.label ?? "未配置模型"
+  const modelLabel = activeModel?.label ?? t("aiChat.noModel")
   const hasKey = !!activeModel && activeModel.apiKey.trim().length > 0
   const userAvatar = settings.aiUserAvatar || ""
   const assistantAvatar = settings.aiAssistantAvatar || ""
@@ -318,7 +320,7 @@ export function AIChatWorkspace() {
     clearPendingAiQuery()
     if (!active || !hasKey) {
       setInput(text)
-      if (!hasKey) toast.error("请先在设置中配置 AI 模型后再询问")
+      if (!hasKey) toast.error(t("aiChat.needModelFirst"))
       return
     }
     const isFirst = active.messages.length === 0
@@ -335,7 +337,7 @@ export function AIChatWorkspace() {
       <div className="flex min-h-0 flex-1 flex-col">
         <header className="flex items-center gap-2 border-b px-4 py-2">
           <Bot className="size-4 text-primary" />
-          <h2 className="truncate text-sm font-semibold">{active?.title ?? "AI 助手"}</h2>
+          <h2 className="truncate text-sm font-semibold">{active?.title ?? t("aiChat.title")}</h2>
           <span className="text-xs text-muted-foreground">{modelLabel}</span>
         </header>
 
@@ -347,14 +349,14 @@ export function AIChatWorkspace() {
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <div>
-                尚未配置模型或 API Key。
+                {t("aiChat.noConfig")}
                 <button
                   className="mx-1 underline underline-offset-2"
                   onClick={() => setModelsOpen(true)}
                 >
-                  去配置模型
+                  {t("aiChat.goConfig")}
                 </button>
-                填写 Key 后即可对话（仅本机存储）。
+                {t("aiChat.keyHint")}
               </div>
             </div>
           )}
@@ -362,9 +364,9 @@ export function AIChatWorkspace() {
           {messages.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-6 px-2 text-center">
               <div className="space-y-2">
-                <h1 className="text-2xl font-semibold">今天想问点什么？</h1>
+                <h1 className="text-2xl font-semibold">{t("aiChat.emptyTitle")}</h1>
                 <p className="text-sm text-muted-foreground">
-                  挑选一个问题开始，或直接在下方输入。
+                  {t("aiChat.emptyDesc")}
                 </p>
               </div>
               <div className="flex w-full max-w-md flex-col gap-2">
@@ -372,10 +374,10 @@ export function AIChatWorkspace() {
                   <button
                     key={q}
                     type="button"
-                    onClick={() => applyPreset(q)}
+                    onClick={() => applyPreset(t(q))}
                     className="rounded-xl border bg-muted/30 px-4 py-3 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
-                    {q}
+                    {t(q)}
                   </button>
                 ))}
               </div>
@@ -444,7 +446,7 @@ export function AIChatWorkspace() {
                         className="chat-md"
                       />
                     ) : isLoading ? (
-                      <span className="text-muted-foreground">思考中…</span>
+                      <span className="text-muted-foreground">{t("aiChat.thinking")}</span>
                     ) : null}
                     {m.tools && m.tools.length > 0 && (
                       <div className="mt-1.5 flex flex-wrap gap-1 border-t border-border/50 pt-1.5">
@@ -459,7 +461,7 @@ export function AIChatWorkspace() {
                             <span
                               key={name}
                               className="inline-flex items-center gap-1 rounded bg-background/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
-                              title={count > 1 ? `${name}（调用了 ${count} 次）` : name}
+                              title={count > 1 ? t("aiChat.toolCalls", { name, n: count }) : name}
                             >
                               <Wrench className="size-3" />
                               {name}
@@ -478,8 +480,8 @@ export function AIChatWorkspace() {
                     type="button"
                     onClick={() => copyText(m.content)}
                     className="rounded p-1 transition-colors hover:bg-accent hover:text-accent-foreground"
-                    title="复制"
-                    aria-label="复制"
+                    title={t("common.copy")}
+                    aria-label={t("common.copy")}
                   >
                     <Copy className="size-3.5" />
                   </button>
@@ -489,8 +491,8 @@ export function AIChatWorkspace() {
                     onClick={() => toggleSpeak(m)}
                     disabled={isLoading}
                     className="rounded p-1 transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                    title={speakingId === m.id ? "停止朗读" : "朗读"}
-                    aria-label={speakingId === m.id ? "停止朗读" : "朗读"}
+                    title={speakingId === m.id ? t("aiChat.stopTts") : t("aiChat.speak")}
+                    aria-label={speakingId === m.id ? t("aiChat.stopTts") : t("aiChat.speak")}
                   >
                     {speakingId === m.id ? (
                       <Square className="size-3.5" />
@@ -504,8 +506,8 @@ export function AIChatWorkspace() {
                       onClick={regenerateLast}
                       disabled={isLoading}
                       className="rounded p-1 transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                      title="重新回答"
-                      aria-label="重新回答"
+                      title={t("aiChat.regenerate")}
+                      aria-label={t("aiChat.regenerate")}
                     >
                       <RefreshCw className="size-3.5" />
                     </button>
@@ -531,8 +533,8 @@ export function AIChatWorkspace() {
             <button
               type="button"
               onClick={scrollToBottom}
-              title="回到底部"
-              aria-label="回到底部"
+              title={t("aiChat.scrollToBottom")}
+              aria-label={t("aiChat.scrollToBottom")}
               className="animate-in fade-in-0 zoom-in-75 absolute -top-5 right-4 z-10 flex size-9 items-center justify-center rounded-full bg-black text-white shadow-lg duration-200 hover:bg-neutral-600"
             >
               <ChevronDown className="size-5" />
@@ -547,9 +549,9 @@ export function AIChatWorkspace() {
               placeholder={
                 hasKey
                   ? active
-                    ? "输入消息，Enter 发送，Shift+Enter 换行"
-                    : "请先选择或新建一个对话"
-                  : "请先在「模型」中配置 API Key"
+                    ? t("aiChat.inputPlaceholder")
+                    : t("aiChat.pickConversation")
+                  : t("aiChat.needKey")
               }
               disabled={!active || !hasKey}
               className="max-h-40 min-h-14 w-full resize-none"
@@ -563,10 +565,10 @@ export function AIChatWorkspace() {
               size="sm"
               className="gap-1.5"
               onClick={() => setSkillsOpen(true)}
-              title="技能启停"
+              title={t("aiChat.skillsToggle")}
             >
               <Wrench className="size-4" />
-              技能
+              {t("aiChat.skills")}
             </Button>
             <Button
               type="button"
@@ -574,14 +576,14 @@ export function AIChatWorkspace() {
               size="sm"
               className="gap-1.5"
               onClick={() => setModelsOpen(true)}
-              title="模型选择"
+              title={t("aiChat.modelSelect")}
             >
               <Sparkles className="size-4" />
               {modelLabel}
             </Button>
             <div className="ml-auto" />
             {isLoading ? (
-              <Button type="button" variant="outline" size="icon" onClick={stop} title="停止">
+              <Button type="button" variant="outline" size="icon" onClick={stop} title={t("aiChat.stop")}>
                 <Square />
               </Button>
             ) : (
@@ -589,7 +591,7 @@ export function AIChatWorkspace() {
                 type="submit"
                 size="icon"
                 disabled={!input.trim() || !active || !hasKey}
-                title="发送"
+                title={t("aiChat.send")}
               >
                 <Send />
               </Button>

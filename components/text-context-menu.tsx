@@ -9,6 +9,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { toast } from "sonner"
+import { useTranslation } from "react-i18next"
 import { BUILTIN_TEXT_MENU_ACTIONS, type TextMenuAction, type TextMenuContext } from "@/lib/text-menu-actions"
 import { cn } from "@/lib/utils"
 import { AiText } from "@/components/ai-brand"
@@ -37,6 +38,7 @@ export function TextContextMenu({
   className?: string
   children: React.ReactNode
 }) {
+  const { t } = useTranslation()
   // 菜单锚点（视口坐标）；null = 关闭。打开瞬间 setState 触发重渲染，
   // isAvailable 里的 getSelectedText() 恰好在此刻求值，快照不会过期。
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -121,7 +123,7 @@ export function TextContextMenu({
                   onClick={() => {
                     close()
                     void Promise.resolve(a.run(ctx)).catch(() => {
-                      toast.error("操作失败：剪贴板不可用或权限被拒")
+                      toast.error(t("novel.clipboardError"))
                     })
                   }}
                 >

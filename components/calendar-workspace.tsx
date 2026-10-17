@@ -19,6 +19,7 @@ import { zhCN } from "date-fns/locale"
 import { CalendarCog, CalendarOff, Briefcase, Check, ChevronLeft, ChevronRight, StickyNote, Sparkles, Plus, Pencil, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
+import { useTranslation } from "react-i18next"
 import { matchTextPinyin } from "@/lib/pinyin"
 import { collectDueNodes, type DueEntry } from "@/lib/deadlines"
 import { type Person } from "@/lib/address-book"
@@ -43,7 +44,7 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"]
+const WEEKDAY_KEYS = [0, 1, 2, 3, 4, 5, 6] // 星期行文案走 i18n：calendar.weekday.0-6（TODO 40）
 
 // 自定义节日编辑草稿（TODO 55）：original 为空 = 新建，否则编辑原条目（按引用相等替换）
 interface FestivalDraft {
@@ -74,6 +75,7 @@ function useMediaQuery(query: string): boolean {
 }
 
 export function CalendarWorkspace() {
+  const { t } = useTranslation()
   const selectedDate = useWorkspace((s) => s.selectedDate)
   const setSelectedDate = useWorkspace((s) => s.setSelectedDate)
   const calendar = useWorkspace((s) => s.calendar)
@@ -129,10 +131,10 @@ export function CalendarWorkspace() {
   function toggleDayMark(key: string, kind: "holiday" | "workday") {
     const isKind = (d: FestivalDef) =>
       d.festival_rule === key && !!(kind === "holiday" ? d.holiday_override : d.workday_override)
-    const label = kind === "holiday" ? "放假" : "上班"
+    const label = t(kind === "holiday" ? "calendar.holiday" : "calendar.workday")
     if (festivalDefs.some(isKind)) {
       setCustomFestivals(festivalDefs.filter((d) => !isKind(d)))
-      toast.success(`已取消 ${key} 的「${label}」标记`)
+      toast.success(t("calendar.markCancelled", { key, label }))
       return
     }
     const next = festivalDefs.filter(
@@ -145,7 +147,7 @@ export function CalendarWorkspace() {
       ...(kind === "holiday" ? { holiday_override: true } : { workday_override: true }),
     })
     setCustomFestivals(next)
-    toast.success(`已将 ${key} 标记为「${label}」`)
+    toast.success(t("calendar.marked", { key, label }))
   }
 
   // 自定义节日管理弹窗（TODO 55）：列表 + 搜索 + 右上角「添加节日」；草稿非空时叠编辑弹窗
@@ -180,11 +182,11 @@ export function CalendarWorkspace() {
     if (!festivalDraft) return
     const name = festivalDraft.name.trim()
     if (!name) {
-      toast.error("请填写节日名称")
+      toast.error(t("calendar.errName"))
       return
     }
     if (!parseFestivalRule(festivalDraft.rule)) {
-      toast.error("规则格式不正确（如 10-01 / 2026-10-01 / 5-2-7 / L8-15 / L2026-8-15）")
+      toast.error(t("calendar.errRule"))
       return
     }
     const def: FestivalDef = {
@@ -199,12 +201,12 @@ export function CalendarWorkspace() {
       : [...festivalDefs, def]
     setCustomFestivals(next)
     setFestivalDraft(null)
-    toast.success(festivalDraft.original ? "节日已更新" : "节日已添加")
+    toast.success(festivalDraft.original ? t("calendar.festivalUpdated") : t("calendar.festivalAdded"))
   }
 
   function removeFestival(def: FestivalDef) {
     setCustomFestivals(festivalDefs.filter((d) => d !== def))
-    toast.success(`已删除「${def.name}」`)
+    toast.success(t("calendar.festivalDeleted", { name: def.name }))
   }
 
   // 拖动分隔条：根据鼠标 X 调整右侧详情面板宽度（左侧日历 flex-1 自适应），带最小宽度约束
@@ -281,7 +283,7 @@ export function CalendarWorkspace() {
               size="sm"
               onClick={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
             >
-              今天
+              {t("calendar.today")}
             </Button>
             <Button variant="outline" size="icon" className="size-8" onClick={() => shift(1)}>
               <ChevronRight className="size-4" />
@@ -293,8 +295,8 @@ export function CalendarWorkspace() {
             variant="outline"
             size="icon"
             className="size-8"
-            title="自定义节日"
-            aria-label="自定义节日"
+            title={t("calendar.customFestivals")}
+            aria-label={t("calendar.customFestivals")}
             onClick={() => setFestivalManagerOpen(true)}
           >
             <CalendarCog className="size-4" />
@@ -303,7 +305,7 @@ export function CalendarWorkspace() {
 
         <div className="flex min-h-0 flex-1 flex-col p-3">
           <div className="grid grid-cols-7 pb-1">
-            {WEEKDAYS.map((d, i) => (
+            {WEEKDAY_KEYS.map((d, i) => (
               <div
                 key={d}
                 className={cn(
@@ -311,7 +313,7 @@ export function CalendarWorkspace() {
                   i === 0 || i === 6 ? "text-red-400" : "text-muted-foreground"
                 )}
               >
-                {d}
+                {t(`calendar.weekday.${d}`)}
               </div>
             ))}
           </div>
@@ -410,14 +412,14 @@ export function CalendarWorkspace() {
                     className="rounded px-0.5 text-center text-[10px] font-bold leading-3.5"
                     style={{ backgroundColor: "#ff9800", color: "#e74c3c" }}
                   >
-                    假
+                    {t("calendar.holidayShort")}
                   </span>
                 ) : hasWorkday ? (
                   <span
                     className="rounded px-0.5 text-center text-[10px] font-bold leading-3.5"
                     style={{ backgroundColor: "#3498db", color: "#fff" }}
                   >
-                    班
+                    {t("calendar.workdayShort")}
                   </span>
                 ) : null
               const cakeBadge: ReactNode = hasBirthday ? (
@@ -497,12 +499,12 @@ export function CalendarWorkspace() {
                   <ContextMenuContent className="min-w-44">
                     <ContextMenuItem onClick={() => toggleDayMark(key, "holiday")}>
                       <CalendarOff />
-                      <span style={{ color: HOLIDAY_COLOR }}>今天放假</span>
+                      <span style={{ color: HOLIDAY_COLOR }}>{t("calendar.todayHoliday")}</span>
                       {dayMark?.holiday_override && <Check className="ml-auto" />}
                     </ContextMenuItem>
                     <ContextMenuItem onClick={() => toggleDayMark(key, "workday")}>
                       <Briefcase />
-                      <span style={{ color: WORKDAY_COLOR }}>今天上班</span>
+                      <span style={{ color: WORKDAY_COLOR }}>{t("calendar.todayWorkday")}</span>
                       {dayMark?.workday_override && <Check className="ml-auto" />}
                     </ContextMenuItem>
                   </ContextMenuContent>
@@ -518,7 +520,7 @@ export function CalendarWorkspace() {
         onMouseDown={startResize}
         role="separator"
         aria-orientation="vertical"
-        aria-label="调整日历与详情宽度"
+        aria-label={t("calendar.resizeSplit")}
         className="hidden w-1.5 shrink-0 cursor-col-resize items-stretch bg-border/40 transition-colors hover:bg-primary/50 lg:flex"
       >
         <div className="mx-auto my-auto h-10 w-0.5 rounded-full bg-border" />
@@ -548,28 +550,28 @@ export function CalendarWorkspace() {
       >
         <DialogContent className="max-w-lg">
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="font-serif text-lg font-semibold">自定义节日</DialogTitle>
+            <DialogTitle className="font-serif text-lg font-semibold">{t("calendar.customFestivals")}</DialogTitle>
             <Button variant="outline" size="sm" className="gap-1.5" onClick={openNewFestival}>
               <Plus className="size-4" />
-              添加节日
+              {t("calendar.addFestival")}
             </Button>
           </div>
           <DialogDescription>
-            规则：MM-DD 每年公历｜YYYY-MM-DD 一次性｜M-W-D 某月第 N 个星期 D｜LMM-DD 每年农历｜LYYYY-MM-DD 指定农历年
+            {t("calendar.ruleHelp")}
           </DialogDescription>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={festivalSearch}
               onChange={(e) => setFestivalSearch(e.target.value)}
-              placeholder="搜索名称或规则…"
+              placeholder={t("calendar.searchFestival")}
               className="pl-8"
             />
           </div>
           <div className="flex max-h-80 min-h-24 flex-col gap-1.5 overflow-y-auto">
             {filteredFestivals.length === 0 ? (
               <p className="py-6 text-center text-xs text-muted-foreground">
-                {festivalDefs.length === 0 ? "暂无自定义节日，点右上角「添加节日」新建，或在设置里从 yml 导入。" : "没有匹配的节日"}
+                {festivalDefs.length === 0 ? t("calendar.noFestivals") : t("calendar.noMatch")}
               </p>
             ) : (
               filteredFestivals.map((def, i) => (
@@ -583,13 +585,13 @@ export function CalendarWorkspace() {
                   />
                   <span className="min-w-0 flex-1 truncate text-sm">{def.name}</span>
                   <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                    {def.festival_rule || "（无规则）"}
+                    {def.festival_rule || t("calendar.noRule")}
                   </span>
                   {def.holiday_override && (
-                    <span className="shrink-0 rounded bg-destructive/10 px-1 text-[10px] font-bold text-destructive">假</span>
+                    <span className="shrink-0 rounded bg-destructive/10 px-1 text-[10px] font-bold text-destructive">{t("calendar.holidayShort")}</span>
                   )}
                   {def.workday_override && (
-                    <span className="shrink-0 rounded bg-blue-500/10 px-1 text-[10px] font-bold text-blue-500">班</span>
+                    <span className="shrink-0 rounded bg-blue-500/10 px-1 text-[10px] font-bold text-blue-500">{t("calendar.workdayShort")}</span>
                   )}
                   <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => openEditFestival(def)}>
                     <Pencil className="size-3.5" />
@@ -613,31 +615,31 @@ export function CalendarWorkspace() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{festivalDraft?.original ? "编辑节日" : "新建节日"}</DialogTitle>
+            <DialogTitle>{festivalDraft?.original ? t("calendar.editFestival") : t("calendar.newFestival")}</DialogTitle>
             <DialogDescription>
-              规则：MM-DD 每年公历｜YYYY-MM-DD 一次性｜M-W-D 某月第 N 个星期 D｜LMM-DD 每年农历｜LYYYY-MM-DD 指定农历年
+              {t("calendar.ruleHelp")}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">名称</label>
+              <label className="text-sm font-medium">{t("calendar.fName")}</label>
               <Input
                 value={festivalDraft?.name ?? ""}
                 onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, name: e.target.value })}
-                placeholder="如 生日 / 纪念日"
+                placeholder={t("calendar.namePlaceholder")}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">规则</label>
+              <label className="text-sm font-medium">{t("calendar.fRule")}</label>
               <Input
                 value={festivalDraft?.rule ?? ""}
                 onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, rule: e.target.value })}
-                placeholder="如 10-01 / 2026-10-01 / L8-15"
+                placeholder={t("calendar.rulePlaceholder")}
               />
             </div>
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <label className="shrink-0 text-sm font-medium">颜色</label>
+                <label className="shrink-0 text-sm font-medium">{t("calendar.color")}</label>
                 <Input
                   type="color"
                   value={festivalDraft?.color ?? "#6a5acd"}
@@ -652,7 +654,7 @@ export function CalendarWorkspace() {
                   onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, holiday: e.target.checked })}
                   className="size-4 accent-red-500"
                 />
-                <span className="text-destructive">放假</span>
+                <span className="text-destructive">{t("calendar.holiday")}</span>
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -661,10 +663,10 @@ export function CalendarWorkspace() {
                   onChange={(e) => festivalDraft && setFestivalDraft({ ...festivalDraft, workday: e.target.checked })}
                   className="size-4 accent-blue-500"
                 />
-                <span className="text-blue-500">上班</span>
+                <span className="text-blue-500">{t("calendar.workday")}</span>
               </label>
             </div>
-            <Button onClick={saveFestival}>保存</Button>
+            <Button onClick={saveFestival}>{t("common.save")}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -685,6 +687,7 @@ function DayDetail({
   festivals: Festival[]
   style?: CSSProperties
 }) {
+  const { t } = useTranslation()
   const calendar = useWorkspace((s) => s.calendar)
   const setDayNote = useWorkspace((s) => s.setDayNote)
   const setActiveCategory = useWorkspace((s) => s.setActiveCategory)
@@ -705,7 +708,7 @@ function DayDetail({
     const names = festivals.map((f) => f.name)
     // 无节日：不跳转 AI，仅提示
     if (names.length === 0) {
-      toast.info(`${dateLabel}没有节日`)
+      toast.info(t("calendar.noFestivalToday", { date: dateLabel }))
       return
     }
     const prompt = `今天是 ${dateLabel}（${weekdayLabel}），这一天的节日有：${names.join("、")}。请给我讲讲这些节日的来历、传统习俗和相关趣味知识。`
@@ -736,7 +739,7 @@ function DayDetail({
               className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
             >
               <Sparkles className="size-3.5 text-primary" />
-              AI 询问节日
+              {t("calendar.askFestival")}
             </button>
             <button
               type="button"
@@ -744,7 +747,7 @@ function DayDetail({
               className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-primary/10 hover:text-primary"
             >
               <Sparkles className="size-3.5 text-primary" />
-              AI 询问笔记
+              {t("calendar.askNote")}
             </button>
           </div>
 
@@ -752,7 +755,7 @@ function DayDetail({
             <>
               <section className="flex flex-col gap-2">
                 <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  🎂 今日生日
+                  🎂 {t("calendar.todayBirthday")}
                 </h3>
                 <ul className="flex flex-col gap-1">
                   {bdays.map((p) => (
@@ -771,7 +774,7 @@ function DayDetail({
             <>
               <section className="flex flex-col gap-2">
                 <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  🎉 今日节日
+                  🎉 {t("calendar.todayFestival")}
                 </h3>
                 <ul className="flex flex-col gap-1">
                   {festivals.map((f, i) => (
@@ -786,7 +789,7 @@ function DayDetail({
                           className="shrink-0 rounded px-1 text-[10px] font-bold leading-4"
                           style={{ backgroundColor: "#ff9800", color: "#e74c3c" }}
                         >
-                          假
+                          {t("calendar.holidayShort")}
                         </span>
                       )}
                       {f.workday && !f.holiday && (
@@ -794,7 +797,7 @@ function DayDetail({
                           className="shrink-0 rounded px-1 text-[10px] font-bold leading-4"
                           style={{ backgroundColor: "#3498db", color: "#fff" }}
                         >
-                          班
+                          {t("calendar.workdayShort")}
                         </span>
                       )}
                     </li>
@@ -808,7 +811,7 @@ function DayDetail({
           <section className="flex flex-col gap-2">
             <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <StickyNote className="size-3.5" />
-              今日笔记
+              {t("calendar.todayNote")}
             </h3>
             <RichTextEditor
               value={day.note}
@@ -821,7 +824,7 @@ function DayDetail({
 
           {dueNodes.length > 0 && (
             <section className="flex flex-col gap-2">
-              <h3 className="text-xs font-medium text-muted-foreground">截止任务（思维图）</h3>
+              <h3 className="text-xs font-medium text-muted-foreground">{t("calendar.dueTasks")}</h3>
               <ul className="flex flex-col gap-1">
                 {dueNodes.map((d) => (
                   <li key={`${d.categoryId}-${d.nodeId}`}>
@@ -848,7 +851,7 @@ function DayDetail({
           <Separator />
 
           <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-medium text-muted-foreground">待办事项</h3>
+            <h3 className="text-xs font-medium text-muted-foreground">{t("calendar.todos")}</h3>
             <ul className="flex flex-col gap-1">
               {day.todos.map((t) => (
                 <li key={t.id} className="group flex items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/50">
@@ -875,7 +878,7 @@ function DayDetail({
                   </button>
                 </li>
               ))}
-              {day.todos.length === 0 && <p className="px-1 text-xs text-muted-foreground">暂无待办</p>}
+              {day.todos.length === 0 && <p className="px-1 text-xs text-muted-foreground">{t("calendar.noTodos")}</p>}
             </ul>
             <div className="flex gap-2">
               <Input
@@ -887,7 +890,7 @@ function DayDetail({
                     setTodoInput("")
                   }
                 }}
-                placeholder="添加待办…"
+                placeholder={t("calendar.addTodoPlaceholder")}
                 className="h-9"
               />
               <Button
@@ -910,12 +913,12 @@ function DayDetail({
           <section className="flex flex-col gap-2">
             <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Clock className="size-3.5" />
-              事件安排
+              {t("calendar.events")}
             </h3>
             <ul className="flex flex-col gap-1">
               {day.events.map((ev) => (
                 <li key={ev.id} className="group flex items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/50">
-                  <span className="w-14 shrink-0 font-mono text-xs text-primary">{ev.time || "全天"}</span>
+                  <span className="w-14 shrink-0 font-mono text-xs text-primary">{ev.time || t("calendar.allDay")}</span>
                   <span className="flex-1 text-sm">{ev.content}</span>
                   <button
                     type="button"
@@ -926,13 +929,13 @@ function DayDetail({
                   </button>
                 </li>
               ))}
-              {day.events.length === 0 && <p className="px-1 text-xs text-muted-foreground">暂无事件</p>}
+              {day.events.length === 0 && <p className="px-1 text-xs text-muted-foreground">{t("calendar.noEvents")}</p>}
             </ul>
             <div className="flex gap-2">
               <Input
                 value={eventTime}
                 onChange={(e) => setEventTime(e.target.value)}
-                placeholder="时间"
+                placeholder={t("calendar.timePlaceholder")}
                 className="h-9 w-20 shrink-0"
               />
               <Input
@@ -945,7 +948,7 @@ function DayDetail({
                     setEventContent("")
                   }
                 }}
-                placeholder="事件内容…"
+                placeholder={t("calendar.eventPlaceholder")}
                 className="h-9"
               />
               <Button
@@ -956,7 +959,7 @@ function DayDetail({
                     addCalendarEvent(dateKey, eventTime.trim(), eventContent.trim())
                     setEventTime("")
                     setEventContent("")
-                    toast.success("已添加事件")
+                    toast.success(t("calendar.eventAdded"))
                   }
                 }}
               >

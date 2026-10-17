@@ -133,10 +133,10 @@ function CalendarSidePanel() {
           <button
             key={q}
             type="button"
-            onClick={() => askAiAbout(q)}
+            onClick={() => askAiAbout(t(q))}
             className="rounded-lg border bg-muted/30 px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground"
           >
-            {q}
+            {t(q)}
           </button>
         ))}
       </div>

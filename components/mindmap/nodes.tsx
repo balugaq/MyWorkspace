@@ -21,6 +21,7 @@ import {
 import type { MindNode, SolutionStatus } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "react-i18next"
 import { NODE_PALETTE, argbToCss } from "@/lib/color-utils"
 import {
   ContextMenu,
@@ -89,6 +90,7 @@ function solutionNodeAreEqual(a: NodeProps, b: NodeProps): boolean {
 }
 
 export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
+  const { t } = useTranslation()
   const {
     node,
     collapsed = false,
@@ -151,7 +153,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
               onToggleCollapse?.()
             }}
             className="ml-auto flex size-4 shrink-0 items-center justify-center rounded transition-colors hover:bg-primary/10"
-            title={collapsed ? "展开子任务" : "折叠子任务"}
+            title={collapsed ? t("mindmap.expandChildren") : t("mindmap.collapseChildren")}
           >
             <ChevronDown
               className={cn(
@@ -171,19 +173,19 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
         {node.cause && (
           <span className="flex items-start gap-1">
             <CornerDownRight className="mt-0.5 size-3 shrink-0" />
-            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">原因：{node.cause}</span>
+            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">{t("mindmap.cause")}：{node.cause}</span>
           </span>
         )}
         {node.leadTo && (
           <span className="flex items-start gap-1">
             <ArrowRight className="mt-0.5 size-3 shrink-0" />
-            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">导向：{node.leadTo}</span>
+            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">{t("mindmap.leadTo")}：{node.leadTo}</span>
           </span>
         )}
         {node.result && (
           <span className="flex items-start gap-1">
             <Target className="mt-0.5 size-3 shrink-0" />
-            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">结果：{node.result}</span>
+            <span className="line-clamp-1 min-w-0 break-words [overflow-wrap:anywhere]">{t("mindmap.result")}：{node.result}</span>
           </span>
         )}
         {node.content &&
@@ -218,7 +220,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
           {node.longTerm ? (
             <span className="ml-auto flex items-center gap-0.5 rounded bg-warning/15 px-1 py-0.5 text-[9px] font-medium text-foreground">
               <CalendarClock className="size-2.5" />
-              长期
+              {t("inspector.longTermShort")}
             </span>
           ) : node.dueDate ? (
             <span className="ml-auto flex items-center gap-0.5 rounded bg-primary/15 px-1 py-0.5 text-[9px] font-medium text-foreground">
@@ -240,18 +242,18 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
         {!multiSelected && (
           <ContextMenuItem onClick={() => onMenuAction?.("add-child")}>
             <Plus />
-            添加子节点
+            {t("inspector.addChild")}
           </ContextMenuItem>
         )}
         <ContextMenuItem onClick={() => onMenuAction?.("toggle-done")}>
           {node.done ? <Undo2 /> : <Check />}
           {multiSelected
-            ? (node.done ? "批量取消完成" : "批量标记已完成")
-            : (node.done ? "取消完成" : "标记已完成")}
+            ? (node.done ? t("mindmap.batchUndone") : t("mindmap.batchDone"))
+            : (node.done ? t("mindmap.undone") : t("mindmap.markDone"))}
         </ContextMenuItem>
         <ContextMenuItem onClick={() => onMenuAction?.("move")}>
           <FolderInput />
-          {multiSelected ? `搬迁 ${multiCount} 个节点` : "搬迁节点"}
+          {multiSelected ? t("mindmap.moveTitle", { n: multiCount }) : t("mindmap.moveNode")}
         </ContextMenuItem>
         <ContextMenuSeparator />
         {/* 添加标签：内嵌输入（非 Item），stopPropagation 防菜单键盘导航/typeahead 抢事件 */}
@@ -273,7 +275,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
                 }
               }
             }}
-            placeholder="输入标签，回车添加"
+            placeholder={t("mindmap.tagInput")}
             className="h-7 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs outline-none placeholder:text-muted-foreground/60 focus-visible:ring-1 focus-visible:ring-ring"
           />
         </div>
@@ -281,16 +283,16 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
         <ContextMenuSub>
           <ContextMenuSubTrigger>
             <Palette />
-            节点风格
+            {t("inspector.style")}
           </ContextMenuSubTrigger>
           <ContextMenuSubContent className="min-w-44">
             <div className="flex flex-col gap-1 p-1">
-              <span className="px-1 text-[10px] font-medium text-muted-foreground">边框</span>
+              <span className="px-1 text-[10px] font-medium text-muted-foreground">{t("inspector.borderColor")}</span>
               <PaletteGrid
                 current={node.borderColor}
                 onPick={(argb) => onMenuAction?.(`style-border:${argb}`)}
               />
-              <span className="px-1 text-[10px] font-medium text-muted-foreground">背景</span>
+              <span className="px-1 text-[10px] font-medium text-muted-foreground">{t("inspector.bgColor")}</span>
               <PaletteGrid
                 current={node.bgColor}
                 onPick={(argb) => onMenuAction?.(`style-bg:${argb}`)}
@@ -301,7 +303,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
         <ContextMenuSub>
           <ContextMenuSubTrigger>
             <CalendarClock />
-            截止日期
+            {t("inspector.dueDate")}
           </ContextMenuSubTrigger>
           <ContextMenuSubContent className="min-w-48">
             <div
@@ -315,7 +317,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
                 disabled={!!node.longTerm}
                 onChange={(e) => onMenuAction?.(`due:${e.target.value}`)}
                 className="h-7 w-full rounded-md border bg-background px-2 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                aria-label="截止日期"
+                aria-label={t("inspector.dueDate")}
               />
               <button
                 type="button"
@@ -327,7 +329,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
                     : "bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                 )}
               >
-                {node.longTerm ? "长期任务" : "设为长期"}
+                {node.longTerm ? t("inspector.longTerm") : t("inspector.setLongTerm")}
               </button>
             </div>
           </ContextMenuSubContent>
@@ -345,6 +347,7 @@ function PaletteGrid({
   current?: string
   onPick: (argb: string) => void
 }) {
+  const { t } = useTranslation()
   return (
     <div className="grid grid-cols-6 gap-1 p-1">
       {NODE_PALETTE.map((c) => (
@@ -362,7 +365,7 @@ function PaletteGrid({
       ))}
       <button
         type="button"
-        title="清除（回落主题默认）"
+        title={t("inspector.clearReset")}
         onClick={() => onPick("")}
         className={cn(
           "flex size-5 items-center justify-center rounded-md border border-dashed border-border/60 text-muted-foreground transition-transform hover:scale-110",
@@ -376,6 +379,7 @@ function PaletteGrid({
 }
 
 export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
+  const { t } = useTranslation()
   const node = (data as { node: MindNode }).node
   const sol = node.solution!
   const meta = STATUS_META[sol.status]
@@ -389,7 +393,7 @@ export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
       <div className="mb-1 flex items-center gap-1.5">
         <Lightbulb className="size-3.5 text-solution" />
         <span className="text-[11px] font-semibold text-solution">
-          解决方案
+          {t("inspector.solution")}
         </span>
       </div>
       <div className="mb-2 max-h-24 overflow-hidden text-xs text-foreground">
