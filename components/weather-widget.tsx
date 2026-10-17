@@ -16,6 +16,7 @@ import {
   CloudRain,
   CloudSun,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import {
@@ -53,6 +54,7 @@ function AQIBadge({ aqi }: { aqi: number }) {
 }
 
 export function WeatherWidget() {
+  const { t } = useTranslation()
   const uapiToken = useWorkspace((s) => s.settings.uapiToken)
   const [data, setData] = useState<WeatherNow | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -72,13 +74,13 @@ export function WeatherWidget() {
         setError(e.message)
         setCooldownMs(getCooldownRemainingMs())
       } else {
-        setError(e instanceof Error ? e.message : "获取失败")
+        setError(e instanceof Error ? e.message : t("weather.fetchFail"))
         setData(null)
       }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   // 挂载：恢复冷却状态 + 拉一次天气（2 小时缓存命中则直接复用）
   useEffect(() => {
@@ -101,7 +103,7 @@ export function WeatherWidget() {
         <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-foreground">
           <MapPin className="size-4 shrink-0 text-muted-foreground" />
           <span className="truncate">
-            {data ? [data.city, data.district].filter(Boolean).join(" · ") || "当前位置" : loading ? "定位中…" : "当前位置"}
+            {data ? [data.city, data.district].filter(Boolean).join(" · ") || t("weather.currentLocation") : loading ? t("weather.locating") : t("weather.currentLocation")}
           </span>
         </div>
         <Button
@@ -110,10 +112,10 @@ export function WeatherWidget() {
           className="size-7 shrink-0"
           onClick={() => void load(uapiToken, true)}
           disabled={loading || cooling}
-          title={cooling ? `限流冷却中，约 ${Math.max(1, Math.ceil(cooldownMs / 60_000))} 分钟后可刷新` : "刷新天气（2 小时缓存，点击强制获取）"}
+          title={cooling ? t("weather.cooling", { n: Math.max(1, Math.ceil(cooldownMs / 60_000)) }) : t("weather.refreshTip")}
         >
           <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-          <span className="sr-only">刷新</span>
+          <span className="sr-only">{t("common.refresh")}</span>
         </Button>
       </div>
 
@@ -148,11 +150,11 @@ export function WeatherWidget() {
             )}
           </p>
           {data.reportTime && (
-            <p className="mt-1 text-[10px] text-muted-foreground">更新时间 {data.reportTime}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground">{t("weather.updatedAt")} {data.reportTime}</p>
           )}
         </>
       ) : (
-        <p className="text-xs text-muted-foreground">{loading ? "获取中…" : "暂无天气数据"}</p>
+        <p className="text-xs text-muted-foreground">{loading ? t("weather.fetching") : t("weather.noData")}</p>
       )}
     </div>
   )

@@ -17,6 +17,7 @@ import {
   type Person,
 } from "@/lib/address-book"
 import { useWorkspace } from "@/lib/store"
+import { useTranslation } from "react-i18next"
 import { matchTextPinyin } from "@/lib/pinyin"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -44,15 +45,16 @@ import { cn } from "@/lib/utils"
  */
 
 const TYPE_LABEL: Record<string, string> = {
-  phone: "电话",
-  qq: "QQ",
-  email: "邮箱",
-  wechat: "微信",
+  phone: "contacts.type.phone",
+  qq: "contacts.type.qq",
+  email: "contacts.type.email",
+  wechat: "contacts.type.wechat",
 }
 
 const TYPE_OPTIONS = ["phone", "qq", "email", "wechat"] as const
 
 export function ContactsWorkspace() {
+  const { t } = useTranslation()
   const people = useWorkspace((s) => s.contacts)
   const addContact = useWorkspace((s) => s.addContact)
   const updateContact = useWorkspace((s) => s.updateContact)
@@ -94,9 +96,9 @@ export function ContactsWorkspace() {
   async function copyValue(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value)
-      toast.success(`已复制 ${label}`)
+      toast.success(t("contacts.copiedField", { label }))
     } catch {
-      toast.error("复制失败，请手动复制")
+      toast.error(t("contacts.copyFailed"))
     }
   }
 
@@ -113,23 +115,23 @@ export function ContactsWorkspace() {
   function handleSave(fields: Omit<Person, "id">) {
     if (editingId) {
       updateContact(editingId, fields)
-      toast.success("已保存修改")
+      toast.success(t("contacts.saved"))
     } else {
       const id = addContact()
       updateContact(id, fields)
-      toast.success("已新建联系人")
+      toast.success(t("contacts.created"))
     }
   }
 
   function handleRemove(p: Person) {
     removeContact(p.id)
-    toast.success(`已删除「${p.name}」`)
+    toast.success(t("contacts.deleted", { name: p.name }))
   }
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
-        <h1 className="font-serif text-lg font-semibold">联系人</h1>
+        <h1 className="font-serif text-lg font-semibold">{t("contacts.title")}</h1>
         <div className="flex-1" />
         {/* 搜索 */}
         <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1.5">
@@ -137,14 +139,14 @@ export function ContactsWorkspace() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索姓名 / 简介 / 生日 / 地址 / 角色 / 联系方式…"
+            placeholder={t("contacts.searchPlaceholder")}
             className="w-64 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
           />
         </div>
         {/* 新建（TODO 48） */}
         <Button size="sm" className="gap-1.5" onClick={openCreate}>
           <Plus className="size-4" />
-          新建联系人
+          {t("contacts.new")}
         </Button>
       </div>
 
@@ -153,8 +155,8 @@ export function ContactsWorkspace() {
           <Users className="size-8" />
           <p className="text-sm">
             {people.length === 0
-              ? "暂无联系人：点右上角「新建联系人」，或在设置 → 从 yml 导入。"
-              : "没有匹配「" + query + "」的联系人"}
+              ? t("contacts.empty")
+              : t("contacts.noMatch", { query })}
           </p>
         </div>
       ) : (
@@ -200,7 +202,7 @@ export function ContactsWorkspace() {
                       {/* 编辑 / 删除（TODO 48） */}
                       <button
                         type="button"
-                        title="编辑"
+                        title={t("common.edit")}
                         onClick={() => openEdit(p)}
                         className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                       >
@@ -208,7 +210,7 @@ export function ContactsWorkspace() {
                       </button>
                       <button
                         type="button"
-                        title="删除"
+                        title={t("common.delete")}
                         onClick={() => handleRemove(p)}
                         className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                       >
@@ -218,33 +220,34 @@ export function ContactsWorkspace() {
 
                     {/* 概览信息（展开时显示更全；生日/地址始终可读） */}
                     <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                      {p.birthday && <MetaItem label="生日" value={p.birthday} lunar={parseBirthday(p.birthday)?.lunar} />}
-                      {p.address && <MetaItem label="地址" value={p.address} />}
+                      {p.birthday && <MetaItem label={t("contacts.birthday")} value={p.birthday} lunar={parseBirthday(p.birthday)?.lunar} />}
+                      {p.address && <MetaItem label={t("contacts.address")} value={p.address} />}
                     </div>
 
                     {/* contact 展开区 */}
                     {isOpen && (
                       <div className="mt-3 flex flex-col gap-1.5 border-t pt-3">
                         {(p.contact ?? []).length === 0 ? (
-                          <p className="text-xs text-muted-foreground">暂无联系方式</p>
+                          <p className="text-xs text-muted-foreground">{t("contacts.noMethods")}</p>
                         ) : (
                           (p.contact ?? []).map((c, i) => {
-                            const label = TYPE_LABEL[c.type ?? ""] ?? c.type
+                            const tk = TYPE_LABEL[c.type ?? ""]
+                            const label = tk ? t(tk) : (c.type ?? "")
                             return (
                               <div
                                 key={`${c.type}-${i}`}
                                 className="flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5"
                               >
                                 <Badge variant="secondary" className="w-12 shrink-0 justify-center text-[10px]">
-                                  {label || "联系"}
+                                  {label || t("contacts.methodFallback")}
                                 </Badge>
                                 <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
                                   {c.value}
                                 </span>
                                 <button
                                   type="button"
-                                  title="复制"
-                                  onClick={() => copyValue(c.value ?? "", label ?? "联系方式")}
+                                  title={t("common.copy")}
+                                  onClick={() => copyValue(c.value ?? "", label || t("contacts.methodFallback"))}
                                   className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                                 >
                                   <Copy className="size-3.5" />
@@ -329,6 +332,7 @@ function ContactFormDialog({
   onClose: () => void
   onSave: (fields: Omit<Person, "id">) => void
 }) {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState<ContactDraft>(() => draftFromPerson(null))
 
   // 打开时按 initial 重置草稿（新建 = 空模板）
@@ -342,7 +346,7 @@ function ContactFormDialog({
   function save() {
     const name = draft.name.trim()
     if (!name) {
-      toast.error("姓名不能为空")
+      toast.error(t("contacts.errName"))
       return
     }
     let birthday: string | undefined
@@ -362,7 +366,7 @@ function ContactFormDialog({
         d < 1 ||
         d > maxDay
       ) {
-        toast.error(`生日日期不合法（年 1900-2100，月 1-12，日 1-${maxDay}）`)
+        toast.error(t("contacts.errBirthday", { maxDay }))
         return
       }
       const pad = (n: number) => String(n).padStart(2, "0")
@@ -404,63 +408,63 @@ function ContactFormDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{initial ? "编辑联系人" : "新建联系人"}</DialogTitle>
+          <DialogTitle>{initial ? t("contacts.editTitle") : t("contacts.newTitle")}</DialogTitle>
           <DialogDescription>
-            数据保存在本地（store 持久化）；如需批量维护，可在 public/address_book.yml 编辑后到设置页导入（整表覆盖）。
+            {t("contacts.formDesc")}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-name">姓名 *</Label>
+            <Label htmlFor="c-name">{t("contacts.formName")}</Label>
             <Input
               id="c-name"
               value={draft.name}
-              placeholder="必填"
+              placeholder={t("contacts.required")}
               onChange={(e) => patch({ name: e.target.value })}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-desc">简介</Label>
+            <Label htmlFor="c-desc">{t("contacts.desc")}</Label>
             <Input
               id="c-desc"
               value={draft.description}
-              placeholder="一句话介绍（可空）"
+              placeholder={t("contacts.descPlaceholder")}
               onChange={(e) => patch({ description: e.target.value })}
             />
           </div>
-          {/* 生日：类型切换 + 年月日（与 yml 格式一致：公历 YYYY-MM-DD / 农历 LYYYY-MM-DD） */}
+          {/* 生日：类型切换 + 年月日（与 yml 格式一致：公历 YYYY-MM-DD / {t("contacts.bdayLunar")} LYYYY-MM-DD） */}
           <div className="flex flex-col gap-1.5">
-            <Label>生日</Label>
+            <Label>{t("contacts.birthday")}</Label>
             <div className="flex items-center gap-2">
               <select
                 value={draft.birthdayType}
                 onChange={(e) => patch({ birthdayType: e.target.value as ContactDraft["birthdayType"] })}
                 className="h-9 rounded-md border bg-transparent px-2 text-sm outline-none"
               >
-                <option value="none">无</option>
-                <option value="solar">公历</option>
-                <option value="lunar">农历</option>
+                <option value="none">{t("contacts.bdayNone")}</option>
+                <option value="solar">{t("contacts.bdaySolar")}</option>
+                <option value="lunar">{t("contacts.bdayLunar")}</option>
               </select>
               {draft.birthdayType !== "none" && (
                 <>
                   <Input
                     type="number"
                     value={draft.birthYear}
-                    placeholder="年"
+                    placeholder={t("contacts.year")}
                     className="w-24"
                     onChange={(e) => patch({ birthYear: e.target.value })}
                   />
                   <Input
                     type="number"
                     value={draft.birthMonth}
-                    placeholder="月"
+                    placeholder={t("contacts.month")}
                     className="w-20"
                     onChange={(e) => patch({ birthMonth: e.target.value })}
                   />
                   <Input
                     type="number"
                     value={draft.birthDay}
-                    placeholder="日"
+                    placeholder={t("contacts.day")}
                     className="w-20"
                     onChange={(e) => patch({ birthDay: e.target.value })}
                   />
@@ -469,27 +473,27 @@ function ContactFormDialog({
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-addr">地址</Label>
+            <Label htmlFor="c-addr">{t("contacts.address")}</Label>
             <Input
               id="c-addr"
               value={draft.address}
-              placeholder="可空"
+              placeholder={t("contacts.optional")}
               onChange={(e) => patch({ address: e.target.value })}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-roles">角色标签</Label>
+            <Label htmlFor="c-roles">{t("contacts.roles")}</Label>
             <Input
               id="c-roles"
               value={draft.rolesText}
-              placeholder="用顿号/逗号分隔，如：同事、球友"
+              placeholder={t("contacts.rolesPlaceholder")}
               onChange={(e) => patch({ rolesText: e.target.value })}
             />
           </div>
           {/* 联系方式：动态行 */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <Label>联系方式</Label>
+              <Label>{t("contacts.methods")}</Label>
               <Button
                 type="button"
                 variant="ghost"
@@ -498,11 +502,11 @@ function ContactFormDialog({
                 onClick={() => patch({ contacts: [...draft.contacts, { type: "phone", value: "" }] })}
               >
                 <Plus className="size-3.5" />
-                添加一项
+                {t("contacts.addMethod")}
               </Button>
             </div>
             {draft.contacts.length === 0 ? (
-              <p className="text-xs text-muted-foreground">暂无联系方式</p>
+              <p className="text-xs text-muted-foreground">{t("contacts.noMethods")}</p>
             ) : (
               draft.contacts.map((c, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -518,17 +522,17 @@ function ContactFormDialog({
                     }}
                     className="h-9 rounded-md border bg-transparent px-2 text-sm outline-none"
                   >
-                    {TYPE_OPTIONS.map((t) => (
-                      <option key={t} value={t}>
-                        {TYPE_LABEL[t]}
+                    {TYPE_OPTIONS.map((tp) => (
+                      <option key={tp} value={tp}>
+                        {t(TYPE_LABEL[tp])}
                       </option>
                     ))}
-                    <option value="custom">自定义</option>
+                    <option value="custom">{t("contacts.typeCustom")}</option>
                   </select>
                   {!(TYPE_OPTIONS as readonly string[]).includes(c.type) && (
                     <Input
                       value={c.type}
-                      placeholder="类型"
+                      placeholder={t("contacts.typePlaceholder")}
                       className="w-24"
                       onChange={(e) =>
                         patch({
@@ -539,7 +543,7 @@ function ContactFormDialog({
                   )}
                   <Input
                     value={c.value}
-                    placeholder="内容"
+                    placeholder={t("contacts.valuePlaceholder")}
                     className="flex-1"
                     onChange={(e) =>
                       patch({
@@ -549,7 +553,7 @@ function ContactFormDialog({
                   />
                   <button
                     type="button"
-                    title="移除此项"
+                    title={t("contacts.removeMethod")}
                     onClick={() => patch({ contacts: draft.contacts.filter((_, j) => j !== i) })}
                     className="flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                   >
@@ -561,9 +565,9 @@ function ContactFormDialog({
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>
-              取消
+              {t("common.cancel")}
             </Button>
-            <Button onClick={save}>保存</Button>
+            <Button onClick={save}>{t("common.save")}</Button>
           </div>
         </div>
       </DialogContent>
@@ -580,6 +584,7 @@ function UserAvatar() {
 }
 
 function MetaItem({ label, value, lunar }: { label: string; value: string; lunar?: boolean }) {
+  const { t } = useTranslation()
   // 农历生日：去掉 L 前缀（由「农历」徽标承担语义），避免与 `L` 重复
   const shown = lunar && value.startsWith("L") ? value.slice(1) : value
   return (
@@ -587,7 +592,7 @@ function MetaItem({ label, value, lunar }: { label: string; value: string; lunar
       <span className="shrink-0 text-muted-foreground/60">{label}：</span>
       {lunar && (
         <Badge variant="secondary" className="shrink-0 px-1 text-[9px]">
-          农历
+          {t("contacts.bdayLunar")}
         </Badge>
       )}
       <span className="truncate">{shown}</span>

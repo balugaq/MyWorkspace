@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import { CalendarCheck, User, Feather, RefreshCw, ScanLine, Timer, Clock, Sparkles, Workflow } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
+import { useTranslation } from "react-i18next"
 import { BUILTIN_TODO_RELATIONS_CATEGORY_ID } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { WeatherWidget } from "@/components/weather-widget"
@@ -40,11 +41,11 @@ const LEVEL_COLORS = [
 
 // 贡献类型 → 徽章文案 / 配色（贡献详情列表用）
 const CONTRIB_TYPE_META: Record<ContributionType, { label: string; badge: string }> = {
-  "mindmap-node-created": { label: "新建节点", badge: "text-blue-400 bg-blue-400/10" },
-  "mindmap-node-done": { label: "完成节点", badge: "text-green-500 bg-green-500/10" },
-  "check-in": { label: "签到", badge: "text-primary bg-primary/10" },
-  "focus": { label: "专注", badge: "text-amber-400 bg-amber-400/10" },
-  "github-commit": { label: "GitHub 提交", badge: "text-sky-400 bg-sky-400/10" },
+  "mindmap-node-created": { label: "profile.meta.nodeCreated", badge: "text-blue-400 bg-blue-400/10" },
+  "mindmap-node-done": { label: "profile.meta.nodeDone", badge: "text-green-500 bg-green-500/10" },
+  "check-in": { label: "profile.meta.checkIn", badge: "text-primary bg-primary/10" },
+  "focus": { label: "profile.meta.focus", badge: "text-amber-400 bg-amber-400/10" },
+  "github-commit": { label: "profile.meta.githubCommit", badge: "text-sky-400 bg-sky-400/10" },
   "github-issue": { label: "GitHub Issue", badge: "text-orange-400 bg-orange-400/10" },
   "github-pr": { label: "GitHub PR", badge: "text-emerald-400 bg-emerald-400/10" },
 }
@@ -60,12 +61,12 @@ const WIDGET_WRAP_CLASS: Record<ProfileWidgetId, string> = {
 }
 
 // TODO 39 日期牌（参考主人提供的日历牌图）：公历月中文 + 大小月，传统纸质日历牌写法
-const CN_MONTHS = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"]
+const CN_MONTHS = ["", "profile.cnMonth.1", "profile.cnMonth.2", "profile.cnMonth.3", "profile.cnMonth.4", "profile.cnMonth.5", "profile.cnMonth.6", "profile.cnMonth.7", "profile.cnMonth.8", "profile.cnMonth.9", "profile.cnMonth.10", "profile.cnMonth.11", "profile.cnMonth.12"]
 
 // 公历月大小：31 天「大」、30 天「小」、2 月一律「平」（平闰同写，日历牌口径）
 function solarMonthSize(year: number, month: number): string {
-  if (month === 2) return "平"
-  return new Date(year, month, 0).getDate() === 31 ? "大" : "小"
+  if (month === 2) return "flat"
+  return new Date(year, month, 0).getDate() === 31 ? "big" : "small"
 }
 
 // 贡献值展示：四舍五入取整（todo.md 口径）。
@@ -149,6 +150,7 @@ function readPoemCache(): PoemCache | null {
 }
 
 export function ProfileWorkspace() {
+  const { t } = useTranslation()
   const settings = useWorkspace((s) => s.settings)
 
   // 贡献账本 → 热力图：账本存「发生时间 at」，读取时按当前 settings.dayStartOffset 现算所属日
@@ -246,14 +248,14 @@ export function ProfileWorkspace() {
     pauseStartRef.current = null
     if (amount < 1) {
       // 不足 10 分钟：不弹窗、不入账，仅提示
-      setFocusHint("专注不足 10 分钟，不计入贡献")
+      setFocusHint(t("profile.focusTooShort"))
       return
     }
     // ≥10 分钟：弹窗让用户填写 content，确认/取消后才入账（各写一次）
     setPendingFocusMinutes(minutes)
-    setFocusContentInput(`专注 ${Math.round(minutes)} 分钟`)
+    setFocusContentInput(t("profile.focusMinutes", { n: Math.round(minutes) }))
     setFocusDialogOpen(true)
-  }, [startTs, accumulatedPausedMs])
+  }, [startTs, accumulatedPausedMs, t])
 
   const endFocusRef = useRef(endFocus)
   useEffect(() => {
@@ -328,19 +330,19 @@ export function ProfileWorkspace() {
   // 结束弹窗：确认 → 用用户填写的 content 入账；取消 → 不传 content，用默认自动文案入账（保证已得贡献不丢失）。两条路径都只写一次。
   const handleFocusConfirm = useCallback(() => {
     const written = addFocusContribution(pendingFocusMinutes, focusContentInput)
-    if (written >= 1) toast.success(`专注完成，+${written} 贡献`)
+    if (written >= 1) toast.success(t("profile.focusDone", { n: written }))
     setFocusDialogOpen(false)
     setPendingFocusMinutes(0)
     setFocusContentInput("")
-  }, [addFocusContribution, pendingFocusMinutes, focusContentInput])
+  }, [addFocusContribution, pendingFocusMinutes, focusContentInput, t])
 
   const handleFocusCancel = useCallback(() => {
     const written = addFocusContribution(pendingFocusMinutes)
-    if (written >= 1) toast.success(`专注完成，+${written} 贡献`)
+    if (written >= 1) toast.success(t("profile.focusDone", { n: written }))
     setFocusDialogOpen(false)
     setPendingFocusMinutes(0)
     setFocusContentInput("")
-  }, [addFocusContribution, pendingFocusMinutes])
+  }, [addFocusContribution, pendingFocusMinutes, t])
 
   // 外部关闭(点遮罩 / 按 Esc)不应静默丢弃已得贡献：统一走「取消」语义(用默认自动文案入账)。
   // 点遮罩由 Dialog 的 disablePointerDismissal 直接拦截;这里兜底 Esc 等外部 reason。
@@ -363,7 +365,7 @@ export function ProfileWorkspace() {
   const now = new Date()
   const month = now.getMonth() + 1
   const day = now.getDate()
-  const weekday = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"][now.getDay()]
+  const weekday = t(`profile.weekday.${now.getDay()}`)
 
   // TODO 39：「问 AI 今日待办」——引导 AI 综合各只读技能可访问的本地数据，汇总今日待办清单。
   // 走 store.askAiToday 链路：按翻篇时间记档当天会话——当天内重复点击直接打开原会话（不重发），
@@ -371,12 +373,7 @@ export function ProfileWorkspace() {
   const askAiTodayAction = useWorkspace((s) => s.askAiToday)
   const askAiToday = () => {
     const prompt =
-      `今天是 ${now.getFullYear()} 年 ${month} 月 ${day} 日（${weekday}）。请综合你可访问的本地数据，给我一份今日待办清单：` +
-      `用 wb_get_mindmap_graph 查思维图节点与截止/长期任务，` +
-      `用 wb_get_day_calendar_data 与 wb_get_day_note 查今天的日程和笔记（必要时用 wb_get_dates_with_notes 回看近期），` +
-      `用 wb_get_github_queue 查 GitHub 队列，用 wb_get_recent_notifications 查最近通知，` +
-      `用 wb_get_categories 查分类概览。` +
-      `请按优先级排序输出，每项标注依据来源（思维图/日历/队列/通知等）；数据中没有支撑的建议项请单独列出并说明。`
+      t("profile.todayTodoPrompt", { y: now.getFullYear(), m: month, d: day, weekday })
     askAiTodayAction(prompt)
   }
 
@@ -419,7 +416,7 @@ export function ProfileWorkspace() {
   const storedName = useWorkspace((s) => s.settings.userName)
   const [nameEditing, setNameEditing] = useState(false)
   const [nameDraft, setNameDraft] = useState("")
-  const displayName = storedName.trim() || "未命名用户"
+  const displayName = storedName.trim() || t("profile.unnamed")
 
   const startNameEdit = () => {
     setNameDraft(displayName)
@@ -428,7 +425,7 @@ export function ProfileWorkspace() {
   const commitNameEdit = () => {
     const next = nameDraft.trim()
     if (!next) {
-      toast.error("用户名不能为空")
+      toast.error(t("profile.errName"))
       setNameEditing(false)
       return
     }
@@ -490,7 +487,7 @@ export function ProfileWorkspace() {
       })
       .catch(() => {
         // 手动刷新失败：保留当前诗句 + toast 提示，不隐藏整块
-        toast.error("诗词刷新失败，请稍后再试")
+        toast.error(t("profile.poemFail"))
       })
       .finally(() => {
         setPoemRefreshing(false)
@@ -502,8 +499,8 @@ export function ProfileWorkspace() {
   // 主人用完会要求删除 —— 摘除时删掉本 handleScan + 热力图卡片头部的「补算历史」按钮即可。
   const handleScan = () => {
     const added = scanLegacyContributions()
-    if (added > 0) toast.success(`已补算 ${added} 条历史贡献`)
-    else toast.info("没有需要补算的历史贡献")
+    if (added > 0) toast.success(t("profile.backfilled", { n: added }))
+    else toast.info(t("profile.noBackfill"))
   }
   // ─────────────────────────────────────────────────────────────
 
@@ -552,12 +549,12 @@ export function ProfileWorkspace() {
                     cancelNameEdit()
                   }
                 }}
-                placeholder="用户名"
+                placeholder={t("profile.username")}
                 className="w-40 rounded border border-border bg-background px-1 text-lg font-semibold text-foreground outline-none focus:border-primary"
               />
             ) : (
               <span
-                title="双击编辑用户名"
+                title={t("profile.doubleClickEdit")}
                 onDoubleClick={startNameEdit}
                 className="w-fit cursor-text text-lg font-semibold text-foreground hover:opacity-80"
               >
@@ -576,19 +573,19 @@ export function ProfileWorkspace() {
           <div className="w-64 rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <CalendarCheck className="size-4 text-primary" />
-              每日签到
+              {t("profile.dailyCheckIn")}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">坚持就是胜利，保持活跃。</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("profile.checkInSlogan")}</p>
             <div className="relative mt-3 w-full">
               <Button
                 className="w-full"
                 disabled={signedToday}
                 onClick={() => {
                   checkIn()
-                  toast.success("签到成功")
+                  toast.success(t("profile.checkedIn"))
                 }}
               >
-                {signedToday ? "√ 已签到" : "签到"}
+                {signedToday ? t("profile.signedToday") : t("profile.checkIn")}
               </Button>
               {signedToday && (
                 <div className="pointer-events-none absolute inset-0 rounded-md bg-black/40" />
@@ -633,7 +630,7 @@ export function ProfileWorkspace() {
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex h-[92px] items-center justify-center gap-4 rounded-lg bg-[#f2f0e8] px-4 dark:bg-[#0b0d0b]">
                 <span className="text-xs font-medium text-[#55714e] [writing-mode:vertical-rl] dark:text-[#8fae8b]">
-                  {CN_MONTHS[month]}月{solarMonthSize(now.getFullYear(), month)}
+                  {t(CN_MONTHS[month])}{t(`profile.monthSize.${solarMonthSize(now.getFullYear(), month)}`)}月
                 </span>
                 <span className="text-[56px] font-bold leading-none tabular-nums text-[#55714e] dark:text-[#8fae8b]">
                   {String(day).padStart(2, "0")}
@@ -652,17 +649,17 @@ export function ProfileWorkspace() {
                   onClick={askAiToday}
                 >
                   <Sparkles className="size-3.5" />
-                  问 <AiText /> 今日待办
+                  {t("profile.askPrefix")} <AiText /> {t("profile.askTodayTodo")}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
                   onClick={openTodoRelations}
-                  title="打开内建「待办事项」关系图"
+                  title={t("profile.openTodoGraph")}
                 >
                   <Workflow className="size-3.5" />
-                  打开关系图
+                  {t("profile.openGraph")}
                 </Button>
               </div>
             </div>
@@ -672,7 +669,7 @@ export function ProfileWorkspace() {
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <Clock className="size-4 text-sky-400" />
-                软件使用时长
+                {t("profile.usageDuration")}
               </div>
               {usageText ? (
                 <>
@@ -680,11 +677,11 @@ export function ProfileWorkspace() {
                     {usageText}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    自 {format(new Date(firstAt!), "yyyy-MM-dd")} 首次贡献起
+                    {t("profile.sinceFirst", { date: format(new Date(firstAt!), "yyyy-MM-dd") })}
                   </p>
                 </>
               ) : (
-                <p className="mt-2 text-sm text-muted-foreground">暂无贡献记录</p>
+                <p className="mt-2 text-sm text-muted-foreground">{t("profile.noContrib")}</p>
               )}
             </div>
             )}
@@ -694,7 +691,7 @@ export function ProfileWorkspace() {
             <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <Timer className="size-4 text-amber-400" />
-              ⏱ 专注钟
+              ⏱ {t("profile.focusClock")}
             </div>
 
             {/* 模式切换（分段） */}
@@ -708,7 +705,7 @@ export function ProfileWorkspace() {
                     : "border-border text-muted-foreground"
                 }`}
               >
-                正计时
+                {t("profile.countUp")}
               </button>
               <button
                 type="button"
@@ -719,14 +716,14 @@ export function ProfileWorkspace() {
                     : "border-border text-muted-foreground"
                 }`}
               >
-                倒计时
+                {t("profile.countDown")}
               </button>
             </div>
 
             {/* 倒计时专注时长输入（仅倒计时模式可编辑） */}
             {focusMode === "down" && (
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                <span>专注时长</span>
+                <span>{t("profile.focusDuration")}</span>
                 <input
                   type="number"
                   min={1}
@@ -739,7 +736,7 @@ export function ProfileWorkspace() {
                   }}
                   className="w-16 rounded-md border border-border bg-background px-2 py-1 text-foreground"
                 />
-                <span>分钟</span>
+                <span>{t("profile.minutes")}</span>
               </div>
             )}
 
@@ -766,15 +763,15 @@ export function ProfileWorkspace() {
                 {shownRunning ? (
                   <>
                     <Button className="flex-1" variant="outline" onClick={pauseFocus}>
-                      暂停
+                      {t("profile.pause")}
                     </Button>
                     <Button className="flex-1" variant="outline" onClick={endFocus}>
-                      结束
+                      {t("profile.finish")}
                     </Button>
                   </>
                 ) : (
                   <Button className="w-full" onClick={startOrResumeFocus}>
-                    {startTs == null ? "开始" : "继续"}
+                    {startTs == null ? t("profile.start") : t("profile.resume")}
                   </Button>
                 )}
               </div>
@@ -784,16 +781,16 @@ export function ProfileWorkspace() {
             <Dialog open={focusDialogOpen} onOpenChange={handleFocusDialogOpenChange} disablePointerDismissal>
               <DialogContent showCloseButton={false}>
                 <DialogHeader>
-                  <DialogTitle>填写专注记录</DialogTitle>
+                  <DialogTitle>{t("profile.focusRecordTitle")}</DialogTitle>
                   <DialogDescription>
-                    本次专注已满 10 分钟，可补充这条 Contribution 的内容。
+                    {t("profile.focusRecordDesc")}
                   </DialogDescription>
                 </DialogHeader>
                 <NativeScrollArea>
                   <Textarea
                     value={focusContentInput}
                     onChange={(e) => setFocusContentInput(e.target.value)}
-                    placeholder="专注 25 分钟"
+                    placeholder={t("profile.focusMinutes", { n: 25 })}
                     className="min-h-20"
                   />
                 </NativeScrollArea>
@@ -801,13 +798,13 @@ export function ProfileWorkspace() {
                   <DialogClose
                     render={
                       <Button variant="outline" onClick={handleFocusCancel}>
-                        取消
+                        {t("common.cancel")}
                       </Button>
                     }
                   >
-                    取消
+                    {t("common.cancel")}
                   </DialogClose>
-                  <Button onClick={handleFocusConfirm}>确认</Button>
+                  <Button onClick={handleFocusConfirm}>{t("common.confirm")}</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -830,12 +827,12 @@ export function ProfileWorkspace() {
                   size="sm"
                   className="h-7 gap-1 px-2 text-xs text-muted-foreground"
                   onClick={handleScan}
-                  title="为热力图上线前已存在的节点补算历史贡献（幂等）"
+                  title={t("profile.backfillTitle")}
                 >
                   <ScanLine className="size-3.5" />
-                  补算历史
+                  {t("profile.backfill")}
                 </Button>
-                <span className="text-xs text-muted-foreground">{contributions.length} 条</span>
+                <span className="text-xs text-muted-foreground">{t("profile.entries", { n: contributions.length })}</span>
               </div>
             </div>
 
@@ -880,8 +877,8 @@ export function ProfileWorkspace() {
                         const level = contributionLevel(stat?.amount ?? 0)
                         const titleText =
                           stat && stat.count > 0
-                            ? `${cell.dayKey} · ${stat.count} 条 · ${formatAmount(stat.amount)} 贡献值`
-                            : `${cell.dayKey} · 无记录`
+                            ? t("profile.cellTip", { key: cell.dayKey, n: stat.count, amount: formatAmount(stat.amount) })
+                            : t("profile.cellEmpty", { key: cell.dayKey })
                         return (
                           <span
                             key={d}
@@ -900,7 +897,7 @@ export function ProfileWorkspace() {
 
             {/* 图例 */}
             <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
-              少
+              {t("profile.less")}
               {LEVEL_COLORS.map((c, i) => (
                 <span
                   key={i}
@@ -908,14 +905,14 @@ export function ProfileWorkspace() {
                   style={{ backgroundColor: c }}
                 />
               ))}
-              多
+              {t("profile.more")}
             </div>
 
             {/* 贡献详情列表 */}
             <div className="mt-4 border-t border-border pt-4">
-              <p className="text-xs font-medium text-muted-foreground">贡献详情</p>
+              <p className="text-xs font-medium text-muted-foreground">{t("profile.contribDetail")}</p>
               {sorted.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">暂无活动记录</p>
+                <p className="py-6 text-center text-sm text-muted-foreground">{t("profile.noActivity")}</p>
               ) : (
                 <>
                   <div className="mt-2 space-y-2">
@@ -927,7 +924,7 @@ export function ProfileWorkspace() {
                             <span
                               className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.badge}`}
                             >
-                              {meta.label}
+                              {t(meta.label)}
                             </span>
                             <span className="rounded-full bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
                               {format(new Date(c.at), "MM-dd-HH-mm")}
@@ -935,7 +932,7 @@ export function ProfileWorkspace() {
                           </div>
                           <p className="mt-2 truncate text-sm text-foreground">{c.content}</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            贡献值 {formatContribAmount(c.amount)}
+                            {t("profile.contribAmount", { n: formatContribAmount(c.amount) })}
                           </p>
                         </div>
                       )
@@ -949,11 +946,11 @@ export function ProfileWorkspace() {
                         className="text-sm text-muted-foreground"
                         onClick={() => setVisible((v) => v + 5)}
                       >
-                        查看更多活动记录
+                        {t("profile.moreActivity")}
                       </Button>
                     </div>
                   ) : sorted.length > 5 ? (
-                    <p className="py-2 text-center text-xs text-muted-foreground">无更多活动记录</p>
+                    <p className="py-2 text-center text-xs text-muted-foreground">{t("profile.noMoreActivity")}</p>
                   ) : null}
                 </>
               )}
@@ -968,7 +965,7 @@ export function ProfileWorkspace() {
         <footer className="pointer-events-none absolute right-8 bottom-4 z-10 flex items-end justify-end gap-2 text-right text-xs text-muted-foreground">
           <div className="flex flex-col items-end gap-0.5">
             {poemLoading ? (
-              <span>诗词加载中…</span>
+              <span>{t("profile.poemLoading")}</span>
             ) : (
               <>
                 <span className="inline-flex items-center gap-1">
@@ -989,8 +986,8 @@ export function ProfileWorkspace() {
             className="pointer-events-auto"
             onClick={refreshPoem}
             disabled={poemRefreshing || poemLoading}
-            title="换一首诗"
-            aria-label="换一首诗"
+            title={t("profile.nextPoem")}
+            aria-label={t("profile.nextPoem")}
           >
             <RefreshCw className={poemRefreshing ? "size-3 animate-spin" : "size-3"} />
           </Button>

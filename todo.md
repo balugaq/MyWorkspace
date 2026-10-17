@@ -712,9 +712,9 @@ TODO 74. （状态：待处理）
 - ~~批 3：随笔（novel-workspace / text-context-menu / rich-text-editor）~~ ✅ 2026-10-17 完成（novel 命名空间；「问 AI」前缀整段抽插值）
 - ~~批 4：思维导图（mindmap-workspace / node-inspector / mindmap/nodes）~~ ✅ 2026-10-17 完成（mindmap/inspector 命名空间；AI 分析 prompt 整段插值；局部变量 t×2 改名防撞）
 - ~~批 5：日历（calendar-workspace + 自定义节日弹窗）~~ ✅ 2026-10-17 完成（calendar 命名空间；WEEKDAYS 改 key 数组；AI prompt 与 date-fns zhCN 日期格式留遗留）
-- 批 6：联系人（contacts-workspace）
-- 批 7：保险库（vault-workspace / vault-provider）
-- 批 8：个人主页（profile-workspace / weather-widget）
+- ~~批 6：联系人（contacts-workspace）~~ ✅ 2026-10-17 完成（contacts 命名空间；TYPE_LABEL 改 key 映射、自定义类型原文直显）
+- ~~批 7：保险库（vault-workspace）~~ ✅ 2026-10-17 完成（vault 命名空间；provider 的 throw error message 属 lib 层，归批 13）
+- ~~批 8：个人主页（profile-workspace / weather-widget）~~ ✅ 2026-10-17 完成（profile/weather 命名空间；CN_MONTHS/月大小/星期改 key 化；「今日待办」AI prompt 整段插值）
 - 批 9：通知（notifications-workspace / notification-toast-queue / health-reminder-toasts）
 - 批 10：GitHub 队列（github-queue-workspace）
 - 批 11：词汇表（vocabulary-workspace）

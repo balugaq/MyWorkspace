@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import {
   KeyRound,
   Plus,
@@ -46,12 +47,13 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export function VaultWorkspace() {
+  const { t } = useTranslation()
   const vault = useVault()
 
   if (vault.status === "loading") {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        正在检查保险库…
+        {t("vault.checking")}
       </div>
     )
   }
@@ -64,17 +66,18 @@ export function VaultWorkspace() {
 
 /** 尚未创建保险库：设置主密码 */
 function CreateVault() {
+  const { t } = useTranslation()
   const { create, busy, error } = useVault()
   const [pw, setPw] = useState("")
   const [confirm, setConfirm] = useState("")
 
   async function submit() {
     if (pw.length < 4) {
-      toast.error("主密码至少 4 位")
+      toast.error(t("vault.pwdTooShort"))
       return
     }
     if (pw !== confirm) {
-      toast.error("两次输入的密码不一致")
+      toast.error(t("vault.pwdMismatch"))
       return
     }
     await create(pw)
@@ -85,17 +88,17 @@ function CreateVault() {
       <div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <ShieldCheck className="size-5 text-primary" />
-          <h2 className="text-lg font-semibold">创建密码保险库</h2>
+          <h2 className="text-lg font-semibold">{t("vault.createTitle")}</h2>
         </div>
         <p className="mb-4 text-xs text-muted-foreground">
-          设置一个主密码。所有条目（名称 + 值）将用
+          {t("vault.createDesc1")}
           <span className="font-medium"> AES-256 </span>
-          加密后存入浏览器数据库，<span className="font-medium">主密码不会保存、无法找回</span>
-          ，请务必牢记。
+          {t("vault.createDesc2")}
+          {t("vault.createDesc3")}
         </p>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">主密码</Label>
+            <Label className="text-xs">{t("vault.masterPwd")}</Label>
             <Input
               type="password"
               value={pw}
@@ -103,11 +106,11 @@ function CreateVault() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) submit()
               }}
-              placeholder="用于解锁保险库"
+              placeholder={t("vault.pwdUnlockHint")}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">确认主密码</Label>
+            <Label className="text-xs">{t("vault.confirmPwd")}</Label>
             <Input
               type="password"
               value={confirm}
@@ -115,13 +118,13 @@ function CreateVault() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) submit()
               }}
-              placeholder="再次输入"
+              placeholder={t("vault.repeatInput")}
             />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <Button onClick={submit} disabled={busy} className="mt-1 gap-1.5">
             <KeyRound className="size-4" />
-            {busy ? "创建中…" : "创建并解锁"}
+            {busy ? t("vault.creating") : t("vault.createAndUnlock")}
           </Button>
         </div>
       </div>
@@ -131,6 +134,7 @@ function CreateVault() {
 
 /** 已锁定：输入主密码解锁 */
 function UnlockVault() {
+  const { t } = useTranslation()
   const { unlock, busy, error } = useVault()
   const [pw, setPw] = useState("")
 
@@ -144,14 +148,14 @@ function UnlockVault() {
       <div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <Lock className="size-5 text-primary" />
-          <h2 className="text-lg font-semibold">解锁密码保险库</h2>
+          <h2 className="text-lg font-semibold">{t("vault.unlockTitle")}</h2>
         </div>
         <p className="mb-4 text-xs text-muted-foreground">
-          输入主密码以解密并查看条目。
+          {t("vault.unlockDesc")}
         </p>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">主密码</Label>
+            <Label className="text-xs">{t("vault.masterPwd")}</Label>
             <Input
               type="password"
               value={pw}
@@ -159,14 +163,14 @@ function UnlockVault() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) submit()
               }}
-              placeholder="主密码"
+              placeholder={t("vault.masterPwd")}
               autoFocus
             />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <Button onClick={submit} disabled={busy} className="mt-1 gap-1.5">
             <KeyRound className="size-4" />
-            {busy ? "解锁中…" : "解锁"}
+            {busy ? t("vault.unlocking") : t("vault.unlock")}
           </Button>
         </div>
       </div>
@@ -176,6 +180,7 @@ function UnlockVault() {
 
 /** 已解锁：条目管理 */
 function VaultHome() {
+  const { t } = useTranslation()
   const { entries, lock, busy, error, addEntry, changePassword, destroy } = useVault()
   const [query, setQuery] = useState("")
   const [name, setName] = useState("")
@@ -209,13 +214,13 @@ function VaultHome() {
 
   async function submitAdd() {
     if (!name.trim()) {
-      toast.error("请填写名称")
+      toast.error(t("vault.errName"))
       return
     }
     await addEntry(name.trim(), value)
     setName("")
     setValue("")
-    if (!error) toast.success("已添加条目")
+    if (!error) toast.success(t("vault.entryAdded"))
   }
 
   return (
@@ -224,16 +229,16 @@ function VaultHome() {
         <div className="flex items-center gap-2">
           <ShieldCheck className="size-5 text-primary" />
           <div className="leading-tight">
-            <h2 className="text-sm font-semibold">密码保险库</h2>
+            <h2 className="text-sm font-semibold">{t("vault.title")}</h2>
             <p className="text-xs text-muted-foreground">
-              {entries.length} 条 · AES-256 加密
+              {t("vault.entryCount", { n: entries.length })}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowPwDialog(true)}>
             <KeyRound className="size-3.5" />
-            改密码
+            {t("vault.changePwd")}
           </Button>
           <Button
             variant="outline"
@@ -242,9 +247,9 @@ function VaultHome() {
             onClick={() => setDestroyOpen(true)}
           >
             <Trash2 className="size-3.5" />
-            销毁
+            {t("vault.destroy")}
           </Button>
-          <Button variant="ghost" size="icon" className="size-8" title="锁定" onClick={lock}>
+          <Button variant="ghost" size="icon" className="size-8" title={t("vault.lock")} onClick={lock}>
             <Lock className="size-4" />
           </Button>
         </div>
@@ -257,19 +262,19 @@ function VaultHome() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索名称或内容…"
+              placeholder={t("vault.searchPlaceholder")}
               className="pl-8"
             />
           </div>
         </div>
 
         <div className="rounded-lg border bg-card p-3">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">新增条目（名称 : 值）</p>
+          <p className="mb-2 text-xs font-medium text-muted-foreground">{t("vault.addEntry")}</p>
           <div className="flex flex-col gap-2">
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="名称，如：微博 / 恢复码 / 混合信息"
+              placeholder={t("vault.namePlaceholder")}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.nativeEvent.isComposing) submitAdd()
               }}
@@ -278,13 +283,13 @@ function VaultHome() {
               <Textarea
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder="值：账号、密码或任意混合内容，完全由你填写"
+                placeholder={t("vault.valuePlaceholder")}
                 className="min-h-16 max-h-64 overflow-y-auto resize-none"
               />
             </NativeScrollArea>
             <Button onClick={submitAdd} disabled={busy} className="self-start gap-1.5">
               <Plus className="size-4" />
-              添加
+              {t("common.add")}
             </Button>
           </div>
           {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
@@ -294,7 +299,7 @@ function VaultHome() {
       <ScrollArea className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
         {filtered.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            {entries.length === 0 ? "还没有任何条目，先在上方添加一条。" : "没有匹配的条目。"}
+            {entries.length === 0 ? t("vault.noEntries") : t("vault.noMatch")}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -309,13 +314,13 @@ function VaultHome() {
       <AlertDialog open={destroyOpen} onOpenChange={setDestroyOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>销毁保险库？</AlertDialogTitle>
+            <AlertDialogTitle>{t("vault.destroyTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              这将删除本地全部加密数据（需重新用主密码创建）。此操作不可撤销。
+              {t("vault.destroyDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
@@ -323,7 +328,7 @@ function VaultHome() {
                 setDestroyOpen(false)
               }}
             >
-              确认销毁
+              {t("vault.confirmDestroy")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -333,6 +338,7 @@ function VaultHome() {
 }
 
 function EntryCard({ entry }: { entry: VaultEntry }) {
+  const { t } = useTranslation()
   const { updateEntry, removeEntry, busy } = useVault()
   const [revealed, setRevealed] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -344,40 +350,40 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
     try {
       await navigator.clipboard.writeText(entry.value)
       scheduleVaultClipboardClear()
-      toast.success("已复制值（30 秒后自动清除剪贴板）")
+      toast.success(t("vault.copiedValue"))
     } catch {
-      toast.error("复制失败")
+      toast.error(t("common.copyFailed"))
     }
   }
 
   async function saveEdit() {
     if (!name.trim()) {
-      toast.error("名称不能为空")
+      toast.error(t("vault.errName"))
       return
     }
     await updateEntry(entry.id, { name: name.trim(), value })
     setEditing(false)
-    toast.success("已保存")
+    toast.success(t("vault.saved"))
   }
 
   if (editing) {
     return (
       <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="名称" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("vault.nameShort")} />
         <NativeScrollArea>
           <Textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
             className="min-h-16 max-h-64 overflow-y-auto resize-none"
-            placeholder="值"
+            placeholder={t("vault.valueShort")}
           />
         </NativeScrollArea>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button size="sm" className="gap-1.5" onClick={saveEdit} disabled={busy}>
-            保存
+            {t("common.save")}
           </Button>
         </div>
       </div>
@@ -396,7 +402,7 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
               !revealed && "tracking-widest text-foreground/70",
             )}
           >
-            {revealed ? entry.value || <span className="text-muted-foreground">（空）</span> : "••••••••••••"}
+            {revealed ? entry.value || <span className="text-muted-foreground">{t("vault.empty")}</span> : "••••••••••••"}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -404,19 +410,19 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
             variant="ghost"
             size="icon"
             className="size-7"
-            title={revealed ? "隐藏" : "显示"}
+            title={revealed ? t("vault.hide") : t("vault.show")}
             onClick={() => setRevealed((v) => !v)}
           >
             {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
           </Button>
-          <Button variant="ghost" size="icon" className="size-7" title="复制值" onClick={copy}>
+          <Button variant="ghost" size="icon" className="size-7" title={t("vault.copyValue")} onClick={copy}>
             <Copy className="size-3.5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
             className="size-7"
-            title="编辑"
+            title={t("common.edit")}
             onClick={() => {
               setName(entry.name)
               setValue(entry.value)
@@ -429,7 +435,7 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
             variant="ghost"
             size="icon"
             className="size-7 text-destructive hover:text-destructive"
-            title="删除"
+            title={t("common.delete")}
             onClick={() => setDelOpen(true)}
           >
             <Trash2 className="size-3.5" />
@@ -440,16 +446,16 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
       <AlertDialog open={delOpen} onOpenChange={setDelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>删除「{entry.name}」？</AlertDialogTitle>
-            <AlertDialogDescription>此操作不可撤销。</AlertDialogDescription>
+            <AlertDialogTitle>{t("vault.deleteTitle", { name: entry.name })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("vault.deleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => removeEntry(entry.id)}
             >
-              删除
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -469,20 +475,21 @@ function ChangePasswordDialog({
   onConfirm: (pw: string) => Promise<void>
   busy: boolean
 }) {
+  const { t } = useTranslation()
   const [pw, setPw] = useState("")
   const [confirm, setConfirm] = useState("")
 
   async function submit() {
     if (pw.length < 4) {
-      toast.error("新密码至少 4 位")
+      toast.error(t("vault.pwdTooShort"))
       return
     }
     if (pw !== confirm) {
-      toast.error("两次输入不一致")
+      toast.error(t("vault.pwdMismatch"))
       return
     }
     await onConfirm(pw)
-    toast.success("主密码已更新")
+    toast.success(t("vault.pwdUpdated"))
     setPw("")
     setConfirm("")
     onOpenChange(false)
@@ -492,16 +499,16 @@ function ChangePasswordDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>修改主密码</DialogTitle>
-          <DialogDescription>修改后立即用新密码重新加密全部条目。</DialogDescription>
+          <DialogTitle>{t("vault.changePwdTitle")}</DialogTitle>
+          <DialogDescription>{t("vault.changePwdDesc")}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">新主密码</Label>
+            <Label className="text-xs">{t("vault.newPwd")}</Label>
             <Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs">确认新主密码</Label>
+            <Label className="text-xs">{t("vault.confirmNewPwd")}</Label>
             <Input
               type="password"
               value={confirm}
@@ -513,7 +520,7 @@ function ChangePasswordDialog({
           </div>
           <Button onClick={submit} disabled={busy} className="gap-1.5">
             <KeyRound className="size-4" />
-            确认修改
+            {t("vault.confirmChange")}
           </Button>
         </div>
       </DialogContent>
