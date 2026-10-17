@@ -9,6 +9,7 @@
 //   gh:commit:{owner}/{repo}:{sha} | gh:issue:{owner}/{repo}:{number}
 //   gh:pr:{owner}/{repo}:{number}  | gh:release:{owner}/{repo}:{id}
 
+import { getI18n } from "@/lib/i18n"
 import type { NotificationItem, NotificationRepoConfig } from "@/lib/types"
 import { LEGACY_REPO_SCAN_SINCE } from "@/lib/types"
 
@@ -256,7 +257,7 @@ async function scanIssuesAndPrs(
         repo,
         number: it.number,
         title: firstLine(it.title, TITLE_MAX),
-        brief: merger ? `由 ${merger} 合并` : `已合并`,
+        brief: merger ? getI18n().t("push.mergedBy", { who: merger }) : getI18n().t("push.merged"),
         url: it.html_url,
         actor,
         createdAt: it.pull_request!.merged_at!,
@@ -276,7 +277,7 @@ async function scanIssuesAndPrs(
         repo,
         number: it.number,
         title: firstLine(it.title, TITLE_MAX),
-        brief: closer ? `由 ${closer} 关闭` : `已关闭`,
+        brief: closer ? getI18n().t("push.closedBy", { who: closer }) : getI18n().t("push.closed"),
         url: it.html_url,
         actor,
         createdAt: it.closed_at!,
@@ -300,7 +301,7 @@ async function scanIssuesAndPrs(
         repo,
         number: it.number,
         title: firstLine(it.title, TITLE_MAX),
-        brief: `已重新打开`,
+        brief: getI18n().t("push.reopened"),
         url: it.html_url,
         actor,
         createdAt: it.updated_at,

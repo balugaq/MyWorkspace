@@ -6,11 +6,10 @@
 
 import { useWorkspace } from "@/lib/store"
 import type { ContributionType, IssueQueueItem, NotificationItem, NotificationLogEntry } from "@/lib/types"
-import { GH_EVENT_LABEL } from "@/lib/types"
+import { getI18n } from "@/lib/i18n"
 import { scanGithubNotifications } from "./github-sender"
 import { fetchCurrentLogin } from "@/lib/github-queue"
 import { dispatchNotifications } from "./channels"
-import { KIND_LABEL } from "./qq-channel"
 
 const INTERVAL_MS = 5 * 60 * 1000
 
@@ -220,9 +219,11 @@ export async function scanNow(): Promise<void> {
         id: `scan:${scanAt}`,
         at: scanAt,
         kind: "scan",
-        message: `已扫描 ${repos.length} 个仓库：新增通知 ${fresh.length} 条${
-          rateLimited ? "（本轮触发限流，水位未推进）" : ""
-        }`,
+        message: getI18n().t("push.scanSummary", {
+          n: repos.length,
+          fresh: fresh.length,
+          limited: rateLimited ? getI18n().t("push.scanLimitedTail") : "",
+        }),
         notified: fresh.length > 0 && channelsEnabled,
       })
     }
@@ -232,13 +233,22 @@ export async function scanNow(): Promise<void> {
       // open = 新建（原文案）；其余状态变化用「已关闭/已合并/重新打开」文案
       const message =
         ev === "open"
-          ? `发现 ${n.repo} 的新${KIND_LABEL[n.kind]}「${n.title}」`
-          : `${n.repo} 的${KIND_LABEL[n.kind]}「${n.title}」${GH_EVENT_LABEL[ev]}`
+          ? getI18n().t("push.foundNew", {
+              repo: n.repo,
+              kind: getI18n().t(`push.kind.${n.kind}`),
+              title: n.title,
+            })
+          : getI18n().t("push.repoEvent", {
+              repo: n.repo,
+              kind: getI18n().t(`push.kind.${n.kind}`),
+              title: n.title,
+              ev: getI18n().t(`push.event.${ev}`),
+            })
       logs.push({
         id: `item:${n.id}`,
         at: scanAt,
         kind: "item",
-        message: `${message}${monitorOnly ? "（仅监听，未通知）" : ""}`,
+        message: `${message}${monitorOnly ? getI18n().t("push.monitorOnlyTail") : ""}`,
         notified: channelsEnabled && !monitorOnly,
       })
     }

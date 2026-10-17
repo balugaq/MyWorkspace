@@ -17,6 +17,7 @@
 //   - AI 请求失败（含 HTTP 429）/ 回复超时 / 回复解析不出条目 → 生成一条「新闻精选运行失败」
 //     通知（幂等 id news-fail:{cycle}，同周期去重），走正常渠道分发。
 
+import { getI18n } from "@/lib/i18n"
 import { enqueue, type AIChatConfig } from "@/lib/ai/request-queue"
 import { useWorkspace } from "@/lib/store"
 import type { NotificationItem, NewsDetail } from "@/lib/types"
@@ -322,7 +323,7 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
       try {
         return { type: t, entries: await fetchHotboard(t, token) }
       } catch (e) {
-        return { type: t, entries: [], error: e instanceof UapiError ? e.message : "拉取失败" }
+        return { type: t, entries: [], error: e instanceof UapiError ? e.message : getI18n().t("push.fetchFail") }
       }
     }),
   )
@@ -338,14 +339,14 @@ async function runNewsCycle(): Promise<NewsRunOutcome> {
   const state2 = useWorkspace.getState()
 
   // 2) 静默建会话 + 入队 AI 精选（成功触发即落时间戳，本周期不再重复）
-  const title = `新闻精选 ${new Date(cycle).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}`
+  const title = getI18n().t("push.newsTitle", { date: new Date(cycle).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" }) })
   const conversationId = state2.createConversationSilent(title)
   enqueue(conversationId, buildNewsPrompt(entries), config)
   state2.setNewsLastFetchedAt(at)
 
   // 3) 等 AI 最终回复并解析；失败三分支 → 失败通知（同周期幂等去重）
   const failedNote = failed.length
-    ? `（${failed.map((f) => `${TYPE_LABEL[f.type]}失败`).join("、")}）`
+    ? `（${failed.map((f) => `${getI18n().t(`push.type.${f.type}`)}${getI18n().t("push.failSuffix")}`).join("、")}）`
     : ""
   const reply = await waitForAssistantReply(conversationId)
 

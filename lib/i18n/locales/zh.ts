@@ -1,65 +1,229 @@
-// 中文字典（TODO 40）：i18n 源文案，key 与 en.ts 一一对应。
-const zhCore = {
-  common: {
-    save: "保存",
-    cancel: "取消",
-    add: "添加",
-    delete: "删除",
-    edit: "编辑",
-    rename: "重命名",
-    confirm: "确认",
-    close: "关闭",
-    enabled: "开启",
-    disabled: "关闭",
-  },
-  settings: {
-    title: "设置",
-    sections: {
-      general: "通用 / 基础",
-      shortcuts: "快捷键 / 键位",
-      account: "账户与同步",
-      ai: "AI 助手",
-      advanced: "高级",
-      notifications: "GitHub 集成",
-      news: "新闻精选",
-    },
-    general: {
-      theme: "主题",
-      themeOptions: {
-        light: "浅色",
-        dark: "深色",
-        system: "跟随系统",
-        green: "绿色",
-        purple: "紫色",
-        orange: "橙色",
-      },
-      pickTheme: "选择主题",
-      language: "语言",
-      languageDesc: "界面显示语言，切换后即时生效。",
-      langOptions: { zh: "中文", en: "English" },
-      fontSize: "字体大小",
-      fontSizeDesc: "调整全局基础字号（12–24px），实时应用到整个界面。",
-      fontFamily: "字体家族",
-      fontFamilyDesc: "切换界面整体字体（系统默认 / 衬线 / 等宽）。",
-      fontFamilyOptions: { system: "系统默认", serif: "衬线", mono: "等宽" },
-      pickFontFamily: "选择字体家族",
-      startup: "启动行为",
-      startupDesc: "应用每次打开时默认进入的界面。",
-      viewOptions: {
-        "ai-chat": "AI 对话",
-        workspace: "随笔",
-        calendar: "日历",
-        last: "打开上次的视图",
-      },
-      pickView: "选择默认视图",
-      birthdayBannerDays: "生日横幅提前天数",
-      birthdayBannerDesc:
-        "顶栏生日横幅提前 n 天显示临近生日（含当天，0 = 仅当天；上限 60）。数据源：联系人生日（含农历换算）与账户里的自己生日。",
-    },
-  },
+// 中文源字典（TODO 40）：按视图/批次拆命名空间，聚合导出供 i18next resources 使用。
+// en 字典暂空（fallbackLng=zh 回落中文）；补 en 时按本文件逐命名空间翻译。
+
+const common = {
+  save: "保存",
+  cancel: "取消",
+  add: "添加",
+  delete: "删除",
+  edit: "编辑",
+  rename: "重命名",
+  confirm: "确认",
+  close: "关闭",
+  enabled: "开启",
+  disabled: "关闭",
+  copyPwd: "复制密码",
+  copy: "复制",
+  copied: "已复制",
+  copyFailed: "复制失败",
+  done: "已完成",
+  doneBtn: "完成",
+  untitled: "未命名",
+  deleted: "已删除"
 }
 
-export const toolbar = {
+const settings = {
+  title: "设置",
+  sections: {
+    general: "通用 / 基础",
+    shortcuts: "快捷键 / 键位",
+    account: "账户与同步",
+    ai: "AI 助手",
+    advanced: "高级",
+    notifications: "GitHub 集成",
+    news: "新闻精选"
+  },
+  general: {
+    theme: "主题",
+    themeOptions: {
+      light: "浅色",
+      dark: "深色",
+      system: "跟随系统",
+      green: "绿色",
+      purple: "紫色",
+      orange: "橙色"
+    },
+    pickTheme: "选择主题",
+    language: "语言",
+    languageDesc: "界面显示语言，切换后即时生效。",
+    langOptions: {
+      zh: "中文",
+      en: "English"
+    },
+    fontSize: "字体大小",
+    fontSizeDesc: "调整全局基础字号（12–24px），实时应用到整个界面。",
+    fontFamily: "字体家族",
+    fontFamilyDesc: "切换界面整体字体（系统默认 / 衬线 / 等宽）。",
+    fontFamilyOptions: {
+      system: "系统默认",
+      serif: "衬线",
+      mono: "等宽"
+    },
+    pickFontFamily: "选择字体家族",
+    startup: "启动行为",
+    startupDesc: "应用每次打开时默认进入的界面。",
+    viewOptions: {
+      "ai-chat": "AI 对话",
+      workspace: "随笔",
+      calendar: "日历",
+      last: "打开上次的视图"
+    },
+    pickView: "选择默认视图",
+    birthdayBannerDays: "生日横幅提前天数",
+    birthdayBannerDesc: "顶栏生日横幅提前 n 天显示临近生日（含当天，0 = 仅当天，上限 60）。数据源：联系人生日。"
+  },
+  scanType: {
+    commits: "提交",
+    issues: "Issue",
+    prs: "PR",
+    releases: "发布"
+  },
+  logsEmpty: "暂无日志可导出",
+  logsExported: "已导出 {{n}} 条日志",
+  tagManage: "标签管理",
+  tagSearchPlaceholder: "搜索标签（支持拼音）",
+  newTagPlaceholder: "新标签名",
+  createTag: "新建标签",
+  tagExists: "标签「{{name}}」已存在",
+  tagCreated: "已创建标签「{{name}}」",
+  tagMerged: "已合并进「{{to}}」，更新 {{n}} 处引用",
+  tagRenamed: "已重命名为「{{to}}」",
+  tagRenamedWith: "已重命名为「{{to}}」，更新 {{n}} 处引用",
+  tagDeleted: "已删除标签「{{name}}」",
+  tagDeletedWith: "已删除标签「{{name}}」，清理 {{n}} 处引用",
+  tagUsage: "{{n}} 处使用",
+  tagOnlyLib: "仅标签库",
+  renameTagAria: "重命名标签 {{name}}",
+  deleteTagAria: "删除标签 {{name}}",
+  noTags: "还没有标签，点击「新建标签」创建。",
+  noTagMatch: "没有匹配的标签。",
+  tagDesc: "标签全站同步；删除会从所有使用处与标签库清理，不可撤销。",
+  deleteTagTitle: "删除标签「{{name}}」？",
+  deleteTagDescUsed: "将从 {{n}} 处使用（章节 / 思维图节点 / 联系人角色）及标签库中移除该标签。此操作不可撤销。",
+  deleteTagDescUnused: "该标签尚未被任何内容使用，将仅从标签库中移除。",
+  backupSaved: "已保存一份自动备份",
+  backupFail: "自动备份保存失败",
+  restored: "已恢复 {{time}} 的备份（替换导入）",
+  restoreParseFail: "恢复失败：备份数据解析不通过",
+  restoreFail: "恢复失败",
+  autoBackup: "自动备份（保留最近 {{n}} 份）",
+  backupNow: "立即备份",
+  backupCount: "{{n}} 份备份",
+  restoreThisTitle: "恢复此备份（替换当前数据，除保险库外全部分区）",
+  restoreThis: "恢复此备份",
+  deleteBackup: "删除此备份",
+  autoBackupDesc: "每天关闭应用时自动备份 1 份，保留最近 {{n}} 份。当前数据量与最新备份相差超 50% 时，启动弹窗提醒可能丢失。恢复为替换导入（保险库除外）；图片不随快照携带。",
+  restoreTitle: "恢复这份自动备份？",
+  restoreConfirmDesc: "将用 {{time}} 的备份（{{size}} 字符）替换当前全部数据（除密码保险库）。此操作不可撤销。",
+  restore: "恢复",
+  noUsage: "暂无记录",
+  errRepoFormat: "格式应为 owner/name 或完整 GitHub 链接（仅限字母数字与 . - _）",
+  repoInList: "该仓库已在列表中",
+  unconfigured: "未配置",
+  errNoSection: "请至少勾选一个要导出的内容分区",
+  exportedZip: "已导出备份（ZIP：按所选分区携带数据与全部图片）",
+  exportFail: "导出失败",
+  errNotBackup: "不是有效的备份文件（缺少 workspace.json）",
+  importedZip: "导入成功，已恢复数据与 {{n}} 张图片",
+  importFormatFail: "导入失败：文件格式不正确",
+  importReadFail: "导入失败：无法读取文件",
+  importedReplace: "已替换导入，恢复 {{n}} 张图片",
+  importedMerge: "已合并导入，恢复 {{n}} 张图片",
+  importFailWith: "导入失败：{{reason}}",
+  parseFail: "数据解析失败",
+  yamlPeople: "联系人 {{n}} 条",
+  yamlPeopleFail: "address_book.yml 读取失败，联系人未导入",
+  yamlFestivals: "自定义节日 {{n}} 条",
+  yamlFestivalsFail: "custom_festivals.yml 读取失败，节日未导入",
+  yamlImported: "已导入：{{parts}}（整表覆盖）",
+  dataDeleted: "数据已删除，正在重置…",
+  shortcuts: "快捷键",
+  shortcutUpdated: "已更新「{{label}}」快捷键",
+  loginInfo: "登录信息",
+  changeAvatar: "更换头像",
+  uploadAvatar: "上传头像",
+  clear: "清除",
+  avatarFail: "头像读取失败，请换一张图片",
+  accountName: "名称",
+  accountNameDesc: "个人主页展示的昵称；留空显示「未命名用户」。GitHub 贡献比对也使用该名称。",
+  location: "地理位置",
+  locationDesc: "个人主页头像下方展示的所在地区标签；留空显示「中国」。",
+  loginInfoDesc: "登录信息仅作本地展示，无实际账号体系。",
+  birthdayDesc: "用于日历侧栏的「人生进度条」（按 30000 天 ≈ 82 年计）。",
+  versionInfo: "版本信息",
+  dataBackup: "数据备份（含图片）",
+  exportBackup: "导出备份",
+  importBackup: "导入备份",
+  backupDesc: "导出为 ZIP，可勾选携带的分区。导入可选「替换」或「合并」，仅恢复备份携带的分区。",
+  yamlImport: "从 yml 导入（联系人 / 自定义节日）",
+  yamlImportBtn: "导入 public/*.yml 数据",
+  yamlMigrated: "联系人与自定义节日已改为本地持久化（联系人可在联系人页增删改，节日可在日历页管理）。",
+  yamlMigratedDesc: "public/address_book.yml 与 public/custom_festivals.yml 不再自动加载——手改 yml 后点此导入，整表覆盖当前联系人 / 节日数据。",
+  dayStartOffset: "每天翻篇时间",
+  dayStartOffsetDesc: "{{time}} 之前仍算前一天（影响贡献热力图与签到）。",
+  licenses: "开源许可证",
+  viewLicenses: "查看开源软件许可证",
+  deleteData: "删除数据",
+  deleteDataDesc: "将清空全部分类、笔记、日历、思维图、AI 对话、图片与保险库等本地数据，不可恢复。",
+  deleteAllData: "删除全部数据",
+  aiNotConfigured: "尚未配置（点击添加）",
+  aiConfigured: "已配置 {{n}} 个 · 当前：{{model}}",
+  webSearchKey: "联网搜索 API Key（百度千帆 AI 搜索）",
+  webSearchKeyPlaceholder: "bce-v3/…（可选；配置后 AI 可使用 wb_web_search 联网搜索技能）",
+  webSearchKeyDesc: "配置后 AI 需要实时信息时会调用联网搜索（千帆 AI 搜索）。Key 仅本机存储，经本地代理转发。",
+  personaCurrent: "当前：{{name}}",
+  personaUnused: "未使用（仅默认提示词）",
+  aiAvatar: "AI 头像",
+  change: "更换",
+  upload: "上传",
+  plaintextWarn: "仅本机明文存储于 localStorage，请不要在共享环境使用。",
+  aiForceSync: "AI 对话强制同步",
+  aiForceSyncDesc: "开启后所有 AI 对话请求进入单队列串行处理；关闭则允许并发。切换会话 / 视图均不会中断在途请求。",
+  imageCache: "图片缓存",
+  manageImageCache: "查看并管理图片缓存 / 暂存区",
+  configFile: "配置文件",
+  openConfig: "编辑器打开配置文件（源文本）",
+  openConfigDesc: "直接查看/编辑持久化 JSON。高风险，仅供高级用户。",
+  uapiToken: "UAPI 令牌",
+  uapiPlaceholder: "uapi_... （uapis.cn 访问令牌）",
+  uapiDesc: "uapis.cn 天气接口的可选令牌。留空仍可匿名调用。",
+  logExport: "日志导出",
+  exportTxt: "导出为文本（.txt）",
+  exportJson: "导出为 JSON",
+  logExportDesc: "导出通知系统的扫描与内容日志。上限 500 条。",
+  githubTokenLabel: "GitHub 令牌",
+  githubTokenPlaceholder: "ghp_…（GitHub 个人访问令牌）",
+  githubTokenDesc: "GitHub 预览卡与仓库扫描共用的 API 令牌。",
+  notifyChannels: "通知方式",
+  qqRelayUrl: "QQ 中转服务地址",
+  notifyChannelsDesc: "两个都不勾选时，新通知仍会入库到通知中心，只是不做任何弹窗或推送。",
+  scanRepos: "扫描仓库",
+  adaptiveScan: "扫描间隔自适应",
+  adaptiveScanDesc: "开启后按监听功能总数自动放慢扫描：基准 5 分钟，每满 16 个延长 1 分钟。关闭则固定 5 分钟。",
+  repoPlaceholder: "owner/name 或完整链接，如 torvalds/linux",
+  commitListenAria: "{{repo}} 的 commit 监听方式",
+  listenOnlyOn: "仅监听：commit 计贡献但不弹通知（点击更改）",
+  commitListenMode: "commit 监听方式（点击设置仅监听）",
+  listenOnly: "仅监听",
+  removeRepo: "移除 {{repo}}",
+  scanReposDesc: "每 5 分钟扫描一次这些仓库的新动态。每个仓库可单独勾选扫描类型，新增默认只扫 Issue / PR / 发布；点仓库行设置可把 commit 设为「仅监听」——计入贡献热力图但不弹通知。作者与「账户 → 名称」一致时计入贡献。改动下一轮生效。",
+  newsSwitch: "新闻精选开关",
+  newsSwitchDesc: "功能总开关：开启后可在通知中心「新闻精选」页手动触发（每天最多一次）。关闭后手动触发一并禁用。",
+  newsWorkflow: "工作流说明",
+  newsWorkflowDesc: "触发时从 B 站 / 知乎 / 知乎日报 / 抖音 / 澎湃拉取热榜（uapis.cn），在 AI 助手静默新建「新闻精选」会话，由当前模型挑选最多 10 条并生成解读，汇总为 1 条新闻包通知（经「通知方式」勾选渠道投递）。",
+  newsWorkflowPrereq: "需要在「AI 助手」配置至少一个可用模型（含 API Key）。会话可在 AI 页回看，通知按「新闻精选」来源筛选。",
+  exportTitle: "选择导出内容",
+  exportSectionDesc: "勾选备份要携带的数据分区（应用设置与图片始终携带）。联系人 / 密码保险库属敏感数据，默认不携带。",
+  notExportable: "（暂不可导出）",
+  sensitive: "（敏感，默认不携带）",
+  export: "导出",
+  importModeTitle: "选择导入方式",
+  importModeDesc: "备份按分区携带数据（含设置与图片）。替换会覆盖对应分区；合并按 id / 日期合并并保留现有数据。未携带的分区不受影响。",
+  importReplace: "替换导入（覆盖当前数据）",
+  importMerge: "合并导入（保留现有，按 id / 日期合并）"
+}
+
+const toolbar = {
   title: "工具",
   expand: "展开工具栏",
   collapse: "收起工具栏",
@@ -71,10 +235,10 @@ export const toolbar = {
   vault: "密码保险库",
   notifications: "通知",
   githubQueue: "GitHub 队列",
-  vocabulary: "词汇表",
+  vocabulary: "词汇表"
 }
 
-export const statusBar = {
+const statusBar = {
   nodes: "节点",
   done: "已完成",
   items: "项",
@@ -82,10 +246,10 @@ export const statusBar = {
   rounds: "轮",
   tokensIn: "输入 {{n}} tok",
   tokensOut: "输出 {{n}} tok",
-  workspace: "工作台",
+  workspace: "工作台"
 }
 
-export const brandHeader = {
+const brandHeader = {
   openNav: "打开导航",
   home: "回到主界面",
   appName: "全能工作台",
@@ -93,31 +257,42 @@ export const brandHeader = {
   account: "账号",
   accountMenu: "账号菜单",
   openProfile: "打开个人主页",
-  openSettings: "打开设置",
+  openSettings: "打开设置"
 }
 
-export const search = {
+const search = {
   title: "全局搜索",
   placeholder: "搜索分类、篇目、Todo、解决方案、日历笔记…",
   typeToSearch: "输入关键词开始搜索",
   noResults: "没有找到与「{{query}}」匹配的结果",
   results: "找到 {{n}} 个结果",
   from: "来自",
-  scope: { all: "全部", category: "当前分类", calendar: "日历笔记", todo: "Todo", mindmap: "思维导图" },
-  type: { chapter: "篇目", note: "笔记", node: "Todo", solution: "解决方案" },
+  scope: {
+    all: "全部",
+    category: "当前分类",
+    calendar: "日历笔记",
+    todo: "Todo",
+    mindmap: "思维导图"
+  },
+  type: {
+    chapter: "篇目",
+    note: "笔记",
+    node: "Todo",
+    solution: "解决方案"
+  }
 }
 
-export const home = {
+const home = {
   loading: "正在加载工作台…",
   openCategory: "打开一个分类",
   pickFromSidebar: "在左侧选择一个分类开始使用。",
   noCategories: "还没有分类",
   createGuide: "在左侧点击“添加分类”，选择小说、学习、工作或关系图模板开始使用。",
   resizeSidebar: "调整侧边栏宽度",
-  nav: "导航",
+  nav: "导航"
 }
 
-export const addCategory = {
+const addCategory = {
   title: "新建分类",
   desc: "选择模板并配置，创建后可在侧边栏管理内容。",
   name: "分类名称",
@@ -130,19 +305,37 @@ export const addCategory = {
   count: "初始条目数量",
   errEmpty: "请填写分类名称",
   errTooLong: "分类名称不能超过 20 个字",
-  created: "已创建分类「{{name}}」",
+  created: "已创建分类「{{name}}」"
 }
 
-export const templates = {
-  novel: { label: "小说类", desc: "自动生成章节目录，适合诗集、小说、连载" },
-  study: { label: "学习类", desc: "知识笔记与学习条目管理" },
-  work: { label: "工作类", desc: "工作文档与任务清单" },
-  life: { label: "生活类", desc: "生活记录与随手笔记" },
-  relation: { label: "关系类", desc: "思维导图模式，管理 Todo 之间的因果关系" },
-  custom: { label: "自定义", desc: "空白分类，自由记录" },
+const templates = {
+  novel: {
+    label: "小说类",
+    desc: "自动生成章节目录，适合诗集、小说、连载"
+  },
+  study: {
+    label: "学习类",
+    desc: "知识笔记与学习条目管理"
+  },
+  work: {
+    label: "工作类",
+    desc: "工作文档与任务清单"
+  },
+  life: {
+    label: "生活类",
+    desc: "生活记录与随手笔记"
+  },
+  relation: {
+    label: "关系类",
+    desc: "思维导图模式，管理 Todo 之间的因果关系"
+  },
+  custom: {
+    label: "自定义",
+    desc: "空白分类，自由记录"
+  }
 }
 
-export const sidebar = {
+const sidebar = {
   collapse: "收起侧边栏",
   calendar: "日历",
   aiQuickTip: "点击任意问题，自动开启一段新对话并发送。",
@@ -174,17 +367,15 @@ export const sidebar = {
   categoryOverview: "分类概览",
   untitled: "未命名",
   addedItem: "已添加条目",
-  addItem: "添加条目",
+  addItem: "添加条目"
 }
 
-// ===== 批 2（AI 对话，2026-10-17）新增命名空间 =====
-
-export const aiChat = {
+const aiChat = {
   title: "AI 助手",
   preset: {
     today: "今天适合做什么？",
     opensource: "最近有什么新兴的开源项目？",
-    agent: "用通俗的语言给我讲讲 AI Agent 是什么？",
+    agent: "用通俗的语言给我讲讲 AI Agent 是什么？"
   },
   noSpeakable: "这条消息没有可朗读的文字",
   ttsUnsupported: "当前浏览器不支持语音朗读",
@@ -208,10 +399,10 @@ export const aiChat = {
   skills: "技能",
   modelSelect: "模型选择",
   stop: "停止",
-  send: "发送",
+  send: "发送"
 }
 
-export const sessions = {
+const sessions = {
   generating: "正在生成…",
   newChat: "开启新对话",
   more: "更多操作",
@@ -224,11 +415,11 @@ export const sessions = {
     today: "今天",
     yesterday: "昨天",
     week: "7 天内",
-    month30: "30 天内",
-  },
+    month30: "30 天内"
+  }
 }
 
-export const models = {
+const models = {
   title: "模型管理",
   desc: "可添加多个模型并随时切换；每条模型独立保存供应商与密钥（仅本机存储）。",
   empty: "还没有配置任何模型，点击下方「添加模型」开始。",
@@ -241,10 +432,10 @@ export const models = {
   pickProvider: "选择供应商",
   modelName: "模型名（留空用供应商默认）",
   untitled: "未命名模型",
-  deleteConfirm: "确定删除这个模型配置？",
+  deleteConfirm: "确定删除这个模型配置？"
 }
 
-export const personas = {
+const personas = {
   title: "人设管理",
   desc: "可创建多个人设并选择「全局当前人设」；选中的人设会注入每一段 AI 对话的系统提示词。",
   none: "不使用人设",
@@ -258,10 +449,10 @@ export const personas = {
   body: "人设正文（自定义指令）",
   bodyPlaceholder: "例如：你是一位严谨的软件工程师，回答偏好给出可运行的代码片段与根因分析。",
   untitled: "未命名人设",
-  deleteConfirm: "确定删除这个人设？",
+  deleteConfirm: "确定删除这个人设？"
 }
 
-export const novel = {
+const novel = {
   unitPian: "篇",
   unitTiao: "条",
   defaultUnit: "章",
@@ -279,10 +470,10 @@ export const novel = {
   next: "下一{{unit}}",
   srcMode: "源码",
   visualMode: "可视化",
-  clipboardError: "操作失败：剪贴板不可用或权限被拒",
+  clipboardError: "操作失败：剪贴板不可用或权限被拒"
 }
 
-export const mindmap = {
+const mindmap = {
   graphView: "思维导图",
   listView: "列表",
   noFamilies: "该分类下还没有关系族。",
@@ -340,10 +531,10 @@ export const mindmap = {
   result: "结果",
   solution: "解决方案",
   expandChildren: "展开子任务",
-  collapseChildren: "折叠子任务",
+  collapseChildren: "折叠子任务"
 }
 
-export const inspector = {
+const inspector = {
   title: "节点详情",
   close: "关闭",
   titleLabel: "标题",
@@ -378,10 +569,10 @@ export const inspector = {
   alphaOf: "{{label}}透明度",
   random: "随机",
   clear: "清除",
-  clearReset: "清除",
+  clearReset: "清除"
 }
 
-export const calendar = {
+const calendar = {
   holiday: "放假",
   workday: "上班",
   holidayShort: "假",
@@ -427,10 +618,18 @@ export const calendar = {
   resizeSplit: "调整日历与详情宽度",
   todayHoliday: "今天放假",
   todayWorkday: "今天上班",
-  weekday: { 0: "日", 1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六" },
+  weekday: {
+    "0": "日",
+    "1": "一",
+    "2": "二",
+    "3": "三",
+    "4": "四",
+    "5": "五",
+    "6": "六"
+  }
 }
 
-export const contacts = {
+const contacts = {
   title: "联系人",
   new: "新建联系人",
   newTitle: "新建联系人",
@@ -469,10 +668,15 @@ export const contacts = {
   typePlaceholder: "类型",
   valuePlaceholder: "内容",
   removeMethod: "移除此项",
-  type: { phone: "电话", qq: "QQ", email: "邮箱", wechat: "微信" },
+  type: {
+    phone: "电话",
+    qq: "QQ",
+    email: "邮箱",
+    wechat: "微信"
+  }
 }
 
-export const vault = {
+const vault = {
   checking: "正在检查保险库…",
   title: "密码保险库",
   createTitle: "创建密码保险库",
@@ -521,20 +725,45 @@ export const vault = {
   changePwdDesc: "修改后立即用新密码重新加密全部条目。",
   newPwd: "新主密码",
   confirmNewPwd: "确认新主密码",
-  confirmChange: "确认修改",
+  confirmChange: "确认修改"
 }
 
-export const profile = {
+const profile = {
   meta: {
     nodeCreated: "新建节点",
     nodeDone: "完成节点",
     checkIn: "签到",
     focus: "专注",
-    githubCommit: "GitHub 提交",
+    githubCommit: "GitHub 提交"
   },
-  cnMonth: { 1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "七", 8: "八", 9: "九", 10: "十", 11: "十一", 12: "十二" },
-  monthSize: { flat: "平", big: "大", small: "小" },
-  weekday: { 0: "星期日", 1: "星期一", 2: "星期二", 3: "星期三", 4: "星期四", 5: "星期五", 6: "星期六" },
+  cnMonth: {
+    "1": "一",
+    "2": "二",
+    "3": "三",
+    "4": "四",
+    "5": "五",
+    "6": "六",
+    "7": "七",
+    "8": "八",
+    "9": "九",
+    "10": "十",
+    "11": "十一",
+    "12": "十二"
+  },
+  monthSize: {
+    flat: "平",
+    big: "大",
+    small: "小"
+  },
+  weekday: {
+    "0": "星期日",
+    "1": "星期一",
+    "2": "星期二",
+    "3": "星期三",
+    "4": "星期四",
+    "5": "星期五",
+    "6": "星期六"
+  },
   focusTooShort: "专注不足 10 分钟，不计入贡献",
   focusMinutes: "专注 {{n}} 分钟",
   focusDone: "专注完成，+{{n}} 贡献",
@@ -582,10 +811,10 @@ export const profile = {
   moreActivity: "查看更多活动记录",
   noMoreActivity: "无更多活动记录",
   poemLoading: "诗词加载中…",
-  nextPoem: "换一首诗",
+  nextPoem: "换一首诗"
 }
 
-export const weather = {
+const weather = {
   fetchFail: "获取失败",
   currentLocation: "当前位置",
   locating: "定位中…",
@@ -593,10 +822,10 @@ export const weather = {
   refreshTip: "刷新天气",
   updatedAt: "更新时间",
   fetching: "获取中…",
-  noData: "暂无天气数据",
+  noData: "暂无天气数据"
 }
 
-export const notif = {
+const notif = {
   title: "通知",
   justNow: "刚刚",
   minutesAgo: "{{n}} 分钟前",
@@ -637,7 +866,7 @@ export const notif = {
     people: "人物",
     throughout: "经过",
     effect: "影响",
-    spirit: "精神",
+    spirit: "精神"
   },
   type: {
     commit: "提交",
@@ -645,19 +874,22 @@ export const notif = {
     pr: "PR",
     release: "发布",
     news: "新闻",
-    newsShort: "新闻",
+    newsShort: "新闻"
   },
-  sender: { github: "GitHub 动态", news: "新闻精选" },
+  sender: {
+    github: "GitHub 动态",
+    news: "新闻精选"
+  }
 }
 
-export const health = {
+const health = {
   waterTitle: "喝水提醒",
   waterMessage: "已经工作 2 小时啦，记得喝杯水休息一下",
   standTitle: "站立提醒",
-  standMessage: "不能久坐，已经 4 小时了，起来站立活动一下吧",
+  standMessage: "不能久坐，已经 4 小时了，起来站立活动一下吧"
 }
 
-export const queue = {
+const queue = {
   title: "GitHub 队列",
   searchPlaceholder: "搜索 issue/PR",
   addIssue: "添加 Issue/PR",
@@ -689,10 +921,10 @@ export const queue = {
   notFound404: "该 Issue / PR 不存在（404）",
   merged: "已合并",
   closed: "已关闭",
-  open: "打开",
+  open: "打开"
 }
 
-export const vocab = {
+const vocab = {
   title: "词汇表",
   loadFail: "词汇表加载失败",
   errEmpty: "词条与释义均不能为空",
@@ -800,170 +1032,51 @@ export const vocab = {
   unansweredTitle: "还有 {{n}} 题未作答",
   unansweredDesc: "未作答的题将按空白提交，AI 会评为错误。确定提交？",
   continueAnswering: "继续作答",
-  submit: "提交",
+  submit: "提交"
 }
 
-const settingsExtra = {
-  // ===== 批 12（设置页剩余六分区），2026-10-17 =====
-  scanType: { commits: "提交", issues: "Issue", prs: "PR", releases: "发布" },
-  logsEmpty: "暂无日志可导出",
-  logsExported: "已导出 {{n}} 条日志",
-  tagManage: "标签管理",
-  tagSearchPlaceholder: "搜索标签（支持拼音）",
-  newTagPlaceholder: "新标签名",
-  createTag: "新建标签",
-  tagExists: "标签「{{name}}」已存在",
-  tagCreated: "已创建标签「{{name}}」",
-  tagMerged: "已合并进「{{to}}」，更新 {{n}} 处引用",
-  tagRenamed: "已重命名为「{{to}}」",
-  tagRenamedWith: "已重命名为「{{to}}」，更新 {{n}} 处引用",
-  tagDeleted: "已删除标签「{{name}}」",
-  tagDeletedWith: "已删除标签「{{name}}」，清理 {{n}} 处引用",
-  tagUsage: "{{n}} 处使用",
-  tagOnlyLib: "仅标签库",
-  renameTagAria: "重命名标签 {{name}}",
-  deleteTagAria: "删除标签 {{name}}",
-  noTags: "还没有标签，点击「新建标签」创建。",
-  noTagMatch: "没有匹配的标签。",
-  tagDesc: "标签贯穿随笔章节、思维图节点与联系人角色。重命名会全站同步（重命名成已有标签名时自动合并）；删除会从所有使用处与标签库一并清理，不可撤销。",
-  deleteTagTitle: "删除标签「{{name}}」？",
-  deleteTagDescUsed: "将从 {{n}} 处使用（章节 / 思维图节点 / 联系人角色）及标签库中移除该标签。此操作不可撤销。",
-  deleteTagDescUnused: "该标签尚未被任何内容使用，将仅从标签库中移除。",
-  backupSaved: "已保存一份自动备份",
-  backupFail: "自动备份保存失败",
-  restored: "已恢复 {{time}} 的备份（替换导入）",
-  restoreParseFail: "恢复失败：备份数据解析不通过",
-  restoreFail: "恢复失败",
-  autoBackup: "自动备份（保留最近 {{n}} 份）",
-  backupNow: "立即备份",
-  backupCount: "{{n}} 份备份",
-  restoreThisTitle: "恢复此备份（替换当前数据，除保险库外全部分区）",
-  restoreThis: "恢复此备份",
-  deleteBackup: "删除此备份",
-  autoBackupDesc: "每天关闭应用时自动保存 1 份（按「每天翻篇时间」计天），保留最近 {{n}} 份。当前数据量与最新备份相差超 50% 时，启动后会弹窗提醒可能的数据丢失。恢复为替换导入（除保险库外全部分区）；图片不随快照携带，仍在本地图片库中。",
-  restoreTitle: "恢复这份自动备份？",
-  restoreConfirmDesc: "将用 {{time}} 的备份（{{size}} 字符）替换当前全部数据（除密码保险库）。此操作不可撤销。",
-  restore: "恢复",
-  noUsage: "暂无记录",
-  errRepoFormat: "格式应为 owner/name 或完整 GitHub 链接（仅限字母数字与 . - _）",
-  repoInList: "该仓库已在列表中",
-  unconfigured: "未配置",
-  errNoSection: "请至少勾选一个要导出的内容分区",
-  exportedZip: "已导出备份（ZIP：按所选分区携带数据与全部图片）",
-  exportFail: "导出失败",
-  errNotBackup: "不是有效的备份文件（缺少 workspace.json）",
-  importedZip: "导入成功，已恢复数据与 {{n}} 张图片",
-  importFormatFail: "导入失败：文件格式不正确",
-  importReadFail: "导入失败：无法读取文件",
-  importedReplace: "已替换导入，恢复 {{n}} 张图片",
-  importedMerge: "已合并导入，恢复 {{n}} 张图片",
-  importFailWith: "导入失败：{{reason}}",
-  parseFail: "数据解析失败",
-  yamlPeople: "联系人 {{n}} 条",
-  yamlPeopleFail: "address_book.yml 读取失败，联系人未导入",
-  yamlFestivals: "自定义节日 {{n}} 条",
-  yamlFestivalsFail: "custom_festivals.yml 读取失败，节日未导入",
-  yamlImported: "已导入：{{parts}}（整表覆盖）",
-  dataDeleted: "数据已删除，正在重置…",
-  shortcuts: "快捷键",
-  shortcutUpdated: "已更新「{{label}}」快捷键",
-  loginInfo: "登录信息",
-  changeAvatar: "更换头像",
-  uploadAvatar: "上传头像",
-  clear: "清除",
-  avatarFail: "头像读取失败，请换一张图片",
-  accountName: "名称",
-  accountNameDesc: "个人主页展示的昵称；留空显示「未命名用户」。GitHub 贡献比对也使用该名称。",
-  location: "地理位置",
-  locationDesc: "个人主页头像下方展示的所在地区标签；留空显示「中国」。",
-  loginInfoDesc: "登录信息仅作本地展示，无实际账号体系。",
-  birthdayDesc: "用于日历侧栏的「人生进度条」（按 30000 天 ≈ 82 年计）。",
-  versionInfo: "版本信息",
-  dataBackup: "数据备份（含图片）",
-  exportBackup: "导出备份",
-  importBackup: "导入备份",
-  backupDesc: "导出为 ZIP，可勾选携带的数据分区（联系人 / 密码保险库默认不携带）。导入时可选「替换」或「合并」，仅恢复备份携带的分区。",
-  yamlImport: "从 yml 导入（联系人 / 自定义节日）",
-  yamlImportBtn: "导入 public/*.yml 数据",
-  yamlMigrated: "联系人与自定义节日已改为本地持久化（联系人可在联系人页增删改，节日可在日历页管理）。",
-  yamlMigratedDesc: "public/address_book.yml 与 public/custom_festivals.yml 不再自动加载——手改 yml 后点此导入，整表覆盖当前联系人 / 节日数据。",
-  dayStartOffset: "每天翻篇时间",
-  dayStartOffsetDesc: "{{time}} 之前仍算前一天（影响贡献热力图与后续签到）。",
-  licenses: "开源许可证",
-  viewLicenses: "查看开源软件许可证",
-  deleteData: "删除数据",
-  deleteDataDesc: "删除将清空全部分类、笔记、日历、思维图、AI 对话、图片与密码保险库等全部本地数据，且不可恢复。",
-  deleteAllData: "删除全部数据",
-  aiNotConfigured: "尚未配置（点击添加）",
-  aiConfigured: "已配置 {{n}} 个 · 当前：{{model}}",
-  webSearchKey: "联网搜索 API Key（百度千帆 AI 搜索）",
-  webSearchKeyPlaceholder: "bce-v3/…（可选；配置后 AI 可使用 wb_web_search 联网搜索技能）",
-  webSearchKeyDesc: "配置后 AI 需要实时信息时会自动调用联网搜索技能（千帆 AI 搜索，有免费额度）。Key 仅本机存储，经本地代理转发。",
-  personaCurrent: "当前：{{name}}",
-  personaUnused: "未使用（仅默认提示词）",
-  aiAvatar: "AI 头像",
-  change: "更换",
-  upload: "上传",
-  plaintextWarn: "仅本机明文存储于 localStorage，请不要在共享环境使用。",
-  aiForceSync: "AI 对话强制同步",
-  aiForceSyncDesc: "开启后，所有对话的用户请求统一进入单队列、串行处理；关闭则允许并发。无论是否开启，切换会话 / 切走视图都不会中断在途请求。",
-  imageCache: "图片缓存",
-  manageImageCache: "查看并管理图片缓存 / 暂存区",
-  configFile: "配置文件",
-  openConfig: "编辑器打开配置文件（源文本）",
-  openConfigDesc: "直接查看/编辑持久化 JSON（分类/日历/设置/脚本）。高风险，仅供高级用户。",
-  uapiToken: "UAPI 令牌",
-  uapiPlaceholder: "UAPI（uapis.cn）访问令牌，可选",
-  uapiDesc: "天气接口（uapis.cn）的可选 Bearer 令牌，以 Authorization 头携带。留空也可调用（匿名限流较紧，触发 429 后前端会冷却 10 分钟）。仅本机明文存储于 localStorage，请勿在共享环境使用。",
-  logExport: "日志导出",
-  exportTxt: "导出为文本（.txt）",
-  exportJson: "导出为 JSON",
-  logExportDesc: "导出通知系统的扫描与内容日志（每轮扫描检查了哪些仓库、发现了哪些新 commit / Issue / PR / 发布、是否发送了通知提示）。按时间倒序，上限 500 条。",
-  githubTokenLabel: "GitHub 令牌",
-  githubTokenPlaceholder: "ghp_…（GitHub 个人访问令牌，可选）",
-  githubTokenDesc: "GitHub 预览卡与仓库扫描共用的 API 限额令牌（仅本机明文存储于 localStorage，请勿在共享环境使用）。留空则匿名访问（60 次/小时/IP）。",
-  notifyChannels: "通知方式",
-  qqRelayUrl: "QQ 中转服务地址",
-  notifyChannelsDesc: "两个都不勾选时，新通知仍会入库到通知中心，只是不做任何弹窗或推送。",
-  scanRepos: "扫描仓库",
-  adaptiveScan: "扫描间隔自适应",
-  adaptiveScanDesc: "开启后按监听功能数量（各仓库开启的扫描类型总数）自动放慢扫描：基准 5 分钟，每满 16 个延长 1 分钟。关闭则固定 5 分钟。",
-  repoPlaceholder: "owner/name 或完整链接，如 torvalds/linux",
-  commitListenAria: "{{repo}} 的 commit 监听方式",
-  listenOnlyOn: "仅监听：commit 计贡献但不弹通知（点击更改）",
-  commitListenMode: "commit 监听方式（点击设置仅监听）",
-  listenOnly: "仅监听",
-  removeRepo: "移除 {{repo}}",
-  scanReposDesc: "通知调度器每 5 分钟扫描一次这些仓库的新动态（复用上方 GitHub 令牌，可选）。每个仓库可单独勾选要扫描的类型，新增仓库默认只扫 Issue / PR / 发布；点仓库行的小耳朵图标可把 commit 设为「仅监听」——照常计入贡献热力图但不弹通知。扫描到的 commit / Issue / PR 若作者与「账户与同步 → 名称」一致，会计入个人主页贡献热力图（commit 计 1，Issue / PR 各计 2）。改动在下一轮扫描（5 分钟内）生效。扫描起点为添加仓库 / 勾选启用某类扫描的时刻，此前产生的历史内容不做回扫。",
-  newsSwitch: "新闻精选开关",
-  newsSwitchDesc: "功能总开关：开启后可在通知中心「新闻精选」页手动触发（每天最多一次，18:00 为一天分界；本周期已拉取需等下一周期）。关闭后手动触发一并禁用。",
-  newsWorkflow: "工作流说明",
-  newsWorkflowDesc: "触发时自动从哔哩哔哩 / 知乎 / 知乎日报 / 抖音 / 澎湃新闻 5 个平台拉取实时热榜（uapis.cn 聚合接口，复用「高级 → UAPI 令牌」，可选），汇总后在 AI 助手里静默新建一个「新闻精选」会话，由当前选中的 AI 模型挑选最多 10 条最有价值的新闻并生成解读，解析后生成 1 条新闻包通知（内含全部精选条目，走「GitHub 集成 → 通知方式」勾选的渠道投递：内置弹窗与 QQ 各推 1 条汇总）。AI 请求失败（如 HTTP 429）、回复超时或解析不出条目时，会发一条「新闻精选运行失败」通知；热榜部分平台失败不发通知，仅记录通知日志。",
-  newsWorkflowPrereq: "前提：已在「AI 助手」中配置至少一个可用模型（含 API Key）。AI 会话可在 AI 页随时回看，通知在通知中心按「新闻精选」来源筛选查看。",
-  exportTitle: "选择导出内容",
-  exportSectionDesc: "勾选备份要携带的数据分区（应用设置与图片始终携带）。联系人 / 密码保险库属敏感数据，默认不携带。",
-  notExportable: "（暂不可导出）",
-  sensitive: "（敏感，默认不携带）",
-  export: "导出",
-  importModeTitle: "选择导入方式",
-  importModeDesc: "备份按分区携带数据（含设置与图片）。替换会以备份内容覆盖对应分区；合并则按 id / 日期合并、保留现有数据。备份未携带的分区不受影响。",
-  importReplace: "替换导入（覆盖当前数据）",
-  importMerge: "合并导入（保留现有，按 id / 日期合并）",
+const push = {
+  scanSummary: "已扫描 {{n}} 个仓库：新增通知 {{fresh}} 条{{limited}}",
+  scanLimitedTail: "（本轮触发限流，水位未推进）",
+  foundNew: "发现 {{repo}} 的新{{kind}}「{{title}}」",
+  repoEvent: "{{repo}} 的{{kind}}「{{title}}」{{ev}}",
+  monitorOnlyTail: "（仅监听，未通知）",
+  fetchFail: "拉取失败",
+  newsTitle: "新闻精选 {{date}}",
+  failSuffix: "失败",
+  links: "链接",
+  mergedBy: "由 {{who}} 合并",
+  merged: "已合并",
+  closedBy: "由 {{who}} 关闭",
+  closed: "已关闭",
+  reopened: "已重新打开",
+  kind: {
+    commit: "提交",
+    issue: "Issue",
+    pr: "PR",
+    release: "发布",
+    news: "新闻"
+  },
+  event: {
+    pushed: "有新推送",
+    opened: "新开",
+    reopened: "重新打开",
+    closed: "关闭",
+    merged: "合并",
+    released: "发布"
+  },
+  type: {
+    bilibili: "哔哩哔哩",
+    zhihu: "知乎",
+    "zhihu-daily": "知乎日报",
+    douyin: "抖音",
+    thepaper: "澎湃新闻"
+  }
 }
 
 export const zh = {
-  common: {
-    ...zhCore.common,
-    copyPwd: "复制密码",
-    copy: "复制",
-    copied: "已复制",
-    copyFailed: "复制失败",
-    done: "已完成",
-    doneBtn: "完成",
-    untitled: "未命名",
-    deleted: "已删除",
-  },
-  settings: { ...zhCore.settings, ...settingsExtra },
+  common,
+  settings,
   toolbar,
   statusBar,
   brandHeader,
@@ -988,4 +1101,5 @@ export const zh = {
   health,
   queue,
   vocab,
+  push,
 }

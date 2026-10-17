@@ -9,7 +9,8 @@
 //       （每条：序号 + [领域] 标题 + 时间/地点/人物/经过/影响/精神/作文素材/链接），
 //       超长按行边界自动分段发送。
 import type { NotificationItem } from "@/lib/types"
-import { DEFAULT_QQ_RELAY_URL, GH_EVENT_LABEL } from "@/lib/types"
+import { DEFAULT_QQ_RELAY_URL } from "@/lib/types"
+import { getI18n } from "@/lib/i18n"
 import { senderDisplayName } from "./senders"
 
 /** 通知类型中文名（日志/推送共用） */
@@ -80,15 +81,15 @@ export async function sendQqNotification(item: NotificationItem, relayUrl: strin
       `${item.title}\n` +
       item.newsPack
         .map((d, i) => {
-          const lines = [`【${i + 1}】［${d.field || "新闻"}］${d.title || "（无标题）"}`]
-          if (d.time) lines.push(`时间：${d.time}`)
-          if (d.place) lines.push(`地点：${d.place}`)
-          if (d.individuals) lines.push(`人物：${d.individuals}`)
-          if (d.throughout) lines.push(`经过：${d.throughout}`)
-          if (d.effect) lines.push(`影响：${d.effect}`)
-          if (d.spirit) lines.push(`精神：${d.spirit}`)
-          if (d.essayExample) lines.push(`作文素材：${clip(d.essayExample, 300)}`)
-          if (d.link?.length) lines.push(`链接：${d.link.join(" ")}`)
+          const lines = [`【${i + 1}】［${d.field || getI18n().t("notif.type.news")}］${d.title || getI18n().t("notif.untitled")}`]
+          if (d.time) lines.push(`${getI18n().t("notif.detail.time")}：${d.time}`)
+          if (d.place) lines.push(`${getI18n().t("notif.detail.place")}：${d.place}`)
+          if (d.individuals) lines.push(`${getI18n().t("notif.detail.people")}：${d.individuals}`)
+          if (d.throughout) lines.push(`${getI18n().t("notif.detail.throughout")}：${d.throughout}`)
+          if (d.effect) lines.push(`${getI18n().t("notif.detail.effect")}：${d.effect}`)
+          if (d.spirit) lines.push(`${getI18n().t("notif.detail.spirit")}：${d.spirit}`)
+          if (d.essayExample) lines.push(`${getI18n().t("notif.essayMaterial")}：${clip(d.essayExample, 300)}`)
+          if (d.link?.length) lines.push(`${getI18n().t("push.links")}：${d.link.join(" ")}`)
           return lines.join("\n")
         })
         .join("\n\n")
@@ -106,7 +107,7 @@ export async function sendQqNotification(item: NotificationItem, relayUrl: strin
   const kindText =
     ev === "open"
       ? `${KIND_LABEL[item.kind]}${numText}`
-      : `${KIND_LABEL[item.kind]}${numText}（${GH_EVENT_LABEL[ev]}）`
+      : `${getI18n().t(`push.kind.${item.kind}`)}${numText}（${getI18n().t(`push.event.${ev}`)}）`
   // 新闻条目 repo 为空，改标领域（国内/国外）；第二行空段跳过
   const line2 = [kindText, item.kind === "news" ? (item.news?.field ?? "") : item.repo]
     .filter(Boolean)
