@@ -720,4 +720,4 @@ TODO 74. （状态：待处理）
 - ~~批 11：词汇表（vocabulary-workspace）~~ ✅ 2026-10-17 完成（vocab 命名空间 ~90 key；导入报告改尾段插值拼接）
 - ~~批 12：设置页剩余分区（shortcuts / account / ai / advanced / notifications / news）~~ ✅ 2026-10-17 完成（settings 命名空间扩展 ~130 key 经 settingsExtra 合并；SCAN_TYPE label 改 key；SHORTCUT_META label 以中文原文作 key 自然回落显示）
 - 批 13：lib 层系统文案（store toast / notifications senders / scheduler / qq-channel——非组件内直接 i18n.t()，语言切换后新文案按当前语言）
-- 专项遗留：brand-header 生日横幅模板串（复杂插值，待专项）。**全站 13 批全部完成（2026-10-17）**——en 字典按主人口径暂空（回落 zh），后续补 en 时按 zh.ts 逐命名空间翻译即可。
+- 专项遗留：brand-header 生日横幅模板串（复杂插值，待专项）。**全站 13 批全部完成（2026-10-17）**——**en.ts 已全量编写（2026-10-17 深夜）：931 key 与 zh 完全同构**（i18n.test.ts 加 en/zh 同构防漂移用例 + en 抽查，69 用例全绿）。切 English 后全站即为英文。

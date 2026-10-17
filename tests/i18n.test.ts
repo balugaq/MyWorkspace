@@ -3,6 +3,37 @@
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import { getI18n, replaceLangTokens, syncLocale } from "../lib/i18n/index.ts"
+import { zh } from "../lib/i18n/locales/zh.ts"
+import { en } from "../lib/i18n/locales/en.ts"
+
+/** 收集字典全部叶子 key 路径（用于 en/zh 同构校验） */
+function leafPaths(obj: Record<string, unknown>, prefix = ""): Set<string> {
+  const out = new Set<string>()
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === "object") for (const p of leafPaths(v as Record<string, unknown>, `${prefix}${k}.`)) out.add(p)
+    else out.add(`${prefix}${k}`)
+  }
+  return out
+}
+
+describe("en/zh 字典同构（TODO 40 防漂移）", () => {
+  it("en 的 key 集合与 zh 完全一致（无缺失/多余）", () => {
+    const zp = leafPaths(zh)
+    const ep = leafPaths(en)
+    const missing = [...zp].filter((k) => !ep.has(k))
+    const extra = [...ep].filter((k) => !zp.has(k))
+    assert.deepEqual({ missing, extra }, { missing: [], extra: [] })
+  })
+
+  it("en 抽查：关键 key 均为英文（非中文回落）", () => {
+    assert.equal((en as unknown as Record<string, Record<string, string>>).settings.title, "Settings")
+    assert.equal((en as unknown as Record<string, Record<string, string>>).aiChat.thinking, "Thinking…")
+    assert.equal(
+      (en as unknown as { vocab: Record<string, string> }).vocab.submitAnswers,
+      "Submit answers ({{done}} / {{total}} answered)",
+    )
+  })
+})
 
 describe("i18n 初始化与切换", () => {
   it("默认中文；changeLanguage 后切英文", () => {

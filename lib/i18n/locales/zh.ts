@@ -460,7 +460,6 @@ const novel = {
   addItem: "添加{{unit}}",
   added: "已添加",
   deleted: "已删除",
-  deletedEvent: "已添加事件",
   empty: "还没有内容，点击右上角添加。",
   withImages: "（含图片）",
   blank: "（空白）",
