@@ -90,12 +90,7 @@ function CreateVault() {
           <ShieldCheck className="size-5 text-primary" />
           <h2 className="text-lg font-semibold">{t("vault.createTitle")}</h2>
         </div>
-        <p className="mb-4 text-xs text-muted-foreground">
-          {t("vault.createDesc1")}
-          <span className="font-medium"> AES-256 </span>
-          {t("vault.createDesc2")}
-          {t("vault.createDesc3")}
-        </p>
+        <p className="mb-4 text-xs text-muted-foreground">{t("vault.createDesc")}</p>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs">{t("vault.masterPwd")}</Label>
