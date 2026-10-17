@@ -117,7 +117,7 @@ function CalendarSidePanel() {
     const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
     const days = Math.max(0, Math.floor((todayMid - birthMid) / 86400000))
     const pct = ((days / LIFE_TOTAL_DAYS) * 100).toFixed(2)
-    lifeText = `人生进度条（${days}/${LIFE_TOTAL_DAYS}）${pct}%`
+    lifeText = t("sidebar.lifeBarText", { days, total: LIFE_TOTAL_DAYS, pct })
   }
   const copyLifeText = () => {
     if (!lifeText) return
@@ -227,8 +227,8 @@ function VaultSidePanel() {
     if (!password) return
     navigator.clipboard
       .writeText(password)
-      .then(() => toast.success("已复制到剪贴板"))
-      .catch(() => toast.error("复制失败"))
+      .then(() => toast.success(t("sidebar.copiedClipboard")))
+      .catch(() => toast.error(t("common.copyFailed")))
   }
 
   return (

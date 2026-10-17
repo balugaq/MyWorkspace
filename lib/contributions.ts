@@ -1,4 +1,5 @@
 import type { Contribution } from "./types"
+import { getI18n } from "./i18n/index.ts"
 
 /**
  * 贡献账本（Profile 热力图数据源）的纯逻辑。
@@ -177,7 +178,7 @@ export function firstContributionAt(items: Contribution[]): number | null {
  * @param now  当前时刻（epoch ms），由调用方传入以便随时间实时刷新
  */
 export function formatUsageDuration(ms: number, now: number = Date.now()): string {
-  if (!(ms > 0)) return "0 分钟"
+  if (!(ms > 0)) return String(getI18n().t("profile.durZero"))
   const start = new Date(now - ms)
   const end = new Date(now)
   let years = end.getFullYear() - start.getFullYear()
@@ -198,9 +199,10 @@ export function formatUsageDuration(ms: number, now: number = Date.now()): strin
   const totalMinutes = Math.floor(ms / 60_000)
   const minutes = totalMinutes % 60
 
-  if (years > 0) return `${years} 年 ${months} 个月 ${days} 天`
-  if (months > 0) return `${months} 个月 ${days} 天`
-  if (days > 0) return `${days} 天 ${hours} 小时`
-  if (totalHours > 0) return `${totalHours} 小时 ${minutes} 分钟`
-  return `${minutes} 分钟`
+  const gt = (key: string, params: Record<string, unknown>) => String(getI18n().t(key, params))
+  if (years > 0) return gt("profile.durYMD", { y: years, m: months, d: days })
+  if (months > 0) return gt("profile.durMD", { m: months, d: days })
+  if (days > 0) return gt("profile.durDH", { d: days, h: hours })
+  if (totalHours > 0) return gt("profile.durHM", { h: totalHours, m: minutes })
+  return gt("profile.durM", { m: minutes })
 }

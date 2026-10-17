@@ -11,8 +11,7 @@ import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { matchTextPinyin } from "@/lib/pinyin"
 import type { NewsDetail, NotificationItem } from "@/lib/types"
-import { GH_EVENT_LABEL } from "@/lib/types"
-import { SENDER_META, senderDisplayNameLocalized } from "@/lib/notifications/senders"
+import { senderDisplayNameLocalized } from "@/lib/notifications/senders"
 import { useTranslation, getI18n } from "react-i18next"
 import { triggerNewsManually } from "@/lib/notifications/news-sender"
 import { cn } from "@/lib/utils"
@@ -324,7 +323,7 @@ function GithubCard({ item }: { item: NotificationItem }) {
       <div className="flex items-center gap-2 text-xs">
         <span className={cn("shrink-0 rounded px-1.5 py-0.5 font-medium", meta.className)}>
           {item.number != null ? `${t(meta.label)} #${item.number}` : t(meta.label)}
-          {(item.event ?? "open") !== "open" && ` · ${GH_EVENT_LABEL[item.event ?? "open"]}`}
+          {(item.event ?? "open") !== "open" && ` · ${t(`push.event.${item.event ?? "open"}`)}`}
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayNameLocalized(item.senderId)}</span>
         <span className="min-w-0 truncate text-muted-foreground">{item.repo}</span>
@@ -457,7 +456,7 @@ export function NotificationsWorkspace() {
                         : "bg-muted/60 text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {f === "all" ? t("notif.allSenders") : (SENDER_META[f]?.name ?? f)}
+                    {f === "all" ? t("notif.allSenders") : senderDisplayNameLocalized(f)}
                   </button>
                 ))}
                 {senderFilter === "news" && (

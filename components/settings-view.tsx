@@ -1193,7 +1193,7 @@ export function SettingsView() {
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
                 <div className="min-w-0">
-                  <Label className="text-xs font-medium">模型</Label>
+                  <Label className="text-xs font-medium">{t("settings.aiModelLabel")}</Label>
                   <p className="truncate text-xs text-muted-foreground">
                     {settings.aiModels.length === 0
                       ? t("settings.aiNotConfigured")
@@ -1437,8 +1437,8 @@ export function SettingsView() {
                       }
                     />
                     <span className="flex flex-col gap-0.5">
-                      <span>{c.name}</span>
-                      <span className="text-xs text-muted-foreground">{c.description}</span>
+                      <span>{t(c.nameKey)}</span>
+                      <span className="text-xs text-muted-foreground">{t(c.descKey)}</span>
                     </span>
                   </label>
                 ))}
@@ -1453,7 +1453,7 @@ export function SettingsView() {
                   onChange={(e) => updateSettings({ qqRelayUrl: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  {`本机常驻中转服务的地址（POST JSON {"text":"..."}）；留空回落默认值。QQ 通知仅在本机运行工作台且中转服务常驻时可用。`}
+                  {t("settings.qqRelayDesc")}
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -1836,6 +1836,7 @@ function ShortcutRow({
   binding: ShortcutBinding
   onSave: (b: ShortcutBinding) => void
 }) {
+  const { t } = useTranslation()
   const [recording, setRecording] = useState(false)
 
   // 录音状态下捕获组合键
@@ -1861,7 +1862,7 @@ function ShortcutRow({
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{meta.label}</p>
-        <p className="truncate text-xs text-muted-foreground">{meta.description}</p>
+        <p className="truncate text-xs text-muted-foreground">{t(meta.description)}</p>
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">

@@ -157,8 +157,8 @@ mindmap节点的右键contextmenu：
 - 背景
 5. 截止日期
 
-TODO 17. （状态：已完成，待目视确认）
-给ai对话框两边内容添加文字朗读功能？（不过现在还没找到合适的api，先搁置）
+TODO 17. （状态：已完成）
+给ai对话框两边内容添加文字朗读功能？
 
 - 已实现（2026-10-11）：**方案落地即零 API 依赖**——用浏览器自带 `speechSynthesis`（系统 TTS，免费离线，主人原以为要找 API，其实 Web Speech API 白嫖即可）。
   - `lib/tts.ts`：`extractSpeakableText`（markdown → 可读纯文本：代码块→「代码已省略」占位、图片/裸 URL 剥除、链接只读标题、内链标记读标题、格式色/强调符号/标题列表引用前缀剥离、表格竖线转空格）+ `chunkForSpeech`（按句切块 ≤180 字符贪心合并，规避 Chrome 超长 utterance 中途静默中断的已知 bug）+ `startSpeaking`/`stopSpeaking`（token 计数防旧回调外泄，lang=zh-CN 中英混排交系统 TTS）。
@@ -282,7 +282,7 @@ TODO 26. （状态：已完成）
 TODO 27. （状态：已完成）
 新增日志存储，如 GitHub 监听仓库需要日志记录当前检查了哪个commit/issue/pr/release等，然后说明要不要发送通知提示
 
-TODO 28. （状态：已完成，待目视确认）
+TODO 28. （状态：已完成）
 增加一些内链访问。。。自动跳转到某个AI对话、思维导图节点等
 
 - 已实现（2026-10-11）：
@@ -561,7 +561,7 @@ TODO 60. （状态：已完成）
 - 管理入口：设置 → 账户与同步 → 「自动备份」块——备份列表（时间/大小）、立即备份、恢复（AlertDialog 确认，替换导入，走 importData 含旧数据迁移）、删除。图片不随快照携带（仍在本地图片库）。
 - typecheck / lint 均 0 错误。待主人目视确认（设置页区块、提醒弹窗样式）。
 
-TODO 61. （状态：已完成，待目视确认）
+TODO 61. （状态：已完成）
 生日横幅
 xxx最近生日（） 或 最近有n人生日（xxx，xxx）
 这个怎么显示内容需要先设计一下，暂时不确定
@@ -582,7 +582,7 @@ TODO 63. （状态：已完成）
 
 - 与 TODO 60 内容重复，已随 TODO 60 一并实现（2026-10-05），实现记录见 TODO 60。
 
-TODO 64. （状态：已完成，待目视确认）
+TODO 64. （状态：已完成）
 todo：增加一个词汇表，有搜索就好了
 词汇表结构如下：
 词 -> 词的释义解释
@@ -659,7 +659,7 @@ TODO 69. （状态：已完成）
 
 - 已改（2026-10-05）：族 sidebar 行支持 HTML5 DnD 拖拽排序（交互与 app-sidebar 分类拖拽一致：落点行上半=插到它前面、下半=插到它后面；落点在自身原位或紧邻下一位视为没动不落库；重命名编辑态禁用拖拽）。存储不新增字段——顺序继续承载在 relationFamilies 的 key 插入顺序上，store 新增 `moveRelationFamily(familyId, toIndex)`（toIndex 为同分类族数组的目标插入索引，原数组口径；重建对象时同分类族按新顺序填回原有 key 槽位、其余分类族位置原样保留；搬迁弹窗等所有按 categoryId 过滤的消费方自动跟随新顺序）。typecheck / lint 均 0 错误。待主人目视确认拖拽手感与落点指示。
 
-TODO 70. （状态：已完成，待目视确认）
+TODO 70. （状态：已完成）
 当前docs规范风格的滑动条，会在深色主题颜色下，与背景融为一体，导致无法看到滑动条。
 同时，滑动条过长时，在显示屏幕上滑动条的底部会出现白色矩形（这一条尚需多加验证，有时显示有时不显示的）
 
@@ -668,7 +668,7 @@ TODO 70. （状态：已完成，待目视确认）
   - 底部白色矩形：按「横竖滚动条交汇角（scrollbar-corner）默认底色在深色下呈白」处理，全组滚动容器显式 `::-webkit-scrollbar-corner { background: transparent }`。此现象主人自述偶发未稳定复现，**修完仍需主人遇到时再确认**；若复现且不是 corner，需截图定位。
 - typecheck / lint / test 全绿（45 用例）。**颜色可见度与 corner 效果待主人目视确认**（深色主题看侧边栏/长列表/代码块滚动条）。
 
-TODO 71. （状态：已完成，待目视确认）
+TODO 71. （状态：已完成）
 GitHub 队列四条（2026-10-10 主人口头）：
 1. 手动添加单个 Issue/PR
 2. 添加监听仓库校验仓库存在（404 不予添加）
@@ -684,7 +684,7 @@ GitHub 队列四条（2026-10-10 主人口头）：
   - 测试：tests/github-queue-parse.test.ts（9 用例）——其中抓到 parseRepoInput 对垃圾输入原样返回的既有缺陷，已修（归一结果不符 owner/repo 形态返回空串）。
 - typecheck / lint / test 全绿（45 用例）。交互效果待主人目视确认。
 
-TODO 72. （状态：已完成，待目视确认）
+TODO 72. （状态：已完成）
 1. code block 行号标识可能不会正确对应到正确的行号上（如果一行内容过多挤压到下一行的情况下，会导致下一行行号标识偏移）
 2. 在code block右上角语言标识处添加一个点击复制按钮。
 
@@ -721,3 +721,6 @@ TODO 74. （状态：待处理）
 - ~~批 12：设置页剩余分区（shortcuts / account / ai / advanced / notifications / news）~~ ✅ 2026-10-17 完成（settings 命名空间扩展 ~130 key 经 settingsExtra 合并；SCAN_TYPE label 改 key；SHORTCUT_META label 以中文原文作 key 自然回落显示）
 - 批 13：lib 层系统文案（store toast / notifications senders / scheduler / qq-channel——非组件内直接 i18n.t()，语言切换后新文案按当前语言）
 - 专项遗留：brand-header 生日横幅模板串（复杂插值，待专项）。**全站 13 批全部完成（2026-10-17）**——**en.ts 已全量编写（2026-10-17 深夜）：931 key 与 zh 完全同构**（i18n.test.ts 加 en/zh 同构防漂移用例 + en 抽查，69 用例全绿）。切 English 后全站即为英文。
+
+TODO 75. （状态：待处理）
+将全部界面的背景图都改为 refs/polar-light.txt 那样的游动极光背景

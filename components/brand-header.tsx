@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next"
 // 时显示；单人文案「xxx 最近生日（M月D日，还有 n 天）」，多人文案「最近有 n 人生日（xxx、xxx）」；
 // 当天过生日的名字高亮强调。点击横幅跳转联系人页。
 function BirthdayBanner() {
+  const { t } = useTranslation()
   const contacts = useWorkspace((s) => s.contacts)
   const settings = useWorkspace((s) => s.settings)
   const goContacts = useWorkspace((s) => s.goContacts)
@@ -31,33 +32,35 @@ function BirthdayBanner() {
     // 设置里的用户自己的生日（公历 yyyy-MM-dd）作为一个伪联系人一并纳入
     const self: Person | null =
       settings.birthday
-        ? { id: "__self__", name: settings.userName.trim() || "自己", birthday: settings.birthday }
+        ? { id: "__self__", name: settings.userName.trim() || t("brandHeader.self"), birthday: settings.birthday }
         : null
     const people = self ? [self, ...contacts] : contacts
     return upcomingBirthdays(people, settings.birthdayBannerDays, new Date())
-  }, [contacts, settings.birthday, settings.userName, settings.birthdayBannerDays])
+  }, [contacts, settings.birthday, settings.userName, settings.birthdayBannerDays, t])
 
   if (list.length === 0) return null
 
   const todayCount = list.filter((b) => b.daysUntil === 0).length
+  const bTail = (b: (typeof list)[number]) =>
+    b.daysUntil === 0 ? t("brandHeader.tailToday") : t("brandHeader.tailIn", { n: b.daysUntil })
+  const bDate = (b: (typeof list)[number]) => `${b.month}/${b.day}${b.lunar ? t("brandHeader.lunarTag") : ""}`
   const summary =
     list.length === 1
-      ? `${list[0].person.name} 最近生日（${list[0].month}月${list[0].day}日${
-          list[0].daysUntil === 0 ? "，就是今天" : `，还有 ${list[0].daysUntil} 天`
-        }${list[0].lunar ? " · 农历" : ""}）`
-      : `最近有 ${list.length} 人生日（${list
-          .slice(0, 3)
-          .map((b) => b.person.name)
-          .join("、")}${list.length > 3 ? ` 等 ${list.length} 人` : ""}）`
+      ? t("brandHeader.birthdaySingle", { name: list[0].person.name, date: bDate(list[0]), tail: bTail(list[0]) })
+      : t("brandHeader.birthdayMulti", {
+          n: list.length,
+          names: list.slice(0, 3).map((b) => b.person.name).join(", "),
+          extra: list.length > 3 ? t("brandHeader.morePeople", { n: list.length - 3 }) : "",
+        })
   const detail = list
-    .map((b) => `${b.person.name}：${b.month}月${b.day}日${b.lunar ? "（农历）" : ""}${b.daysUntil === 0 ? "（今天）" : `（还有 ${b.daysUntil} 天）`}`)
+    .map((b) => t("brandHeader.bDetail", { name: b.person.name, date: bDate(b), tail: bTail(b) }))
     .join("\n")
 
   return (
     <button
       type="button"
       onClick={goContacts}
-      title={`点击打开联系人\n${detail}`}
+      title={`${t("brandHeader.openContacts")}\n${detail}`}
       className={cn(
         "hidden min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors md:flex",
         todayCount > 0
@@ -170,7 +173,7 @@ export function BrandHeader({
           >
             <span className="sr-only">{t("brandHeader.accountMenu")}</span>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-fit min-w-0">
             <DropdownMenuItem onClick={goProfile}>
               <UserCircle className="size-4" />
               {t("brandHeader.openProfile")}

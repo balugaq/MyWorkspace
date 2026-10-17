@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星空极光波浪背景</title>
+    <style>
+        /* 基础重置 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            overflow: hidden;
+        }
+
+        /* 画布设置为固定定位，铺满全屏 */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0; /* 放在底层 */
+            display: block;
+        }
+
+        /* 测试文字，用来证明画布正常运行了 */
+        .test-content {
+            position: relative;
+            z-index: 1; /* 在画布之上 */
+            color: white;
+            font-family: sans-serif;
+            text-align: center;
+            top: 20%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 这是你的画布 -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- 测试内容 -->
+    <div class="test-content">
+        <h1>星空极光波浪已加载</h1>
+        <p>如果你能看到这段文字和背后的波浪，说明运行成功。</p>
+    </div>
+
+    <script>
+        // 等待 DOM 加载完毕
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+
+            let width, height;
+            let stars = [];
+            let time = 0;
+
+            const config = {
+                starCount: 200,
+                waveSpeed: 0.003, // 波浪游动速度
+                waveAmplitude: 40,
+                colors: [
+                    { r: 0, g: 255, b: 180 },   // 青绿
+                    { r: 0, g: 150, b: 255 },   // 深蓝
+                    { r: 80, g: 0, b: 150 },    // 暗紫
+                    { r: 0, g: 255, b: 220 }    // 亮青
+                ]
+            };
+
+            function resize() {
+                // 获取屏幕实际像素尺寸
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+                initStars();
+            }
+
+            function initStars() {
+                stars = [];
+                for (let i = 0; i < config.starCount; i++) {
+                    stars.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        radius: Math.random() * 1.5,
+                        alpha: Math.random(),
+                        twinkleSpeed: Math.random() * 0.02 + 0.005
+                    });
+                }
+            }
+
+            function drawStars() {
+                stars.forEach(star => {
+                    star.alpha += star.twinkleSpeed;
+                    if (star.alpha > 1 || star.alpha < 0.1) {
+                        star.twinkleSpeed = -star.twinkleSpeed;
+                    }
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.abs(star.alpha)})`;
+                    ctx.fill();
+                });
+            }
+
+            function drawWave(baseY, amplitude, frequency, phaseOffset, color, alpha) {
+                ctx.beginPath();
+                ctx.moveTo(0, height); // 起点：左下角
+                
+                for (let x = 0; x <= width; x += 5) {
+                    let y = baseY + Math.sin(x * frequency + time + phaseOffset) * amplitude;
+                    ctx.lineTo(x, y);
+                }
+
+                ctx.lineTo(width, height); // 终点：右下角
+                ctx.closePath();
+
+                // 线性渐变：从波峰颜色渐隐到黑色
+                let gradient = ctx.createLinearGradient(0, baseY - amplitude, 0, height);
+                gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`);
+                gradient.addColorStop(1, `rgba(0, 0, 0, 0)`);
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+
+            function animate() {
+                // 背景清空为纯黑
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, width, height);
+
+                // 1. 绘制星空
+                drawStars();
+
+                // 2. 时间流动，驱动波浪游动
+                time += config.waveSpeed;
+
+                // 3. 绘制多层波浪叠加（调整这里的 height * 0.XX 可以改变波浪在屏幕中的高度位置）
+                // 背景层：暗紫色
+                drawWave(height * 0.65, config.waveAmplitude * 1.5, 0.002, 0, config.colors[2], 0.4);
+                
+                // 中间层：深蓝色
+                drawWave(height * 0.60, config.waveAmplitude * 1.2, 0.003, Math.PI / 2, config.colors[1], 0.5);
+                
+                // 前景层：极光青绿
+                drawWave(height * 0.55, config.waveAmplitude, 0.004, Math.PI, config.colors[0], 0.6);
+                
+                // 细节层：极细的亮青色顶部
+                drawWave(height * 0.52, config.waveAmplitude * 0.8, 0.005, Math.PI * 1.5, config.colors[3], 0.3);
+
+                // 循环调用
+                requestAnimationFrame(animate);
+            }
+
+            // 监听窗口大小变化
+            window.addEventListener('resize', resize);
+
+            // 初始化并启动
+            resize();
+            animate();
+        });
+    </script>
+</body>
+</html>

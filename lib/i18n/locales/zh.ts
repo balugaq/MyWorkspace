@@ -139,6 +139,14 @@ const settings = {
   dataDeleted: "数据已删除，正在重置…",
   shortcuts: "快捷键",
   shortcutUpdated: "已更新「{{label}}」快捷键",
+  shortcut: {
+    newCategory: "新建分类",
+    newCategoryDesc: "打开“添加分类”弹窗",
+    goCalendar: "打开日历",
+    goCalendarDesc: "切换到日历视图",
+    search: "全局搜索",
+    searchDesc: "打开全局搜索",
+  },
   loginInfo: "登录信息",
   changeAvatar: "更换头像",
   uploadAvatar: "上传头像",
@@ -166,6 +174,7 @@ const settings = {
   deleteData: "删除数据",
   deleteDataDesc: "将清空全部分类、笔记、日历、思维图、AI 对话、图片与保险库等本地数据，不可恢复。",
   deleteAllData: "删除全部数据",
+  aiModelLabel: "模型",
   aiNotConfigured: "尚未配置（点击添加）",
   aiConfigured: "已配置 {{n}} 个 · 当前：{{model}}",
   webSearchKey: "联网搜索 API Key（百度千帆 AI 搜索）",
@@ -196,6 +205,7 @@ const settings = {
   githubTokenDesc: "GitHub 预览卡与仓库扫描共用的 API 令牌。",
   notifyChannels: "通知方式",
   qqRelayUrl: "QQ 中转服务地址",
+  qqRelayDesc: '本机常驻中转服务的地址（POST JSON {"text":"..."}）；留空回落默认值。QQ 通知仅在本机运行工作台且中转服务常驻时可用。', 
   notifyChannelsDesc: "两个都不勾选时，新通知仍会入库到通知中心，只是不做任何弹窗或推送。",
   scanRepos: "扫描仓库",
   adaptiveScan: "扫描间隔自适应",
@@ -257,7 +267,16 @@ const brandHeader = {
   account: "账号",
   accountMenu: "账号菜单",
   openProfile: "打开个人主页",
-  openSettings: "打开设置"
+  openSettings: "打开设置",
+  openContacts: "点击打开联系人",
+  self: "自己",
+  tailToday: "，就是今天",
+  tailIn: "，还有 {{n}} 天",
+  lunarTag: " · 农历",
+  birthdaySingle: "{{name}} 最近生日（{{date}}{{tail}}）",
+  birthdayMulti: "最近有 {{n}} 人生日（{{names}}{{extra}}）",
+  morePeople: " 等 {{n}} 人",
+  bDetail: "{{name}}：{{date}}{{tail}}",
 }
 
 const search = {
@@ -342,6 +361,8 @@ const sidebar = {
   lifeBar: "人生进度条",
   copyLifeBar: "复制人生进度条",
   copiedLifeBar: "已复制人生进度条",
+  copiedClipboard: "已复制到剪贴板",
+  lifeBarText: "人生进度条（{{days}}/{{total}}）{{pct}}%",
   lifeBarHint: "先到 设置 → 账户与同步 中填写生日，这里就会显示你的进度 →",
   pwdGen: "密码生成器",
   pwdPickSet: "请至少选择一种字符",
@@ -804,6 +825,12 @@ const profile = {
   more: "多",
   contribDetail: "贡献详情",
   noActivity: "暂无活动记录",
+  durZero: "0 分钟",
+  durM: "{{m}} 分钟",
+  durHM: "{{h}} 小时 {{m}} 分钟",
+  durDH: "{{d}} 天 {{h}} 小时",
+  durMD: "{{m}} 个月 {{d}} 天",
+  durYMD: "{{y}} 年 {{m}} 个月 {{d}} 天",
   contribAmount: "贡献值 {{n}}",
   moreActivity: "查看更多活动记录",
   noMoreActivity: "无更多活动记录",
@@ -876,7 +903,13 @@ const notif = {
   sender: {
     github: "GitHub 动态",
     news: "新闻精选"
-  }
+  },
+  channel: {
+    builtin: "内置通知",
+    builtinDesc: "右下角滑入弹窗（停留 5 秒，逐条排队；堆积超过 3 条合并为一条摘要）",
+    qq: "QQ 互联通知",
+    qqDesc: "经本机 QQ 中转服务推送到 QQ 私信（机器人有每日额度，注意频率）"
+  },
 }
 
 const health = {
@@ -1055,12 +1088,10 @@ const push = {
     news: "新闻"
   },
   event: {
-    pushed: "有新推送",
-    opened: "新开",
-    reopened: "重新打开",
-    closed: "关闭",
-    merged: "合并",
-    released: "发布"
+    open: "开启",
+    close: "关闭",
+    reopen: "重新打开",
+    merge: "合并",
   },
   type: {
     bilibili: "哔哩哔哩",

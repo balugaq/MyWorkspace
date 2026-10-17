@@ -628,6 +628,8 @@ export function ProfileWorkspace() {
 
             {id === "date" && (
             <div className="rounded-xl border border-border bg-card p-4">
+              {/* 日期卡（TODO 40）：zh 系语言保留竖排「X月大小」传统样式；其他语言平铺两行（月日 + 星期） */}
+              {settings.uiLanguage === "zh" ? (
               <div className="flex h-[92px] items-center justify-center gap-4 rounded-lg bg-[#f2f0e8] px-4 dark:bg-[#0b0d0b]">
                 <span className="text-xs font-medium text-[#55714e] [writing-mode:vertical-rl] dark:text-[#8fae8b]">
                   {t(CN_MONTHS[month])}{t(`profile.monthSize.${solarMonthSize(now.getFullYear(), month)}`)}月
@@ -639,6 +641,16 @@ export function ProfileWorkspace() {
                   {weekday}
                 </span>
               </div>
+              ) : (
+              <div className="flex h-[92px] flex-col items-center justify-center gap-1 rounded-lg bg-[#f2f0e8] px-4 dark:bg-[#0b0d0b]">
+                <span className="text-3xl font-bold leading-none tabular-nums text-[#55714e] dark:text-[#8fae8b]">
+                  {t(CN_MONTHS[month])} {day}
+                </span>
+                <span className="text-sm font-medium text-[#55714e] dark:text-[#8fae8b]">
+                  {weekday}
+                </span>
+              </div>
+              )}
               {/* AI 入口（TODO 39）：替换原「今日暂无待办事项」死文案；「AI」用渐变彩色字（TODO 57） */}
               {/* 打开关系图（TODO 54）：跳转内建「待办事项」relation 分类 */}
               <div className="mt-3 flex w-fit flex-wrap gap-1.5">
@@ -961,7 +973,7 @@ export function ProfileWorkspace() {
       </ScrollArea>
 
       {/* 右下角：每日诗歌（API 接入，按日期缓存，可手动刷新）——悬空文字：绝对定位浮在页面右下角，无背景底色，不占布局 */}
-      {poemVisible && (
+      {settings.uiLanguage === "zh" && poemVisible && (
         <footer className="pointer-events-none absolute right-8 bottom-4 z-10 flex items-end justify-end gap-2 text-right text-xs text-muted-foreground">
           <div className="flex flex-col items-end gap-0.5">
             {poemLoading ? (

@@ -7,10 +7,10 @@ import { sendQqNotification } from "./qq-channel"
 export interface NotificationChannel {
   /** 渠道 id，对应 Settings.notificationChannels 的键 */
   id: string
-  /** 展示名（设置页勾选项） */
-  name: string
-  /** 设置页勾选项下的说明文字 */
-  description: string
+  /** 展示名的 i18n key（设置页勾选项） */
+  nameKey: string
+  /** 设置页勾选项下的说明文字的 i18n key */
+  descKey: string
   /** 投递一批通知；实现自身吞错（渠道不可用不影响其余渠道与扫描流程）；settings 供渠道读自己的配置 */
   deliver(items: NotificationItem[], settings: Settings): void | Promise<void>
 }
@@ -18,14 +18,14 @@ export interface NotificationChannel {
 export const NOTIFICATION_CHANNELS: NotificationChannel[] = [
   {
     id: "builtin",
-    name: "内置通知",
-    description: "右下角滑入弹窗（停留 5 秒，逐条排队；堆积超过 3 条合并为一条摘要）",
+    nameKey: "notif.channel.builtin",
+    descKey: "notif.channel.builtinDesc",
     deliver: (items) => emitNotificationToasts(items),
   },
   {
     id: "qq",
-    name: "QQ 互联通知",
-    description: "经本机 QQ 中转服务推送到 QQ 私信（机器人有每日额度，注意频率）",
+    nameKey: "notif.channel.qq",
+    descKey: "notif.channel.qqDesc",
     deliver: async (items, settings) => {
       for (const item of items) await sendQqNotification(item, settings.qqRelayUrl)
     },

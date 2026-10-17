@@ -301,9 +301,10 @@ export interface ShortcutMeta {
 }
 
 export const SHORTCUT_META: ShortcutMeta[] = [
-  { action: "newCategory", label: "新建分类", description: "打开“添加分类”弹窗", defaults: { modifier: true, key: "m" } },
-  { action: "goCalendar", label: "打开日历", description: "切换到日历视图", defaults: { modifier: true, key: "b" } },
-  { action: "search", label: "全局搜索", description: "打开全局搜索", defaults: { modifier: true, key: "k" } },
+  // label/description 为 i18n key（TODO 40 批 13 收尾）：消费处 t() 渲染
+  { action: "newCategory", label: "settings.shortcut.newCategory", description: "settings.shortcut.newCategoryDesc", defaults: { modifier: true, key: "m" } },
+  { action: "goCalendar", label: "settings.shortcut.goCalendar", description: "settings.shortcut.goCalendarDesc", defaults: { modifier: true, key: "b" } },
+  { action: "search", label: "settings.shortcut.search", description: "settings.shortcut.searchDesc", defaults: { modifier: true, key: "k" } },
 ]
 
 // AI 供应商选择（见 lib/ai/providers.ts）

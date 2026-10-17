@@ -11,7 +11,7 @@
 import type { NotificationItem } from "@/lib/types"
 import { DEFAULT_QQ_RELAY_URL } from "@/lib/types"
 import { getI18n } from "@/lib/i18n"
-import { senderDisplayName } from "./senders"
+import { senderDisplayNameLocalized } from "@/lib/notifications/senders"
 
 /** 通知类型中文名（日志/推送共用） */
 export const KIND_LABEL: Record<NotificationItem["kind"], string> = {
@@ -93,7 +93,7 @@ export async function sendQqNotification(item: NotificationItem, relayUrl: strin
           return lines.join("\n")
         })
         .join("\n\n")
-    const header = `[MyWorkspace] 通知 · ${senderDisplayName(item.senderId)}\n`
+    const header = `[MyWorkspace] ${getI18n().t("notif.title")} · ${senderDisplayNameLocalized(item.senderId)}\n`
     const segments = splitText(header + body)
     let ok = true
     for (const seg of segments) {
@@ -113,7 +113,7 @@ export async function sendQqNotification(item: NotificationItem, relayUrl: strin
     .filter(Boolean)
     .join(" · ")
   const text =
-    `[MyWorkspace] 通知 · ${senderDisplayName(item.senderId)}\n` +
+    `[MyWorkspace] ${getI18n().t("notif.title")} · ${senderDisplayNameLocalized(item.senderId)}\n` +
     `${line2}\n` +
     `${clip(item.title)}\n` +
     item.url
