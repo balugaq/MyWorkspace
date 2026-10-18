@@ -646,6 +646,8 @@ function Canvas({
 }) {
   const { t } = useTranslation()
   const activeItemId = useWorkspace((s) => s.activeItemId)
+  // TODO 75：极光背景开启时 ReactFlow 画布容器透明化露出底层极光（网格点 Background 保留）
+  const auroraBackground = useWorkspace((s) => s.settings.auroraBackground)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const addNode = useWorkspace((s) => s.addNode)
   const addChildNode = useWorkspace((s) => s.addChildNode)
@@ -1316,9 +1318,10 @@ function Canvas({
           proOptions={{ hideAttribution: true }}
           // 多选选区矩形的 pointer-events 关闭写在 app/globals.css（未分层 CSS）——
           // Tailwind v4 utilities 在 cascade layer 里，压不过 xyflow 未分层的 style.css
-          className="bg-muted/30"
+          className={auroraBackground ? "" : "bg-muted/30"}
         >
-          <Background color="var(--border)" gap={20} />
+          {/* 极光开启时底色透明，仅保留网格点（Background 只画点，不画底色） */}
+          <Background color="var(--border)" gap={20} style={{ backgroundColor: "transparent" }} />
           <Controls className="!rounded-lg !border !bg-card !shadow-sm [&_button]:!border-border [&_button]:!bg-card [&_button]:!fill-foreground" />
         </ReactFlow>
         {family.nodes.length === 0 && (

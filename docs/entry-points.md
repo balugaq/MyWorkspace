@@ -13,6 +13,7 @@
 | 底部状态栏 | `components/status-bar.tsx` 的 `StatusBar`；右下角视图名取自 `lib/types.ts` 的 `VIEW_LABEL` |
 | 桌面端侧边栏宽度（可拖拽） | `app/page.tsx` 的 `Page`：容器 `style={{ width: sidebarWidthLocal }}`，右侧 `role="separator"` 分隔条 `onMouseDown={startResizeSidebar}` |
 | 全局顶栏 | `components/brand-header.tsx` 的 `BrandHeader` |
+| 游动极光背景（TODO 75） | `components/aurora-background.tsx` 的 `AuroraBackground`：全局单例 canvas（`fixed inset-0 z-0 pointer-events-none`），`app/page.tsx` 按 `settings.auroraBackground` 挂载；组件内自管理 resize + `requestAnimationFrame`；绘制参数（星星数 / 波浪速度 / 暗色与浅色调色板 / 毛玻璃度 `AURORA_GLASS`）在组件与 `app/page.tsx` 顶部常量区调参 |
 | 顶栏标题行 | `components/topbar.tsx` 的 `Topbar`：仅显示 title/subtitle |
 | ai-chat 悬浮侧边栏 | `app/page.tsx` 的 `mobileNav` Sheet：ai-chat 下呼出侧边栏 |
 
@@ -182,6 +183,7 @@
 | `settings.fontSize` | 全局基础字号 |
 | `settings.dayStartOffset` | 每天翻篇时间（HH:mm，默认 "04:00"）；`lib/contributions.ts` 的 `normalizeDayStartOffset` 兜底非法值 |
 | `settings.shortcuts` | 快捷键绑定（`SHORTCUT_META`） |
+| `settings.auroraBackground` | 游动极光背景开关（TODO 75，默认 `true`；`merge` 对旧存档缺字段 / 非布尔兜底 `!== false`） |
 | 备份 ZIP 内容 | `workspace.json` / `images/*` / `vault.json`（AES-256 加密 blob，替换模式下恢复）；导入按「替换 / 合并」两种模式 |
 | 备份分区（v5） | `notes`=categories、`calendar`、`ai`=conversations+activeConversationId、`contributions`、`notifications`=notifications+notificationLogs+notificationWatermark、`githubQueue`=issueQueue、`contacts`（TODO 48 持久化前不可导出）、`vault`=ZIP 内 vault.json；`settings` 与 `images/*` 始终携带。**联系人 / 密码保险库为敏感分区，默认不导出**；导入（替换 / 合并）只处理备份携带的分区，未携带的分区保留当前数据。**新增可导出数据时：扩 `BackupSectionId` + `BACKUP_SECTION_META` + `exportData` / `importData` / `mergeData` 对应分支，并同步本表** |
 | `THIRD_PARTY_LICENSES` | 名称 / 作者 / 描述 / 许可证链接，按 `--------<名称> / 作者: / 描述: / 许可证:` 格式渲染 |

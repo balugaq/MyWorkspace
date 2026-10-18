@@ -946,6 +946,22 @@ export function SettingsView() {
               </p>
             </section>
 
+            {/* TODO 75：游动极光背景开关 */}
+            <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="min-w-0">
+                <Label className="text-xs font-medium">
+                  {t("settings.general.auroraBackground")}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.general.auroraBackgroundDesc")}
+                </p>
+              </div>
+              <Switch
+                checked={settings.auroraBackground}
+                onCheckedChange={(v) => updateSettings({ auroraBackground: v })}
+              />
+            </div>
+
             {/* TODO 67：全站标签管理（创建 / 重命名 / 删除，含联系人角色） */}
             <TagManagerBlock />
             </Section>

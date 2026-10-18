@@ -35,6 +35,8 @@ const TOOL_CARDS: { id: string; nameKey: string; icon: ComponentType<{ className
 export function ToolbarPanel() {
   const { t } = useTranslation()
   const collapsed = useWorkspace((s) => s.toolbarCollapsed)
+  // TODO 75：极光背景开启时工具栏改半透明毛玻璃，透出底层游动极光
+  const auroraBackground = useWorkspace((s) => s.settings.auroraBackground)
   const setCollapsed = useWorkspace((s) => s.setToolbarCollapsed)
   const sidebarCollapsed = useWorkspace((s) => s.sidebarCollapsed)
   const setSidebarCollapsed = useWorkspace((s) => s.setSidebarCollapsed)
@@ -89,7 +91,12 @@ export function ToolbarPanel() {
   }
 
   return (
-    <div className="shrink-0 border-t bg-sidebar">
+    <div
+      className={cn(
+        "shrink-0 border-t",
+        auroraBackground ? "bg-sidebar/60 backdrop-blur-md" : "bg-sidebar"
+      )}
+    >
       {/* 标题行：工具 + 收起/展开工具栏（收起侧边栏的按钮在侧边栏内容区，不在这里） */}
       <div className="flex items-center gap-1 px-3 py-2">
         <button

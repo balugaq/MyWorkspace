@@ -532,6 +532,9 @@ export interface Settings {
   profileWidgetOrder: ProfileWidgetId[]
   // 生日横幅（TODO 61）：brandHeader 顶部横幅提前 n 天显示临近生日（含当天），0 = 仅当天
   birthdayBannerDays: number
+  // 游动极光背景（TODO 75）：开启后所有界面底层渲染游动极光 canvas
+  // （components/aurora-background.tsx，暗色原版配色 / 浅色淡化版）；关闭回落纯色 bg-background
+  auroraBackground: boolean
 }
 
 // ---- Profile 页小组件（TODO 52）----
@@ -688,6 +691,8 @@ export const DEFAULT_SETTINGS: Settings = {
   profileWidgetOrder: [...PROFILE_WIDGET_IDS],
   // 生日横幅提前天数（TODO 61）：默认 7 = 生日前 7 天（含当天）开始显示
   birthdayBannerDays: 7,
+  // 游动极光背景（TODO 75）：默认开启
+  auroraBackground: true,
 }
 
 /** 生日横幅提前天数兜底（TODO 61）：缺失 / 非法 / 越界（0-60 之外的整数）回落默认 7 */

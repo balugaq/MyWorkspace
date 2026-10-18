@@ -727,8 +727,11 @@ TODO 74. （状态：已完成，待目视确认）
 - 批 13：lib 层系统文案（store toast / notifications senders / scheduler / qq-channel——非组件内直接 i18n.t()，语言切换后新文案按当前语言）
 - 专项遗留：brand-header 生日横幅模板串（复杂插值，待专项）。**全站 13 批全部完成（2026-10-17）**——**en.ts 已全量编写（2026-10-17 深夜）：931 key 与 zh 完全同构**（i18n.test.ts 加 en/zh 同构防漂移用例 + en 抽查，69 用例全绿）。切 English 后全站即为英文。
 
-TODO 75. （状态：待处理）
+TODO 75. （状态：已完成，待目视确认）
 将全部界面的背景图都改为 refs/polar-light.txt 那样的游动极光背景（包括所有workspace的背景界面，关系图的背景界面）
+
+- 已实现（2026-10-18，Coder 落地）：components/aurora-background.tsx 全局单例 canvas（忠实移植 refs/polar-light.txt：200 星 + 4 层波浪，参数原样）；暗色原版配色、浅色淡化版（浅青灰底 #eef4f2 + 降饱和波浪 alpha 0.15-0.26 + 深色暗点）。settings.auroraBackground 默认 true（store merge 兜底 `!== false`），设置→通用加 Switch；开启时 page.tsx 主列/侧栏/状态栏 + brand-header/toolbar-panel 加 bg-*/60 backdrop-blur-md 毛玻璃，ReactFlow 画布透明化（保留网格点）。调参常量：aurora-background.tsx 顶部（WAVE_SPEED/WAVE_AMPLITUDE/STAR_COUNT/DARK_PALETTE/LIGHT_PALETTE）+ app/page.tsx AURORA_GLASS。typecheck/lint/test 全绿（76 用例），主理人复跑核验通过。待目视确认：暗/浅两主题的极光观感、毛玻璃可读性、关系图画布透出效果。
+- 追加（2026-10-18 主人口径）：在常驻闪烁星之外新增 50 个「生命星点」（白色亮点，略大略亮）：每 10s 随机熄灭 5 个（淡出）+ 随机新生 5 个（新位置淡入），淡入淡出各按帧渐变；浅色下为深色暗点。调参常量同在 aurora-background.tsx 顶部（LIFE_STAR_COUNT / LIFE_CYCLE_MS / EXPIRE_PER_CYCLE / LIFE_FADE_STEP / LIFE_STAR_RADIUS）。
 
 TODO 76. （状态：待处理）
 关系类图的渲染又需要好好大修一下

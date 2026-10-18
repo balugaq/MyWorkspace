@@ -70,6 +70,9 @@ const settings = {
     birthdayBannerDays: "Birthday banner lead days",
     birthdayBannerDesc:
       "Show the top-bar birthday banner n days ahead of upcoming birthdays (including the day itself, 0 = only that day; max 60). Sources: contact birthdays (with lunar conversion) and your own birthday in Account.",
+    auroraBackground: "Aurora background",
+    auroraBackgroundDesc:
+      "Animated aurora background on all views; off falls back to solid color",
   },
   scanType: { commits: "commits", issues: "Issues", prs: "PRs", releases: "releases" },
   logsEmpty: "No logs to export",

@@ -28,14 +28,19 @@ import { syncLocale } from "@/lib/i18n"
 import { ConfigEditorDialog } from "@/components/config-editor-dialog"
 import { ImageCacheDialog } from "@/components/image-cache-dialog"
 import { StatusBar } from "@/components/status-bar"
+import { AuroraBackground } from "@/components/aurora-background"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { LayoutGrid } from "lucide-react"
+
+// TODO 75 调参：极光开启时内容容器的毛玻璃样式（宿主目视后在此迭代透明度 / 模糊度）
+const AURORA_GLASS = "bg-background/60 backdrop-blur-md"
 
 export default function Page() {
   const hydrated = useWorkspace((s) => s.hydrated)
   const view = useWorkspace((s) => s.view)
   const uiLanguage = useWorkspace((s) => s.settings.uiLanguage)
+  const auroraBackground = useWorkspace((s) => s.settings.auroraBackground)
   const { t } = useTranslation()
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const categories = useWorkspace((s) => s.categories)
@@ -120,7 +125,13 @@ export default function Page() {
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
 
   return (
-    <div className="flex h-svh flex-col overflow-hidden bg-background">
+    // TODO 75：极光开启时根容器透明，露出底层固定定位的游动极光 canvas；关闭回落纯色 bg-background
+    <div
+      className={`flex h-svh flex-col overflow-hidden${auroraBackground ? "" : " bg-background"}`}
+    >
+      {/* 游动极光背景（TODO 75）：全局单例，fixed inset-0 z-0，不拦截指针事件 */}
+      {auroraBackground && <AuroraBackground />}
+
       {/* 全局顶栏：移动端导航 + 品牌（点击回主界面）+ 搜索/设置/头像菜单 */}
       <BrandHeader onOpenNav={() => setMobileNav(true)} onOpenSearch={() => setSearchOpen(true)} />
 
@@ -138,7 +149,7 @@ export default function Page() {
           <>
             <div
               ref={sidebarHostRef}
-              className="hidden shrink-0 border-r md:block"
+              className={`hidden shrink-0 border-r md:block${auroraBackground ? ` ${AURORA_GLASS}` : ""}`}
               style={{ width: sidebarWidthLocal }}
             >
               <div className="grid h-full grid-rows-[1fr_auto]">
@@ -162,7 +173,9 @@ export default function Page() {
           </>
         ) : (
           <div
-            className="fixed bottom-0 left-0 z-40 hidden shrink-0 border-r border-t bg-sidebar md:block"
+            className={`fixed bottom-0 left-0 z-40 hidden shrink-0 border-r border-t md:block${
+              auroraBackground ? " bg-sidebar/60 backdrop-blur-md" : " bg-sidebar"
+            }`}
             style={{ width: sidebarWidthLocal }}
           >
             <ToolbarPanel />
@@ -178,7 +191,9 @@ export default function Page() {
         </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col">
-        <main className="min-h-0 flex-1 overflow-hidden">
+        <main
+          className={`min-h-0 flex-1 overflow-hidden${auroraBackground ? ` ${AURORA_GLASS}` : ""}`}
+        >
           {!hydrated ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               {t("home.loading")}

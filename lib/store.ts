@@ -2162,6 +2162,8 @@ export const useWorkspace = create<WorkspaceState>()(
             profileWidgetOrder: normalizeProfileWidgetOrder(rawSettings.profileWidgetOrder),
             // 兜底（TODO 61）：缺失 / 非法 / 越界 → 默认 7 天
             birthdayBannerDays: normalizeBirthdayBannerDays(rawSettings.birthdayBannerDays),
+            // 兜底（TODO 75）：缺失 / 非布尔值 → 开启（仅显式 false 才关闭）
+            auroraBackground: rawSettings.auroraBackground !== false,
             // 兜底（TODO 40）：界面语言非法 → 默认中文
             uiLanguage: rawSettings.uiLanguage === "en" ? "en" : "zh",
           },

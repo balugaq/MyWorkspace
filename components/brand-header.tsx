@@ -85,6 +85,8 @@ export function BrandHeader({
   onOpenSearch: () => void
 }) {
   const settings = useWorkspace((s) => s.settings)
+  // TODO 75：极光背景开启时顶栏改半透明毛玻璃，透出底层游动极光
+  const auroraBackground = useWorkspace((s) => s.settings.auroraBackground)
   const { t } = useTranslation()
   const view = useWorkspace((s) => s.view)
   const goAIChat = useWorkspace((s) => s.goAIChat)
@@ -108,7 +110,11 @@ export function BrandHeader({
   )
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b bg-sidebar px-4">
+    <header
+      className={`flex h-14 shrink-0 items-center justify-between border-b px-4${
+        auroraBackground ? " bg-sidebar/60 backdrop-blur-md" : " bg-sidebar"
+      }`}
+    >
       <div className="flex items-center gap-2">
         {/* 移动端导航按钮：呼出侧边栏 Sheet（桌面端侧边栏常驻） */}
         <Button

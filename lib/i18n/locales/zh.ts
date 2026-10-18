@@ -75,7 +75,9 @@ const settings = {
     },
     pickView: "选择默认视图",
     birthdayBannerDays: "生日横幅提前天数",
-    birthdayBannerDesc: "顶栏生日横幅提前 n 天显示临近生日（含当天，0 = 仅当天，上限 60）。数据源：联系人生日。"
+    birthdayBannerDesc: "顶栏生日横幅提前 n 天显示临近生日（含当天，0 = 仅当天，上限 60）。数据源：联系人生日。",
+    auroraBackground: "游动极光背景",
+    auroraBackgroundDesc: "所有界面底层显示游动极光动画背景；关闭后回落纯色背景。"
   },
   scanType: {
     commits: "提交",
