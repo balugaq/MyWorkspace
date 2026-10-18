@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { useWorkspace } from "@/lib/store"
@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
 interface SkillRow {
@@ -39,6 +40,8 @@ export function SkillsToggleDialog({
   const updateSettings = useWorkspace((s) => s.updateSettings)
 
   const [userSkills, setUserSkills] = useState<Skill[]>([])
+  // TODO 77：技能搜索（按名称 / 描述过滤；大小写不敏感）
+  const [query, setQuery] = useState("")
 
   useEffect(() => {
     if (!open) return
@@ -58,7 +61,14 @@ export function SkillsToggleDialog({
     description: s.description,
     source: "用户",
   }))
-  const rows = [...builtinRows, ...userRows]
+  const rows = useMemo(() => [...builtinRows, ...userRows], [builtinRows, userRows])
+  const visibleRows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter(
+      (r) => r.name.toLowerCase().includes(q) || r.description.toLowerCase().includes(q),
+    )
+  }, [rows, query])
 
   const isOn = (name: string) => !enabled || enabled.includes(name)
 
@@ -85,13 +95,24 @@ export function SkillsToggleDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("skills.searchPlaceholder")}
+          className="h-8 text-sm"
+        />
+
         {rows.length === 0 ? (
           <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
             {t("skills.empty")}
           </p>
+        ) : visibleRows.length === 0 ? (
+          <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+            {t("skills.noMatch")}
+          </p>
         ) : (
           <ul className="native-scroll flex max-h-80 flex-col gap-1.5 overflow-y-auto pr-1">
-            {rows.map((r) => (
+            {visibleRows.map((r) => (
               <li
                 key={r.name}
                 className="flex items-start gap-3 rounded-lg border bg-muted/30 px-3 py-2"

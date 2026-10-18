@@ -1056,6 +1056,8 @@ const push = {
 const settingsExtra = {
   // ===== 残留清扫批（弹窗与 lib 诊断文案），2026-10-17 深夜 =====
   skills: {
+    searchPlaceholder: "Search skills by name or description…",
+    noMatch: "No matching skills.",
     desc: "When off, the skill cannot be called in this workspace's AI conversations. All skills stay enabled by default.",
     empty: "No skills found.",
     builtin: "Built-in",
@@ -1148,6 +1150,8 @@ const settingsExtra = {
 }
 
 const skills = {
+  searchPlaceholder: "Search skills by name or description…",
+  noMatch: "No matching skills.",
   desc: "When off, the skill cannot be called in this workspace's AI conversations. All skills stay enabled by default.",
   empty: "No skills found.",
   builtin: "Built-in",

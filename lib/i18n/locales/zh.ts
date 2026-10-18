@@ -1148,6 +1148,8 @@ const push = {
 const settingsExtra = {
   // ===== 残留清扫批（弹窗与 lib 诊断文案），2026-10-17 深夜 =====
   skills: {
+    searchPlaceholder: "搜索技能名称或描述…",
+    noMatch: "没有匹配的技能。",
     desc: "关闭后该技能在本工作台的 AI 对话中不可被调用。所有技能保持默认开启。",
     empty: "未找到任何技能。",
     builtin: "内置",
@@ -1240,6 +1242,8 @@ const settingsExtra = {
 }
 
 const skills = {
+  searchPlaceholder: "搜索技能名称或描述…",
+  noMatch: "没有匹配的技能。",
   desc: "关闭后该技能在本工作台的 AI 对话中不可被调用。所有技能保持默认开启。",
   empty: "未找到任何技能。",
   builtin: "内置",

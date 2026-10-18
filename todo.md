@@ -743,8 +743,11 @@ TODO 76. （状态：待处理）
 然后esc可以依次关闭并保存节点详情和退出展开状态
 点的颜色直接沿用节点的设置颜色即可。
 
-TODO 77. （状态：待处理）
+TODO 77. （状态：已完成，待目视确认）
 设置 - AI助手 里技能启停增加一个搜索框
+
+- 已实现（2026-10-18）：ai-skills-dialog.tsx 标题下加搜索 Input（skills.searchPlaceholder），按技能名称/描述大小写不敏感过滤（useMemo），无结果空态 skills.noMatch；rows/visibleRows useMemo 防渲染抖动。zh/en 字典各 2 key（1083 key）。全绿 76 用例。待目视：搜索过滤与空态。
+- 修复（同日）：首次插入时锚点失配（skills 是独立 const 而非嵌套块）导致 key 未入字典、弹窗显示裸 key——已补插并经运行时校验（zh/en skills.searchPlaceholder 实值读取 ✓）。教训：字典插入后必须跑 key diff + 实值读取双校验。
 
 TODO 78. （状态：待处理）
 在设置 - AI助手里AI头像下有个"仅本机明文存储于 localStorage，请不要在共享环境使用。"是什么鬼，这不应该是放到千帆API KEY下的说明吗
