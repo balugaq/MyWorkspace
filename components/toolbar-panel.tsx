@@ -94,7 +94,7 @@ export function ToolbarPanel() {
     <div
       className={cn(
         "shrink-0 border-t",
-        auroraBackground ? "bg-sidebar/60 backdrop-blur-md" : "bg-sidebar"
+        auroraBackground ? "relative z-20 bg-sidebar/70" : "bg-sidebar"
       )}
     >
       {/* 标题行：工具 + 收起/展开工具栏（收起侧边栏的按钮在侧边栏内容区，不在这里） */}

@@ -112,7 +112,7 @@ export function BrandHeader({
   return (
     <header
       className={`flex h-14 shrink-0 items-center justify-between border-b px-4${
-        auroraBackground ? " bg-sidebar/60 backdrop-blur-md" : " bg-sidebar"
+        auroraBackground ? " relative z-20 bg-sidebar/70" : " bg-sidebar"
       }`}
     >
       <div className="flex items-center gap-2">

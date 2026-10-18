@@ -34,7 +34,8 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { LayoutGrid } from "lucide-react"
 
 // TODO 75 调参：极光开启时内容容器的毛玻璃样式（宿主目视后在此迭代透明度 / 模糊度）
-const AURORA_GLASS = "bg-background/60 backdrop-blur-md"
+// 极光开启时内容容器透明（星光点 canvas z-[8] 在其下清晰可见，文字 z-10 在星光之上）
+const AURORA_GLASS = "relative z-10 bg-transparent"
 
 export default function Page() {
   const hydrated = useWorkspace((s) => s.hydrated)
@@ -130,7 +131,13 @@ export default function Page() {
       className={`flex h-svh flex-col overflow-hidden${auroraBackground ? "" : " bg-background"}`}
     >
       {/* 游动极光背景（TODO 75）：全局单例，fixed inset-0 z-0，不拦截指针事件 */}
-      {auroraBackground && <AuroraBackground />}
+      {auroraBackground && (
+        <>
+          <AuroraBackground />
+          {/* 模糊背景层：只作用于其下方的波浪 canvas，星光点 canvas 在此层之上保持清晰 */}
+          <div className="pointer-events-none fixed inset-0 z-[5] bg-background/25 backdrop-blur-md" />
+        </>
+      )}
 
       {/* 全局顶栏：移动端导航 + 品牌（点击回主界面）+ 搜索/设置/头像菜单 */}
       <BrandHeader onOpenNav={() => setMobileNav(true)} onOpenSearch={() => setSearchOpen(true)} />
@@ -174,7 +181,7 @@ export default function Page() {
         ) : (
           <div
             className={`fixed bottom-0 left-0 z-40 hidden shrink-0 border-r border-t md:block${
-              auroraBackground ? " bg-sidebar/60 backdrop-blur-md" : " bg-sidebar"
+              auroraBackground ? " bg-sidebar/70" : " bg-sidebar"
             }`}
             style={{ width: sidebarWidthLocal }}
           >

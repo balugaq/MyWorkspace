@@ -731,7 +731,8 @@ TODO 75. （状态：已完成，待目视确认）
 将全部界面的背景图都改为 refs/polar-light.txt 那样的游动极光背景（包括所有workspace的背景界面，关系图的背景界面）
 
 - 已实现（2026-10-18，Coder 落地）：components/aurora-background.tsx 全局单例 canvas（忠实移植 refs/polar-light.txt：200 星 + 4 层波浪，参数原样）；暗色原版配色、浅色淡化版（浅青灰底 #eef4f2 + 降饱和波浪 alpha 0.15-0.26 + 深色暗点）。settings.auroraBackground 默认 true（store merge 兜底 `!== false`），设置→通用加 Switch；开启时 page.tsx 主列/侧栏/状态栏 + brand-header/toolbar-panel 加 bg-*/60 backdrop-blur-md 毛玻璃，ReactFlow 画布透明化（保留网格点）。调参常量：aurora-background.tsx 顶部（WAVE_SPEED/WAVE_AMPLITUDE/STAR_COUNT/DARK_PALETTE/LIGHT_PALETTE）+ app/page.tsx AURORA_GLASS。typecheck/lint/test 全绿（76 用例），主理人复跑核验通过。待目视确认：暗/浅两主题的极光观感、毛玻璃可读性、关系图画布透出效果。
-- 追加（2026-10-18 主人口径）：在常驻闪烁星之外新增 50 个「生命星点」（白色亮点，略大略亮）：每 10s 随机熄灭 5 个（淡出）+ 随机新生 5 个（新位置淡入），淡入淡出各按帧渐变；浅色下为深色暗点。调参常量同在 aurora-background.tsx 顶部（LIFE_STAR_COUNT / LIFE_CYCLE_MS / EXPIRE_PER_CYCLE / LIFE_FADE_STEP / LIFE_STAR_RADIUS）。
+- 追加重构（2026-10-18 主人二轮口径：**屏幕只有最多 50 个星光点**，原 200 颗常驻星移除）：50 个星光点带生命周期——每 10s 随机熄灭 5 个（淡出）+ 淡出后随机新位置/新亮度淡入；单点加大（基础半径 3.2，直径约 5~10px）无模糊（主人口径：原样显示，不加 shadowBlur），亮度 0.55~1.0（暗）/ 0.3~0.55（浅）。DPR 适配保留。调参：STAR_COUNT / STAR_RADIUS / LIFE_CYCLE_MS / EXPIRE_PER_CYCLE / LIFE_FADE_STEP。
+- 可见性修复（2026-10-18 主人截图反馈「看不到星点」）：根因是 canvas 未适配 devicePixelRatio——Windows 显示缩放下 1px 级星点被稀释成不可见淡斑。修复：resize 按 dpr 缩放物理像素 + ctx.setTransform；常驻星半径 0~1.5→0.6~1.8、亮度下限 0.1→0.25（暗）/0.05→0.15（浅）；生命星半径 1.8→2.4、halo 12/8。
 
 TODO 76. （状态：待处理）
 关系类图的渲染又需要好好大修一下
