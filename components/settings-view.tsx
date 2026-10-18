@@ -1251,6 +1251,9 @@ export function SettingsView() {
                 <p className="text-xs text-muted-foreground">
                   {t("settings.webSearchKeyDesc")}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("settings.plaintextWarn")}
+                </p>
               </div>
 
               <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2">
@@ -1330,9 +1333,6 @@ export function SettingsView() {
                   />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {t("settings.plaintextWarn")}
-              </p>
               <div className="mt-2 flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
                 <div className="min-w-0">
                   <Label className="text-xs font-medium">{t("settings.aiForceSync")}</Label>

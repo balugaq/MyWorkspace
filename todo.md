@@ -749,8 +749,10 @@ TODO 77. （状态：已完成，待目视确认）
 - 已实现（2026-10-18）：ai-skills-dialog.tsx 标题下加搜索 Input（skills.searchPlaceholder），按技能名称/描述大小写不敏感过滤（useMemo），无结果空态 skills.noMatch；rows/visibleRows useMemo 防渲染抖动。zh/en 字典各 2 key（1083 key）。全绿 76 用例。待目视：搜索过滤与空态。
 - 修复（同日）：首次插入时锚点失配（skills 是独立 const 而非嵌套块）导致 key 未入字典、弹窗显示裸 key——已补插并经运行时校验（zh/en skills.searchPlaceholder 实值读取 ✓）。教训：字典插入后必须跑 key diff + 实值读取双校验。
 
-TODO 78. （状态：待处理）
+TODO 78. （状态：已完成，待目视确认）
 在设置 - AI助手里AI头像下有个"仅本机明文存储于 localStorage，请不要在共享环境使用。"是什么鬼，这不应该是放到千帆API KEY下的说明吗
+
+- 已实现（2026-10-18）：plaintextWarn 从 AI 头像区块移除，挪到「联网搜索 API Key（百度千帆 AI 搜索）」的说明文字之下（webSearchKeyDesc 之后）。文案本身不变（zh/en 通用句）。全绿 76 用例。待目视：位置正确、间距正常。
 
 TODO 79. （状态：待处理）
 在设置 - 通用中，启动行为里添加上所有的workspace view
