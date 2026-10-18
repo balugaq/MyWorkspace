@@ -33,22 +33,24 @@ const APP_KEY = "my-omni-workspace"
 /** 分区元信息（TODO 41）：设置页导出弹窗按此渲染勾选项 */
 export const BACKUP_SECTION_META: {
   id: BackupSectionId
+  /** 展示名的 i18n key（TODO 40） */
   label: string
-  description: string
+  /** 说明文字的 i18n key（TODO 40） */
+  descKey: string
   /** 敏感分区：默认不勾选（联系人 / 密码保险库） */
   sensitive: boolean
   /** 联系人数据尚未持久化（TODO 48），导出入口暂不可用 */
   available: boolean
 }[] = [
-  { id: "notes", label: "随笔数据", description: "全部分类、章节与思维图节点", sensitive: false, available: true },
-  { id: "calendar", label: "日历数据", description: "按日期聚合的笔记 / 待办 / 事件", sensitive: false, available: true },
-  { id: "ai", label: "AI 对话数据", description: "全部会话与消息上下文", sensitive: false, available: true },
-  { id: "contributions", label: "贡献记录", description: "Profile 热力图与活动记录账本", sensitive: false, available: true },
-  { id: "notifications", label: "通知数据", description: "通知中心条目、扫描日志与水位", sensitive: false, available: true },
-  { id: "githubQueue", label: "GitHub 队列数据", description: "Issue / PR 看板队列卡片", sensitive: false, available: true },
-  { id: "contacts", label: "联系人数据", description: "通讯录（含界面新建与 yml 导入的条目）", sensitive: true, available: true },
-  { id: "vault", label: "密码保险库", description: "加密 blob（AES-256-GCM），恢复需主密码", sensitive: true, available: true },
-  { id: "vocabulary", label: "词汇表", description: "词条 / 来源 / 问答记录（IndexedDB，TODO 64）", sensitive: false, available: true },
+  { id: "notes", label: "backup.section.notes", descKey: "backup.section.notesDesc", sensitive: false, available: true },
+  { id: "calendar", label: "backup.section.calendar", descKey: "backup.section.calendarDesc", sensitive: false, available: true },
+  { id: "ai", label: "backup.section.ai", descKey: "backup.section.aiDesc", sensitive: false, available: true },
+  { id: "contributions", label: "backup.section.contributions", descKey: "backup.section.contributionsDesc", sensitive: false, available: true },
+  { id: "notifications", label: "backup.section.notifications", descKey: "backup.section.notificationsDesc", sensitive: false, available: true },
+  { id: "githubQueue", label: "backup.section.githubQueue", descKey: "backup.section.githubQueueDesc", sensitive: false, available: true },
+  { id: "contacts", label: "backup.section.contacts", descKey: "backup.section.contactsDesc", sensitive: true, available: true },
+  { id: "vault", label: "backup.section.vault", descKey: "backup.section.vaultDesc", sensitive: true, available: true },
+  { id: "vocabulary", label: "backup.section.vocabulary", descKey: "backup.section.vocabularyDesc", sensitive: false, available: true },
 ]
 
 /** 导出分区默认勾选：敏感分区（联系人 / 保险库）默认不携带 */

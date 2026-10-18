@@ -95,7 +95,7 @@ function NewsDetailCard({ detail }: { detail: NewsDetail }) {
           .map(([label, v]) => (
             <Fragment key={label}>
               <span className="pt-0.5 text-[13px] tracking-widest text-muted-foreground dark:text-[#88898c]">
-                {label}
+                {t(label)}
               </span>
               <span className="min-w-0 break-words leading-relaxed text-foreground/90 dark:text-[#e8e8e8]">
                 {v}
@@ -283,7 +283,7 @@ function PlainNewsCard({ item }: { item: NotificationItem }) {
     <div className="flex w-full min-w-0 flex-col gap-1 rounded-lg border bg-muted/40 px-4 py-3 text-left">
       <div className="flex items-center gap-2 text-xs">
         <span className={cn("shrink-0 rounded px-1.5 py-0.5 font-medium", KIND_META.news.className)}>
-          {KIND_META.news.label}
+          {t(KIND_META.news.label)}
         </span>
         <span className="shrink-0 text-muted-foreground/80">{senderDisplayNameLocalized(item.senderId)}</span>
         <span className="ml-auto shrink-0 text-muted-foreground/70">

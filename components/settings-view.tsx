@@ -1576,7 +1576,7 @@ export function SettingsView() {
                                 })
                               }
                             />
-                            {st.label}
+                            {t(st.label)}
                           </label>
                         ))}
                       </div>
@@ -1664,7 +1664,7 @@ export function SettingsView() {
                     />
                     <span className="flex flex-col gap-0.5">
                       <span>
-                        {m.label}
+                        {t(m.label)}
                         {!m.available && (
                           <span className="ml-2 text-xs text-muted-foreground">{t("settings.notExportable")}</span>
                         )}
@@ -1672,7 +1672,7 @@ export function SettingsView() {
                           <span className="ml-2 text-xs text-muted-foreground">{t("settings.sensitive")}</span>
                         )}
                       </span>
-                      <span className="text-xs text-muted-foreground">{m.description}</span>
+                      <span className="text-xs text-muted-foreground">{t(m.descKey)}</span>
                     </span>
                   </label>
                 ))}
@@ -1860,7 +1860,7 @@ function ShortcutRow({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{meta.label}</p>
+        <p className="text-sm font-medium">{t(meta.label)}</p>
         <p className="truncate text-xs text-muted-foreground">{t(meta.description)}</p>
       </div>
 
