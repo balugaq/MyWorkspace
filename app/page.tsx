@@ -156,7 +156,9 @@ export default function Page() {
           <>
             <div
               ref={sidebarHostRef}
-              className={`hidden shrink-0 border-r md:block${auroraBackground ? ` ${AURORA_GLASS}` : ""}`}
+              // 注意：md:block 后必须留空格——Tailwind oxide 扫描器提取不了紧贴 ${ 的候选类，
+              // 写成 md:block${...} 会导致 .md\:block 不进编译产物，桌面端侧边栏永远 display:none
+              className={`hidden shrink-0 border-r md:block ${auroraBackground ? AURORA_GLASS : ""}`}
               style={{ width: sidebarWidthLocal }}
             >
               <div className="grid h-full grid-rows-[1fr_auto]">
@@ -180,8 +182,8 @@ export default function Page() {
           </>
         ) : (
           <div
-            className={`fixed bottom-0 left-0 z-40 hidden shrink-0 border-r border-t md:block${
-              auroraBackground ? " bg-sidebar/70" : " bg-sidebar"
+            className={`fixed bottom-0 left-0 z-40 hidden shrink-0 border-r border-t md:block ${
+              auroraBackground ? "bg-sidebar/70" : "bg-sidebar"
             }`}
             style={{ width: sidebarWidthLocal }}
           >
