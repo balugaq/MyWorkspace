@@ -1,0 +1,49 @@
+# Dependabot 依赖自动更新配置
+# 文档: https://docs.github.com/zh/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+
+version: 2
+
+updates:
+  # npm 依赖（Next.js / React / TS 等业务依赖）
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      # 周一凌晨（UTC，对应北京时间周一 8:00-12:00 窗口）批量检查，PR 集中好审
+      day: "monday"
+      time: "04:00"
+      timezone: "Asia/Shanghai"
+    # 分组：dev 依赖合并成一个 PR，减少 PR 数量；生产依赖保持逐包单独 PR 便于回滚定位
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # 忽略大版本升级，避免 Next.js/React major 直接合入破坏静态导出构建
+    ignore:
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions 版本更新
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "Asia/Shanghai"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
