@@ -23,7 +23,7 @@
     "unrs-resolver": true
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "^3.0.40",
+    "@ai-sdk/openai-compatible": "^3.0.74",
     "@base-ui/react": "^1.7.0",
     "@tailwindcss/postcss": "^4",
     "@tiptap/core": "^3.30.5",
