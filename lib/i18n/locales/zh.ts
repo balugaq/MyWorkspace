@@ -71,6 +71,13 @@ const settings = {
       "ai-chat": "AI 对话",
       workspace: "随笔",
       calendar: "日历",
+      contacts: "通讯录",
+      vault: "密码保险库",
+      notifications: "通知",
+      "github-queue": "GitHub 队列",
+      vocabulary: "词汇表",
+      profile: "个人主页",
+      settings: "设置",
       last: "打开上次的视图"
     },
     pickView: "选择默认视图",

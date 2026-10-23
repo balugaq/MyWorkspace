@@ -754,8 +754,10 @@ TODO 78. （状态：已完成，待目视确认）
 
 - 已实现（2026-10-18）：plaintextWarn 从 AI 头像区块移除，挪到「联网搜索 API Key（百度千帆 AI 搜索）」的说明文字之下（webSearchKeyDesc 之后）。文案本身不变（zh/en 通用句）。全绿 76 用例。待目视：位置正确、间距正常。
 
-TODO 79. （状态：待处理）
+TODO 79. （状态：已完成，待目视确认）
 在设置 - 通用中，启动行为里添加上所有的workspace view
+
+- 已实现（2026-10-18）：DefaultView 扩为全部 10 个 view + last（lib/types.ts，注释标明新增 view 时同步补 DEFAULT_VIEWS）；store 的 applyDefaultView 通式化（非 last 一律 state.view = dv，workspace 保留持久化分类、其余清 activeCategoryId）；设置页 DEFAULT_VIEWS 补通讯录/密码保险库/通知/GitHub 队列/词汇表/个人主页/设置 7 项；字典 viewOptions 补 7 key × zh/en（合计 11 项，diff=0）。全绿 76 用例。待目视：下拉 11 项齐全、选任一新 view 重启后落到对应界面。
 
 TODO 80. （状态：待处理）
 在联系人 - 联系人编辑界面 - 添加联系方式里，在深色模式下，联系方式选择的dropdown会完全变白，啥也看不到，需要修复

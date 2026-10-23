@@ -2177,13 +2177,10 @@ function applyDefaultView(state: WorkspaceState) {
   const dv: DefaultView = state.settings?.defaultView ?? "ai-chat"
   // "last"：view/activeCategoryId 本身已持久化，rehydrate 出来的就是上次的视图，什么都不做即可
   if (dv === "last") return
-  if (dv === "ai-chat" && state.view !== "ai-chat") {
-    state.view = "ai-chat"
-    state.activeCategoryId = null
-  }
-  if (dv === "calendar" && state.view !== "calendar") {
-    state.view = "calendar"
-    state.activeCategoryId = null
+  if (state.view !== dv) {
+    state.view = dv
+    // workspace 是分类工作区：保留持久化的当前分类；其余视图清空分类选中
+    if (dv !== "workspace") state.activeCategoryId = null
   }
 }
 

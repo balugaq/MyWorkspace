@@ -451,7 +451,20 @@ export interface NotificationLogEntry {
 /** 主题（TODO 51 改版）：light/dark/system 为默认蓝紫的亮暗；green/purple/orange 为独立彩色主题（一套固定配色，不分亮暗） */
 export type ThemePreference = "light" | "dark" | "system" | "green" | "purple" | "orange"
 /** 默认启动视图；"last" = 打开上次的视图（view/activeCategoryId 本身已持久化，rehydrate 后即为上次状态） */
-export type DefaultView = "workspace" | "calendar" | "ai-chat" | "last"
+// 启动行为可选视图（TODO 79）：全部 workspace view + last（持久化的上次视图）。
+// 新增 view 时同步在此补项与 settings-view 的 DEFAULT_VIEWS。
+export type DefaultView =
+  | "workspace"
+  | "calendar"
+  | "contacts"
+  | "vault"
+  | "ai-chat"
+  | "profile"
+  | "settings"
+  | "notifications"
+  | "github-queue"
+  | "vocabulary"
+  | "last"
 /** 界面字体家族：映射根元素 fontFamily 的 CSS 变量（--font-sans / --font-serif / --font-mono） */
 export type UIFontFamily = "system" | "serif" | "mono"
 /** 界面显示语言（TODO 40）：zh = 中文（源文案）；en = English */

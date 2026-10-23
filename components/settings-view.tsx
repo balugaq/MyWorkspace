@@ -92,26 +92,36 @@ import {
 } from "@/components/ui/select"
 import pkg from "../package.json"
 
-const THEMES: { value: ThemePreference; label: string }[] = [
-  { value: "light", label: "浅色" },
-  { value: "dark", label: "深色" },
-  { value: "system", label: "跟随系统" },
-  { value: "green", label: "绿色" },
-  { value: "purple", label: "紫色" },
-  { value: "orange", label: "橙色" },
+// 展示文案走 i18n 字典 settings.general.themeOptions.*，这里只保留取值
+const THEMES: { value: ThemePreference }[] = [
+  { value: "light" },
+  { value: "dark" },
+  { value: "system" },
+  { value: "green" },
+  { value: "purple" },
+  { value: "orange" },
 ]
 
-const DEFAULT_VIEWS: { value: DefaultView; label: string }[] = [
-  { value: "ai-chat", label: "AI 对话" },
-  { value: "workspace", label: "随笔" },
-  { value: "calendar", label: "日历" },
-  { value: "last", label: "打开上次的视图" },
+// 展示文案走 i18n 字典 settings.general.viewOptions.*
+const DEFAULT_VIEWS: { value: DefaultView }[] = [
+  { value: "ai-chat" },
+  { value: "workspace" },
+  { value: "calendar" },
+  { value: "contacts" },
+  { value: "vault" },
+  { value: "notifications" },
+  { value: "github-queue" },
+  { value: "vocabulary" },
+  { value: "profile" },
+  { value: "settings" },
+  { value: "last" },
 ]
 
-const FONT_FAMILIES: { value: UIFontFamily; label: string }[] = [
-  { value: "system", label: "系统默认" },
-  { value: "serif", label: "衬线" },
-  { value: "mono", label: "等宽" },
+// 展示文案走 i18n 字典 settings.general.fontFamilyOptions.*
+const FONT_FAMILIES: { value: UIFontFamily }[] = [
+  { value: "system" },
+  { value: "serif" },
+  { value: "mono" },
 ]
 
 // 用户头像压缩：限制最长边 256px，转 JPEG 控制体积（避免撑爆 localStorage）
