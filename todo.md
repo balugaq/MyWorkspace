@@ -646,3 +646,9 @@ TODO 86. （状态：待处理）
 TODO 87. （状态：待处理）
 添加 GitHub Release workflow
 
+TODO 88. （状态：待处理）
+通知页面里加一个，和 github contribution 一样的，折叠过多消息。
+默认打开只显示100条消息，可以
+
+TODO 89. （状态：待通知）
+通知改成放到brand header里的用户头像的左边，功能不变
