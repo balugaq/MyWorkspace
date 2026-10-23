@@ -1,7 +1,6 @@
 "use client"
 
-// 底部工具栏（TODO 25）：绝对钉在左下角、独立于侧边栏的常驻导航枢纽。
-// 由 page.tsx（桌面端左列 grid 的 auto 行）与移动端 Sheet（AppSidebar 复合体）分别渲染。
+// 底部工具栏（TODO 25）：钉在左下角的常驻导航枢纽，桌面端（page.tsx）与移动端 Sheet（AppSidebar）分别渲染；
 // 收起/展开用 grid-rows 0fr↔1fr 过渡做高度动画。
 
 import { ChevronDown, Wrench } from "lucide-react"
@@ -20,7 +19,7 @@ import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import { AiIcon, AiText } from "@/components/ai-brand"
 
-// 工具卡片清单：点击切换主区域视图；id 与 view 值对应。
+// 工具卡片清单，id 与 view 值对应
 const TOOL_CARDS: { id: string; nameKey: string; icon: ComponentType<{ className?: string }> }[] = [
   { id: "ai-chat", nameKey: "toolbar.aiChat", icon: AiIcon },
   { id: "workspace", nameKey: "toolbar.notes", icon: PenLine },
@@ -49,8 +48,7 @@ export function ToolbarPanel() {
   const goNotifications = useWorkspace((s) => s.goNotifications)
   const goGithubQueue = useWorkspace((s) => s.goGithubQueue)
   const goVocabulary = useWorkspace((s) => s.goVocabulary)
-  // 通知未读数（工具栏「通知」卡片徽标）：createdAt 晚于已读水位的条数；
-  // 进通知页（goNotifications）即标记已读，徽标清零
+  // 未读数：createdAt 晚于已读水位的条数（进通知页即标记已读、徽标清零）
   const notifications = useWorkspace((s) => s.notifications)
   const lastReadNotificationsAt = useWorkspace((s) => s.lastReadNotificationsAt)
   const unreadCount = notifications.filter(
@@ -58,7 +56,7 @@ export function ToolbarPanel() {
   ).length
 
   const activate = (id: (typeof TOOL_CARDS)[number]["id"]) => {
-    // 点「AI 对话 / 随笔」时自动展开内容区（收起状态下切回来不至于看不到列表）
+    // 「AI 对话 / 随笔」需要内容区，收起状态下自动展开
     if ((id === "ai-chat" || id === "workspace") && sidebarCollapsed) {
       setSidebarCollapsed(false)
     }
@@ -97,7 +95,6 @@ export function ToolbarPanel() {
         auroraBackground ? "relative z-20 bg-sidebar/70" : "bg-sidebar"
       )}
     >
-      {/* 标题行：工具 + 收起/展开工具栏（收起侧边栏的按钮在侧边栏内容区，不在这里） */}
       <div className="flex items-center gap-1 px-3 py-2">
         <button
           type="button"
@@ -113,7 +110,6 @@ export function ToolbarPanel() {
         </button>
       </div>
 
-      {/* 工具卡片：收起/展开同样用 grid-rows 0fr↔1fr 过渡做高度动画 */}
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-200 ease-out",
@@ -140,7 +136,7 @@ export function ToolbarPanel() {
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
-                  {/* AI 对话按钮文本里的「AI」用渐变彩色字（TODO 57） */}
+                  {/* TODO 57：「AI」用渐变彩色字 */}
                   <span className="w-full truncate text-center">
                     {tc.id === "ai-chat" ? (
                       <>

@@ -64,7 +64,6 @@ export function VaultWorkspace() {
   return <VaultHome />
 }
 
-/** 尚未创建保险库：设置主密码 */
 function CreateVault() {
   const { t } = useTranslation()
   const { create, busy, error } = useVault()
@@ -127,7 +126,6 @@ function CreateVault() {
   )
 }
 
-/** 已锁定：输入主密码解锁 */
 function UnlockVault() {
   const { t } = useTranslation()
   const { unlock, busy, error } = useVault()
@@ -173,7 +171,6 @@ function UnlockVault() {
   )
 }
 
-/** 已解锁：条目管理 */
 function VaultHome() {
   const { t } = useTranslation()
   const { entries, lock, busy, error, addEntry, changePassword, destroy } = useVault()
@@ -192,8 +189,7 @@ function VaultHome() {
     )
   }, [entries, query])
 
-  // 监听「用户在保险库内选中文本并 Ctrl+C / 右键复制」：若复制源自保险库值，安排 30s 后清剪贴板；
-  // 若复制发生在保险库之外，则取消待清计划，避免误清非保险库内容。
+  // 保险库内复制（Ctrl+C/右键）安排 30s 后清剪贴板；保险库外的复制取消待清计划，避免误清非保险库内容。
   useEffect(() => {
     const onCopy = (e: ClipboardEvent) => {
       const t = e.target as Element | null

@@ -32,10 +32,8 @@ export function ConfigEditorDialog({
   const importData = useWorkspace((s) => s.importData)
   const [text, setText] = useState("")
 
-  // ESC 关闭弹窗（与其它弹窗行为一致）
   useEscapeClose(open, () => onOpenChange(false))
 
-  // 打开时载入当前配置
   useEffect(() => {
     if (open) {
       setText(exportData() ?? "{}")
@@ -49,7 +47,7 @@ export function ConfigEditorDialog({
 
   function save() {
     try {
-      JSON.parse(text) // 先校验
+      JSON.parse(text)
     } catch {
       toast.error(t("cfg.errJson"))
       return

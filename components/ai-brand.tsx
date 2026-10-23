@@ -1,8 +1,7 @@
 "use client"
 
-// AI 品牌元素（TODO 57）：
-// - AiIcon：原子样式图标（主人指定的 SVG：三椭圆环绕），签名兼容 lucide（接收 className、currentColor 描边）；
-// - AiText：渐变彩色「AI」字，用于各处按钮文本里替换普通 "AI" 字样（bg-clip-text 渐变裁剪）。
+// AI 品牌元素（TODO 57）：AiIcon 原子图标（主人指定的三椭圆环绕 SVG，签名兼容 lucide）；
+// AiText 渐变彩色「AI」字（bg-clip-text），替换各处按钮文本里的普通 "AI"。
 
 import { cn } from "@/lib/utils"
 

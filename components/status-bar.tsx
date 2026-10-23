@@ -6,13 +6,8 @@ import { VIEW_LABEL } from "@/lib/types"
 import { useTranslation } from "react-i18next"
 
 /**
- * 底部状态栏：根据当前视图对聚合数据做轻量摘要。
- * - workspace（分类页）：关系类（思维导图）显示「X 节点 X 已完成」；其余模板显示「X 项」（即章节数）
- * - contacts（联系人页）：X 人（联系人列表大小）
- * - vault（密码保险库页）：不显示内容
- * - ai-chat（AI 对话页）：X 轮 | 输入 X tok · 输出 X tok |（token 以 3 位有效数字缩写）
- * - calendar：本视图不展示统计（日历待办/事件统计已在 TODO 2 停用，仅保留 mindmap dueDate 聚合）
- * 纯展示组件，只订阅 store，不修改任何数据。
+ * 底部状态栏：按当前视图做轻量摘要（workspace 节点/项数、contacts 人数、
+ * ai-chat 轮数与 token 总量；calendar/vault 不展示）。纯展示组件，只读 store。
  */
 export function StatusBar() {
   const { t } = useTranslation()
@@ -22,14 +17,12 @@ export function StatusBar() {
   const activeCategoryId = useWorkspace((s) => s.activeCategoryId)
   const conversations = useWorkspace((s) => s.conversations)
   const activeConversationId = useWorkspace((s) => s.activeConversationId)
-  // 联系人数量（TODO 48：store 持久化，同步读取）
   const contactCount = useWorkspace((s) => (s.view === "contacts" ? s.contacts.length : null))
 
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) ?? null
 
-  // 关系族节点聚合（TODO 54：思维图数据存于 relationFamilies，按当前分类的族汇总）
   const famNodes = useMemo(
     () =>
       view === "workspace" && activeCategory?.template === "relation"
@@ -43,7 +36,7 @@ export function StatusBar() {
   const left = useMemo<ReactNode[]>(() => {
     switch (view) {
       case "calendar":
-        // TODO 2 停用：日历待办/事件统计（保留 mindmap dueDate 体系，可恢复）
+        // TODO 2 停用：日历统计（保留 mindmap dueDate 体系，可恢复）
         return []
       case "workspace": {
         if (famNodes) {
@@ -112,7 +105,7 @@ function Stat({ value, label }: { value: number; label: string }) {
   )
 }
 
-/** token 数字缩写：保留 3 位有效数字，加 T/B/M/K 后缀（如 1.34T、98.5B、9.99M、173K、392）。 */
+/** token 缩写：3 位有效数字 + T/B/M/K 后缀（如 1.34T、98.5B、173K） */
 function formatTokens(n: number): string {
   if (!n || n < 1000) return String(Math.round(n))
   const units: Array<[number, string]> = [

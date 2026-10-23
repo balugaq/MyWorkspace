@@ -1,6 +1,5 @@
-// 人设管理弹窗：列出已创建的人设、点击选中「全局当前人设」，并支持添加 / 编辑 / 删除。
-// 顶部提供「不使用人设」选项（选中即 aiActivePersonaId = null，仅用基础提示词）。
-// 受控组件：由父级（设置页「管理人设」）持有 open 状态。
+// 人设管理弹窗：增删改选「全局当前人设」；「不使用人设」即 aiActivePersonaId = null（仅基础提示词）。
+// 受控组件：open 由父级（设置页）持有。
 
 "use client"
 
@@ -54,7 +53,7 @@ export function PersonaManagerDialog({
     const next = exists
       ? personas.map((x) => (x.id === p.id ? { ...p, name } : x))
       : [...personas, { ...p, name }]
-    // 首个创建的人设自动设为全局当前；其余保持原有选中。
+    // 首个创建的人设自动设为全局当前，其余保持原有选中
     const nextActive = activeId && next.some((x) => x.id === activeId) ? activeId : next[0]?.id ?? null
     updateSettings({ aiPersonas: next, aiActivePersonaId: nextActive })
     setEditing(null)

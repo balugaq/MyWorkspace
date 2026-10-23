@@ -36,7 +36,6 @@ export function AddCategoryDialog({
   const [count, setCount] = useState(3)
   const [unit, setUnit] = useState("")
 
-  // ESC 关闭弹窗（与其它弹窗行为一致）
   useEscapeClose(open, () => onOpenChange(false))
 
   function reset() {
@@ -59,7 +58,7 @@ export function AddCategoryDialog({
     addCategory(
       name.trim(),
       template,
-      // 关系类没有条目概念：不传条目单位
+      // 关系类没有条目概念，不传条目单位
       template === "novel"
         ? { autoNumber, unit: unit.trim() || t("addCategory.defaultUnit") }
         : template === "relation"
@@ -124,7 +123,6 @@ export function AddCategoryDialog({
             </p>
           </div>
 
-          {/* 条目单位仅对有「条目」概念的模板有意义；关系类（思维导图）没有条目，隐藏 */}
           {template !== "relation" && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="unit">{t("addCategory.unit")}</Label>

@@ -24,10 +24,8 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 /**
- * 图片缓存 / 暂存区管理。
- * - 展示被引用与暂存（无引用）的图片。
- * - 「扫描」把无引用的图片标记为暂存。
- * - 暂存区图片可被用户手动删除（不会删除仍被引用的图片）。
+ * 图片缓存 / 暂存区管理：「扫描」把无引用图片标记为暂存；
+ * 暂存图片可手动删除，仍被引用的不会删。
  */
 export function ImageCacheDialog({
   open,
@@ -41,14 +39,12 @@ export function ImageCacheDialog({
   const [referenced, setReferenced] = useState<Set<string>>(new Set())
   const [tiles, setTiles] = useState<Record<string, string>>({})
 
-  // ESC 关闭弹窗（与其它弹窗行为一致）
   useEscapeClose(open, () => onOpenChange(false))
 
   async function refresh() {
     const { all, referenced } = await getImageInventory()
     setAll(all)
     setReferenced(referenced)
-    // 生成缩略图 objectURL（仅显示）
     const map: Record<string, string> = {}
     for (const img of all) {
       const url = await getImageURL(img.id)

@@ -1,9 +1,7 @@
 "use client"
 
-// 天气卡片（TODO 34）：数据源为 UAPI（uapis.cn）官方天气接口，浏览器直连。
-// - 位置：接口按客户端 IP 自动定位，不再手动选城市
-// - 频率：结果缓存 2 小时；仅手动点击刷新按钮时绕过缓存强制获取
-// - 限流：命中 429 后前端冷却 10 分钟（持久化），期间禁用刷新并提示
+// 天气卡片（TODO 34）：UAPI（uapis.cn）接口浏览器直连，按客户端 IP 自动定位；
+// 结果缓存 2 小时（仅手动刷新绕过）；命中 429 后前端冷却 10 分钟（持久化）。
 
 import { useCallback, useEffect, useState } from "react"
 import {
@@ -26,7 +24,6 @@ import {
   type WeatherNow,
 } from "@/lib/weather"
 
-/** 天气现象选一个小图标（晴/雨/阴云/其他） */
 function WeatherGlyph({ weather, className }: { weather: string; className?: string }) {
   if (weather.includes("雨")) return <CloudRain className={className} />
   if (weather.includes("晴")) return <Sun className={className} />
@@ -34,7 +31,6 @@ function WeatherGlyph({ weather, className }: { weather: string; className?: str
   return <CloudSun className={className} />
 }
 
-/** AQI 等级徽标（颜色随污染程度变化） */
 function AQIBadge({ aqi }: { aqi: number }) {
   let cls = "bg-green-500/15 text-green-400"
   if (aqi > 300) {
@@ -59,7 +55,7 @@ export function WeatherWidget() {
   const [data, setData] = useState<WeatherNow | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  // 429 冷却剩余毫秒（>0 时禁用刷新按钮；localStorage 持久化，刷新页面不绕过）
+  // 429 冷却剩余毫秒（>0 禁用刷新）；localStorage 持久化，刷新页面不绕过
   const [cooldownMs, setCooldownMs] = useState(0)
 
   const load = useCallback(async (token: string, force: boolean) => {
@@ -70,7 +66,7 @@ export function WeatherWidget() {
       setData(w)
     } catch (e) {
       if (e instanceof RateLimitedError) {
-        // 限流：保留旧数据展示，进入冷却并提示
+        // 限流：保留旧数据展示，只进冷却并提示
         setError(e.message)
         setCooldownMs(getCooldownRemainingMs())
       } else {
@@ -82,13 +78,12 @@ export function WeatherWidget() {
     }
   }, [t])
 
-  // 挂载：恢复冷却状态 + 拉一次天气（2 小时缓存命中则直接复用）
+  // 挂载：恢复冷却状态 + 非强制拉一次（缓存命中直接复用）
   useEffect(() => {
     setCooldownMs(getCooldownRemainingMs())
     void load(uapiToken, false)
   }, [uapiToken, load])
 
-  // 冷却期内每 30 秒刷新一次剩余时间，归零自动解禁刷新按钮
   useEffect(() => {
     if (cooldownMs <= 0) return
     const iv = setInterval(() => setCooldownMs(getCooldownRemainingMs()), 30_000)

@@ -13,17 +13,11 @@ import { replaceLangTokens } from "@/lib/i18n"
 import { StoredImg, MarkdownImg } from "@/components/rich-text"
 
 /**
- * Markdown 预览渲染器。
- *
- * 设计约束（来自需求）：
- * - **不接入外部「呈现库」**：这里只用 `marked` 的 `lexer`（纯解析器）把文本变成 token 树，
- *   所有渲染都由本组件用 React 元素完成，确保对输出 100% 可控。
- * - **兼容原有图片协议**：正文里的 `{{img:<id>}}`（IndexedDB 图片）与 `![alt](url)`
- *   （URL 图片）照常识别并渲染；`{{img:}}` 在文本 token 中按原样拆分后走 `StoredImg`。
- * - 不渲染原始 HTML token（避免 XSS，也契合已加的严格 CSP）。
+ * Markdown 预览渲染器。设计约束：只用 marked.lexer 解析，渲染全由本组件的
+ * React 元素完成（输出 100% 可控）；不渲染原始 HTML（XSS 防线 / 严格 CSP）。
  */
 
-// marked 的 token 是联合类型，这里抽一个最小结构自己用，避免散落 any。
+// marked 的 token 是大联合类型，抽最小结构自用，避免散落 any
 interface MdToken {
   type: string
   text?: string
@@ -63,12 +57,10 @@ function textNode(text?: string): MdToken {
   return { type: "text", text: text ?? "" }
 }
 
-/** 取节点的内联子 token；没有则退回纯文本 */
 function inlineOf(node: MdToken): MdToken[] {
   return node.tokens && node.tokens.length ? node.tokens : [textNode(node.text)]
 }
 
-/** 把一段文本按 `{{img:id}}` 拆成「文字 + 存储图片」 */
 function splitImg(text: string, fullSize?: boolean): ReactNode[] {
   const out: ReactNode[] = []
   let last = 0
@@ -85,10 +77,8 @@ function splitImg(text: string, fullSize?: boolean): ReactNode[] {
 }
 
 /**
- * 按 16 色标签（TODO 32）渲染一段文本：扫描到 <色名> / </色名> 时维护 colorStack，
- * 中间段落按栈顶颜色包 span 输出，段落内容再交给 renderSeg（继续拆图片等）。
- * colorStack 由调用方持有并在同一 inline 块内跨 token 共享（marked 会把标签拆成
- * 独立 html token，开/闭标记因此分散在相邻 token 里）。
+ * 按 16 色标签（TODO 32）渲染文本；colorStack 由调用方持有并在同一 inline 块内
+ * 跨 token 共享——marked 会把标签拆成独立 html token，开/闭标记分散在相邻 token 里。
  */
 function renderTextWithColors(
   text: string,
@@ -140,8 +130,7 @@ function renderInline(
           </span>
         )
       case "html": {
-        // 16 色标签被 marked 拆成独立 html token：消费掉并维护颜色栈；
-        // 其余原始 HTML 仍不渲染（XSS 防线不变）
+        // 16 色标签经此处消费并维护颜色栈；其余原始 HTML 不渲染（XSS 防线）
         const m = FORMAT_COLOR_TAG_AT.exec((t.text ?? "").trim())
         if (m) {
           if (m[1]) colorStack.pop()
@@ -272,10 +261,10 @@ export function MarkdownView({
   text: string
   className?: string
   fullSize?: boolean
-  /** true = 紧凑单行化预览（列表卡片用）：块级标记渲染为行内，整体最多两行截断 */
+  /** true = 列表卡片紧凑预览：块级标记转行内，整体最多两行截断 */
   clamp?: boolean
 }) {
-  // {lang:key} 占位符（TODO 40）：预览渲染时替换为当前语言文本
+  // TODO 40：{lang:key} 占位符替换为当前语言文本
   const tokens = useMemo(
     () => marked.lexer(replaceLangTokens(text)) as unknown as MdToken[],
     [text],
@@ -294,10 +283,7 @@ export function MarkdownView({
   )
 }
 
-/**
- * 紧凑预览渲染：忽略块级结构（标题/列表/引用/代码块），
- * 只把其中的纯文本拼成一个连贯段落，避免卡片预览被标题撑得杂乱。
- */
+/** 紧凑预览：忽略块级结构，只把纯文本拼成连贯段落，避免卡片预览被标题撑乱 */
 function renderClamped(tokens: MdToken[], keyPrefix: string): ReactNode {
   const parts: ReactNode[] = []
   let k = 0
@@ -306,7 +292,7 @@ function renderClamped(tokens: MdToken[], keyPrefix: string): ReactNode {
       const key = `${prefix}-${k++}`
       if (!t.type) continue
       if (t.type === "text" || t.type === "escape") {
-        // 已由 stripImageTokens 去除图片 token，这里按纯文本输出（色标签一并剥离）
+        // 调用方（如 novel 列表）已用 stripImageTokens 去除图片 token，这里按纯文本输出
         const s = stripFormatColorTags(t.text ?? "")
           .replace(/\s+/g, " ")
           .trim()

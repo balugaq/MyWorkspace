@@ -1,9 +1,7 @@
 "use client"
 
-// 自动备份全局挂载件（TODO 60）：
-// 1. 关机备份——页面隐藏（visibilitychange → hidden）与关闭（beforeunload）时各试一次，
-//    lib 内按「当天（dayStartOffset 翻篇口径）已备份」去重，双保险覆盖不同退出路径。
-// 2. 数据量异常提醒——启动稳定后比较当前快照与最新备份的数据量，相差超 50% 弹窗提醒。
+// 自动备份全局挂载件（TODO 60）：页面隐藏 / 关闭时各试一次关机备份（lib 内按
+// dayStartOffset 翻篇口径当天去重）；启动稳定后比较快照与最新备份数据量，相差超 50% 弹窗提醒。
 
 import { useTranslation } from "react-i18next"
 import { useEffect, useState } from "react"
@@ -18,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { checkDataLoss, maybeAutoBackupOnShutdown, type DataLossCheck } from "@/lib/auto-backup"
 
-/** 字符数 → 人类可读大小（快照 JSON 长度 ≈ UTF-16 下的一半字节数，仅作量级提示） */
+/** 字符数 → 可读大小（快照 JSON 长度 ≈ UTF-16 下的一半字节数，仅量级提示） */
 function fmtSize(n: number): string {
   if (n < 1024) return `${n}`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} K`
@@ -29,7 +27,7 @@ export function AutoBackupWatcher() {
   const { t } = useTranslation()
   const [loss, setLoss] = useState<DataLossCheck | null>(null)
 
-  // 关机备份监听（两条路径都挂，lib 内当天去重，重复触发无副作用）
+  // 两条退出路径都挂；lib 内当天去重，重复触发无副作用
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState === "hidden") maybeAutoBackupOnShutdown()
@@ -43,7 +41,7 @@ export function AutoBackupWatcher() {
     }
   }, [])
 
-  // 启动数据量检查：延迟等 persist hydrate 与首屏渲染稳定；每次启动最多提醒一次
+  // 启动数据量检查：延迟等 hydrate 与首屏稳定；每次启动最多提醒一次
   useEffect(() => {
     let cancelled = false
     const timer = setTimeout(() => {

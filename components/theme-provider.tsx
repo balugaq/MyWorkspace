@@ -49,7 +49,7 @@ function FontSetter() {
   return null
 }
 
-// 将 store.settings.theme 作为主题的唯一来源，同步到 next-themes
+// store.settings.theme 是主题唯一来源，同步到 next-themes
 function ThemeFromStore() {
   const theme = useWorkspace((s) => s.settings.theme)
   const hydrated = useWorkspace((s) => s.hydrated)

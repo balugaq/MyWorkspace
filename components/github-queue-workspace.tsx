@@ -210,11 +210,10 @@ export function GithubQueueWorkspace() {
         </div>
       </div>
 
-      {/* 看板 */}
       <div className="grid min-h-0 flex-1 grid-cols-4 gap-3 overflow-auto native-scroll p-4">
         {COLUMNS.map((col) => {
           const items = visible.filter((it) => it.column === col.id)
-          // TODO 46：按入队时间倒序（最新在上）；旧存档无 queuedAt 回落 0 沉底。filter 返回新数组，可安全原地排序（稳定排序，同刻入队保持原相对次序）
+          // TODO 46：按入队时间倒序，旧存档无 queuedAt 沉底；visible.filter 返回新数组，可安全原地排序
           items.sort((a, b) => (b.queuedAt ?? 0) - (a.queuedAt ?? 0))
           return (
             <div key={col.id} className="flex min-h-0 flex-col rounded-lg border bg-muted/20">
@@ -241,7 +240,6 @@ export function GithubQueueWorkspace() {
         })}
       </div>
 
-      {/* 添加监听仓库对话框 */}
       <Dialog
         open={addOpen}
         onOpenChange={(v) => {
@@ -283,7 +281,6 @@ export function GithubQueueWorkspace() {
         </DialogContent>
       </Dialog>
 
-      {/* 手动添加单条 Issue/PR 对话框 */}
       <Dialog
         open={addSingleOpen}
         onOpenChange={(v) => {

@@ -55,7 +55,6 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean; onOpenChan
   const [query, setQuery] = useState("")
   const [scope, setScope] = useState<SearchScope>("all")
 
-  // ESC 关闭弹窗（与其它弹窗行为一致）
   useEscapeClose(open, () => onOpenChange(false))
 
 

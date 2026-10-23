@@ -1,9 +1,7 @@
 "use client"
 
-// 侧边栏收起后的贴边悬浮展开开关（TODO 25 打磨）：
-// - 固定贴左边缘，可上下拖动，拖动结束把纵向位置持久化到 store（刷新保留）。
-// - 未拖动过（store 无记录）时默认垂直居中。
-// - 点击（位移 < 4px 视为点击而非拖动）展开侧边栏。
+// 侧边栏收起后的贴边展开开关（TODO 25 打磨）：可上下拖动，松手持久化纵向位置（无记录时垂直居中）；
+// 位移小于约 4px 视为点击而非拖动，此时展开侧边栏。
 
 import { useTranslation } from "react-i18next"
 import { useRef, useState } from "react"
@@ -20,7 +18,7 @@ export function SidebarToggleFab() {
   const persistedY = useWorkspace((s) => s.sidebarToggleY)
   const setSidebarToggleY = useWorkspace((s) => s.setSidebarToggleY)
 
-  // 拖动中的实时位置（px，距视口顶部）；null = 未在拖动
+  // 拖动中的实时位置（px）；null = 未在拖动
   const [dragY, setDragY] = useState<number | null>(null)
   const draggingRef = useRef(false)
   const movedRef = useRef(false)
@@ -36,7 +34,7 @@ export function SidebarToggleFab() {
     draggingRef.current = true
     movedRef.current = false
     startClientY.current = e.clientY
-    // 拖动起点取按钮当前真实 top（兼容「居中」与「已持久化」两种形态）
+    // 起点取按钮当前真实 top，兼容「居中」与「已持久化」两种形态
     startTop.current = btnRef.current?.getBoundingClientRect().top ?? 0
   }
 
@@ -53,11 +51,9 @@ export function SidebarToggleFab() {
     if (!draggingRef.current) return
     draggingRef.current = false
     if (movedRef.current) {
-      // 拖动结束：持久化最终位置
       const finalY = dragY ?? persistedY ?? startTop.current
       if (finalY != null) setSidebarToggleY(Math.round(finalY))
     } else {
-      // 视为点击：展开侧边栏
       setSidebarCollapsed(false)
     }
     setDragY(null)

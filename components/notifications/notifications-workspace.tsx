@@ -429,7 +429,7 @@ export function NotificationsWorkspace() {
 
       <div className="native-scroll min-h-0 flex-1 overflow-auto px-8">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-8">
-          {/* sender 筛选 tab（TODO 23）：登记在 SENDER_META 的 sender 各占一档 */}
+          {/* sender 筛选 tab（TODO 23） */}
           {notifications.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5">
@@ -454,7 +454,7 @@ export function NotificationsWorkspace() {
                   </span>
                 )}
               </div>
-              {/* TODO 56：关键词搜索（标题 / 摘要 / 仓库 / 来源） */}
+              {/* TODO 56：关键词搜索 */}
               <div className="relative">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input

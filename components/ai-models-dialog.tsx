@@ -1,6 +1,5 @@
-// 模型管理弹窗：列出已添加的模型、选中当前使用的模型，并支持添加 / 编辑 / 删除。
-// 纯前端多模型配置：每条模型独立保存供应商与密钥，互不干扰。
-// 受控组件：由父级（AI 对话输入区的「模型」按钮 / 设置页「管理模型」）持有 open 状态。
+// 模型管理弹窗：增删改选模型；纯前端配置，每条模型独立保存供应商与密钥。
+// 受控组件：open 由父级（AI 输入区「模型」按钮 / 设置页）持有。
 
 "use client"
 
@@ -63,7 +62,7 @@ export function ModelManagerDialog({
     const next = exists
       ? models.map((m) => (m.id === entry.id ? { ...entry, label } : m))
       : [...models, { ...entry, label }]
-    // 若此前没有任何选中模型（如首个模型），则把刚保存的这条设为当前。
+    // 此前没有选中模型（如首个模型）时，把刚保存的这条设为当前
     const nextActive =
       activeId && next.some((m) => m.id === activeId)
         ? activeId

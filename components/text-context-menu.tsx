@@ -1,10 +1,7 @@
 "use client"
 
-// 文字右键菜单「UI 外壳层」（TODO 50）：
-// 自绘轻量浮层（不用 base-ui ContextMenu/Menu）——base-ui 的右键菜单是 modal 焦点陷阱，
-// 打开即夺走编辑器焦点，选区操作会全部落空。自绘的核心手法：菜单容器 onMouseDown
-// preventDefault，点击菜单项时焦点根本不离开编辑器，动作可立即执行、选区全程可见。
-// 功能与外壳的分工见 lib/text-menu-actions.ts 与 docs/ui-conventions.md §7。
+// 文字右键菜单外壳（TODO 50）：自绘浮层而不用 base-ui ContextMenu——后者是 modal 焦点陷阱，
+// 打开即夺走编辑器焦点；核心手法是菜单容器 onMouseDown preventDefault，点击菜单项不丢焦。
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
@@ -18,13 +15,9 @@ const ITEM_CLASS =
   "flex w-full cursor-default items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm text-popover-foreground outline-none hover:bg-accent focus-visible:bg-accent"
 
 /**
- * 通用文字右键菜单：把 children 包进右键区域，按 ctx 的能力渲染可用动作。
- * - actions 缺省用 BUILTIN_TEXT_MENU_ACTIONS（剪切/复制/粘贴/全选/AI），可传自定义组；
- * - 动作是否出现完全由 ctx 的能力决定（可编辑、有无回调、有无选区）；
- * - 焦点零转移：菜单打开不夺焦（纯浮层）、点击菜单项 onMouseDown preventDefault 不丢焦，
- *   动作点击后立即执行（此时编辑器仍聚焦，select/剪切/粘贴即时生效、选区全程可见）；
- * - 关闭时机：点击菜单项 / 点击菜单外任意处 / 再次右键别处 / Esc / 页面滚动或缩放；
- * - run 失败（如剪贴板权限被拒）toast 提示，不抛出。
+ * 通用文字右键菜单：把 children 包进右键区域，按 ctx 能力渲染可用动作
+ * （actions 缺省 BUILTIN_TEXT_MENU_ACTIONS）。焦点零转移：点击菜单项
+ * onMouseDown preventDefault，编辑器保持聚焦、选区全程可见。
  */
 export function TextContextMenu({
   ctx,
@@ -34,25 +27,22 @@ export function TextContextMenu({
 }: {
   ctx: TextMenuContext
   actions?: TextMenuAction[]
-  /** 外壳 div 的布局类（调用方把原来的布局类挪到这里即可，不影响内部结构） */
+  /** 外壳 div 的布局类 */
   className?: string
   children: React.ReactNode
 }) {
   const { t } = useTranslation()
-  // 菜单锚点（视口坐标）；null = 关闭。打开瞬间 setState 触发重渲染，
-  // isAvailable 里的 getSelectedText() 恰好在此刻求值，快照不会过期。
+  // 菜单锚点（视口坐标），null = 关闭；打开瞬间重渲染时 getSelectedText() 恰好求值，快照不会过期
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   const close = useCallback(() => setPos(null), [])
 
-  // 打开/跟随右键：阻止原生菜单，记录视口坐标
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     setPos({ x: e.clientX, y: e.clientY })
   }, [])
 
-  // 渲染后测量实际尺寸，把菜单 clamp 进视口
   useLayoutEffect(() => {
     if (!pos || !menuRef.current) return
     const r = menuRef.current.getBoundingClientRect()
@@ -62,7 +52,7 @@ export function TextContextMenu({
     if (x !== pos.x || y !== pos.y) setPos({ x, y })
   }, [pos])
 
-  // 全局监听：菜单外点击/右键/Esc/滚动/缩放 → 关闭
+  // 全局监听关闭时机：菜单外点击/右键/Esc/滚动/缩放
   useEffect(() => {
     if (!pos) return
     const inMenu = (t: EventTarget | null) =>
@@ -71,7 +61,7 @@ export function TextContextMenu({
       if (!inMenu(e.target)) close()
     }
     const onDocContextMenu = (e: MouseEvent) => {
-      // 别处右键：这里先关闭，编辑器区域的 onContextMenu 随后会重新打开
+      // 别处右键：先关闭，编辑器 onContextMenu 随后会重新打开
       if (!inMenu(e.target)) close()
     }
     const onKeyDown = (e: KeyboardEvent) => {
@@ -98,7 +88,6 @@ export function TextContextMenu({
 
   return (
     <>
-      {/* 普通外壳 div：只挂 onContextMenu，不再有 base-ui 的焦点陷阱 */}
       <div onContextMenu={handleContextMenu} className={cn(className)}>
         {children}
       </div>
@@ -107,14 +96,13 @@ export function TextContextMenu({
           <div
             ref={menuRef}
             role="menu"
-            // 核心：不把焦点从编辑器夺走——菜单打开/点击全程编辑器保持聚焦
+            // 核心：preventDefault 不夺焦，点击菜单项时编辑器仍聚焦
             onMouseDown={(e) => e.preventDefault()}
             style={{ left: pos.x, top: pos.y }}
             className="fixed z-50 min-w-32 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
           >
             {visible.map((a, i) => (
               <Fragment key={a.id}>
-                {/* AI 与文本基础操作分组：非首位时补一条分隔线 */}
                 {a.id === "ai" && i > 0 && <div className="-mx-1 my-1 h-px bg-border" />}
                 <button
                   type="button"
@@ -128,7 +116,7 @@ export function TextContextMenu({
                   }}
                 >
                   <a.icon className="size-4 shrink-0" />
-                  {/* AI 项文本用渐变彩色「AI」字（TODO 57） */}
+                  {/* TODO 57：AI 项用渐变彩色「AI」字 */}
                   {a.id === "ai" ? <AiText /> : a.label}
                 </button>
               </Fragment>

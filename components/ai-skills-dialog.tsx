@@ -1,7 +1,5 @@
-// 技能启停弹窗：列出全部可用技能（用户技能 public/skills/*.md + 内置只读技能），
-// 通过开关全局启用 / 禁用某个技能。状态写入 settings.aiEnabledSkills
-// （null = 全部启用；数组 = 显式启用的技能名清单）。
-// 受控组件：由父级（AI 对话输入区的「技能」按钮）持有 open 状态。
+// 技能启停弹窗：列出全部技能（用户 public/skills/*.md + 内置只读），开关写入 settings.aiEnabledSkills
+// （null = 全部启用；数组 = 显式启用清单）。受控组件：open 由 AI 输入区「技能」按钮持有。
 
 "use client"
 
@@ -40,7 +38,7 @@ export function SkillsToggleDialog({
   const updateSettings = useWorkspace((s) => s.updateSettings)
 
   const [userSkills, setUserSkills] = useState<Skill[]>([])
-  // TODO 77：技能搜索（按名称 / 描述过滤；大小写不敏感）
+  // TODO 77：技能搜索（按名称/描述，大小写不敏感）
   const [query, setQuery] = useState("")
 
   useEffect(() => {
@@ -80,7 +78,7 @@ export function SkillsToggleDialog({
         ? curSet
         : [...curSet, name]
       : curSet.filter((n) => n !== name)
-    // 归一化：若与「全部启用」等价，则记回 null，语义更干净。
+    // 归一化：与「全部启用」等价时记回 null，语义更干净
     const allOn = allNames.length > 0 && allNames.every((n) => next.includes(n))
     updateSettings({ aiEnabledSkills: allOn ? null : next })
   }

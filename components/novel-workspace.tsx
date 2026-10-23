@@ -17,7 +17,7 @@ import { MarkdownView } from "@/components/markdown-view"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
-/** 隐藏图片引用 token，仅留文本（用于列表卡片预览） */
+/** 去除图片引用 token 只留文本，用于列表卡片预览 */
 function stripImageTokens(text: string): string {
   return text.replace(/\{\{img:[^}]+\}\}|!\[[^\]]*\]\([^)]*\)/g, "").replace(/\n{2,}/g, "\n")
 }
@@ -57,7 +57,7 @@ function ChapterOverview({
   const isNovel = category.template === "novel"
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
-  // 挂载后恢复上次滚动位置；并监听 viewport 滚动把 scrollTop 写回 ref（跨进出章节持久）
+  // 挂载后恢复滚动位置，滚动时写回 ref（跨进出章节持久）
   useEffect(() => {
     const el = scrollAreaRef.current
     const raf = requestAnimationFrame(() => {
@@ -176,7 +176,7 @@ function ChapterEditor({
   const updateChapter = useWorkspace((s) => s.updateChapter)
   const removeChapter = useWorkspace((s) => s.removeChapter)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
-  // TODO 50：文字右键「AI」项——选中内容发给 AI 闲聊（新建会话）
+  // TODO 50：右键「AI」把选中内容发给 AI 闲聊（新建会话）
   const askAiAbout = useWorkspace((s) => s.askAiAbout)
 
   const { prev, next } = useMemo(() => {
@@ -185,7 +185,7 @@ function ChapterEditor({
   }, [chapters, chapter.id])
 
   const isNovel = category.template === "novel"
-  // 导航单位：配置了 unit 才用它（上一X/下一X），否则回退默认「章」。
+  // 导航单位：配置了 unit 用之（上一X/下一X），否则回退默认「章」
   const unit = category.config.unit?.trim() || t("novel.defaultUnit")
 
   return (
@@ -242,7 +242,7 @@ function ChapterEditor({
           className={cn(isNovel ? "font-serif text-lg" : "text-base")}
           onAiText={(selected) =>
             askAiAbout(
-              // prompt 形如 "{selectedContent} {location}"：选中内容 + 随笔内位置，便于 AI 结合上下文解读
+              // prompt = 选中内容 + 随笔内位置，便于 AI 结合上下文解读
               t("novel.askAiPrefix", { cat: category.name, chapter: chapter.title, selected }),
             )
           }

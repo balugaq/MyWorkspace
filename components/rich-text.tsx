@@ -7,11 +7,8 @@ import { cn } from "@/lib/utils"
 import { isImgref, imgrefId } from "./richtext/normalize"
 
 /**
- * 图片渲染组件（供 Markdown 预览 `MarkdownView` 复用）。
- *
- * 支持两种图片协议：
- *   - `{{img:<id>}}` → `StoredImg`：引用 IndexedDB 中保存的图片
- *   - `![alt](url)`  → `MarkdownImg`：远程/URL 图片
+ * 图片渲染组件（供 MarkdownView 复用）：`{{img:<id>}}` → StoredImg（IndexedDB）、
+ * `![alt](url)` → MarkdownImg（远程 URL）。
  */
 
 const IMG_FIT = "my-1 block rounded-md border border-border object-contain"
@@ -39,7 +36,7 @@ export function StoredImg({ imgId, fullSize }: { imgId: string; fullSize?: boole
 
 export function MarkdownImg({ url, fullSize }: { url: string; fullSize?: boolean }) {
   if (!url) return null
-  // 支持 imgref:<id> 协议（本项目重构后的内文图），走 IndexedDB
+  // 支持 imgref:<id> 协议（内文图），走 IndexedDB
   if (isImgref(url)) return <StoredImg imgId={imgrefId(url)} fullSize={fullSize} />
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 图片为任意远程 URL，无法走 next/image
