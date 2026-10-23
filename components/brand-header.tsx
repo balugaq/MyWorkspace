@@ -1,6 +1,4 @@
-// 全局顶栏（TODO 25 打磨）：左侧 = 移动端导航按钮 + 品牌区（点击回到主界面 AI 对话）；
-// 右侧 = 搜索框 + 设置 + 头像（最右，点击弹出「{t("brandHeader.openProfile")} / {t("brandHeader.openSettings")}」菜单）。
-// 主题切换已移入设置页「外观主题」，顶栏不再提供。
+// 全局顶栏（TODO 25 打磨）：左 = 移动端导航 + 品牌区，右 = 搜索 + 头像菜单；主题切换已移入设置页。
 
 "use client"
 
@@ -19,9 +17,7 @@ import type { Person } from "@/lib/address-book"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
-// 生日横幅（TODO 61）：brandHeader 中间段，临近生日（settings.birthdayBannerDays 天内，含当天）
-// 时显示；单人文案「xxx 最近生日（M月D日，还有 n 天）」，多人文案「最近有 n 人生日（xxx、xxx）」；
-// 当天过生日的名字高亮强调。点击横幅跳转联系人页。
+// 生日横幅（TODO 61）：settings.birthdayBannerDays 天内（含当天）显示，当天过生日的名字高亮；点击跳联系人页
 function BirthdayBanner() {
   const { t } = useTranslation()
   const contacts = useWorkspace((s) => s.contacts)
@@ -29,7 +25,7 @@ function BirthdayBanner() {
   const goContacts = useWorkspace((s) => s.goContacts)
 
   const list = useMemo(() => {
-    // 设置里的用户自己的生日（公历 yyyy-MM-dd）作为一个伪联系人一并纳入
+    // 用户自己的生日（公历 yyyy-MM-dd）作为伪联系人一并纳入
     const self: Person | null =
       settings.birthday
         ? { id: "__self__", name: settings.userName.trim() || t("brandHeader.self"), birthday: settings.birthday }
@@ -116,7 +112,6 @@ export function BrandHeader({
       }`}
     >
       <div className="flex items-center gap-2">
-        {/* 移动端导航按钮：呼出侧边栏 Sheet（桌面端侧边栏常驻） */}
         <Button
           variant="ghost"
           size="icon"
@@ -127,7 +122,6 @@ export function BrandHeader({
           <span className="sr-only">{t("brandHeader.openNav")}</span>
         </Button>
 
-        {/* 品牌区：点击回到主界面（AI 对话）。图标用应用 favicon（TODO 25 打磨） */}
         <button
           type="button"
           onClick={goAIChat}
@@ -143,11 +137,10 @@ export function BrandHeader({
         </button>
       </div>
 
-      {/* 中间段：生日横幅（TODO 61），无临近生日时不占位；移动端隐藏 */}
       <BirthdayBanner />
 
       <div className="flex items-center gap-2">
-        {/* 搜索框（TODO 56）：仅随笔视图显示 */}
+        {/* TODO 56：搜索框，仅随笔视图显示 */}
         {view === "workspace" && (
           <button
             type="button"
@@ -164,7 +157,7 @@ export function BrandHeader({
           </button>
         )}
 
-        {/* 头像（最右）：点击弹出「{t("brandHeader.openProfile")} / {t("brandHeader.openSettings")}」（设置按钮与头像菜单功能重复，已移除独立按钮） */}
+        {/* 头像菜单含个人/设置项；独立设置按钮已移除（功能与菜单重复） */}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

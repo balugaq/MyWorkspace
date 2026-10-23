@@ -25,13 +25,8 @@ function getEditorMarkdown(editor: Editor): string {
 }
 
 /**
- * 可编辑富文本编辑器（TipTap 接管）。
- * - 受控：value 为 markdown 字符串，onChange 回传 getMarkdown() 结果。
- * - 粘贴 GitHub Issue/PR 链接自动生成预览卡。
- * - 选中文字出现 QQ 式浮动工具条（复制 / X 复制 / 全选 / 引用）。
- * - 右键菜单（TODO 50）：剪切/复制/粘贴/全选，外壳与功能分离见 components/text-context-menu.tsx；
- *   传入 onAiText 时额外出现「AI」项（随笔编辑器传入，其他宿主默认无）。
- * - 顶部「源码 / 可视化」切换：源码模式直接显示并编辑原始 Markdown 文本。
+ * 可编辑富文本编辑器（TipTap 接管）：受控组件，value 为 markdown 字符串，onChange 回传 getMarkdown()。
+ * 粘贴 GitHub/B 站链接自动生成预览卡；选中出浮动工具条；右键菜单（TODO 50）；「源码 / 可视化」切换。
  */
 export function RichTextEditor({
   value,
@@ -56,17 +51,15 @@ export function RichTextEditor({
     onChangeRef.current = onChange
   }, [onChange])
 
-  // 程序化升级（把裸链接换成预览卡）会改动文档并触发 onUpdate，
-  // 若此时回写 getMarkdown()，tiptap-markdown 的序列化会规范化空白，
-  // 把用户原文里的空行/空格改掉。用此标志让升级期间不回写 onChange，保护原文。
+  // 程序化升级（裸链接→预览卡）会触发 onUpdate，此时回写 getMarkdown() 会被序列化规范掉
+  // 用户原文的空行/空格——用此标志在升级期间不回写 onChange，保护原文。
   const suppressRef = useRef(false)
 
   const [mode, setMode] = useState<"visual" | "source">("source")
 
-  // 源码 textarea 引用（右键菜单的剪切/粘贴/全选需要实时读选区）。
-  // 注意：不能直接写 ref={textareaRef}——外层 NativeScrollArea 会 cloneElement 注入自己的
-  // scrollRef，覆盖子元素 ref（React 19 ref 即 prop）。改为在 textarea 的 onContextMenu
-  // 事件里同步记录 currentTarget：右键瞬间必先于菜单求值，且切模式重挂载后自动更新。
+  // 源码 textarea 引用（右键菜单的剪切/粘贴/全选需实时读选区）。不能直接写 ref={textareaRef}：
+  // NativeScrollArea 会 cloneElement 注入自己的 scrollRef、覆盖子元素 ref（React 19 ref 即 prop），
+  // 故改为在 textarea 的 onContextMenu 里同步记录 currentTarget（右键必先于菜单求值，切模式重挂载后自动更新）。
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const editor = useEditor(
@@ -94,7 +87,6 @@ export function RichTextEditor({
             view.dispatch(view.state.tr.replaceSelectionWith(card))
             return true
           }
-          // 图片粘贴：写入 IndexedDB 并插入 imgref 图片节点
           const items = event.clipboardData?.items
           if (items) {
             const blobs: Blob[] = []
@@ -133,15 +125,10 @@ export function RichTextEditor({
     [],
   )
 
-  // 外部 value 变化（切换章节/合并导入等）同步进编辑器，避免受控回环。
-  // 源码模式下编辑器被隐藏且以 textarea 为唯一事实源，跳过此同步——
-  // 否则 upgradeLinkCards 会改动隐藏编辑器并触发 onChange，把用户刚输入的
-  // 回车/空格等被 markdown 序列化规范掉的空白「回写」掉，导致无法输入。
-  //
-  // 注意：editor.commands.setContent 会 dispatch 事务，TipTap 内部用 flushSync
-  // 强制重渲染编辑器；若在 useEffect（React 提交阶段）内同步执行会触发
-  // "flushSync was called from inside a lifecycle method"。因此整体延后到下一个
-  // macrotask，并加 isDestroyed 守卫；effect 清理时取消待执行的定时任务。
+  // 外部 value 变化同步进编辑器；源码模式跳过（textarea 是唯一事实源，否则 upgradeLinkCards 改动隐藏
+  // 编辑器并触发 onChange，把用户刚输入、被 markdown 序列化规范掉的空白「回写」掉，导致无法输入）。
+  // setContent 内部用 flushSync，在 useEffect 内同步执行会报错，故延后到下一个 macrotask
+  // + isDestroyed 守卫；effect 清理时取消待执行任务。
   useEffect(() => {
     if (!editor || mode === "source") return
     const id = window.setTimeout(() => {
@@ -157,9 +144,7 @@ export function RichTextEditor({
 
   if (!editor) return null
 
-  // 源码模式（textarea）下的图片粘贴：剪贴板含图片时，写入 IndexedDB
-  // 并在光标处插入 ![...](imgref:<id>)，切到可视化后会被解析为图片节点。
-  // 可视化模式的图片粘贴由 editorProps.handlePaste 处理，此处只补源码态的缺口。
+  // 源码模式的图片粘贴：写入 IndexedDB 并在光标处插入 ![...](imgref:<id>)（可视化模式由 handlePaste 处理）。
   const handleSourcePaste = async (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items
     if (!items) return
@@ -172,8 +157,7 @@ export function RichTextEditor({
     }
     if (blobs.length === 0) return
     e.preventDefault()
-    // 同步阶段捕获 DOM 引用与光标位置：React 合成事件的 currentTarget
-    // 仅在事件派发期有效，await 之后会被置为 null，须在异步前取值。
+    // React 合成事件的 currentTarget 仅在事件派发期有效，await 后置为 null——异步前先取值
     const ta = e.currentTarget
     const cur = ta.value
     const start = ta.selectionStart ?? cur.length
@@ -199,9 +183,8 @@ export function RichTextEditor({
     }
   }
 
-  // 右键菜单上下文（TODO 50，外壳见 components/text-context-menu.tsx）。
-  // 自绘浮层无焦点陷阱：菜单打开/点击全程编辑器保持聚焦，动作可即时执行。
-  // 全部回调走闭包实时读取 editor/textarea 状态，菜单打开时取到的就是最新值。
+  // 右键菜单上下文（TODO 50，外壳见 components/text-context-menu.tsx）：自绘浮层无焦点陷阱，编辑器全程保持聚焦；
+  // 回调走闭包实时读取 editor/textarea 状态，菜单打开时取到的就是最新值。
   const visualCtx: TextMenuContext = {
     editable: true,
     getSelectedText: () => {
@@ -232,8 +215,7 @@ export function RichTextEditor({
     cut: () => {
       const ta = textareaRef.current
       if (!ta) return
-      // execCommand("cut") 与 Ctrl+X 同语义：写剪贴板 + 删选区 + 进浏览器撤销栈（可 Ctrl+Z）。
-      // setRangeText 是程序化修改，不进撤销栈，只能作 execCommand 失败时的兜底。
+      // execCommand("cut") 与 Ctrl+X 同语义：写剪贴板 + 删选区 + 进撤销栈；setRangeText 不进撤销栈，仅作失败兜底
       if (!document.execCommand("cut")) {
         const s = ta.selectionStart ?? 0
         const e = ta.selectionEnd ?? 0
@@ -282,8 +264,7 @@ export function RichTextEditor({
           <NativeScrollArea className="min-h-0 flex-1">
             <textarea
               onContextMenu={(e) => {
-                // NativeScrollArea 会覆盖子元素的 ref prop（cloneElement 注入 scrollRef），
-                // 拿不到普通 ref——改由本事件同步捕获真实 DOM 引用（右键先于菜单求值）
+                // NativeScrollArea 覆盖子元素 ref prop（见上方 textareaRef 说明），改由本事件捕获真实 DOM
                 textareaRef.current = e.currentTarget
               }}
               value={value}

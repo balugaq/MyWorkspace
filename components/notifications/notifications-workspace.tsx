@@ -1,10 +1,7 @@
 "use client"
 
-// 通知中心工作区（TODO 20 / TODO 23 / TODO 44）：只读消息流，按 foundAt 降序渲染 store.notifications。
-// TODO 23：sender 筛选 tab（全部 / GitHub / 新闻精选）+ 新闻卡片的可展开富详情。
-// TODO 44：新闻包卡片（一轮精选 1 条 newsPack 通知，点「展开」在列表内铺开全部小新闻卡）+
-//          失败通知（无富字段的 news 条目）兜底渲染 + 手动按钮受周期门槛约束。
-// 布局遵守 AGENTS.md §3：flex 列 + min-h-0 + flex-1 + overflow-auto。
+// 通知中心工作区（TODO 20/23/44）：只读消息流，按 foundAt 降序渲染 store.notifications；
+// sender 筛选 tab + 新闻卡片可展开富详情（TODO 23）+ 新闻包卡片与兜底渲染（TODO 44）。布局遵守 AGENTS.md §3。
 
 import { Fragment, useMemo, useState } from "react"
 import { toast } from "sonner"
@@ -54,12 +51,8 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-/**
- * 新闻详情卡片（TODO 44，参照 ref.txt 视觉稿复刻）：深色卡片 + 左侧红色引导边 +
- * 橙色领域标签 + 主标题 + 时间胶囊 + label/value 信息网格 + 作文素材框 + 相关链接按钮。
- * 深色主题优先还原稿内色值（#151517 / #d93838 / #e86c3a / #88898c 等，Tailwind 任意值类），
- * 浅色主题回落主题 token（bg-card / muted / border）给合理对应。
- */
+/** 新闻详情卡片（TODO 44，参照 ref.txt 视觉稿复刻）：深色主题优先还原稿内色值（#151517 等，Tailwind 任意值类），
+ *  浅色主题回落主题 token。 */
 function NewsDetailCard({ detail }: { detail: NewsDetail }) {
   const { t } = useTranslation()
   const rows: [string, string][] = [
@@ -154,7 +147,6 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
         <span className="ml-auto shrink-0 text-muted-foreground/70">
           {relativeTimeMs(item.foundAt ?? (Date.parse(item.createdAt) || 0))}
         </span>
-        {/* 展开/收起：在通知列表内直接铺开全部小新闻卡（默认收起） */}
         <Button
           type="button"
           variant="ghost"
@@ -185,9 +177,8 @@ function NewsPackCard({ item }: { item: NotificationItem }) {
   )
 }
 
-/** 新闻精选卡片（TODO 23，旧版单条富详情形态）：默认收起，点击展开。
- *  用 div + role="button" 而非 <button>：button 内部 flex 子项的 min-content 计算有浏览器怪癖，
- *  min-w-0 压不住 nowrap 长文（issue/pr 卡实测溢出），div 容器无此问题。 */
+/** 新闻精选卡片（TODO 23）：默认收起，点击展开。用 div + role="button" 而非 <button>——
+ *  button 内部 flex 子项的 min-content 计算有浏览器怪癖，min-w-0 压不住 nowrap 长文（实测溢出），div 无此问题。 */
 function NewsCard({ item }: { item: NotificationItem }) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
@@ -345,9 +336,7 @@ function GithubCard({ item }: { item: NotificationItem }) {
 
 type SenderFilter = "all" | "github" | "news"
 
-/**
- * 手动触发新闻精选（仅「新闻精选」tab 显示）：改版后随时可点（仅受 newsEnabled 开关与防重入约束）。
- */
+/** 手动触发新闻精选（仅「新闻精选」tab 显示）：随时可点，仅受 newsEnabled 开关与防重入约束。 */
 function TriggerNewsButton() {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
@@ -410,7 +399,7 @@ export function NotificationsWorkspace() {
   const notifications = useWorkspace((s) => s.notifications)
   const goSettings = useWorkspace((s) => s.goSettings)
   const [senderFilter, setSenderFilter] = useState<SenderFilter>("all")
-  // TODO 56：关键词搜索（匹配标题 / 摘要 / 仓库 / 来源名），与 sender 筛选叠加
+  // TODO 56：关键词搜索，与 sender 筛选叠加
   const [search, setSearch] = useState("")
 
   const filtered =

@@ -1,10 +1,7 @@
 "use client"
 
-// 侧边栏（TODO 25 重构，Codex 式布局）：
-// - SidebarContent：内容区（独立于工具栏），按当前工具切换——「AI 对话」→ 会话列表；「随笔」→ 分类内容。
-//   桌面端由 page.tsx 渲染在左列 1fr 行；其他工具 / 收起状态由调用方隐藏。
-// - AppSidebar：移动端 Sheet 的复合体（内容区 + 底部工具栏）。
-// - 工具栏本体在 components/toolbar-panel.tsx，桌面端由 page.tsx 单独渲染、钉在左下角。
+// 侧边栏（TODO 25 重构，Codex 式布局）：SidebarContent 内容区按当前工具切换（桌面端由 page.tsx 渲染）；
+// AppSidebar 为移动端 Sheet 复合体，工具栏本体在 components/toolbar-panel.tsx。
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import {
@@ -54,8 +51,6 @@ import { PRESET_QUESTIONS } from "@/components/ai-chat"
 import { ToolbarPanel } from "@/components/toolbar-panel"
 import type { LucideIcon } from "lucide-react"
 
-// 侧边栏内容区（独立于底部工具栏）：按当前工具切换面板。
-// 「AI 对话」→ 会话列表；「随笔」→ 分类内容；「日历」→ AI 快捷提问；「保险库」→ 密码生成器。
 export function SidebarContent() {
   const view = useWorkspace((s) => s.view)
 
@@ -70,7 +65,7 @@ export function SidebarContent() {
   )
 }
 
-// 面板标题行（各侧边栏面板共用）：图标 + 标题 + 可选计数 + 折叠按钮
+// 各侧边栏面板共用的标题行
 function PanelHeader({
   icon: Icon,
   title,
@@ -100,7 +95,7 @@ function PanelHeader({
   )
 }
 
-// 日历侧边栏面板：预设的 3 个 AI 问题，点击后自动跳转到 AI 对话并发送（走 store.askAiAbout 链路）。
+// 预设 3 个 AI 问题：点击经 store.askAiAbout 跳转 AI 对话并发送
 function CalendarSidePanel() {
   const { t } = useTranslation()
   const askAiAbout = useWorkspace((s) => s.askAiAbout)
@@ -144,7 +139,6 @@ function CalendarSidePanel() {
         {t("sidebar.aiQuickTip")}
       </p>
 
-      {/* 人生进度条：按设置里的生日计算「出生至今天」的天数占 30000 天（≈82 年）的比例 */}
       <div className="mx-3 mt-auto mb-3 rounded-lg border bg-muted/30 px-3 py-2.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-muted-foreground">{t("sidebar.lifeBar")}</span>
@@ -176,7 +170,7 @@ function CalendarSidePanel() {
   )
 }
 
-// —— 随机密码生成器（保险库侧边栏面板，TODO 25）——
+// 随机密码生成器（保险库面板，TODO 25）
 const CHARSET_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const CHARSET_LOWER = "abcdefghijklmnopqrstuvwxyz"
 const CHARSET_DIGITS = "0123456789"
@@ -189,7 +183,7 @@ function randomIndex(max: number): number {
   return buf[0] % max
 }
 
-/** 从启用的字符集生成密码；保证每个启用的字符集至少出现一位后随机洗牌 */
+/** 每个启用的字符集保证至少一位，再随机洗牌 */
 function generatePassword(length: number, sets: string[]): string {
   const all = sets.join("")
   if (!all || length <= 0) return ""
@@ -204,7 +198,7 @@ function generatePassword(length: number, sets: string[]): string {
 
 function VaultSidePanel() {
   const { t } = useTranslation()
-  // 位数与字符集偏好持久化到 store.settings.pwdGenerator（TODO 25 打磨：刷新/重启保留）
+  // 偏好持久化于 settings.pwdGenerator（TODO 25 打磨：刷新/重启保留）
   const pwdCfg = useWorkspace((s) => s.settings.pwdGenerator)
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const [password, setPassword] = useState("")
@@ -218,7 +212,6 @@ function VaultSidePanel() {
     return s
   }, [pwdCfg.upper, pwdCfg.lower, pwdCfg.digits, pwdCfg.symbols])
 
-  // 选项或位数变化时自动重新生成
   useEffect(() => {
     setPassword(generatePassword(pwdCfg.length, sets))
   }, [pwdCfg.length, sets])
@@ -236,7 +229,6 @@ function VaultSidePanel() {
       <PanelHeader icon={Dices} title={t("sidebar.pwdGen")} />
 
       <div className="flex flex-col gap-3 p-3">
-        {/* 生成结果 + 复制 */}
         <div className="flex items-start gap-2">
           <div className="min-h-11 min-w-0 flex-1 break-all rounded-lg border bg-muted/40 p-2.5 font-mono text-sm leading-snug">
             {password || t("sidebar.pwdPickSet")}
@@ -263,7 +255,6 @@ function VaultSidePanel() {
           {t("sidebar.regenerate")}
         </Button>
 
-        {/* 位数滑条（8-24），选择持久化 */}
         <div className="flex flex-col gap-1">
           <Label className="text-xs font-medium text-muted-foreground">{t("sidebar.pwdLength")}: {pwdCfg.length}</Label>
           <input
@@ -278,7 +269,6 @@ function VaultSidePanel() {
           />
         </div>
 
-        {/* 字符集勾选（选择持久化） */}
         <div className="grid grid-cols-2 gap-1.5">
           {(
             [
@@ -311,7 +301,7 @@ function VaultSidePanel() {
   )
 }
 
-// 移动端复合体：内容区 + 底部工具栏（桌面端两者由 page.tsx 分开渲染，工具栏独立钉在左下角）。
+// 移动端复合体：内容区 + 底部工具栏（桌面端两者由 page.tsx 分开渲染）
 export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
   const { t } = useTranslation()
   const view = useWorkspace((s) => s.view)
@@ -320,7 +310,6 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
 
   return (
     <aside className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
-      {/* 悬浮侧边栏（移动端 Sheet）的关闭按钮：仅传入 onCollapse 时渲染 */}
       {onCollapse && (
         <div className="flex justify-end px-3 pt-3">
           <Button variant="ghost" size="icon" className="size-8" onClick={onCollapse}>
@@ -330,18 +319,15 @@ export function AppSidebar({ onCollapse }: { onCollapse?: () => void }) {
         </div>
       )}
 
-      {/* 内容区：按当前工具切换 */}
       <div className={cn("min-h-0", showContent ? "flex-1 overflow-hidden" : "hidden")}>
         {view === "ai-chat" ? <AiSessionsPanel /> : <NotesPanel />}
       </div>
 
-      {/* 底部工具栏 */}
       <ToolbarPanel />
     </aside>
   )
 }
 
-// 「随笔」面板：分类内容（添加分类 / 分类列表）。
 function NotesPanel() {
   const { t } = useTranslation()
   const categories = useWorkspace((s) => s.categories)
@@ -354,7 +340,6 @@ function NotesPanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* 标题行：随笔 + 分类数 + 折叠按钮 */}
       <div className="flex items-center gap-2 border-b px-3 py-2">
         <NotebookPen className="size-4 text-primary" />
         <span className="text-sm font-semibold">{t("sidebar.notes")}</span>
@@ -454,7 +439,7 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
     setRenaming(false)
   }
 
-  // 分类管理菜单（打开 / 重命名 / 删除）与删除、重命名弹窗在两种形态下共用
+  // 菜单与删除/重命名弹窗在关系类、折叠类两种形态下共用
   const moreMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -534,7 +519,7 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
     </>
   )
 
-  // 关系类（思维导图）：直接点击整行进入画布，无需展开只有「思维导图画布」一项的折叠下拉
+  // 关系类：整行点击直接进画布，不走只有单项的折叠下拉
   if (isRelation) {
     return (
       <>
@@ -549,7 +534,7 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
             onClick={() => setActiveCategory(category.id)}
             className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-2 text-left text-sm"
           >
-            {/* 占位：与展开箭头等宽，保证图标/文字与其他分类对齐 */}
+            {/* 占位与展开箭头等宽，保证图标/文字对齐 */}
             <span className="size-3.5 shrink-0" aria-hidden />
             <Icon className="size-4 shrink-0 text-primary" />
             <span className="truncate font-medium" title={category.name}>
@@ -616,7 +601,6 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
                 if (!id) return
                 const from = items.findIndex((x) => x.id === id)
                 if (from === -1) return
-                // 按落点在该行位置的上半/下半决定插入到前面还是后面
                 const rect = e.currentTarget.getBoundingClientRect()
                 const before = e.clientY < rect.top + rect.height / 2
                 const to = before ? i : i + 1

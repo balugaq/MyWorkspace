@@ -1,14 +1,9 @@
 "use client"
 
-// 富文本 16 色标签扩展（TODO 32）：把 <blue>…</blue> 这类 Minecraft 风格色标签
-// 解析为 ProseMirror mark（DOM 形态为 <span data-format-color="blue">），序列化时还原为标签。
-//
-// 解析链路：tiptap-markdown 先用 markdown-it 把 markdown 渲染成 HTML；本扩展在
-// parse.setup 里注册内联规则，把 <色名> / </色名> 拆成自定义 token 并渲染为带
-// data-format-color 的 span，TipTap DOMParser 再经 parseHTML 把 span 归为 formatColor mark。
-// Markdown.configure 的 html:false 只关掉「源文本里的原始 HTML」，不影响本扩展自己
-// 渲染出的 span；代码块/行内代码规则先于本规则执行，代码里的标签保持字面量。
-// 序列化链路：storage.markdown.serialize 把 mark 输出回 <色名>…</色名>，getMarkdown 往返无损。
+// 富文本 16 色标签扩展（TODO 32）：把 <blue>…</blue> 这类 Minecraft 风格色标签解析为 mark
+// （DOM 形态 <span data-format-color>），序列化还原为标签。解析链路：markdown-it 内联规则拆出
+// 自定义 token → 渲染为带 data-format-color 的 span → TipTap parseHTML 归为 mark；html:false
+// 只关掉源文本里的原始 HTML，不影响本扩展渲染的 span，代码里的标签保持字面量。
 
 import { Mark, mergeAttributes } from "@tiptap/core"
 import type MarkdownIt from "markdown-it"
@@ -16,8 +11,7 @@ import type { MarkdownSerializerState } from "prosemirror-markdown"
 import type { Mark as ProseMirrorMark } from "prosemirror-model"
 import { FORMAT_COLOR_MAP, FORMAT_COLOR_TAG_PREFIX } from "@/lib/format-colors"
 
-// tiptap-markdown 每次 parse 都会对同一 markdown-it 实例重跑各扩展的 parse.setup，
-// 而 ruler.before 不去重——用 WeakSet 保证规则只注册一次，避免累积。
+// tiptap-markdown 每次 parse 都会重跑 parse.setup，而 ruler.before 不去重——WeakSet 保证规则只注册一次。
 const patchedMarkdownIt = new WeakSet<object>()
 
 export const FormatColor = Mark.create({
@@ -50,8 +44,7 @@ export const FormatColor = Mark.create({
   },
 
   renderHTML({ HTMLAttributes, mark }) {
-    // 颜色样式在此单点输出（色值唯一来源：lib/format-colors.ts 的 FORMAT_COLOR_MAP）。
-    // 此前只输出 data-format-color 属性、无任何 CSS 消费它，mark 渲染永远无色（TODO 68 补漏）。
+    // 颜色样式在此单点输出（色值唯一来源：lib/format-colors.ts 的 FORMAT_COLOR_MAP）；此前只有 data 属性、无 CSS 消费，渲染永远无色（TODO 68 补漏）
     const hex = FORMAT_COLOR_MAP[String(mark.attrs.color)]
     return [
       "span",
@@ -73,13 +66,11 @@ export const FormatColor = Mark.create({
           setup(md: MarkdownIt) {
             if (patchedMarkdownIt.has(md)) return
             patchedMarkdownIt.add(md)
-            // 内联规则：把 <色名> / </色名> 拆成自定义 token。
-            // 放在 emphasis 之前：escape / backticks 规则更早，转义与代码场景照常生效；
-            // autolink 的 <https://…> 不匹配色名正则，自然落到 link 规则。
+            // 内联规则放在 emphasis 之前：escape / backticks / autolink 更早，转义与代码场景照常生效
             md.inline.ruler.before("emphasis", "format_color", (state, silent) => {
               if (state.src[state.pos] !== "<") return false
-              // 前缀匹配：当前位置起是一个色标签即命中（TODO 68——全锚定会让中间的开标签
-              // 永不命中、末尾的闭标签脱离配对孤立命中，表现为 </blue> 被吞）
+              // 前缀匹配：当前位置起是色标签即命中（TODO 68——全锚定会让中间的开标签永不命中、
+              // 末尾闭标签脱离配对孤立命中，表现为 </blue> 被吞）
               const m = FORMAT_COLOR_TAG_PREFIX.exec(state.src.slice(state.pos, state.pos + 32))
               if (!m) return false
               if (!silent) {

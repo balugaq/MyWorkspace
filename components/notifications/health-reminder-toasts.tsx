@@ -1,13 +1,8 @@
 "use client"
 
 /**
- * 健康提醒弹窗（TODO 26）：喝水提醒（每 2 小时）+ 站立提醒（每 4 小时）。
- * - 计时按**墙钟**对表：上次触发时间持久化在 store（lastWater/StandRemindAt），
- *   每分钟检查一次 + 回到前台立即检查——dev 重启、标签页被浏览器冻结/节流都不会丢计时；
- *   首次使用（无记录）以当前时刻起算，2h / 4h 后首次弹出；
- * - 弹窗为「常驻卡」：不自动消失（等效 99999 秒），直到用户点右上角小灰 x 关闭；
- * - 位于右下角通知弹窗（fixed right-4 bottom-4）的上方堆叠，互不遮挡；
- * - 与通知系统（sender/渠道）完全独立：本地定时触发，不走 store.notifications、不进日志。
+ * 健康提醒弹窗（TODO 26）：喝水每 2h + 站立每 4h。计时按**墙钟**对表——上次触发时间持久化在 store，
+ * 每分钟检查 + 回前台立即补查（dev 重启、标签页被冻结/节流都不丢计时），首次使用以当前时刻起算。
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -63,7 +58,7 @@ export function HealthReminderToasts() {
       const due: ReminderCard["kind"][] = []
       const lastWater = s.lastWaterRemindAt
       if (lastWater == null) {
-        s.setLastWaterRemindAt(now) // 首次使用：从现在起算
+        s.setLastWaterRemindAt(now)
       } else if (now - lastWater >= WATER_INTERVAL_MS) {
         due.push("water")
       }
@@ -82,7 +77,7 @@ export function HealthReminderToasts() {
         push("stand")
       }
     }
-    check() // 启动立即对表一次（补上重启/冻结期间错过的触发）
+    check() // 立即对表一次，补上重启/冻结期间错过的触发
     const checkTimer = window.setInterval(check, CHECK_MS)
     const onVisible = () => {
       if (!document.hidden) check()

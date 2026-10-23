@@ -1,8 +1,7 @@
 "use client"
 
-// AI 会话列表面板（TODO 25）：从 AIChatWorkspace 内部的会话 rail 抽出，
-// 改为渲染在全局侧边栏的内容区（工具栏选中「AI 对话」时显示）。
-// 会话持久化在 store；流式状态（生成中的小圆点）订阅全局队列。
+// AI 会话列表面板（TODO 25）：渲染在全局侧边栏内容区（工具栏选中「AI 对话」时显示）。
+// 会话持久化在 store；流式状态订阅全局队列。
 
 import { Fragment, useMemo, useState, useSyncExternalStore } from "react"
 import { BotMessageSquare, MoreVertical, PanelLeftClose, Pencil, Pin, PinOff, Plus, Trash2 } from "lucide-react"
@@ -32,9 +31,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
-// —— 对话列表按时间分组 ——
-// 锚点时间：以「最后一条用户消息的创建时间」为准（继续对话后自然变为最新，实现自动置顶）；
-// 旧消息/无消息时回落 updatedAt / createdAt，保证总能分组。
+// 锚点：最后一条用户消息的创建时间（继续对话自动置顶）；旧消息/无消息回落 updatedAt/createdAt。
 function conversationAnchor(c: Conversation): number {
   for (let i = c.messages.length - 1; i >= 0; i--) {
     const m = c.messages[i]
@@ -43,7 +40,7 @@ function conversationAnchor(c: Conversation): number {
   return c.updatedAt ?? c.createdAt
 }
 
-// 锚点相对「今天本地零点」的天数差（0=今天，1=昨天，负数=未来）。
+// 天数差相对「今天本地零点」：0=今天，1=昨天，负数=未来。
 function dayDiff(anchor: number, now: number): number {
   const a = new Date(anchor)
   const n = new Date(now)
@@ -52,7 +49,6 @@ function dayDiff(anchor: number, now: number): number {
   return Math.floor((n0 - a0) / 86400000)
 }
 
-// 分组 key：置顶 / today / yesterday / week(2~7天) / month30(8~30天) / ym-YYYY-MM(>30天)
 function bucketKey(c: Conversation, now: number): string {
   if (c.pinned) return "pinned"
   const d = dayDiff(conversationAnchor(c), now)
@@ -75,14 +71,14 @@ function groupLabel(key: string): string {
   return GROUP_LABEL[key] ?? key
 }
 
-// 固定分组顺序：置顶最前，然后时间由近到远；ym-* 统一排在 month30 之后。
+// 固定分组顺序（置顶最前，时间由近到远）；未知 key（ym-*）统一排在 month30 之后。
 const GROUP_ORDER = ["pinned", "today", "yesterday", "week", "month30"]
 function groupRank(key: string): number {
   const i = GROUP_ORDER.indexOf(key)
   return i >= 0 ? i : GROUP_ORDER.length
 }
 
-// 对话列表中某个会话是否正在生成（流式或排队中）——订阅全局队列，仅在状态变化时重渲染该小圆点。
+// 生成中的小圆点：useSyncExternalStore 订阅全局队列，仅状态变化时重渲染。
 function StreamingDot({ id }: { id: string }) {
   const { t } = useTranslation()
   const working = useSyncExternalStore(subscribeQueue, () => isWorking(id), () => false)
@@ -119,13 +115,10 @@ export function AiSessionsPanel() {
     setEditingId(null)
   }
   const onDelete = (id: string) => {
-    // 若该对话正在生成，先中断其请求（其余对话不受影响）
     stopConversation(id)
     deleteConversation(id)
   }
 
-  // 对话列表分组：置顶最前，其余按锚点时间落入 今天/昨天/7天内/30天内/YYYY-MM；
-  // 每组内部按锚点时间倒序（最新在上）。继续对话后锚点更新，自动提到对应时间段顶部。
   const groups = useMemo(() => {
     const now = Date.now()
     const byKey = new Map<string, Conversation[]>()
@@ -142,7 +135,7 @@ export function AiSessionsPanel() {
       const ra = groupRank(a.key)
       const rb = groupRank(b.key)
       if (ra !== rb) return ra - rb
-      // 同为 ym-* 月份组时，近的（key 字典序大）排在前
+      // 同为 ym-* 时近的月份（key 字典序大）在前
       return b.key.localeCompare(a.key)
     })
     return list
@@ -154,7 +147,6 @@ export function AiSessionsPanel() {
         <BotMessageSquare className="size-4 text-primary" />
         <span className="text-sm font-semibold">{t("toolbar.aiChat")}</span>
         <span className="text-xs text-muted-foreground">{conversations.length}</span>
-        {/* 侧边栏折叠按钮：归位到标题行最右 */}
         <button
           type="button"
           onClick={() => setSidebarCollapsed(true)}
@@ -169,7 +161,7 @@ export function AiSessionsPanel() {
         variant="default"
         className="mx-3 my-2 w-[calc(100%-1.5rem)] gap-2"
         onClick={() => {
-          // 已存在「空对话」（无任何消息记录）则直接切换过去，不重复创建
+          // 已有空对话（无消息记录）则直接切换过去，不重复创建
           const empty = conversations.find((c) => c.messages.length === 0)
           if (empty) selectConversation(empty.id)
           else createConversation()
@@ -280,7 +272,6 @@ export function AiSessionsPanel() {
         </ul>
       </ScrollArea>
 
-      {/* 删除对话确认弹窗：项目自带 AlertDialog，替代原生 confirm */}
       <AlertDialog
         open={delTarget !== null}
         onOpenChange={(o) => {

@@ -40,7 +40,7 @@ import { imageIdsInText } from "@/lib/image-refs"
 const ZOOM_MIN = 0.1
 const ZOOM_MAX = 4
 
-// 去掉正文里的图片引用 token（保留文字），供「恰好 1 张图」时单独渲染可缩放图片、文字另排。
+// 去掉正文里的图片引用 token（保留文字）：供「恰好 1 张图」时单独渲染可缩放图片、文字另排。
 function stripImageTokens(text: string): string {
   return text
     .replace(/!\[[^\]]*\]\(imgref:[^)\s]+\)/g, "")
@@ -60,8 +60,8 @@ interface TodoNodeData {
   /** 单图缩放时上报实时倍数（由画布负责持久化与右下角显示） */
   onImageZoom?: (value: number) => void
   /** 右键菜单动作上报，由画布统一执行：
-   *  add-child / toggle-done / tag:<text> / style-border:<argb|空> / style-bg:<argb|空> / due:<yyyy-MM-dd|空> / long-term / move
-   *  多选态（multiSelected）下画布会把批量项套用到整个选区；move 打开「搬迁」弹窗 */
+   *  add-child / toggle-done / tag:<text> / style-border:<argb|空> / style-bg:<argb|空> / due:<yyyy-MM-dd|空> / long-term / move；
+   *  多选态下画布把批量项套用到整个选区，move 打开「搬迁」弹窗 */
   onMenuAction?: (action: string) => void
   /** 该节点处于多选选区内：隐藏「添加子节点」并显示「搬迁」批量语义 */
   multiSelected?: boolean
@@ -70,8 +70,7 @@ interface TodoNodeData {
 }
 
 // 自定义 memo 比较器：只有「本节点数据 / 折叠态 / 选中态」变化才重渲染。
-// 回调闭包（onToggleCollapse 等）每次画布重算都会拿到新引用，不参与比较——
-// 旧闭包按 nodeId 派发动作，最多滞后一个快照，对本节点操作语义无影响。
+// 回调闭包（onToggleCollapse 等）不参与比较——旧闭包按 nodeId 派发动作，最多滞后一个快照，语义无影响。
 function todoNodeAreEqual(a: NodeProps, b: NodeProps): boolean {
   const ad = a.data as unknown as TodoNodeData
   const bd = b.data as unknown as TodoNodeData
@@ -100,19 +99,15 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
     multiSelected = false,
     multiCount = 0,
   } = data as unknown as TodoNodeData
-  // 右键菜单「添加标签」的内嵌输入草稿
   const [tagDraft, setTagDraft] = useState("")
   const subCount = node.sub.length
-  // 节点内容恰好含 1 张图时，单独渲染可缩放图片（其余文字另排）
   const singleImageId =
     node.content && imageIdsInText(node.content).size === 1
       ? Array.from(imageIdsInText(node.content))[0]
       : null
-  // 节点风格：自定义边框/背景色（ARGB），无值时回落主题默认（border-border / bg-card）
   const borderCss = argbToCss(node.borderColor)
   const bgCss = argbToCss(node.bgColor)
-  // 右键菜单：TodoNode 根 div 经 ContextMenuTrigger 的 render prop 接管（base-ui 只拦截 contextmenu，
-  // 不影响 ReactFlow 的节点拖拽/点击/双击）；菜单内容经 Portal 渲染到 body。
+  // 根 div 经 ContextMenuTrigger 的 render prop 接管：base-ui 只拦截 contextmenu，不影响 ReactFlow 的节点拖拽/点击/双击
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -256,7 +251,7 @@ export const TodoNode = memo(function TodoNode({ data, selected }: NodeProps) {
           {multiSelected ? t("mindmap.moveTitle", { n: multiCount }) : t("mindmap.moveNode")}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        {/* 添加标签：内嵌输入（非 Item），stopPropagation 防菜单键盘导航/typeahead 抢事件 */}
+        {/* 添加标签用内嵌输入（非 Item）：stopPropagation 防菜单键盘导航/typeahead 抢事件 */}
         <div
           className="flex items-center gap-1.5 px-1.5 py-1"
           onKeyDown={(e) => e.stopPropagation()}
@@ -412,9 +407,8 @@ export const SolutionNode = memo(function SolutionNode({ data }: NodeProps) {
 }, solutionNodeAreEqual)
 
 /**
- * 单图节点内的可缩放图片：ctrl + 滚轮 调整缩放（10%–400%）。
- * 缩放实时通过 onZoomChange 上报（画布负责持久化与右下角显示）；本地 maintain scale 保证顺滑。
- * 非 ctrl 滚轮不拦截，照常交给画布（平移/缩放画布）。
+ * 单图节点内可缩放图片：ctrl+滚轮调整缩放（10%–400%），实时经 onZoomChange 上报（画布持久化与右下角显示），本地 scale 保证顺滑。
+ * 非 ctrl 滚轮不拦截，照常交给画布。
  */
 function NodeImageZoom({
   imageId,
@@ -441,19 +435,19 @@ function NodeImageZoom({
     }
   }, [imageId])
 
-  // 实际改变图片元素的尺寸（而非 transform），让占用的空间随缩放变化；左上对齐。
+  // 改变图片元素的实际尺寸（而非 transform），让占用空间随缩放变化；左上对齐。
   const applySize = useCallback((s: number) => {
     const img = imgRef.current
     const nat = natRef.current
     if (!img || !nat) return
-    // 100% 时把较长边限制在 256px 以内，避免原图过大撑爆节点
+    // 100% 时把较长边限制在 256px 内，避免原图撑爆节点
     const base = Math.min(1, 256 / Math.max(nat.w, nat.h))
     const eff = base * s
     img.style.width = `${Math.round(nat.w * eff)}px`
     img.style.height = `${Math.round(nat.h * eff)}px`
   }, [])
 
-  // 外部缩放值（如内容变动后缩放被清除）同步进来
+  // 外部缩放值同步进来（如内容变动后缩放被清除）
   useEffect(() => {
     scaleRef.current = scale
     applySize(scale)
@@ -486,7 +480,7 @@ function NodeImageZoom({
       className="inline-block self-start overflow-hidden rounded-md ring-1 ring-border/50"
       style={{ lineHeight: 0 }}
     >
-      {/* 图片来自 IndexedDB 的 object URL（blob:），无法走 next/image，故用原生 img */}
+      {/* 图片来自 IndexedDB 的 blob: URL，无法走 next/image，故用原生 img */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={imgRef}

@@ -34,14 +34,8 @@ import {
 import { cn } from "@/lib/utils"
 
 /**
- * 联系人工作区（TODO 48：持久化驱动，可增删改）。
- *
- * 数据源 = store 的 contacts（localStorage 持久化）；public/address_book.yml
- * 降级为「设置 → 从 yml 导入」的手动导入源，导入整表覆盖。
- * 展示：列表形式（参考思维导图列表样式），支持全文搜索（范围含
- * name / description / birthday / address / roles / contact）。
- * 每个联系人为可点击的 dropdown，展开后显示 contact，每个 contact 项可一键复制 value。
- * 工具栏「新建」与卡片上的「编辑 / 删除」直接写 store。
+ * 联系人工作区（TODO 48）：store 持久化驱动，可增删改；
+ * public/address_book.yml 降级为设置页手动导入源（整表覆盖）。
  */
 
 const TYPE_LABEL: Record<string, string> = {
@@ -62,11 +56,10 @@ export function ContactsWorkspace() {
   const addKnownTags = useWorkspace((s) => s.addKnownTags)
   const [query, setQuery] = useState("")
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  // 编辑弹窗：editingId = null 表示新建（保存时先 addContact 拿 id 再写入草稿字段）
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  // 联系人 roles 汇入全局标签库（导入 / 界面编辑后都会跟随更新；已存在则忽略，幂等）
+  // roles 汇入全局标签库（幂等，已存在忽略）
   useEffect(() => {
     const roles = Array.from(new Set(people.flatMap((p) => p.roles ?? [])))
     if (roles.length > 0) addKnownTags(roles)
@@ -133,7 +126,6 @@ export function ContactsWorkspace() {
       <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3">
         <h1 className="font-serif text-lg font-semibold">{t("contacts.title")}</h1>
         <div className="flex-1" />
-        {/* 搜索 */}
         <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1.5">
           <Search className="size-4 text-muted-foreground" />
           <input
@@ -143,7 +135,6 @@ export function ContactsWorkspace() {
             className="w-64 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
           />
         </div>
-        {/* 新建（TODO 48） */}
         <Button size="sm" className="gap-1.5" onClick={openCreate}>
           <Plus className="size-4" />
           {t("contacts.new")}
@@ -167,7 +158,6 @@ export function ContactsWorkspace() {
                 const isOpen = expanded.has(p.id)
                 return (
                   <div key={p.id} className="flex w-full flex-col rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/50">
-                    {/* 头部：点击展开/收起 */}
                     <div className="flex w-full items-center gap-2">
                       <button
                         type="button"
@@ -199,7 +189,6 @@ export function ContactsWorkspace() {
                           )}
                         />
                       </button>
-                      {/* 编辑 / 删除（TODO 48） */}
                       <button
                         type="button"
                         title={t("common.edit")}
@@ -218,13 +207,11 @@ export function ContactsWorkspace() {
                       </button>
                     </div>
 
-                    {/* 概览信息（展开时显示更全；生日/地址始终可读） */}
                     <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
                       {p.birthday && <MetaItem label={t("contacts.birthday")} value={p.birthday} lunar={parseBirthday(p.birthday)?.lunar} />}
                       {p.address && <MetaItem label={t("contacts.address")} value={p.address} />}
                     </div>
 
-                    {/* contact 展开区 */}
                     {isOpen && (
                       <div className="mt-3 flex flex-col gap-1.5 border-t pt-3">
                         {(p.contact ?? []).length === 0 ? (
@@ -266,7 +253,6 @@ export function ContactsWorkspace() {
         </ScrollArea>
       )}
 
-      {/* 新建 / 编辑表单（TODO 48） */}
       <ContactFormDialog
         open={formOpen}
         initial={editingId ? (people.find((p) => p.id === editingId) ?? null) : null}
@@ -277,8 +263,6 @@ export function ContactsWorkspace() {
   )
 }
 
-// ---- 编辑表单弹窗（TODO 48） ----
-
 interface ContactDraft {
   name: string
   description: string
@@ -288,7 +272,7 @@ interface ContactDraft {
   birthDay: string
   address: string
   rolesText: string
-  /** 表单内非可选（空串表示未填），保存时再按值过滤 */
+  /** 空串 = 未填，保存时按值过滤 */
   contacts: { type: string; value: string }[]
 }
 
@@ -335,7 +319,6 @@ function ContactFormDialog({
   const { t } = useTranslation()
   const [draft, setDraft] = useState<ContactDraft>(() => draftFromPerson(null))
 
-  // 打开时按 initial 重置草稿（新建 = 空模板）
   useEffect(() => {
     if (open) setDraft(draftFromPerson(initial))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -379,8 +362,8 @@ function ContactFormDialog({
     const contacts = draft.contacts
       .map((c) => ({ type: c.type.trim(), value: c.value.trim() }))
       .filter((c) => c.value)
-    // 显式写全所有可选字段（空值置 undefined）：updateContact 是浅合并，
-    // 若用条件展开省略字段，清空简介/地址/生日等操作会被旧值覆盖回去（保存无效的根因）
+    // updateContact 是浅合并：必须显式写全可选字段（空值置 undefined），
+    // 否则清空简介/地址/生日等操作会被旧值覆盖回去
     const fields: Omit<Person, "id"> = {
       name,
       description: draft.description.trim() || undefined,
@@ -398,7 +381,7 @@ function ContactFormDialog({
       open={open}
       onOpenChange={(v) => {
         if (v) return
-        // 直接关闭（X / 点遮罩 / Esc）时自动保存：姓名非空走保存（校验失败会 toast 并保持打开）；空姓名直接关闭
+        // 直接关闭（X/遮罩/Esc）时自动保存：姓名非空才保存，否则直接关
         if (draft.name.trim()) {
           save()
         } else {
@@ -432,7 +415,7 @@ function ContactFormDialog({
               onChange={(e) => patch({ description: e.target.value })}
             />
           </div>
-          {/* 生日：类型切换 + 年月日（与 yml 格式一致：公历 YYYY-MM-DD / {t("contacts.bdayLunar")} LYYYY-MM-DD） */}
+          {/* 生日格式与 yml 一致：公历 YYYY-MM-DD / 农历 LYYYY-MM-DD */}
           <div className="flex flex-col gap-1.5">
             <Label>{t("contacts.birthday")}</Label>
             <div className="flex items-center gap-2">
@@ -490,7 +473,6 @@ function ContactFormDialog({
               onChange={(e) => patch({ rolesText: e.target.value })}
             />
           </div>
-          {/* 联系方式：动态行 */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label>{t("contacts.methods")}</Label>
@@ -585,7 +567,7 @@ function UserAvatar() {
 
 function MetaItem({ label, value, lunar }: { label: string; value: string; lunar?: boolean }) {
   const { t } = useTranslation()
-  // 农历生日：去掉 L 前缀（由「农历」徽标承担语义），避免与 `L` 重复
+  // 去 L 前缀，农历语义由徽标承担
   const shown = lunar && value.startsWith("L") ? value.slice(1) : value
   return (
     <span className="flex items-center gap-1">

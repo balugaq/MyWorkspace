@@ -1,7 +1,6 @@
 "use client"
 
-// TipTap 选区复制共享实现（selection-toolbar 的「X 复制」与文字右键菜单的「复制」共用）：
-// 带 HTML 格式写入剪贴板，失败回退纯文本。
+// TipTap 选区复制共享实现（selection-toolbar「X 复制」与右键菜单「复制」共用）：带 HTML 写剪贴板，失败回退纯文本。
 
 import { DOMSerializer } from "@tiptap/pm/model"
 import type { Editor } from "@tiptap/core"

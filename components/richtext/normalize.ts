@@ -1,9 +1,6 @@
 /**
- * 旧图片协议 {{img:<id>}} 的兼容归一化。
- *
- * 新协议把图片改为标准 markdown 图片 `![alt](imgref:<id>)`（详见 stored-image.tsx）。
- * 旧存档里仍可能存在 `{{img:<id>}}` 文本，加载进编辑器前先转成新形式，
- * 做到「读取时兼容、零批量迁移」——正文仍是 markdown 字符串，不动 store 历史数据。
+ * 旧图片协议 {{img:<id>}} 的兼容归一化：加载进编辑器前转为新协议 ![alt](imgref:<id>)（详见 stored-image.tsx）。
+ * 「读取时兼容、零批量迁移」——正文仍是 markdown 字符串，不动 store 历史数据。
  */
 export function normalizeLegacyImg(md: string): string {
   if (!md) return md
@@ -17,7 +14,6 @@ export function isImgref(src?: string | null): src is string {
   return !!src && src.startsWith(IMGREF_PREFIX)
 }
 
-/** 从 imgref:<id> 取出图片 id */
 export function imgrefId(src: string): string {
   return src.slice(IMGREF_PREFIX.length)
 }

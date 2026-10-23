@@ -1,11 +1,8 @@
 "use client"
 
-// GitHub Issue/PR 看板队列（TODO 36）。
-// 四列：Urgent / Assigned / Completed / Backlog。卡片来源 = 监听仓库：
-// 「添加监听仓库」自动创建 GitHub 监听并回扫一次存量；此后由通知调度器增量入队
-// （自有仓库全量、他人仓库仅 @me；close/merge/reopen 只回写状态标记，见 lib/notifications/scheduler.ts）。
-// 拉取走 lib/github-queue.ts（复用 github-sender 的认证/限流思路，独立模块）。
-// AI 可通过内置技能 wb_get_github_queue 只读访问队列（见 lib/ai/builtin-skills.ts）。
+// GitHub Issue/PR 看板队列（TODO 36）：Urgent / Assigned / Completed / Backlog 四列。
+// 「添加监听仓库」回扫一次存量，此后由通知调度器增量入队（自有全量、他人仅 @me，
+// 见 lib/notifications/scheduler.ts）；AI 经内置技能 wb_get_github_queue 只读访问队列。
 
 import { useState } from "react"
 import { toast } from "sonner"
@@ -61,13 +58,11 @@ export function GithubQueueWorkspace() {
   const [addOpen, setAddOpen] = useState(false)
   const [repoInput, setRepoInput] = useState("")
   const [loading, setLoading] = useState(false)
-  // 手动添加单条 Issue/PR
   const [addSingleOpen, setAddSingleOpen] = useState(false)
   const [issueInput, setIssueInput] = useState("")
   const [singleLoading, setSingleLoading] = useState(false)
   const [query, setQuery] = useState("")
 
-  // 实时搜索：按 标题 / 正文 / 仓库 / 提交者 / #编号 过滤四列（拼音增强：纯字母 query 追加全拼/首字母命中）
   const q = query.trim().toLowerCase()
   const visible =
     q.length === 0
@@ -79,8 +74,8 @@ export function GithubQueueWorkspace() {
           ),
         )
 
-  // 添加监听仓库：先拉一次存量（同时校验仓库存在，404 不予添加——2026-10-10 主人口径），
-  // 校验通过才落监听配置并入队（自有仓库全量、他人仓库仅 @me）。
+  // 添加监听仓库：先拉一次存量（同时校验存在，404 不予添加——2026-10-10 主人口径），
+  // 通过才落监听配置并入队（自有全量、他人仅 @me）。
   async function handleAdd() {
     const repo = parseRepoInput(repoInput)
     if (!repo.includes("/")) {
@@ -94,7 +89,7 @@ export function GithubQueueWorkspace() {
     setLoading(true)
     try {
       const login = await fetchCurrentLogin(githubToken)
-      // 先拉一次：既是存在性校验也是存量回扫；失败（404 / 限流 / 网络）一律不落监听配置
+      // 既是存在性校验也是存量回扫；失败（404/限流/网络）一律不落监听配置
       const res = await fetchRepoIssues(repo, {
         token: githubToken,
         currentLogin: login,
@@ -146,7 +141,7 @@ export function GithubQueueWorkspace() {
     }
   }
 
-  // 手动添加单条 Issue / PR：解析链接或 owner/repo#编号 → 拉取 → 入队（已在队列中则刷新状态）
+  // 解析链接或 owner/repo#编号 → 拉取 → 入队（已在队列中则刷新状态）
   async function handleAddSingle() {
     const ref = parseIssueRef(issueInput)
     if (!ref || !ref.repo.includes("/") || !Number.isFinite(ref.number) || ref.number <= 0) {
@@ -181,7 +176,6 @@ export function GithubQueueWorkspace() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* 顶栏 */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <GitPullRequest className="size-5 text-primary" />
         <h1 className="text-base font-semibold">{t("queue.title")}</h1>

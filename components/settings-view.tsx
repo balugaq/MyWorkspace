@@ -1,8 +1,6 @@
 "use client"
 
-// 设置工作区（独立 view，由顶栏设置按钮经 goSettings() 进入；原 settings-dialog 弹窗改造而来）
-// 分区：通用/基础 → 快捷键/键位 → 账户与同步 → AI 助手 → 高级 → GitHub 集成
-// 各块业务逻辑自旧弹窗原样迁移，仅重排分组；子弹窗（模型/人设/技能/许可证/导入方式）随迁
+// 设置工作区：独立 view（原 settings-dialog 弹窗整体迁移改造），经顶栏 goSettings() 进入
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -151,10 +149,8 @@ function compressAvatar(file: File): Promise<string> {
   })
 }
 
-// 仓库格式：owner/name（允许字母数字 . - _）
 const REPO_RE = /^[\w.-]+\/[\w.-]+$/
 
-// 扫描类型开关元信息（键对应 NotificationScanTypes；label 用于仓库行内的紧凑勾选）
 const SCAN_TYPE_META: { key: keyof NotificationScanTypes; label: string }[] = [
   { key: "commits", label: "settings.scanType.commits" },
   { key: "issues", label: "Issue" },
@@ -162,7 +158,7 @@ const SCAN_TYPE_META: { key: keyof NotificationScanTypes; label: string }[] = [
   { key: "releases", label: "settings.scanType.releases" },
 ]
 
-// 设置分类清单（TODO 25 打磨）：左侧导航按钮按此渲染，右侧只显示选中分类的内容
+// TODO 25 打磨：设置分类清单
 const SETTINGS_SECTIONS = [
   { id: "general", labelKey: "settings.sections.general" },
   { id: "shortcuts", labelKey: "settings.sections.shortcuts" },
@@ -173,8 +169,7 @@ const SETTINGS_SECTIONS = [
   { id: "news", labelKey: "settings.sections.news" },
 ] as const
 
-// 通知日志导出（TODO 27 配套）：把 store 里持久化的扫描/条目日志落成文件下载
-// txt = 人类可读的时间线；json = 原始结构化数据（便于程序处理或归档）
+// TODO 27 配套：通知日志导出——txt 为人类可读时间线，json 为原始结构化数据
 function stamp(at: number): string {
   const d = new Date(at)
   const p = (n: number) => String(n).padStart(2, "0")
@@ -212,8 +207,7 @@ function exportNotificationLogs(logs: NotificationLogEntry[], format: "txt" | "j
   toast.success(getI18n().t("settings.logsExported", { n: logs.length }))
 }
 
-// 标签管理（TODO 67）：全站标签体系统一管理（随笔章节 / 思维图节点 / 联系人角色 / 全局标签库）
-// 列表含使用统计与拼音搜索；支持创建（入标签库）、重命名（撞已有名自动合并）、删除（全站清理）
+// TODO 67：全站标签统一管理（随笔章节 / 思维图节点 / 联系人角色 / 标签库）；重命名撞名自动合并，删除全站清理
 function TagManagerBlock() {
   const { t } = useTranslation()
   const categories = useWorkspace((s) => s.categories)
@@ -401,7 +395,6 @@ function TagManagerBlock() {
         {t("settings.tagDesc")}
       </p>
 
-      {/* 删除确认：全站清理不可撤销 */}
       <AlertDialog
         open={confirmDel !== null}
         onOpenChange={(v) => !v && setConfirmDel(null)}
@@ -425,7 +418,6 @@ function TagManagerBlock() {
   )
 }
 
-// 分区容器：小标题 + 分隔线 + 内容块
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-4">
@@ -435,8 +427,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-// 自动备份管理（TODO 60）：列表 / 立即备份 / 恢复（替换导入）/ 删除
-// 日常备份由 AutoBackupWatcher 在页面隐藏/关闭时自动做（当天一次），此处提供手动兜底与恢复入口
+// TODO 60：自动备份手动兜底与恢复入口；日常备份由 AutoBackupWatcher 在页面隐藏/关闭时自动做（当天一次）
 function AutoBackupManager() {
   const { t } = useTranslation()
   const [list, setList] = useState<AutoBackupEntry[]>([])
@@ -486,7 +477,7 @@ function AutoBackupManager() {
     try {
       await deleteAutoBackup(entry.dayKey)
     } catch {
-      // 删除失败静默，刷新列表对齐现状
+      // 删除失败静默
     }
     refresh()
   }
@@ -544,7 +535,6 @@ function AutoBackupManager() {
         {t("settings.autoBackupDesc", { n: AUTO_BACKUP_KEEP })}
       </p>
 
-      {/* 恢复确认：替换导入不可撤销 */}
       <AlertDialog
         open={confirmRestore !== null}
         onOpenChange={(v) => !v && setConfirmRestore(null)}
@@ -592,25 +582,22 @@ export function SettingsView() {
   const fileRef = useRef<HTMLInputElement>(null)
   // 待导入的已解包 ZIP 文件映射（选中 zip 后、弹出替换/合并选择前暂存）
   const [pendingFiles, setPendingFiles] = useState<Record<string, Uint8Array> | null>(null)
-  // yml 导入（TODO 48）：联系人 / 自定义节日改为 store 持久化后，yml 经此按钮手动灌入
+  // TODO 48：联系人 / 自定义节日已 store 持久化，yml 经此按钮手动灌入
   const setContacts = useWorkspace((s) => s.setContacts)
   const setCustomFestivals = useWorkspace((s) => s.setCustomFestivals)
   const [importingYaml, setImportingYaml] = useState(false)
-  // 导出分区选择弹窗（TODO 41）：勾选要携带的数据分区，敏感分区默认不勾选
+  // TODO 41：导出分区选择，敏感分区默认不勾选
   const [exportOpen, setExportOpen] = useState(false)
   const [exportSel, setExportSel] = useState<BackupSections>(DEFAULT_EXPORT_SECTIONS)
   const [licenseOpen, setLicenseOpen] = useState(false)
   const [modelsOpen, setModelsOpen] = useState(false)
   const [personasOpen, setPersonasOpen] = useState(false)
   const [skillsOpen, setSkillsOpen] = useState(false)
-  // 删除全部数据：两步确认弹窗（确认 → 二次输入名字确认）
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteStep, setDeleteStep] = useState<"confirm" | "verify">("confirm")
   const [confirmName, setConfirmName] = useState("")
-  // 通知：仓库输入框暂存文本 + 格式错误提示（落库走 updateSettings）
   const [repoInput, setRepoInput] = useState("")
   const [repoError, setRepoError] = useState("")
-  // 设置分类导航（TODO 25 打磨）：左侧分类按钮 + 右侧只显示选中分类的内容；默认打开第一个分类
   const [activeSectionId, setActiveSectionId] = useState<(typeof SETTINGS_SECTIONS)[number]["id"]>(
     SETTINGS_SECTIONS[0].id,
   )
@@ -712,9 +699,7 @@ export function SettingsView() {
     }
   }
 
-  // 从 yml 导入（TODO 48）：联系人 / 自定义节日已改为 store 持久化，public/*.yml
-  // 不再自动加载用户手改 yml 后点此按钮：先清 fetch 缓存（否则拿到旧数据），
-  // 再拉两个文件整表覆盖 store两文件独立处理，任一失败不影响另一个
+  // TODO 48：yml 手动导入；先清 fetch 缓存（否则拿到旧数据），两文件独立处理、任一失败不影响另一个
   async function importYamlData() {
     setImportingYaml(true)
     try {
@@ -744,7 +729,6 @@ export function SettingsView() {
     }
   }
 
-  // 删除全部数据：清空 IndexedDB（图片库 + 保险库）与持久化状态，再重载以默认状态重置
   async function wipeAllData() {
     try {
       await clearVault()
@@ -768,12 +752,10 @@ export function SettingsView() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* 顶栏：标题（风格与 Profile 等工作区一致） */}
       <header className="flex items-center px-8 py-6">
         <h1 className="text-2xl font-bold leading-tight text-foreground">{t("settings.title")}</h1>
       </header>
 
-      {/* 分类导航 + 内容区（TODO 25 打磨）：左侧分类按钮，右侧只显示选中分类的设置内容 */}
       <div className="flex min-h-0 flex-1">
         <nav className="w-44 shrink-0 border-r px-2 py-3">
           <div className="flex flex-col gap-0.5">
@@ -826,7 +808,7 @@ export function SettingsView() {
               </Select>
             </section>
 
-            {/* 语言切换（TODO 40）：zh 中文（源文案）/ en English；字典见 lib/i18n/locales */}
+            {/* TODO 40：语言切换（zh 为源文案），字典见 lib/i18n/locales */}
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">
                 {t("settings.general.language")}
@@ -931,7 +913,7 @@ export function SettingsView() {
               <p className="text-xs text-muted-foreground">{t("settings.general.startupDesc")}</p>
             </section>
 
-            {/* TODO 61：生日横幅提前天数（brandHeader 横幅） */}
+            {/* TODO 61：生日横幅提前天数 */}
             <section className="flex flex-col gap-2">
               <Label htmlFor="birthday-banner-days" className="text-xs font-medium text-muted-foreground">
                 {t("settings.general.birthdayBannerDays")}
@@ -972,7 +954,6 @@ export function SettingsView() {
               />
             </div>
 
-            {/* TODO 67：全站标签管理（创建 / 重命名 / 删除，含联系人角色） */}
             <TagManagerBlock />
             </Section>
             )}
@@ -1140,10 +1121,8 @@ export function SettingsView() {
               </p>
             </section>
 
-            {/* TODO 60：自动备份管理（关机自动备份 / 数据量差异提醒 / 手动备份恢复） */}
             <AutoBackupManager />
 
-            {/* TODO 48：联系人 / 自定义节日已持久化，public/*.yml 降级为手动导入源 */}
             <section className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-muted-foreground">
                 {t("settings.yamlImport")}
@@ -1533,7 +1512,7 @@ export function SettingsView() {
                       <span className="min-w-0 flex-1 truncate font-mono text-xs" title={r.repo}>
                         {r.repo}
                       </span>
-                      {/* 每仓库独立的扫描类型开关（新增默认：提交关，其余开） */}
+                      {/* 新增仓库默认：提交关，其余开 */}
                       <div className="flex shrink-0 items-center gap-2">
                         {/* 「仅监听 commit」下拉：commit 照扫并计贡献，但不产生通知/弹窗 */}
                         <DropdownMenu>
@@ -1591,7 +1570,7 @@ export function SettingsView() {
                                       ? {
                                           ...cfg,
                                           scanTypes: { ...cfg.scanTypes, [st.key]: e.target.checked },
-                                          // 启用（关→开）某类扫描时重置扫描起点 = 当前时刻，只扫之后的内容
+                                          // 关→开时重置扫描起点 = 当前时刻，只扫之后的内容
                                           scanSince:
                                             e.target.checked && !cfg.scanTypes[st.key]
                                               ? Date.now()
@@ -1661,7 +1640,6 @@ export function SettingsView() {
           <SkillsToggleDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
           <LicenseDialog open={licenseOpen} onOpenChange={setLicenseOpen} />
 
-          {/* 导出分区选择（TODO 41）：勾选要携带的数据分区，敏感分区默认不勾选 */}
           <Dialog open={exportOpen} onOpenChange={setExportOpen}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
@@ -1715,7 +1693,6 @@ export function SettingsView() {
             </DialogContent>
           </Dialog>
 
-          {/* 导入模式选择：替换 / 合并 */}
           <Dialog open={!!pendingFiles} onOpenChange={(v) => { if (!v) setPendingFiles(null) }}>
             <DialogContent className="sm:max-w-sm">
               <DialogHeader>
@@ -1736,7 +1713,6 @@ export function SettingsView() {
             </DialogContent>
           </Dialog>
 
-          {/* 删除全部数据：两步确认（确认 → 输入用户名二次确认；未设置用户名则直接删除） */}
           <Dialog
             open={deleteOpen}
             onOpenChange={(v) => {
@@ -1864,13 +1840,12 @@ function ShortcutRow({
   const { t } = useTranslation()
   const [recording, setRecording] = useState(false)
 
-  // 录音状态下捕获组合键
   useEffect(() => {
     if (!recording) return
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault()
       e.stopPropagation()
-      // 记录 [ctrl/cmd] + 单字符；忽略 Shift/Alt（不纳入组合）
+      // 只记 [ctrl/cmd]+单字符，Shift/Alt 不纳入组合
       const key = e.key.toLowerCase()
       if (key.length === 1 && key >= "a" && key <= "z") {
         onSave({ modifier: e.ctrlKey || e.metaKey, key })

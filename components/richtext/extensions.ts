@@ -17,27 +17,19 @@ import { InternalLinkMark } from "./internal-link-mark"
 const lowlight = createLowlight(common)
 
 /**
- * 富文本编辑/渲染共享的扩展集（编辑态与只读态共用，保证交互与渲染一致）。
- *
- * 组成：
- *  - StarterKit：段落/标题/列表/引用/代码块/hr/链接/撤销等（v3 已内置 Link/Underline）。
- *  - CodeBlockEnhanced：代码块（CodeBlockLowlight 扩展）+ 行号 gutter + 语言角标（TODO 38）。
- *  - StoredImage：自研图片节点，支持 imgref:<id>（IndexedDB 内文图）与远程图。
- *  - TaskList / TaskItem：任务列表（checkbox）。
- *  - GitHubCard：GitHub Issue/PR 预览卡节点。
- *  - BilibiliCard：B 站视频预览卡节点（封面占位 + 点击跳转 B 站，不内嵌播放器）。
- *  - Table / TableRow / TableHeader / TableCell：GFM 表格（AI 回复 / 笔记里的 | a | b | 可渲染）。
- *  - Markdown：让正文以 markdown 字符串序列化（getMarkdown/setMarkdown），正文仍是 markdown，无需数据格式迁移。
+ * 富文本编辑/渲染共享的扩展集（编辑态与只读态共用，保证交互与渲染一致）：
+ * StarterKit、代码块增强（TODO 38）、imgref 内文图、任务列表、GitHub/B 站预览卡、GFM 表格、
+ * 16 色标签（TODO 32）、内链（TODO 28）；Markdown 使正文以 markdown 字符串序列化，无需数据格式迁移。
  */
 export const richTextExtensions = [
   StarterKit.configure({
-    // 关闭内置 codeBlock，改用带语法高亮的 CodeBlockLowlight
+    // 禁用内置 codeBlock，改用下方带语法高亮的增强版
     codeBlock: false,
   }),
   StoredImage,
   TaskList,
   TaskItem.configure({ nested: true }),
-  // 代码块增强（TODO 38）：行号 gutter + 语言角标，高亮仍走 lowlight decoration
+  // TODO 38：行号 gutter + 语言角标
   CodeBlockEnhanced.configure({ lowlight }),
   Table.configure({ resizable: false }),
   TableRow,
@@ -50,7 +42,7 @@ export const richTextExtensions = [
   // 内链 mark（TODO 28）：[[mw:...]] 标记升级后的跳转链接（只在只读渲染激活）
   InternalLinkMark,
   Markdown.configure({
-    html: false, // 不解析原始 HTML（XSS 防护，沿用原 safeHref 思路）
+    html: false, // XSS 防护：不解析源文本里的原始 HTML
     tightLists: true,
     linkify: false,
     breaks: true, // 单换行即 <br>，贴近 textarea 体验

@@ -1,8 +1,7 @@
 "use client"
 
-// 内链 mark（TODO 28）：[[mw:...]] 标记升级后的富文本表示。
-// renderHTML 输出 <a data-mw-internal="完整标记原文">，点击跳转由 RichTextView 容器
-// 的事件委托统一定位处理（此处只负责 schema 表示与样式 class）。
+// 内链 mark（TODO 28）：[[mw:...]] 标记升级后的富文本表示，renderHTML 输出 <a data-mw-internal="完整标记原文">。
+// 点击跳转由 RichTextView 容器的事件委托统一定位处理，此处只负责 schema 表示与样式 class。
 
 import { Mark } from "@tiptap/core"
 import { toast } from "sonner"

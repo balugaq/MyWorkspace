@@ -33,8 +33,7 @@ import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { LayoutGrid } from "lucide-react"
 
-// TODO 75 调参：极光开启时内容容器的毛玻璃样式（宿主目视后在此迭代透明度 / 模糊度）
-// 极光开启时内容容器透明（星光点 canvas z-[8] 在其下清晰可见，文字 z-10 在星光之上）
+// TODO 75 调参：极光开启时容器毛玻璃样式（透明度/模糊度待目视迭代）；容器透明使星光 canvas（z-[8]）可见，文字 z-10 在其上
 const AURORA_GLASS = "relative z-10 bg-transparent"
 
 export default function Page() {
@@ -52,8 +51,7 @@ export default function Page() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [mobileNav, setMobileNav] = useState(false)
 
-  // 桌面端侧边栏宽度（拖拽分隔条调整，持久化到 store）：
-  // 实时宽度用本地 state 保证拖动流畅，松手时写入 store，刷新后从 store 恢复。
+  // 侧边栏宽度：本地 state 保证拖动流畅，松手写入 store 持久化
   const sidebarWidth = useWorkspace((s) => s.sidebarWidth)
   const setSidebarWidth = useWorkspace((s) => s.setSidebarWidth)
   const sidebarCollapsed = useWorkspace((s) => s.sidebarCollapsed)
@@ -90,15 +88,14 @@ export default function Page() {
     window.addEventListener("mouseup", onUp)
   }
 
-  // 统一的全局快捷键（Ctrl+M 新建 / Ctrl+B 日历 / Ctrl+K 搜索，绑定可在设置中修改）
   useGlobalShortcuts()
 
-  // 界面语言（TODO 40）：hydrate 后按 settings.uiLanguage 同步 i18next；切换语言时跟随
+  // TODO 40：hydrate 后按 uiLanguage 同步 i18next，切换语言时跟随
   useEffect(() => {
     if (hydrated) syncLocale(uiLanguage)
   }, [hydrated, uiLanguage])
 
-  // 工具栏自动收展（TODO 25 打磨）：打开个人主页时收起，其他页面自动展开
+  // TODO 25：个人主页收起工具栏，其他页面自动展开
   const setToolbarCollapsed = useWorkspace((s) => s.setToolbarCollapsed)
   useEffect(() => {
     setToolbarCollapsed(view === "profile")
@@ -110,13 +107,11 @@ export default function Page() {
     return () => window.removeEventListener("dsh:open-search", onOpenSearch)
   }, [])
 
-  // close mobile drawer whenever the active view changes
   useEffect(() => {
     setMobileNav(false)
   }, [activeCategoryId, view])
 
-  // 通知调度器（TODO 20 / 18）：hydrate 后启动（内部模块级 flag 幂等，重复调用安全）。
-  // 每 5 分钟扫描配置仓库的新动态 + 维护活跃心跳。
+  // TODO 20/18：hydrate 后启动通知调度器（内部幂等，重复调用安全）；每 5 分钟扫描新动态 + 心跳
   useEffect(() => {
     if (!hydrated) return
     startNotificationScheduler()
@@ -126,28 +121,22 @@ export default function Page() {
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
 
   return (
-    // TODO 75：极光开启时根容器透明，露出底层固定定位的游动极光 canvas；关闭回落纯色 bg-background
+    {/* TODO 75：极光开启时根容器透明，露出底层极光 canvas */}
     <div
       className={`flex h-svh flex-col overflow-hidden${auroraBackground ? "" : " bg-background"}`}
     >
-      {/* 游动极光背景（TODO 75）：全局单例，fixed inset-0 z-0，不拦截指针事件 */}
       {auroraBackground && (
         <>
           <AuroraBackground />
-          {/* 模糊背景层：只作用于其下方的波浪 canvas，星光点 canvas 在此层之上保持清晰 */}
+          {/* 模糊层仅作用于下方波浪 canvas，星光点 canvas 在此层之上保持清晰 */}
           <div className="pointer-events-none fixed inset-0 z-[5] bg-background/25 backdrop-blur-md" />
         </>
       )}
 
-      {/* 全局顶栏：移动端导航 + 品牌（点击回主界面）+ 搜索/设置/头像菜单 */}
       <BrandHeader onOpenNav={() => setMobileNav(true)} onOpenSearch={() => setSearchOpen(true)} />
 
       <div className="flex min-h-0 flex-1">
-        {/* 左列（TODO 25）双分支：
-            A. AI 对话 / 随笔 / 日历 / 保险库 且未收起 → 完整左列（border + 拖拽分隔条），
-               内容区按视图切换（会话列表 / 分类 / AI 快捷提问 / 密码生成器）+ 底部工具栏；
-            B. 其他视图（个人主页 / 设置等）或已收起 → 不渲染左列与分隔栏，
-               工具栏改为 fixed 钉在左下角，保证任何界面都有导航入口 */}
+        {/* 左列双分支：AI 对话/随笔/日历/保险库且未收起 → 完整左列；否则不渲染，工具栏 fixed 钉左下角保证始终有导航入口 */}
         {(view === "ai-chat" ||
           view === "workspace" ||
           view === "calendar" ||
@@ -156,8 +145,7 @@ export default function Page() {
           <>
             <div
               ref={sidebarHostRef}
-              // 注意：md:block 后必须留空格——Tailwind oxide 扫描器提取不了紧贴 ${ 的候选类，
-              // 写成 md:block${...} 会导致 .md\:block 不进编译产物，桌面端侧边栏永远 display:none
+              /* md:block 后必须留空格：Tailwind oxide 提取不了紧贴 ${ 的候选类，紧贴会导致该类不进编译产物、侧边栏永远 display:none */
               className={`hidden shrink-0 border-r md:block ${auroraBackground ? AURORA_GLASS : ""}`}
               style={{ width: sidebarWidthLocal }}
             >
@@ -169,7 +157,6 @@ export default function Page() {
               </div>
             </div>
 
-            {/* 可拖拽分隔条：桌面端左右拖动调整侧边栏宽度 */}
             <div
               onMouseDown={startResizeSidebar}
               role="separator"
@@ -191,7 +178,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* 悬浮 sidebar：移动端 PanelLeft 按钮呼出；仅保留折叠按钮 */}
         <Sheet open={mobileNav} onOpenChange={setMobileNav}>
           <SheetContent side="left" className="w-72 p-0" showCloseButton={false}>
             <SheetTitle className="sr-only">{t("home.nav")}</SheetTitle>
@@ -238,7 +224,7 @@ export default function Page() {
                   <EmptyMedia variant="icon">
                     <LayoutGrid />
                   </EmptyMedia>
-                  {/* TODO 58：有分类但未打开 → 提示打开；一个分类都没有 → 引导创建 */}
+                  {/* TODO 58 */}
                   {categories.length > 0 ? (
                     <>
                       <EmptyTitle>{t("home.openCategory")}</EmptyTitle>
@@ -262,7 +248,7 @@ export default function Page() {
         </div>
       </div>
 
-      {/* 侧边栏收起后的贴边悬浮展开开关：可上下拖动，位置持久化 */}
+      {/* 贴边悬浮展开开关：可上下拖动，位置持久化 */}
       {(view === "ai-chat" || view === "workspace") && sidebarCollapsed && (
         <SidebarToggleFab />
       )}

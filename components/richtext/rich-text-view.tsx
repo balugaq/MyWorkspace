@@ -10,8 +10,7 @@ import { replaceLangTokens } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 /**
- * 只读富文本渲染（与编辑态共用扩展集，渲染一致）。
- * 用于章节/日历/节点卡片的预览。GitHub 预览卡、imgref 内文图、任务列表等照常渲染。
+ * 只读富文本渲染（与编辑态共用扩展集，渲染一致），用于章节/日历/节点卡片预览。
  */
 export function RichTextView({
   content,
@@ -37,10 +36,8 @@ export function RichTextView({
 
   useEffect(() => {
     if (!editor) return
-    // setContent 与 upgrade* 内部都会触发 TipTap 的 flushSync；
-    // 若在 React 提交阶段（useEffect 内）同步执行，会抛
-    // "flushSync was called from inside a lifecycle method" 错误。
-    // 两者都延后到下一个 macrotask 执行，并加 isDestroyed 守卫。
+    // setContent 与 upgrade* 内部都用 flushSync，在 useEffect（React 提交阶段）内同步执行会抛错，
+    // 故两者都延后到下一个 macrotask + isDestroyed 守卫。
     const t = window.setTimeout(() => {
       if (editor.isDestroyed) return
       // {lang:key} 占位符（TODO 40）在只读渲染时替换为当前语言文本（编辑态保留原 token）

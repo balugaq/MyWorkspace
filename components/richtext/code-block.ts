@@ -29,16 +29,8 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 /**
- * 代码块增强（TODO 38）：在 CodeBlockLowlight 之上加行号 gutter 与语言角标、复制按钮（TODO 72）。
- *
- * - 语法高亮仍由 CodeBlockLowlight 内置的 ProseMirror decoration 插件负责（与 DOM 结构无关），
- *   NodeView 只额外渲染 gutter / 角标 / 复制按钮，正文内容仍走 contentDOM（code），
- *   编辑与 markdown 序列化不受影响。
- * - 行数 = textContent 按 \n 切分（源码行与视觉行一一对应）；
- *   长行不软折行由 CSS 保证（globals.css 对 .rich-text-content pre 显式恢复 overflow-wrap:normal，
- *   压掉 .rich-text-content 上 [overflow-wrap:anywhere] 的继承——否则长行折行会导致行号错位，TODO 72）。
- * - 复制按钮点击时复制源码纯文本（textContent），成功后图标短暂切换为 ✓。
- * - 样式见 globals.css 的 .code-block-wrap / .code-block-gutter / .code-block-meta / .code-block-lang / .code-block-copy。
+ * 代码块增强（TODO 38）：行号 gutter + 语言角标 + 复制按钮（TODO 72），高亮仍由 CodeBlockLowlight 的 decoration 插件负责。
+ * 行数 = textContent 按 \n 切分；globals.css 对 pre 显式禁用软折行（否则长行折行导致行号错位），样式也在 globals.css。
  */
 export const CodeBlockEnhanced = CodeBlockLowlight.extend({
   addNodeView() {
@@ -54,7 +46,6 @@ export const CodeBlockEnhanced = CodeBlockLowlight.extend({
       const code = document.createElement("code")
       pre.appendChild(code)
 
-      // 右上角 meta 容器：语言角标 + 复制按钮
       const meta = document.createElement("div")
       meta.className = "code-block-meta"
       const lang = document.createElement("span")
@@ -92,7 +83,7 @@ export const CodeBlockEnhanced = CodeBlockLowlight.extend({
       }
       syncMeta(node)
 
-      // 复制：mousedown 阻止夺焦（编辑态不丢选区）；成功后图标短暂切换 ✓
+      // mousedown preventDefault 防止夺焦丢选区；成功后图标短暂切换 ✓
       copyBtn.addEventListener("mousedown", (e) => e.preventDefault())
       copyBtn.addEventListener("click", () => {
         void copyText(currentNode.textContent).then((ok) => {
@@ -108,8 +99,7 @@ export const CodeBlockEnhanced = CodeBlockLowlight.extend({
         })
       })
 
-      // 常规输入由 PM 回调 update 同步；这里用 MutationObserver 兜底，
-      // 覆盖撤销/重做等 update 时机不直观的路径（仅读计数，不碰 contentDOM，无回环风险）。
+      // MutationObserver 兜底：覆盖撤销/重做等 PM update 时机不直观的路径（仅读计数，不碰 contentDOM，无回环风险）
       const observer = new MutationObserver(() => syncMeta(currentNode))
       observer.observe(code, { childList: true, characterData: true, subtree: true })
 

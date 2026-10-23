@@ -1,9 +1,7 @@
 "use client"
 
-// 词汇表工作区（TODO 64）：工具栏「词汇表」视图。
-// 数据存 IndexedDB（lib/vocab-store.ts），本组件挂载时 loadVocab 全量载入缓存并渲染。
-// 功能：列表 + 拼音搜索 + 来源筛选 / 词条增删改 / 来源管理（独立小系统，id 引用）/ AI 批量导入（粘贴 JSON 预览后入库）。
-// 问答系统与 AI 评分在 TODO 64 批 2 接入。
+// 词汇表工作区（TODO 64）：列表 + 拼音搜索 + 来源筛选 / 词条增删改 / 来源管理（独立小系统，id 引用）/ AI 批量导入 / 问答（批 2）。
+// 数据存 IndexedDB（lib/vocab-store.ts），挂载时 loadVocab 全量载入缓存并渲染。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
@@ -75,10 +73,10 @@ import {
   type VocabSource,
 } from "@/lib/types"
 
-/** 列表渲染上限（万级词库时避免一次性渲染卡顿；搜索过滤后仍按此截断并提示总数） */
+/** 列表渲染上限：万级词库避免一次性渲染卡顿；过滤后仍截断并提示总数 */
 const LIST_RENDER_LIMIT = 200
 
-// ---- 问答状态机（TODO 64 批 2）----
+// TODO 64 批 2：问答状态机
 
 type QuizSuccess = { rating: VocabRating; comment: string }
 type QuizGrade = QuizSuccess | { error: string }
@@ -92,7 +90,6 @@ function truncateWord(word: string, max = 20): string {
   return word.length > max ? `${word.slice(0, max)}…` : word
 }
 
-/** 问答记录列表/详情共用的时间格式（M/d HH:mm） */
 function formatRecordTime(at: number): string {
   return new Date(at).toLocaleString("zh-CN", {
     month: "numeric",
@@ -126,7 +123,6 @@ export function VocabularyWorkspace() {
   const [query, setQuery] = useState("")
   const [sourceFilter, setSourceFilter] = useState<string>("all")
 
-  // 词条编辑弹窗
   const [editing, setEditing] = useState<VocabEntry | null>(null)
   const [creating, setCreating] = useState(false)
   const [draftWord, setDraftWord] = useState("")
@@ -134,19 +130,17 @@ export function VocabularyWorkspace() {
   const [draftSourceId, setDraftSourceId] = useState<string>("none")
   const [draftNewSource, setDraftNewSource] = useState("")
 
-  // 来源管理弹窗
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const [newSourceName, setNewSourceName] = useState("")
   const [renamingSourceId, setRenamingSourceId] = useState<string | null>(null)
   const [renameSourceDraft, setRenameSourceDraft] = useState("")
   const [confirmDelSource, setConfirmDelSource] = useState<VocabSource | null>(null)
 
-  // 批量导入弹窗
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState("")
   const [importing, setImporting] = useState(false)
 
-  // 问答（批 2）：null = 未开轮；配置弹窗参数；中途退出确认
+  // 问答（批 2）：quiz 为 null = 未开轮
   const [quiz, setQuiz] = useState<QuizState | null>(null)
   const [quizConfigOpen, setQuizConfigOpen] = useState(false)
   const [quizScope, setQuizScope] = useState("all")
@@ -154,7 +148,6 @@ export function VocabularyWorkspace() {
   const [confirmExitQuiz, setConfirmExitQuiz] = useState(false)
   /** 提交作答确认：null = 关闭；数字 = 未作答题数 */
   const [confirmSubmitQuiz, setConfirmSubmitQuiz] = useState<number | null>(null)
-  /** 正在回看的问答记录（点击右半屏卡片打开） */
   const [viewingRecord, setViewingRecord] = useState<VocabQuizRecord | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const quizSavingRef = useRef(false)
@@ -211,8 +204,6 @@ export function VocabularyWorkspace() {
       return matchTextPinyin(e.word, q) || matchTextPinyin(e.definition, q)
     })
   }, [entries, query, sourceFilter])
-
-  // ---- 词条增删改 ----
 
   const openCreate = () => {
     setEditing(null)
@@ -286,8 +277,6 @@ export function VocabularyWorkspace() {
     refresh()
   }
 
-  // ---- 来源管理 ----
-
   const addSource = async () => {
     const name = newSourceName.trim()
     if (!name) return
@@ -329,8 +318,6 @@ export function VocabularyWorkspace() {
     refresh()
   }
 
-  // ---- 批量导入 ----
-
   const parsedImport = useMemo(() => parseVocabImport(importText), [importText])
 
   const duplicatesInDb = useMemo(
@@ -368,14 +355,14 @@ export function VocabularyWorkspace() {
 
   const sourceNameOf = (e: VocabEntry) => (e.sourceId ? sourceById.get(e.sourceId)?.name : undefined)
 
-  // 新建态输入的词已存在时，给「已存在」提示 + 一键载入（编辑态不提示，重名保存会被拦）
+  // 新建态词已存在时提示 + 一键载入；编辑态不提示（重名保存会被拦）
   const draftKey = draftWord.trim().toLowerCase()
   const existingEntry =
     creating && !editing && draftKey
       ? (entries.find((e) => e.word.trim().toLowerCase() === draftKey) ?? null)
       : null
 
-  // ---- 问答（批 2）：配置 → 逐题作答 → AI 评分 → 报告/存档 ----
+  // 问答（批 2）流程：配置 → 逐题作答 → AI 评分 → 报告/存档
 
   const quizPool = useMemo(
     () =>
@@ -385,7 +372,6 @@ export function VocabularyWorkspace() {
     [entries, quizScope],
   )
 
-  // 作答阶段每秒刷新一次计时显示
   useEffect(() => {
     if (!quiz || quiz.index >= quiz.queue.length) return
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -395,7 +381,7 @@ export function VocabularyWorkspace() {
   const quizErrCount = quiz ? quiz.grades.filter((g) => g !== null && !("rating" in g)).length : 0
   const quizOkCount = quiz ? quiz.grades.filter((g) => quizSuccessOf(g) !== null).length : 0
   const quizAllDone = quiz !== null && quiz.index >= quiz.queue.length
-  /** 作答阶段：问答界面占满全屏（右半屏记录面板让位，工具栏收起） */
+  /** 作答阶段：问答界面占满全屏，右半屏记录面板让位 */
   const quizAnswering = quiz !== null && quiz.index < quiz.queue.length
   const quizAllSuccess = quizAllDone && quizErrCount === 0 && quizOkCount === quiz.queue.length
   const ratingCounts = useMemo(() => {
@@ -439,7 +425,7 @@ export function VocabularyWorkspace() {
     })
   }
 
-  /** 结算当前题的停留用时（切题 / 提交时调用） */
+  /** 结算当前题停留用时（切题/提交时调用） */
   const settleCurrent = (q: QuizState): QuizState => {
     const t = Date.now()
     const times = [...q.times]
@@ -542,7 +528,7 @@ export function VocabularyWorkspace() {
       })
   }, [quiz, t])
 
-  /** 报告页返回列表：未自动存档（有失败题）时保存已成功的题 */
+  /** 未自动存档（有失败题）时，返回列表前保存已成功的题 */
   const finishPartial = () => {
     const q = quiz
     resumeToolbar()
@@ -584,7 +570,6 @@ export function VocabularyWorkspace() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* 顶栏：标题 + 统计 + 操作 */}
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
         <h1 className="font-serif text-lg font-semibold">{t("vocab.title")}</h1>
         <span className="text-xs text-muted-foreground">
@@ -614,10 +599,9 @@ export function VocabularyWorkspace() {
         </Button>
       </div>
 
-      {/* 主区两栏：左 = 列表 / 问答视图，右 = 问答记录（md 以下隐藏避免拥挤） */}
+      {/* 主区两栏：左 = 列表/问答视图，右 = 问答记录；md 以下隐藏右栏避免拥挤 */}
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
-      {/* 搜索 + 来源筛选（问答进行时隐藏，主区让位给答题视图） */}
       {!quiz && (
         <>
       <div className="flex items-center gap-2 border-b px-4 py-2">
@@ -659,7 +643,7 @@ export function VocabularyWorkspace() {
         </span>
       </div>
 
-      {/* 列表（宽度对齐筛选框右缘：搜索框 288px + gap 8px + 下拉 144px = 440px） */}
+      {/* 列表宽度对齐筛选框右缘（搜索 288 + gap 8 + 下拉 144 = 440px） */}
       <div className="native-scroll min-h-0 flex-1 overflow-auto px-4 py-2">
         <div className="w-full max-w-[440px]">
         {!loaded ? (
@@ -734,7 +718,6 @@ export function VocabularyWorkspace() {
       {/* 问答视图：自由切题作答，一次性提交（2026-10-07 主人口径） */}
       {quiz && quiz.index < quiz.queue.length && (
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
-          {/* 顶部：上一题 / 下一题 + 结束本轮 */}
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -770,7 +753,6 @@ export function VocabularyWorkspace() {
             </Button>
           </div>
 
-          {/* 题面 */}
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5">
             <p className="max-w-[440px] break-all text-center font-serif text-4xl font-semibold text-foreground">
               {quiz.queue[quiz.index].word}
@@ -789,7 +771,6 @@ export function VocabularyWorkspace() {
             />
           </div>
 
-          {/* 底部：题号选择（未答=蓝圆 / 已答=绿圆，当前题描边）+ 一次性提交 */}
           <div className="flex flex-col items-center gap-3 border-t pt-3">
             <div className="flex flex-wrap justify-center gap-1.5">
               {quiz.queue.map((e, i) => {
@@ -820,7 +801,6 @@ export function VocabularyWorkspace() {
         </div>
       )}
 
-      {/* 问答视图：评分中 / 报告 */}
       {quiz && quiz.index >= quiz.queue.length && (
         <>
           <div className="native-scroll min-h-0 flex-1 overflow-auto px-4 py-2">
@@ -904,7 +884,6 @@ export function VocabularyWorkspace() {
 
         </div>
 
-        {/* 右半屏：问答记录（作答阶段让位，问答界面占满全屏） */}
         {!quizAnswering && (
         <div className="hidden w-1/2 min-w-0 flex-col border-l md:flex">
           <div className="flex items-center gap-2 border-b px-4 py-2">
@@ -962,7 +941,6 @@ export function VocabularyWorkspace() {
         )}
       </div>
 
-      {/* 词条编辑弹窗 */}
       <Dialog
         open={creating}
         onOpenChange={(v) => {
@@ -1039,7 +1017,7 @@ export function VocabularyWorkspace() {
                   </SelectContent>
                 </Select>
               </div>
-              {/* 快捷写入：输入新名则优先使用并自动创建（同名已存在则直接复用） */}
+              {/* 输入新名优先使用并自动创建（同名直接复用） */}
               <Input
                 value={draftNewSource}
                 onChange={(e) => setDraftNewSource(e.target.value)}
@@ -1057,7 +1035,6 @@ export function VocabularyWorkspace() {
         </DialogContent>
       </Dialog>
 
-      {/* 删除词条确认 */}
       <AlertDialog
         open={confirmDelEntry !== null}
         onOpenChange={(v) => !v && setConfirmDelEntry(null)}
@@ -1074,7 +1051,6 @@ export function VocabularyWorkspace() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 来源管理 */}
       <Dialog open={sourcesOpen} onOpenChange={setSourcesOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -1163,7 +1139,6 @@ export function VocabularyWorkspace() {
         </DialogContent>
       </Dialog>
 
-      {/* 删除来源确认 */}
       <AlertDialog
         open={confirmDelSource !== null}
         onOpenChange={(v) => !v && setConfirmDelSource(null)}
@@ -1184,7 +1159,6 @@ export function VocabularyWorkspace() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* AI 批量导入 */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -1227,7 +1201,6 @@ export function VocabularyWorkspace() {
         </DialogContent>
       </Dialog>
 
-      {/* 问答配置 */}
       <Dialog open={quizConfigOpen} onOpenChange={setQuizConfigOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -1289,7 +1262,6 @@ export function VocabularyWorkspace() {
         </DialogContent>
       </Dialog>
 
-      {/* 问答中途退出确认 */}
       <AlertDialog open={confirmExitQuiz} onOpenChange={setConfirmExitQuiz}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1303,7 +1275,6 @@ export function VocabularyWorkspace() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 提交作答确认（有未答题时） */}
       <AlertDialog
         open={confirmSubmitQuiz !== null}
         onOpenChange={(v) => !v && setConfirmSubmitQuiz(null)}
@@ -1320,7 +1291,6 @@ export function VocabularyWorkspace() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 问答记录详情：回看当时作答 */}
       <Dialog
         open={viewingRecord !== null}
         onOpenChange={(v) => {

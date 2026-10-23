@@ -7,11 +7,7 @@ import { Copy, ClipboardCopy, TextSelect, Quote } from "lucide-react"
 import { copySelectionRich } from "./clipboard"
 
 /**
- * QQ 式选段浮动工具条：选中文字时出现。
- *  - 复制：纯文本
- *  - X 复制：带格式（HTML）复制，对应 QQ 的「复制」与「复制为富文本」
- *  - 全选：选中整篇
- *  - 引用：把选区包进引用块
+ * QQ 式选段浮动工具条（选中文字时出现）：复制=纯文本、X 复制=带格式（HTML）、全选、引用。
  */
 export function SelectionToolbar({ editor }: { editor: Editor }) {
   const { t } = useTranslation()

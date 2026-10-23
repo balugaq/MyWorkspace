@@ -18,8 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning className={cn("antialiased bg-background font-sans")}>
-      {/* suppressHydrationWarning：屏蔽浏览器翻译/划词扩展向 <body> 注入 ai-translate-* 等属性导致的
-          服务端/客户端不匹配告警（此类扩展会修改服务端 HTML，与本应用逻辑无关）。 */}
+      {/* suppressHydrationWarning：屏蔽翻译/划词类浏览器扩展向 <body> 注入属性导致的 hydration 不匹配告警 */}
       <body suppressHydrationWarning>
         <ThemeProvider>
           <VaultProvider>{children}</VaultProvider>

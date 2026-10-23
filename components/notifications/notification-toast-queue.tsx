@@ -1,10 +1,7 @@
 "use client"
 
-// 右下角通知弹窗队列（TODO 20）：订阅 toast-bus，FIFO 队列一次显示一条。
-// TODO 42：队列堆积超过 3 条时不再逐个弹，而是合并为一条「你有 x 条新消息」摘要弹窗。
-// 瞬态 UI：队列只存在于本组件本地 state（不持久化，不进 store）。
-// 行为：滑入停留 5 秒滑出（hover 不暂停）→ 动画结束后展示下一条；
-// 点击弹窗主体 → goNotifications() 并清空队列；右上角 X 提前滑出。
+// 右下角通知弹窗队列（TODO 20）：订阅 toast-bus，FIFO 一次显示一条；堆积超阈值合并为「你有 x 条新消息」摘要（TODO 42）。
+// 瞬态 UI：队列只在本地 state（不持久化、不进 store）；滑入停留 5 秒滑出，点击主体进通知中心并清空队列，X 提前滑出。
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { X } from "lucide-react"
@@ -30,14 +27,12 @@ function clip(text: string, max = 20): string {
 export function NotificationToastQueue() {
   const { t } = useTranslation()
   const goNotifications = useWorkspace((s) => s.goNotifications)
-  // FIFO 队列 + 当前展示条 + 滑入/滑出可视态；summaryCount 非空时展示合并摘要（TODO 42）
   const [queue, setQueue] = useState<NotificationItem[]>([])
   const [current, setCurrent] = useState<NotificationItem | null>(null)
   const [summaryCount, setSummaryCount] = useState<number | null>(null)
   const [visible, setVisible] = useState(false)
   const dismissTimer = useRef<number | null>(null)
 
-  // 订阅 toast-bus：新通知追加进队列
   useEffect(() => {
     return subscribeNotificationToasts((items) => {
       if (items.length === 0) return
@@ -52,16 +47,14 @@ export function NotificationToastQueue() {
     }
   }, [])
 
-  // 卸载当前展示态（普通条或摘要条），泵随后自动取下一条
   const clearPresenting = useCallback(() => {
     setCurrent(null)
     setSummaryCount(null)
   }, [])
 
-  // 泵：空闲且队列非空 → 取下一条。只负责取，不碰定时器/动画
-  // （此前取件与展示生命周期挤在同一个 effect 里且依赖 queue，取件引发的 queue
-  //   变化会先触发 cleanup，把刚排的 5 秒定时器与滑入 rAF 一并取消 → 永不自动滑出）。
-  // TODO 42：待展示条数超过阈值时，整队合并为一条「你有 x 条新消息」摘要。
+  // 泵：空闲且队列非空 → 取下一条（超阈值合并为摘要，TODO 42）。只负责取，不碰定时器/动画——
+  // 此前取件与展示挤在同一 effect 且依赖 queue，取件引发的 queue 变化会先触发 cleanup，
+  // 把刚排的 5 秒定时器与滑入 rAF 一并取消 → 永不自动滑出。
   useEffect(() => {
     if (current || summaryCount !== null || queue.length === 0) return
     if (queue.length > MERGE_THRESHOLD) {
@@ -74,15 +67,12 @@ export function NotificationToastQueue() {
     setCurrent(next)
   }, [current, summaryCount, queue])
 
-  // 展示生命周期：依赖 current / summaryCount——挂载后短暂延迟滑入（用 setTimeout 而非 rAF：
-  // 后台标签页 rAF 被浏览器暂停，滑入永不触发，而 eject 兜底定时器照跑，
-  // 会把队列无声消耗掉——这正是「QQ 收到了但内置弹窗没看到」的根因），
-  // 停留 5 秒滑出，另设兜底 eject（transitionend 在后台标签页可能不触发）。
-  // 若当前标签页在后台（document.hidden）：不启动任何计时，等回到前台再展示，
-  // 队列原地等待不丢失。
+  // 展示生命周期：滑入延迟必须用 setTimeout 而非 rAF——后台标签页 rAF 被浏览器暂停、滑入永不触发，
+  // 而 eject 兜底定时器照跑会把队列无声消耗掉（「QQ 收到了但内置弹窗没看到」的根因）。
+  // 停留 5 秒滑出 + 兜底 eject（transitionend 后台可能不触发）；后台时不启动任何计时，回前台再展示，队列不丢。
   useEffect(() => {
     if (!current && summaryCount === null) return
-    // 复位上一条的滑入态，确保本条从隐藏位重新滑入
+    // 复位滑入态，确保本条从隐藏位重新滑入
     setVisible(false)
     let alive = true
     const timers: number[] = []
@@ -131,7 +121,6 @@ export function NotificationToastQueue() {
     }
   }, [current, summaryCount, clearPresenting])
 
-  // 滑出动画结束（或手动提前滑出）→ 卸载当前条，泵自动取下一条
   const onTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget || e.propertyName !== "transform") return
     if (!visible) {

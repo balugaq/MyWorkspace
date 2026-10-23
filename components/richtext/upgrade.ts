@@ -17,17 +17,10 @@ const REPLACERS: Replacer[] = [
 ]
 
 /**
- * 把正文里「裸的 GitHub Issue/PR 或 B 站视频链接文本」升级为对应预览卡节点。
- *
- * 因为预览卡在 markdown 里序列化为裸 URL 文本（见 github-card.tsx / bilibili-card.tsx），
- * 重新加载/粘贴含链接的内容时需要这一步才能再次呈现预览卡。
- * 文本节点被替换成卡片后不再含裸 URL，因此不会死循环；加 guard 上限防意外。
- *
- * 替换内容使用 JSONContent 数组（而非 ProseMirror Node 实例）传给 insertContentAt，
- * 因为 TipTap 内部对数组走 Fragment.fromJSON 路径，Node 实例会被错误序列化。
- *
- * 注：本环境下 prosemirror 的 Node 类型被推断为 never（@tiptap/pm 类型解析问题），
- * 因此 descendants 回调形参与 found 在此处桥接为 any（仅此一处），原始 text/size 直接以基础字段捕获。
+ * 把正文里裸的 GitHub Issue/PR 或 B 站视频链接文本升级为预览卡节点（卡片序列化为裸 URL，加载/粘贴时
+ * 需此步重新呈现；替换后不再含裸 URL，不会死循环，guard 上限防意外）。
+ * 传 insertContentAt 须用 JSONContent 数组而非 PM Node 实例（后者会被 TipTap 内部错误序列化）；
+ * any 仅在此桥接：本环境下 prosemirror 的 Node 类型被推断为 never（@tiptap/pm 类型解析问题）。
  */
 export function upgradeLinkCards(editor: Editor): void {
   if (!(editor.schema.nodes as Record<string, unknown>).githubCard) return
@@ -80,17 +73,9 @@ export function upgradeLinkCards(editor: Editor): void {
 }
 
 /**
- * 延后执行 upgradeLinkCards，避免 flushSync 报错。
- *
- * upgradeLinkCards 内部会调用 editor.chain().insertContentAt().run()，
- * 若在 React 提交阶段（useEffect / onCreate 等生命周期内）同步执行，
- * 会触发 TipTap 的 flushSync 而报错（"called from inside a lifecycle method"）。
- * 按错误提示移出生命周期，延后到下一个 macrotask，并加 isDestroyed 守卫。
- *
- * @param suppressRef 可选：升级期间置为 true，阻止 onUpdate 把规范化后的
- *                    markdown 回写 onChange（保护用户原文空白）。该标志在升级
- *                    完成（或编辑器已销毁）后恢复 false。
- * @returns 取消函数（用于 effect 清理）。
+ * 延后到下一个 macrotask 执行 upgradeLinkCards：insertContentAt 内部走 flushSync，
+ * 在 React 生命周期内同步执行会报错；加 isDestroyed 守卫，返回取消函数供 effect 清理。
+ * 传 suppressRef 时升级期间置 true，阻止 onUpdate 把规范化后的 markdown 回写 onChange（保护原文空白）。
  */
 export function scheduleUpgradeLinkCards(
   editor: Editor,
@@ -106,12 +91,9 @@ export function scheduleUpgradeLinkCards(
 }
 
 /**
- * 把正文里的 [[mw:...]] 内链标记（TODO 28）升级为 internalLink mark（可点击跳转）。
- *
- * 只在只读渲染（RichTextView）调用：AI 回复 / 预览里标记显示为跳转链接；
- * 编辑器不调用——编辑态标记保持原样文本，不产生文档改写与回写。
- * 替换后文本不再含标记，不会死循环；guard 上限防意外。
- * 原文本节点的 marks（格式色等）在前后文与新链接文本上原样保留。
+ * 把正文里的 [[mw:...]] 内链标记（TODO 28）升级为 internalLink mark（可点击跳转），只在只读渲染（RichTextView）调用——
+ * 编辑态标记保持原样文本，不产生文档改写与回写。替换后不再含标记、不会死循环，guard 上限防意外；
+ * 原文本节点的 marks（格式色等）在新文本上原样保留。
  */
 export function upgradeInternalLinks(editor: Editor): void {
   if (!(editor.schema.marks as Record<string, unknown>).internalLink) return

@@ -44,9 +44,9 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
-const WEEKDAY_KEYS = [0, 1, 2, 3, 4, 5, 6] // 星期行文案走 i18n：calendar.weekday.0-6（TODO 40）
+const WEEKDAY_KEYS = [0, 1, 2, 3, 4, 5, 6] // TODO 40：键对应 i18n calendar.weekday.0-6
 
-// 自定义节日编辑草稿（TODO 55）：original 为空 = 新建，否则编辑原条目（按引用相等替换）
+// TODO 55：编辑草稿，original 为空 = 新建；保存按引用相等替换原条目
 interface FestivalDraft {
   original: FestivalDef | null
   name: string
@@ -56,12 +56,11 @@ interface FestivalDraft {
   workday: boolean
 }
 
-/** shortHint 节日名截断：≤4 字全显，>4 字取前 3 字 + 省略号 */
 function cutFestivalName(name: string): string {
   return name.length > 4 ? name.slice(0, 3) + "…" : name
 }
 
-/** 监听媒体查询：用于判断是否处于桌面端（lg: 1024px+）row 布局，决定分隔条是否可拖拽 */
+/** 桌面端（lg 1024px+）判定，用于分隔条拖拽开关 */
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false)
   useEffect(() => {
@@ -86,27 +85,26 @@ export function CalendarWorkspace() {
   // 翻月方向：+1=下月(内容自下方入)，-1=上月(内容自上方入)。用于方向感知滑入动画。
   const [direction, setDirection] = useState<1 | -1>(1)
 
-  // 日历 / DayDetail 分隔可拖拽：右侧详情面板宽度（px），桌面端允许左右拖动分隔条调整。
-  // 实时宽度用本地 state（拖动流畅），松手时写入 store 持久化，刷新后从 store 恢复。
+  // 详情面板宽度：拖动中用本地 state（流畅），松手写入 store 持久化
   const [detailWidth, setDetailWidth] = useState<number>(calendarDetailWidth)
   const latestWidthRef = useRef<number>(calendarDetailWidth)
   const containerRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
   const isDesktop = useMediaQuery("(min-width: 1024px)")
 
-  // store 持久值变化（如重新水合）时同步到本地，保证刷新后位置生效
+  // store 重新水合时同步回本地，保证刷新后位置生效
   useEffect(() => {
     setDetailWidth(calendarDetailWidth)
     latestWidthRef.current = calendarDetailWidth
   }, [calendarDetailWidth])
 
 
-  // 自定义数据（节日 + 通讯录）：TODO 48 起 store 持久化驱动（设置页可从 public/*.yml 导入）
+  // TODO 48：节日/通讯录由 store 持久化驱动（public/*.yml 仅作设置页导入源）
   const people = useWorkspace((s) => s.contacts)
   const festivalDefs = useWorkspace((s) => s.customFestivals)
   const setCustomFestivals = useWorkspace((s) => s.setCustomFestivals)
 
-  // 关系分类中绑定了截止日期的 Todo 节点，按日期分组（TODO 54 起遍历关系族）
+  // TODO 54：按日聚合关系族中绑定截止日期的 Todo 节点
   const relationFamilies = useWorkspace((s) => s.relationFamilies)
   const dueMap = useMemo(
     () => collectDueNodes(categories, Object.values(relationFamilies)),
@@ -125,9 +123,8 @@ export function CalendarWorkspace() {
     setSelectedDate(format(addMonths(current, dir), "yyyy-MM-dd"))
   }
 
-  // 右键标记（TODO 55）：把某公历日快速标为放假 / 上班。
-  // 实现为一条一次性节日（festival_rule = "YYYY-MM-DD"）写入 store.customFestivals，
-  // 复用既有 假/班 角标管线，不动 CalendarDay 数据结构。再点同项 = 取消标记；假/班互斥（标记一类会移除同日的另一类）。
+  // TODO 55：右键把某日标为假/班——实现为一次性节日写入 customFestivals，复用假/班角标管线；
+  // 再点同项取消，假/班互斥（标记一类会移除同日的另一类）。
   function toggleDayMark(key: string, kind: "holiday" | "workday") {
     const isKind = (d: FestivalDef) =>
       d.festival_rule === key && !!(kind === "holiday" ? d.holiday_override : d.workday_override)
@@ -150,7 +147,7 @@ export function CalendarWorkspace() {
     toast.success(t("calendar.marked", { key, label }))
   }
 
-  // 自定义节日管理弹窗（TODO 55）：列表 + 搜索 + 右上角「添加节日」；草稿非空时叠编辑弹窗
+  // TODO 55：节日管理弹窗（编辑弹窗叠于其上，草稿非空时打开）
   const [festivalManagerOpen, setFestivalManagerOpen] = useState(false)
   const [festivalSearch, setFestivalSearch] = useState("")
   const [festivalDraft, setFestivalDraft] = useState<FestivalDraft | null>(null)
@@ -209,7 +206,6 @@ export function CalendarWorkspace() {
     toast.success(t("calendar.festivalDeleted", { name: def.name }))
   }
 
-  // 拖动分隔条：根据鼠标 X 调整右侧详情面板宽度（左侧日历 flex-1 自适应），带最小宽度约束
   function startResize(e: ReactMouseEvent) {
     e.preventDefault()
     draggingRef.current = true
@@ -227,7 +223,7 @@ export function CalendarWorkspace() {
     const onUp = () => {
       draggingRef.current = false
       document.body.style.userSelect = ""
-      // 松手时把最终宽度持久化到 store（避免拖动过程中每帧写 localStorage）
+      // 松手才写 store，避免拖动中每帧写 localStorage
       setCalendarDetailWidth(latestWidthRef.current)
       window.removeEventListener("mousemove", onMove)
       window.removeEventListener("mouseup", onUp)
@@ -237,7 +233,7 @@ export function CalendarWorkspace() {
     window.addEventListener("mouseup", onUp)
   }
 
-  // 方向键：←/→ 选中日期 ±1 天，↑/↓ ±7 天。避开输入框聚焦；长按(repeat)持续响应。
+  // 方向键移动选中日期（←/→ ±1 天，↑/↓ ±7 天），避开输入框聚焦
   useEffect(() => {
     function isEditable(el: EventTarget | null): boolean {
       return (
@@ -246,14 +242,14 @@ export function CalendarWorkspace() {
       )
     }
     function onKey(e: KeyboardEvent) {
-      // 仅处理纯方向键；带修饰键(如 Ctrl+↑)不劫持（留给其它快捷键/滚动）
+      // 带修饰键不劫持，留给其它快捷键/滚动
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
       if (isEditable(e.target)) return
       const map: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }
       const delta = map[e.key]
       if (delta === undefined) return
       e.preventDefault()
-      // 长按(repeat)时连续移动；跨月时由 minMonth key 重建触发动画一次，方向以最终为准
+      // 长按连续移动；跨月动画由 key 重建触发一次，方向以最终为准
       setSelectedDate(format(addDays(current, delta), "yyyy-MM-dd"))
     }
     window.addEventListener("keydown", onKey)
@@ -289,8 +285,8 @@ export function CalendarWorkspace() {
               <ChevronRight className="size-4" />
             </Button>
           </div>
+          </div>
           <div className="flex-1" />
-          {/* 自定义节日管理（TODO 55）：打开列表弹窗（搜索 + 新建/编辑/删除） */}
           <Button
             variant="outline"
             size="icon"
@@ -333,9 +329,7 @@ export function CalendarWorkspace() {
               const outside = !isSameMonth(day, current)
               const isWeekend = day.getDay() === 0 || day.getDay() === 6
               const hasNote = !!data && data.note.trim() !== ""
-              // 节日 + 生日
-              // 内置中国日历要素（二十四节气 / 法定假日 / 调休）与用户在 custom_festivals.yml 定义的节日合并；
-              // 内置在前，故 shortHint 优先取「法定假日 > 节气 > 用户节日」，且「假/班」角标由内置数据自动驱动。
+              // 内置节日在前，优先级高于用户节日（shortHint 与假/班角标据此取值）
               const builtin = builtinChinaFestivals(day.getFullYear(), day.getMonth() + 1, day.getDate())
               const userFests = festivalsForDate(festivalDefs, day.getFullYear(), day.getMonth() + 1, day.getDate())
               const festivals = [...builtin, ...userFests]
@@ -344,13 +338,10 @@ export function CalendarWorkspace() {
               const hasWorkday = festivals.some((f) => f.workday)
               const hasBirthday = bdays.length > 0
               const shortHint = dayShortHint(day)
-              // 右键标记状态：该日是否已有自定义「假/班」一次性标记（TODO 55，用于菜单勾选展示）
               const dayMark = festivalDefs.find(
                 (d) => d.festival_rule === key && (d.holiday_override || d.workday_override)
               )
 
-              // 日期数字颜色优先级：today > hasBirthday > festival > hasHoliday > hasWorkday > outside > isWeekend
-              // selected 不影响文字/颜色，仅以背景 bg-primary/15 标识选中
               let dateNumClass = "text-foreground"
               let dateNumStyle: CSSProperties | undefined
               if (isToday(day)) {
@@ -371,8 +362,6 @@ export function CalendarWorkspace() {
                 dateNumClass = "text-foreground"
               }
 
-              // shortHint 颜色/内容优先级：today > festival > hasBirthday > hasHoliday > hasWorkday > outside > isWeekend
-              // selected 不影响文字/颜色，仅以背景标识选中
               let shortHintClass = "text-muted-foreground/70"
               let shortHintColor: string | undefined
               let shortHintText: ReactNode = shortHint || format(day, "M/d")
@@ -405,7 +394,7 @@ export function CalendarWorkspace() {
                 shortHintClass = "text-red-400"
               }
 
-              // 角标：假/班取一（不会同现）+ 生日蛋糕
+              // 假/班角标互斥（至多取一），另加生日蛋糕
               const mwBadge: ReactNode =
                 hasHoliday ? (
                   <span
@@ -425,9 +414,8 @@ export function CalendarWorkspace() {
               const cakeBadge: ReactNode = hasBirthday ? (
                 <span className="text-center text-[13px] leading-none">🎂</span>
               ) : null
-              // 定位规则：单个→日期数字右上角；🎂+(假/班)两个→🎂左上、假/班右上
               const corner = (() => {
-                // 偏移基于「日期数字锚点」；负值越大越外探。锚点已等比例放大以容纳更多外探空间。
+                // 偏移基于日期数字锚点，负值越大越外探（锚点已放大以留外探空间）
                 const outer = "-right-2 -top-1.5 z-30"
                 const inner = "-left-2 -top-1.5 z-30"
                 if (mwBadge && cakeBadge) {
@@ -445,8 +433,7 @@ export function CalendarWorkspace() {
               })()
               return (
                 <ContextMenu key={key}>
-                  {/* 右键菜单与关系图节点一致（base-ui Trigger render prop 接管原格 button，
-                      只拦截 contextmenu，不影响左键选中） */}
+                  {/* base-ui Trigger render prop 接管原格 button，只拦 contextmenu，不影响左键选中 */}
                   <ContextMenuTrigger
                     render={(triggerProps) => (
                       <button
@@ -460,10 +447,8 @@ export function CalendarWorkspace() {
                           outside && "opacity-40"
                         )}
                       >
-                  {/* 日期数字容器：角标基于日期数字定位。锚点等比放大，角标可在此范围内外探，日期数字仍居中。
-                      选中 / hover 高亮为以数字为中心的圆形（TODO 25 打磨）：高亮挂在数字圆上而非整格 */}
+                  {/* 日期数字锚点（已放大供角标外探）；选中/hover 高亮挂在数字圆上而非整格 */}
                   <span className="relative inline-flex items-center justify-center">
-                    {/* 笔记圆点：基于日期数字定位到其上方 */}
                     {hasNote && <span className="absolute -top-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-primary" />}
                     <span
                       className={cn(
@@ -478,7 +463,6 @@ export function CalendarWorkspace() {
                     </span>
                     {corner}
                   </span>
-                  {/* 日期外显短提示：按优先级 today > festival > 生日 > 假日 > 班日 > 跨月 > 周末 着色（festival 显示首节日名+多节日数角标）；selected 仅以背景标识 */}
                   <span className="relative max-w-full text-center text-xs leading-3.5">
                     <span
                       className={shortHintClass}
@@ -487,7 +471,6 @@ export function CalendarWorkspace() {
                       {shortHintText}
                     </span>
                   </span>
-                  {/* 待办截止小徽标（沿用原逻辑） */}
                   {dueNodes.length > 0 && (
                     <span className="absolute bottom-0 right-0 mr-0.5 mb-0.5 rounded bg-primary/20 px-0.5 text-center text-[10px] font-semibold text-primary">
                       {dueNodes.length}
@@ -515,7 +498,6 @@ export function CalendarWorkspace() {
         </div>
       </div>
 
-      {/* 可拖拽分隔条：桌面端左右拖动以调整日历 / 详情面板宽度 */}
       <div
         onMouseDown={startResize}
         role="separator"
@@ -537,7 +519,6 @@ export function CalendarWorkspace() {
         style={isDesktop ? { width: detailWidth } : undefined}
       />
 
-      {/* 自定义节日管理弹窗（TODO 55）：搜索 + 列表，右上角「添加节日」 */}
       <Dialog
         open={festivalManagerOpen}
         onOpenChange={(v) => {
@@ -606,7 +587,7 @@ export function CalendarWorkspace() {
         </DialogContent>
       </Dialog>
 
-      {/* 节日编辑弹窗（叠在管理弹窗上）：草稿非空时打开 */}
+      {/* 节日编辑弹窗（叠于管理弹窗之上） */}
       <Dialog
         open={festivalDraft !== null}
         onOpenChange={(v) => {
@@ -697,16 +678,14 @@ function DayDetail({
   const day = calendar[dateKey] ?? { note: "", todos: [], events: [] }
 
   const dateObj = parse(dateKey, "yyyy-MM-dd", new Date())
-  // 当天过生日的人 + 农历日期文本
   const bdays = birthdaysOn(people, dateObj.getFullYear(), dateObj.getMonth() + 1, dateObj.getDate())
   const lunarText = lunarTextForSolar(dateObj)
 
-  // 一键向 AI 闲聊发起关于"当日节日 / 当日笔记"的询问：新建会话并自动切到 AI 闲聊发送。
+  // askAiAbout 会新建 AI 会话并自动切过去发送
   const dateLabel = format(dateObj, "M 月 d 日", { locale: zhCN })
   const weekdayLabel = format(dateObj, "EEEE", { locale: zhCN })
   const askFestival = () => {
     const names = festivals.map((f) => f.name)
-    // 无节日：不跳转 AI，仅提示
     if (names.length === 0) {
       toast.info(t("calendar.noFestivalToday", { date: dateLabel }))
       return

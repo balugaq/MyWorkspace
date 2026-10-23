@@ -63,10 +63,8 @@ export function NodeInspector({
   const solStatus = node.solution?.status ?? "doing"
   const [confirmDel, setConfirmDel] = useState(false)
 
-  // ---- 内容打字链路防抖（300ms）----
-  // 受控 textarea 每键直写 store 会触发：全量 persist 序列化 + 画布同步 → 打字极卡。
-  // 改为打字先落本地 live state（仅本面板重渲染，不写 store、不动画布），
-  // 停顿 300ms（或切换节点 / 卸载 / pagehide）才把最终内容一次性提交 updateNode。
+  // 内容打字防抖（300ms）：受控 textarea 每键直写 store 会触发全量 persist 序列化 + 画布同步，打字极卡。
+  // 打字先落本地 live state（仅本面板重渲染），停顿 300ms 或切换节点/卸载/pagehide 才一次性提交 updateNode。
   const liveContentRef = useRef<{ id: string; value: string } | null>(null)
   const [liveContent, setLiveContent] = useState<string | null>(null)
   const contentTimerRef = useRef<number | undefined>(undefined)
@@ -99,7 +97,7 @@ export function NodeInspector({
     }, 300)
   }
 
-  // 切换节点：先把上一个节点未提交的内容冲掉（live 里捕获了来源 nodeId，提交目标正确）
+  // 切换节点：先冲掉上一节点的未提交内容（live 捕获了来源 nodeId，提交目标正确）
   const prevNodeIdRef = useRef(node.id)
   useEffect(() => {
     if (prevNodeIdRef.current !== node.id) {
@@ -108,7 +106,7 @@ export function NodeInspector({
     }
   }, [node.id, flushContent])
 
-  // 卸载 / 页面隐藏：冲掉未提交内容，防丢字
+  // 卸载/pagehide：冲掉未提交内容防丢字
   useEffect(() => {
     return () => {
       if (contentTimerRef.current !== undefined) window.clearTimeout(contentTimerRef.current)
@@ -121,26 +119,22 @@ export function NodeInspector({
     return () => window.removeEventListener("pagehide", onHide)
   }, [commitLive])
 
-  // 展示值：本节点有未提交草稿用草稿；否则用 store 真值。
-  // id 守卫防止切换节点后的首帧把上个节点的草稿带进新节点。
+  // 本节点有未提交草稿用草稿，否则用 store 真值；id 守卫防止切换节点后的首帧把上节点的草稿带进新节点。
   const contentValue =
     liveContent !== null && liveContentRef.current?.id === node.id
       ? liveContent
       : node.content
 
-  // 删除确认弹窗：ESC 视为取消关闭（与其它弹窗行为一致）
   useEscapeClose(confirmDel, () => setConfirmDel(false))
 
-  // 添加子节点：走 store 统一入口 addChildNode（避重命名 / 右置 / 自动连线 / 切换详情）。
+  // 添加子节点走 addChildNode 统一入口（自动处理重命名/右置/自动连线/切换详情）
   function handleAddChild() {
     addChildNode(family.id, node.id)
   }
 
-  // 标签（由共享 TagPicker 编辑）
   const tags = node.tags ?? []
 
-  // 是否为「完全新的节点」：仅含 title、其它内容为空且无子节点时，删除无需二次确认。
-  // 逻辑见 lib/mindmap.ts 的 isPristineNode（删除按钮与键盘删除共用）。
+  // 「完全新的节点」口径（lib/mindmap.ts isPristineNode）：仅含 title 时删除免二次确认；删除按钮与键盘删除共用。
   const isPristine = isPristineNode(node, family.edges)
 
 
@@ -215,7 +209,7 @@ export function NodeInspector({
 
           <Separator />
 
-          {/* 标签（与小说/通用类共用同一标签体系） */}
+          {/* 标签：与小说/通用类共用同一标签体系 */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
               <Tag className="size-3.5 text-muted-foreground" />
@@ -226,7 +220,7 @@ export function NodeInspector({
 
           <Separator />
 
-          {/* 节点风格：边框色 / 背景色（ARGB + 透明度），自绘取色器，无第三方依赖 */}
+          {/* 节点风格：自绘 ARGB 取色器（边框/背景色 + 透明度），无第三方依赖 */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
               <Palette className="size-3.5 text-muted-foreground" />
@@ -238,7 +232,6 @@ export function NodeInspector({
 
           <Separator />
 
-          {/* 截止日期 / 长期任务 */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
               <CalendarClock className="size-3.5 text-muted-foreground" />
@@ -272,7 +265,7 @@ export function NodeInspector({
 
           <Separator />
 
-          {/* 完成状态 / 隐藏（连线即子任务，详情里不再单独管理子任务） */}
+          {/* 连线即子任务，详情里不再单独管理子任务 */}
           <div className="flex flex-col gap-2">
             <label className="flex cursor-pointer select-none items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
               <Checkbox
@@ -399,11 +392,7 @@ function Field({
   )
 }
 
-/**
- * ARGB 取色器（自绘，无第三方依赖）：原生 color input 选 RGB + 透明度滑块（0–100%）
- * + 预设调色板点选 + 「随机」和谐色 + 「清除」回落主题默认。
- * 存储值均为 #AARRGGBB；空值表示使用主题默认色。
- */
+/** 自绘 ARGB 取色器（无第三方依赖）：color input + 透明度滑块 + 预设色板/随机/清除；存储值 #AARRGGBB，空值=主题默认色。 */
 function ColorField({
   label,
   value,
@@ -487,5 +476,3 @@ function ColorField({
     </div>
   )
 }
-
-/** 本地受控 + 短防抖的文本域：避免每次按键触发 store 更新导致画布整体重渲染卡顿 */

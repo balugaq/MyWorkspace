@@ -7,13 +7,8 @@ import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tip
 import { fetchBilibiliCover, getCachedBilibiliCover, parseBilibiliUrl } from "@/lib/bilibili"
 
 /**
- * B 站视频预览卡节点（与 GitHub 卡同风格的链接预览）。
- * - 块级 atom 节点，承载一个 B 站视频链接。
- * - 渲染：文字（标题 / 原始链接）在上，视频封面在下（TODO 35：不再内嵌播放器
- *   iframe，避免常驻加载视频流占资源；封面来自 api.bilibili.com 公开接口，
- *   失败降级为占位图）。整卡可点击，新标签页跳转 B 站观看。
- * - 短链（b23.tv/xxx）无法解析出 BV 号时降级为纯链接卡片（仍保留原始链接文字）。
- * - 序列化：markdown 输出为裸链接文本，由 upgradeLinkCards 在加载/粘贴时再升级回卡片。
+ * B 站视频预览卡节点（块级 atom，与 GitHub 卡同风格）。渲染：文字在上、封面在下（TODO 35：不内嵌播放器 iframe）。
+ * 序列化输出裸链接，由 upgradeLinkCards 在加载/粘贴时再升级回卡片。
  */
 function BilibiliCardView({ node }: NodeViewProps) {
   const url = (node.attrs.url as string | null | undefined) ?? ""
@@ -21,7 +16,7 @@ function BilibiliCardView({ node }: NodeViewProps) {
   const bv = parsed?.bv ?? null
   const [cover, setCover] = useState<string | null>(() => (bv ? (getCachedBilibiliCover(bv) ?? null) : null))
 
-  // 封面：命中缓存直接用，否则拉取（卸载中止且不污染缓存）；结果模块级缓存，重渲染不重复外呼
+  // 封面缓存/拉取在 lib/bilibili 模块级实现：命中即用，卸载中止且不污染缓存
   useEffect(() => {
     if (!bv) return
     const cached = getCachedBilibiliCover(bv)
@@ -48,10 +43,9 @@ function BilibiliCardView({ node }: NodeViewProps) {
         rel="noreferrer noopener"
         className="block overflow-hidden rounded-lg border bg-background transition-colors hover:bg-muted/40"
       >
-        {/* 文字在上、封面在下（TODO 21：与 GitHub 卡统一顺序） */}
+        {/* TODO 21：与 GitHub 卡统一顺序 */}
         <div className="space-y-1.5 p-3">
           <p className="text-sm font-medium leading-snug">{getI18n().t("richtext.biliTitle")}</p>
-          {/* 保留原始链接文字，可点击跳转 */}
           <p className="truncate text-xs text-muted-foreground">{url} ↗</p>
         </div>
         {bv ? (

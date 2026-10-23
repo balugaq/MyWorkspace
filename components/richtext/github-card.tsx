@@ -8,12 +8,9 @@ import { useWorkspace } from "@/lib/store"
 import { fetchGithubCard, getOgImageSrc, type GithubCardData } from "@/lib/gh-card"
 
 /**
- * GitHub 预览卡节点（QQ/Discord 式的链接预览卡）。
- * - 块级 atom 节点，承载一个 GitHub Issue/PR 链接。
- * - 渲染：文字（状态徽标 / 标签 / 标题 / 原始链接）在上，OG 缩略图在下（TODO 21：与 B 站卡统一）。
- * - 数据：fetchGithubCard 负责 REST 元数据 + OG 直链图，并缓存到 IndexedDB（见 lib/gh-card.ts）。
- * - 序列化：markdown 输出为裸 URL 文本（getMarkdown），由 upgradeLinkCards 在加载/粘贴时再升级回卡片，
- *   保证存量与新增内容都能呈现预览。
+ * GitHub Issue/PR 预览卡节点（块级 atom，QQ/Discord 式链接预览）。
+ * 数据由 fetchGithubCard 拉取并缓存到 IndexedDB（lib/gh-card.ts）；序列化输出裸 URL，
+ * 由 upgradeLinkCards 在加载/粘贴时再升级回卡片（TODO 21：与 B 站卡统一布局）。
  */
 function GitHubCardView({ node }: NodeViewProps) {
   const url = (node.attrs.url as string | null | undefined) ?? ""
@@ -79,7 +76,7 @@ function GitHubCardView({ node }: NodeViewProps) {
         rel="noreferrer noopener"
         className="block overflow-hidden rounded-lg border bg-background transition-colors hover:bg-muted/40"
       >
-        {/* 文字在上、图片在下（TODO 21：与 B 站卡统一顺序） */}
+        {/* TODO 21：与 B 站卡统一顺序 */}
         <div className="space-y-1.5 p-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${stateMeta.cls}`}>
@@ -96,7 +93,7 @@ function GitHubCardView({ node }: NodeViewProps) {
             ))}
           </div>
           <p className="line-clamp-2 text-sm font-medium leading-snug">{data.title || url}</p>
-          {/* 卡片为「额外」展示：原始链接文字仍清晰可见、不被卡片取代 */}
+          {/* 卡片只是额外展示：原始链接文字仍可见、不被卡片取代 */}
           <p className="break-all text-xs text-primary">{url} ↗</p>
         </div>
         {imgSrc ? (
