@@ -26,11 +26,7 @@ function openDB(): Promise<IDBDatabase> {
   })
 }
 
-/**
- * 计算 blob 的 SHA-256 摘要，作为「内容寻址」id。
- * 这样字节完全相同的图片永远得到同一个 id，避免重复占用存储。
- * 非安全上下文（无 crypto.subtle）下降级为随机 id，仅保证可用、不去重。
- */
+/** blob 的 SHA-256 内容寻址 id：字节相同即得同一 id，天然去重；非安全上下文（无 crypto.subtle）降级为随机 id，仅可用不去重。 */
 async function contentHash(blob: Blob): Promise<string> {
   if (globalThis.crypto?.subtle) {
     const buf = new Uint8Array(await blob.arrayBuffer())
@@ -43,7 +39,6 @@ async function contentHash(blob: Blob): Promise<string> {
   return Math.random().toString(36).slice(2, 10)
 }
 
-/** 新增一张图片：按内容去重（相同字节复用同一 id），返回其 id */
 export async function addImage(blob: Blob, kind = "image/png"): Promise<string> {
   const id = await contentHash(blob)
   const db = await openDB()
@@ -64,11 +59,7 @@ export async function addImage(blob: Blob, kind = "image/png"): Promise<string> 
   })
 }
 
-/**
- * object URL 进程内缓存：同一 imgId 的 blob 转成的 object URL 在标签页
- * 生命周期内恒定，缓存后可避免每次组件挂载都重读 IndexedDB 并生成新 URL
- * ——否则图片会随节点重绘反复重新加载/闪烁。失效点见 invalidateUrlCache。
- */
+/** object URL 进程内缓存：同一 imgId 的 URL 在标签页生命周期内恒定，避免组件反复重读 IndexedDB 生成新 URL 导致图片闪烁。失效点见 invalidateUrlCache。 */
 const urlCache = new Map<string, string>()
 
 /** 释放某个图片的缓存 object URL；不传 id 则清空全部（如导入覆盖后）。 */
@@ -131,9 +122,7 @@ export async function deleteImage(id: string): Promise<void> {
   })
 }
 
-/**
- * 清空全部图片（销毁所有图片二进制）。用于「删除全部数据」时连带清理 IndexedDB 图片库。
- */
+/** 清空全部图片；「删除全部数据」时连带清理 IndexedDB 图片库。 */
 export async function clearAllImages(): Promise<void> {
   const db = await openDB()
   return new Promise((resolve, reject) => {
@@ -144,7 +133,7 @@ export async function clearAllImages(): Promise<void> {
   })
 }
 
-/** 列出全部图片（用于扫描引用/暂存区管理）。默认只列出未暂存的；stagedOnly 列出暂存区 */
+/** 列出全部图片（用于扫描引用/暂存区管理）；stagedOnly 为 true 时只列暂存区。 */
 export async function listImages(stagedOnly = false): Promise<StoredImage[]> {
   const db = await openDB()
   return new Promise((resolve, reject) => {
@@ -188,7 +177,7 @@ export async function importImages(map: Record<string, string>): Promise<number>
   let count = 0
   for (const id of Object.keys(map)) {
     const existing = await getImageBlob(id)
-    if (existing) continue // 已存在则跳过（幂等）
+    if (existing) continue
     const blob = dataURLToBlob(map[id])
     if (!blob) continue
     const db = await openDB()
@@ -215,7 +204,7 @@ export async function importImageBlobs(map: Record<string, Blob>): Promise<numbe
   let count = 0
   for (const id of Object.keys(map)) {
     const existing = await getImageBlob(id)
-    if (existing) continue // 已存在则跳过（幂等）
+    if (existing) continue
     const blob = map[id]
     const db = await openDB()
     await new Promise<void>((resolve, reject) => {
@@ -275,7 +264,6 @@ export function imageBlobsFromClipboard(dt: DataTransfer): Blob[] {
       if (f) blobs.push(f)
     }
   }
-  // 兜底：直接看 dt.files
   if (blobs.length === 0) {
     for (const f of Array.from(dt.files)) {
       if (f.type.startsWith("image/")) blobs.push(f)

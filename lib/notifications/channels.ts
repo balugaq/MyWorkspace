@@ -7,9 +7,7 @@ import { sendQqNotification } from "./qq-channel"
 export interface NotificationChannel {
   /** 渠道 id，对应 Settings.notificationChannels 的键 */
   id: string
-  /** 展示名的 i18n key（设置页勾选项） */
   nameKey: string
-  /** 设置页勾选项下的说明文字的 i18n key */
   descKey: string
   /** 投递一批通知；实现自身吞错（渠道不可用不影响其余渠道与扫描流程）；settings 供渠道读自己的配置 */
   deliver(items: NotificationItem[], settings: Settings): void | Promise<void>

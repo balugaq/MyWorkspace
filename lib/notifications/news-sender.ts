@@ -1,21 +1,14 @@
-// 新闻精选 sender（TODO 23 / TODO 44）：手动触发（每天最多一次，18:00 为一天分界）拉取
-// 多平台热榜，交给 AI 精选最有价值的条目并按固定 schema 输出 JSON，解析后生成「新闻包」通知。
-//
-// 工作流：
-//   1. 通知中心「新闻精选」tab 的手动按钮调 triggerNewsManually()（TODO 44 起无自动触发）；
-//   2. 周期判断：新闻周期 = 上次 18:00 → 本次 18:00，本周期内 newsLastFetchedAt 已落 → 拒绝触发；
-//   3. 拉取 5 个平台的实时热榜（GET /api/v1/misc/hotboard?type=…，复用 lib/uapi.ts 公共底座
-//      与「高级 → UAPI 令牌」，免费接口，令牌可选）；
-//   4. 汇总条目喂给当前选中的 AI 模型：后台静默新建「新闻精选」会话（不打断当前会话/视图），
-//      经全局请求队列流式回写（与普通对话同一条链路，AI 页里可回看完整问答）；
-//   5. 轮询等待 AI 最终回复 → 解析 JSON 数组 → 生成 1 条新闻包 NotificationItem（newsPack，
-//      幂等 id，store 去重）→ 走统一渠道分发（弹窗 / QQ 各 1 条）+ 写通知日志。
-//
-// 失败策略（TODO 44）：
-//   - 热榜部分/全部失败 → 不发失败通知，仅写通知日志；全部失败时本轮不动时间戳；
-//   - AI 已触发（enqueue 成功）即落 fetched 时间戳——本周期不再重复触发；
-//   - AI 请求失败（含 HTTP 429）/ 回复超时 / 回复解析不出条目 → 生成一条「新闻精选运行失败」
-//     通知（幂等 id news-fail:{cycle}，同周期去重），走正常渠道分发。
+// 新闻精选 sender（TODO 23 / TODO 44）：手动触发（每天最多一次，18:00 为一天分界）拉取多平台热榜，
+// 交给 AI 精选并按固定 schema 输出 JSON，解析后生成「新闻包」通知。
+// 工作流：通知中心「新闻精选」tab 手动按钮调 triggerNewsManually()（TODO 44 起无自动触发）→
+// 周期判断（新闻周期 = 上次 18:00 → 本次 18:00，本周期内 newsLastFetchedAt 已落则拒绝触发）→
+// 拉取 5 个平台实时热榜（GET /api/v1/misc/hotboard?type=…，复用 lib/uapi.ts 公共底座与「高级 → UAPI 令牌」，免费接口令牌可选）→
+// 后台静默新建「新闻精选」会话经全局请求队列流式回写（不打断当前会话/视图，与普通对话同链路，AI 页可回看）→
+// 轮询等待 AI 最终回复 → 解析 JSON 数组 → 生成 1 条新闻包 NotificationItem（newsPack 幂等 id，store 去重）
+// → 走统一渠道分发（弹窗 / QQ 各 1 条）+ 写通知日志。
+// 失败策略（TODO 44）：热榜部分/全部失败 → 不发失败通知仅写通知日志，全部失败时本轮不动时间戳；
+// AI 已触发（enqueue 成功）即落 fetched 时间戳——本周期不再重复触发；
+// AI 请求失败（含 HTTP 429）/ 回复超时 / 回复解析不出条目 → 发「新闻精选运行失败」通知（幂等 id news-fail:{cycle}，同周期去重）。
 
 import { getI18n } from "@/lib/i18n"
 import { enqueue, type AIChatConfig } from "@/lib/ai/request-queue"
@@ -45,8 +38,6 @@ const TYPE_LABEL: Record<(typeof NEWS_TYPES)[number], string> = {
   thepaper: "澎湃新闻",
 }
 
-// ---- 热榜接口的最小类型面 ----
-
 interface HotboardItem {
   title?: string
   url?: string
@@ -61,8 +52,6 @@ interface HotboardResponse {
   list?: HotboardItem[]
 }
 
-// ---- 周期判断 ----
-
 /** 当前新闻周期起点：最近一次 ≤ now 的本地 18:00（18:00 之后算「新的一天」）。
  *  仅用于通知标题的日期标注（手动触发改版后已无「每周期一次」的拉取门槛）。 */
 export function newsCycleStart(now: number = Date.now()): number {
@@ -71,8 +60,7 @@ export function newsCycleStart(now: number = Date.now()): number {
   return d.getTime() <= now ? d.getTime() : d.getTime() - 24 * 60 * 60 * 1000
 }
 
-// ---- AI 配置（与 ai-chat.tsx 的选型逻辑同口径）----
-
+// AI 配置：与 ai-chat.tsx 的选型逻辑同口径
 function resolveAiConfig(): AIChatConfig | null {
   const { aiModels, aiActiveModelId } = useWorkspace.getState().settings
   const m = aiModels.find((x) => x.id === aiActiveModelId) ?? aiModels[0]
@@ -85,8 +73,6 @@ function resolveAiConfig(): AIChatConfig | null {
   }
 }
 
-// ---- 热榜拉取 ----
-
 interface HotEntry {
   source: (typeof NEWS_TYPES)[number]
   title: string
@@ -95,7 +81,6 @@ interface HotEntry {
   extra: string
 }
 
-/** 拉一个平台热榜；失败抛错由调用方跳过 */
 async function fetchHotboard(type: (typeof NEWS_TYPES)[number], token: string): Promise<HotEntry[]> {
   const data = await uapiGet<HotboardResponse>("/api/v1/misc/hotboard", token, { type })
   const list = Array.isArray(data.list) ? data.list : []

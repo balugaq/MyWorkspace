@@ -1,6 +1,5 @@
-// lib/contributions.ts 的纯逻辑测试（node:test，`npm test` 跑）。
-// 覆盖「每天翻篇」口径（TODO 8）：dayKey 按 settings.dayStartOffset（默认 04:00）
-// 把凌晨时刻归到前一天，以及 offset 非法值的回落行为。
+// lib/contributions.ts 纯逻辑测试（node:test，`npm test` 跑）。
+// 覆盖「每天翻篇」口径（TODO 8）：dayKey 按 dayStartOffset（默认 04:00）把凌晨时刻归前一天，及 offset 非法值回落。
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import {

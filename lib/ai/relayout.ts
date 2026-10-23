@@ -1,7 +1,5 @@
-// AI 整理布局（TODO 54）：对指定关系族做一次「位置重排」。
-// 不走对话流：直接用 AI SDK 函数式调用（经 lib/ai/request-queue.ts 的并发纪律），
-// prompt 携带节点清单（id/title/当前坐标），要求返回 JSON `{nodeId:{x,y}}`；
-// 解析成功才写回族内节点 position（updateNode），失败抛错由调用方 toast、不落库。
+// AI 整理布局（TODO 54）：对指定关系族做一次「位置重排」，prompt 携带节点清单，要求返回 JSON `{nodeId:{x,y}}`。
+// 不走对话流，经 request-queue 函数式调用；解析成功才写回族内节点 position，失败抛错由调用方 toast、不落库。
 
 "use client"
 
@@ -36,10 +34,7 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
   return null
 }
 
-/**
- * 重排指定族的全部节点位置，返回实际写回的节点数。
- * 抛错场景：族不存在 / 族无节点 / 未配置模型 / 响应不含合法 JSON / 无任何有效坐标。
- */
+/** 重排指定族的全部节点位置，返回实际写回的节点数。抛错：族不存在 / 无节点 / 未配置模型 / 响应无合法 JSON / 无有效坐标。 */
 export async function relayoutFamilyNodes(familyId: string): Promise<number> {
   const s = useWorkspace.getState()
   const fam = s.relationFamilies[familyId]

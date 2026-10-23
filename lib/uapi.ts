@@ -1,9 +1,5 @@
-// UAPI（uapis.cn）公共客户端（TODO 23 自 TODO 34 抽取）：天气与新闻热榜等
-// misc 接口共用的请求底座，统一管理 Bearer 头拼装、GET 请求与错误归一。
-//
-// - 端点均为 GET，query 传参；Authorization: Bearer <令牌> 可选（设置 → 高级 → UAPI 令牌）
-// - 429 抛 UapiRateLimitedError，其余非 2xx 抛 UapiError，网络错抛 status=0 的 UapiError
-// - 各业务的缓存 / 冷却策略（如天气 2h 缓存 + 10min 冷却）留在各自模块，不在此层处理
+// UAPI（uapis.cn）公共客户端（TODO 23 自 TODO 34 抽取）：天气/新闻热榜等 misc 接口共用的请求底座，统一 Bearer 头拼装、GET 与错误归一（429 抛 UapiRateLimitedError，其余非 2xx 及网络错抛 UapiError，status=0 为网络错）。
+// 端点均为 GET + query 传参；Bearer 令牌可选（设置 → 高级）。各业务的缓存/冷却策略（如天气 2h 缓存 + 10min 冷却）留在各自模块，不在此层。
 
 export const UAPI_BASE = "https://uapis.cn"
 
@@ -33,12 +29,7 @@ export function uapiHeaders(token: string): Record<string, string> {
   return headers
 }
 
-/**
- * GET 一个 UAPI 接口并解析 JSON。
- * @param path 以 / 开头的接口路径，如 "/api/v1/misc/weather"
- * @param token UAPI 令牌（可选，留空匿名）
- * @param query 追加的 query 参数
- */
+/** GET 一个 UAPI 接口并解析 JSON；path 以 / 开头（如 "/api/v1/misc/weather"），token 留空匿名。 */
 export async function uapiGet<T>(
   path: string,
   token: string,

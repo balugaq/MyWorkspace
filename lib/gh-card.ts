@@ -1,19 +1,14 @@
 "use client"
 
 /**
- * GitHub Issue / PR / Release 预览卡数据层。
- *
- * 设计（与需求「1+3 结合 + 缓存 + 定时刷新」一致）：
- *  - 缩略图：GitHub 的 Open Graph 图服务地址直接作为 <img> 热链，零 API、不受 CORS 限制。
- *    官方 og:image 路径：`https://opengraph.githubassets.com/<hash>/<owner>/<repo>/issues|pull|releases/<id>`
- *    （issue 复数、pull 单数——与 GitHub 页面自身的 og:image 一致）。
- *    <hash> 仅作缓存版本串，固定填 1 即可；需强制刷新改它。
- *  - 元数据：issue/PR 走 `api.github.com/repos/{o}/{r}/issues/{n}`（issues API 兼容 PR）；
- *    release 走 `releases/tags/{tag}` 或 `releases/{id}`。带用户设置里的 GitHub 令牌以提升限额。
- *  - 缓存：元数据与 OG 图 blob 都存 IndexedDB，缓存有效期 CACHE_MS，过期重新拉取（即「定时刷新、少访问」）。
- *
- * 注意：OG 图用 fetch 取 blob 缓存时可能命中 CORS（opengraph.githubassets.com 不一定返回 ACAO），
- * 因此失败时回退为直接热链（浏览器按 HTTP 缓存）。
+ * GitHub Issue / PR / Release 预览卡数据层（1+3 结合 + 缓存 + 定时刷新）。
+ * - 缩略图：OG 图服务热链（零 API、不受 CORS 限制），路径
+ *   `https://opengraph.githubassets.com/<hash>/<owner>/<repo>/issues|pull|releases/<id>`
+ *   （issue 复数、pull 单数；<hash> 仅缓存版本串，固定填 1，需强制刷新时改它）。
+ * - 元数据：issue/PR 走 `repos/{o}/{r}/issues/{n}`（issues API 兼容 PR），release 走
+ *   `releases/tags/{tag}` 或 `releases/{id}`；带用户令牌提升限额。
+ * - 缓存：元数据与 OG blob 存 IndexedDB，有效期 CACHE_MS；OG blob 缓存可能遇 CORS
+ *   （不一定返回 ACAO），失败回退直接热链。
  */
 
 export interface GithubRef {
@@ -26,8 +21,7 @@ export interface GithubRef {
   tag?: string
 }
 
-// (issues|pull) 必须是捕获组：类型要从 m[3] 取、编号从 m[4] 取。
-// 此前写成非捕获组导致 m[4] 为 undefined → num=NaN → API 404（卡片「未知」+ #NaN）+ OG 地址非法（回落仓库图）。
+// (issues|pull) 必须是捕获组（类型/编号从 m[3]/m[4] 取）；此前写成非捕获组导致 m[4]=undefined → num=NaN → API 404 + OG 地址非法。
 const GH_RE = /https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/(issues|pull)\/(\d+)/i
 // release 两种链接：/releases/tag/{tag} 与 /releases/{id}；tag/编号后必须跟 / ? # 或结尾，避免误截
 const GH_RELEASE_RE =
@@ -174,7 +168,6 @@ export async function fetchGithubCard(url: string, token?: string): Promise<Gith
   const cached = await readCard(url).catch(() => null)
   if (cached && Date.now() - cached.ts < CACHE_MS) return cached.data
 
-  // API 端点按类型分派：issue/PR 共用 issues/{n}；release 用 tag 或 id 解析
   const api =
     ref.type === "issue" || ref.type === "pull"
       ? `https://api.github.com/repos/${ref.owner}/${ref.repo}/issues/${ref.num}`

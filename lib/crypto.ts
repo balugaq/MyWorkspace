@@ -1,11 +1,6 @@
 /**
- * AES-256-GCM 对称加密工具（基于 Web Crypto）。
- *
- * 保险库的主密码经 PBKDF2 派生出 AES-256 密钥；明文（JSON 序列化的条目数组）
- * 用 AES-256-GCM 加密，密文 + 随机 salt + 随机 IV 一同落盘到 IndexedDB。
- *
- * 注意：Web Crypto 仅在「安全上下文」（https 或 localhost）下可用；
- * 若在不安全上下文（如直接以 file:// 打开静态产物）调用，会抛出明确错误。
+ * 保险库 AES-256-GCM 加密工具（Web Crypto）：主密码经 PBKDF2 派生密钥，密文 + 随机 salt + IV 落盘 IndexedDB。
+ * 仅「安全上下文」（https / localhost）可用，否则 getSubtle 抛明确错误。
  */
 
 const PBKDF2_ITERATIONS = 150_000

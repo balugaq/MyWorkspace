@@ -1,5 +1,4 @@
-// 词汇问答 AI 评分（TODO 64 批 2）：每题作答在答完后一次性提交评分。
-// 不走对话流：requestDirectCompletion 函数式调用（经 lib/ai/request-queue.ts 并发纪律，仿 relayout）。
+// 词汇问答 AI 评分（TODO 64 批 2）：每题作答答完后一次性提交评分，经 requestDirectCompletion 函数式调用（并发纪律仿 relayout）。
 // 评分前程序化预搜注入参考（复用 wb_web_search 的代理管线；搜索失败不阻塞评分）。
 
 "use client"

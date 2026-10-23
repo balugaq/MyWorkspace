@@ -1,7 +1,5 @@
-// 内链标记（TODO 28）：跨视图跳转的文本标记协议。
-// 格式：[[mw:conv:{会话id}|显示标题]] 与 [[mw:node:{族id}:{节点id}|显示标题]]
-// AI 回复 / 预览正文里可写，只读渲染时由 richtext/upgrade.ts 升级为可点击链接（编辑态保持原样不激活）。
-// 本文件保持纯函数（无 DOM / store 依赖），供 node:test 直接测试。
+// 内链标记（TODO 28）：跨视图跳转的文本标记协议，格式 [[mw:conv:{会话id}|标题]] / [[mw:node:{族id}:{节点id}|标题]]；只读渲染由 richtext/upgrade.ts 升级为可点击，编辑态保持原样不激活。
+// 保持纯函数（无 DOM / store 依赖），供 node:test 直接测试。
 
 /** 标记正则：id 段允许 [\w-]，多段用冒号分隔；标题不允许 ] 与换行 */
 export const MW_LINK_RE = /\[\[mw:(conv|node):([\w-]+(?::[\w-]+)*)\|([^\]\n]+)\]\]/g
@@ -15,9 +13,7 @@ export interface MwLinkParts {
   raw: string
 }
 
-/**
- * 解析单个内链标记的三个捕获组；类型与 id 段数不符（conv 1 段 / node 2 段）或段为空返回 null。
- */
+/** 类型与 id 段数不符（conv 1 段 / node 2 段）或段为空返回 null。 */
 export function parseInternalLink(
   type: string,
   idsRaw: string,

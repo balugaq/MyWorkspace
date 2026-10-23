@@ -1,11 +1,6 @@
 /**
- * 保险库存储层（IndexedDB）。
- *
- * 仅存放「加密后的 blob」：salt / iv / ciphertext。明文与派生密钥都不落盘，
- * 密钥只存在于 VaultProvider 的内存中。即使拿到本库数据，没有主密码也无法解密。
- *
- * 备份集成：exportVault / importVault 以 base64 形式序列化，供 ZIP 备份打包/恢复
- * （加密数据可直接搬运，无需主密码）。
+ * 保险库存储层（IndexedDB）：仅存放加密后的 blob（salt/iv/ciphertext），明文与派生密钥不落盘，拿到数据没有主密码也无法解密。
+ * exportVault / importVault 以 base64 序列化供 ZIP 备份打包/恢复（加密数据可直接搬运，无需主密码）。
  */
 
 const DB_NAME = "workspace-vault"

@@ -1,10 +1,6 @@
-// 自动备份（TODO 60）：每天关机（页面隐藏/关闭）时自动保存 1 份全量 store 快照，保留最近 5 份；
-// 启动时比较当前数据量与最新备份数据量，相差超过 50% 时提示可能存在数据丢失。
-//
-// 存储：IndexedDB（与 image-store 同套路）。备份数据量可能远超 localStorage 5MB 限额，故不落 localStorage。
-// 备份内容：exportData 全分区（除保险库——加密数据独立存储，与 IndexedDB 同生共死，快照里无恢复价值）。
-// 「一天」口径：沿用 settings.dayStartOffset（默认 04:00 翻篇，与贡献账本/签到一致）。
-// 恢复：设置 → 账户与同步 → 自动备份，替换模式导入（图片不随快照携带，正文 imgref 引用的图片仍在图片库中）。
+// 自动备份（TODO 60）：关机（页面隐藏/关闭）时存 1 份全量 store 快照（保留 5 份），启动时数据量与最新备份相差 >50% 弹提醒。
+// 存 IndexedDB（数据量远超 localStorage 限额）；不含保险库（加密数据独立存储，快照无恢复价值）；
+// 图片不随快照携带（正文 imgref 引用的图片仍在图片库）；「一天」按 dayStartOffset（默认 04:00 翻篇）。
 
 import { useWorkspace } from "./store"
 import { parseDayStartOffset, todayKey } from "./contributions"
@@ -102,7 +98,6 @@ export async function saveAutoBackup(force = false): Promise<boolean> {
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
   })
-  // 滚动保留最近 N 条
   const list = await listAutoBackups()
   const stale = list.slice(AUTO_BACKUP_KEEP)
   if (stale.length > 0) {
@@ -123,7 +118,6 @@ export function maybeAutoBackupOnShutdown(): void {
   saveAutoBackup(false).catch(() => {})
 }
 
-/** 删除指定备份 */
 export async function deleteAutoBackup(dayKey: string): Promise<void> {
   const db = await openDB()
   await new Promise<void>((resolve, reject) => {
@@ -146,7 +140,6 @@ export interface DataLossCheck {
   currentSize: number
   /** 备份数据量（字符数） */
   backupSize: number
-  /** 备份时间 */
   backupAt: number
 }
 

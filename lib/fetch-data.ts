@@ -3,12 +3,8 @@
 import { parse as parseYaml } from "yaml"
 
 /**
- * 加载 public/ 下的数据文件（YAML）。纯客户端 fetch，装入后解析为 JSON。
- *
- * 项目为纯前端静态导出（output: "export"），public/ 下的文件会原样随构建拷贝到 out/，
- * 运行时用同源 fetch 读取。数据只读，不回写磁盘。
- *
- * 失败策略：返回 null，并通过全局事件让应用层弹 toast 提示（文件名可见），调用方可静默跳过。
+ * 加载 public/ 下的数据文件（YAML）：项目为纯前端静态导出，public/ 文件原样随构建拷贝到 out/，
+ * 运行时同源 fetch 读取，数据只读不回写。失败返回 null，并经全局事件让应用层弹 toast（调用方可静默跳过）。
  */
 
 const CACHE = new Map<string, unknown>()

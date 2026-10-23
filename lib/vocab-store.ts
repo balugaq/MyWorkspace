@@ -1,14 +1,6 @@
-// 词汇表存储层（TODO 64）：IndexedDB 独立存储（词条 / 来源 / 问答记录），不进 localStorage persist。
-// 选型依据：4 本英语书的词汇量（可达上万条）会顶爆 localStorage 5MB 配额，故与图片 / 保险库同套路走 IndexedDB。
-//
-// 结构：
-//   workspace-vocab
-//   ├── entries  (keyPath id)  # VocabEntry：词 → 释义，底层 id 表示，显示层随意增删改
-//   ├── sources  (keyPath id)  # VocabSource：独立来源小系统（不与标签共用），词条用 id 引用
-//   └── records  (keyPath id)  # VocabQuizRecord：每轮问答全量持久化
-//
-// 缓存：模块级内存缓存（首次 load 后常驻），写入操作同步更新缓存 + IndexedDB，
-// 组件直接读缓存渲染（与 gh-card / image-store 的缓存思路一致）。
+// 词汇表存储层（TODO 64）：IndexedDB 独立存储，不进 localStorage——4 本英语书词汇量可达上万条会顶爆 5MB 配额（与图片/保险库同套路）。
+// 结构：entries（词→释义，底层 id 表示、显示层随意增删改）/ sources（独立来源小系统，词条 id 引用、name 随意改）/ records（每轮问答全量持久化）。
+// 缓存：模块级内存缓存（首次 load 后常驻），写入同步更新缓存 + IndexedDB，组件直接读缓存渲染。
 
 import type {
   VocabEntry,
@@ -65,8 +57,6 @@ function putValues(store: IDBObjectStore, values: unknown[]): Promise<void> {
   })
 }
 
-// ---- 模块级缓存 ----
-
 let entriesCache: VocabEntry[] | null = null
 let sourcesCache: VocabSource[] | null = null
 let recordsCache: VocabQuizRecord[] | null = null
@@ -106,8 +96,6 @@ function sortEntries(entries: VocabEntry[]): VocabEntry[] {
   )
 }
 
-// ---- 来源（VocabSource）：独立小系统，底层 id 引用，name 可随意改 ----
-
 /** 按名称查找来源（trim 精确匹配；不存在返回 null） */
 export function findVocabSourceByName(name: string): VocabSource | null {
   const key = name.trim()
@@ -140,7 +128,6 @@ export async function renameVocabSource(id: string, name: string): Promise<void>
 export async function deleteVocabSource(id: string): Promise<number> {
   if (!(sourcesCache ?? []).some((s) => s.id === id)) return 0
   sourcesCache = (sourcesCache ?? []).filter((s) => s.id !== id)
-  // 先筛出受影响词条（原本 sourceId === id 的），缓存摘标记后精确回写这批
   const affectedIds = new Set(
     (entriesCache ?? []).filter((e) => e.sourceId === id).map((e) => e.id)
   )
@@ -168,8 +155,6 @@ export async function deleteVocabSource(id: string): Promise<number> {
   return affectedIds.size
 }
 
-// ---- 词条（VocabEntry）----
-
 /** 词条 word 是否已存在（trim 精确匹配；excludeId 供编辑时排除自身） */
 export function isVocabWordTaken(word: string, excludeId?: string): boolean {
   const key = word.trim().toLowerCase()
@@ -188,7 +173,6 @@ export async function upsertVocabEntry(entry: VocabEntry): Promise<void> {
   await putValues(db.transaction(STORE_ENTRIES, "readwrite").objectStore(STORE_ENTRIES), [entry])
 }
 
-/** 删除词条 */
 export async function removeVocabEntry(id: string): Promise<void> {
   entriesCache = (entriesCache ?? []).filter((e) => e.id !== id)
   const db = await openDB()
@@ -208,8 +192,7 @@ export interface VocabImportReport {
 }
 
 /**
- * 解析批量导入文本（AI 输出 / 手动粘贴共用）：
- * 接受纯数组或 { items: [...] } 两种形状；word / definition 均非空才有效。
+ * 解析批量导入文本（AI 输出 / 手动粘贴共用）：接受纯数组或 { items: [...] } 两种形状，word / definition 均非空才有效。
  * 解析失败（非法 JSON / 非数组）返回空结果，调用方以 items.length === 0 判定。
  */
 export function parseVocabImport(text: string): {
@@ -249,11 +232,7 @@ export function parseVocabImport(text: string): {
   return { items, invalid }
 }
 
-/**
- * 批量导入（AI 批量加词方案 A 的入库端 + 手动粘贴共用）：
- * word 重复（与现有库或本批次内，trim 精确匹配）→ 跳过保留旧释义；
- * item.source 字符串 → 按名取 / 建 VocabSource（ensureVocabSource 幂等）。
- */
+/** 批量导入（AI 批量加词方案 A 入库端 + 手动粘贴共用）：word 重复（与现有库或本批次内，trim 精确匹配）跳过并保留旧释义；item.source 按名取/建来源（ensureVocabSource 幂等）。 */
 export async function addVocabEntries(
   items: VocabImportItem[],
 ): Promise<VocabImportReport> {
@@ -310,8 +289,6 @@ export async function addVocabEntries(
   return report
 }
 
-// ---- 问答记录（VocabQuizRecord）：全量持久化 ----
-
 /** 保存一轮问答记录，并把每题评价回写到对应词条的 review（词条已删的跳过） */
 export async function saveQuizResult(
   record: Omit<VocabQuizRecord, "id"> & { id?: string }
@@ -351,7 +328,7 @@ export function listQuizRecords(): VocabQuizRecord[] {
   return recordsCache ?? []
 }
 
-// ---- 备份（TODO 41 分区管线：vocab.json）----
+// TODO 41：备份分区管线（vocab.json）
 
 export interface VocabBackupData {
   version: 1
@@ -402,10 +379,8 @@ function normalizeEntry(raw: unknown): VocabEntry | null {
 }
 
 /**
- * 导入词汇表备份（TODO 41 管线）：
- * - replace：整库覆盖（entries / sources / records 全量替换）
- * - merge：同 id 视为同一条（保留现有）；同 word（trim + 忽略大小写）保留现有；
- *   sources 按 name 去重；sourceId 指向不存在来源的词条置空
+ * 导入词汇表备份（TODO 41 管线）：replace = 整库覆盖（entries / sources / records 全量替换）；
+ * merge = 同 id 视为同一条（保留现有）、同 word（trim + 忽略大小写）保留现有，sources 按 name 去重，sourceId 指向不存在来源的词条置空。
  */
 export async function importVocab(
   data: unknown,
@@ -417,7 +392,6 @@ export async function importVocab(
   const rawSources = Array.isArray(d.sources) ? d.sources : []
   const rawRecords = Array.isArray(d.records) ? d.records : []
 
-  // 来源：按 name 去重（merge 时与现有库一起看）
   const sourceByName = new Map<string, VocabSource>()
   for (const s of mode === "merge" ? (sourcesCache ?? []) : []) {
     if (!sourceByName.has(s.name)) sourceByName.set(s.name, s)
@@ -458,7 +432,6 @@ export async function importVocab(
   }
   const finalEntries = sortEntries([...byId.values()])
 
-  // 记录：merge 按 id 去重（保留现有），replace 全量替换
   const recordById = new Map<string, VocabQuizRecord>()
   if (mode === "merge") {
     for (const r of recordsCache ?? []) recordById.set(r.id, r)

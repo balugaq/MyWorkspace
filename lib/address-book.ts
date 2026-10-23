@@ -4,24 +4,12 @@ import { loadPublicYaml } from "./fetch-data"
 import type { Person } from "./types"
 
 /**
- * 通讯录数据（TODO 48：持久化驱动）。
- *
- * 数据主源 = store 的 contacts（localStorage 持久化，界面可增删改）；
- * public/address_book.yml 降级为「设置 → 从 yml 导入」的来源：用户手改 yml 后
- * 在设置里点导入，整表替换 store 数据。
- *
- * yml schema（与 store 的 Person 一致，但无 id 字段——导入时自动分配）：
- *   people:
- *     - name
- *       description
- *       birthday: "YYYY-MM-DD" 公历，或 "L1995-06-15" 农历（L 前缀）
- *       address
- *       roles: []
- *       contact: [{ type: phone|qq|email|wechat, value }]
+ * 通讯录数据（TODO 48）：主源 = store 的 contacts（localStorage）；public/address_book.yml
+ * 供「设置 → 从 yml 导入」整表替换。yml schema 与 store 的 Person 一致（无 id 字段，导入时分配），
+ * birthday 支持 "YYYY-MM-DD" 公历 / "L1995-06-15" 农历（L 前缀）。
  */
 
-// Person / ContactItem 自 TODO 48 起迁入 lib/types.ts（store 持久化类型，Person 含 id）；
-// 此处 re-export 保持既有 import 路径（联系人页 / 日历 / AI 技能等消费点无需改动）。
+// 自 TODO 48 迁入 lib/types.ts；re-export 保持既有 import 路径（联系人页 / 日历 / AI 技能等无需改动）。
 export type { Person, ContactItem } from "./types"
 
 export interface AddressBookFile {
@@ -40,10 +28,7 @@ export async function loadAddressBook(): Promise<AddressBookFile | null> {
   return cache
 }
 
-/**
- * yml 导入辅助（TODO 48）：给无 id 的 yml 条目分配稳定 id，过滤无效条目（无 name）。
- * 每次导入都重新分配 id——yml 本身没有 id，外部也不存在对旧 id 的引用。
- */
+/** yml 导入辅助（TODO 48）：给无 id 条目分配 id、过滤无 name 条目；每次导入重新分配——yml 无 id，外部无旧 id 引用。 */
 export function withIds(people: Omit<Person, "id">[]): Person[] {
   return people
     .filter((p) => typeof p.name === "string" && p.name.trim().length > 0)
@@ -67,7 +52,6 @@ export function parseBirthday(
     lunar = true
     core = s.slice(1)
   }
-  // 形如 1995-06-15
   const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(core)
   if (m) {
     const year = Number(m[1])

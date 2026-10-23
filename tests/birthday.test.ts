@@ -1,8 +1,5 @@
-// lib/birthday.ts 的纯逻辑测试（node:test，`npm test` 跑）。
-// 覆盖 TODO 61 生日横幅的倒推逻辑：下一个生日日期、剩余天数、公历 2/29 回落、
-// 农历换算窗口、以及 upcomingBirthdays 的汇总与排序。
-// 农历用例不硬编码换算值：用 solarMatchForLunarMD 自身产出构造「今天」，
-// 只验证我们的窗口/回落逻辑，不重复验证换算库。
+// lib/birthday.ts 纯逻辑测试（node:test，`npm test` 跑），覆盖 TODO 61 生日横幅倒推逻辑。
+// 农历用例不硬编码换算值：用 solarMatchForLunarMD 自身产出构造「今天」，只验证窗口/回落逻辑，不重复验证换算库。
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
 import { nextBirthdayIn, upcomingBirthdays } from "../lib/birthday.ts"
@@ -36,7 +33,7 @@ describe("nextBirthdayIn（公历）", () => {
   it("今年的生日已过 → 归到明年", () => {
     const r = nextBirthdayIn(person("1990-10-01"), at(2026, 10, 7))
     assert.ok(r)
-    assert.equal(r.daysUntil, 359) // 2026-10-07 → 2027-10-01
+    assert.equal(r.daysUntil, 359)
     assert.equal(r.date.getFullYear(), 2027)
   })
 
@@ -61,7 +58,7 @@ describe("nextBirthdayIn（公历）", () => {
 })
 
 describe("nextBirthdayIn（农历，动态构造换算日）", () => {
-  const lunarMD = { month: 8, day: 15 } // 中秋月日，仅用其换算结果
+  const lunarMD = { month: 8, day: 15 }
   const thisYear = solarMatchForLunarMD(2026, lunarMD.month, lunarMD.day)
   const personLunar = person(`L1990-${String(lunarMD.month).padStart(2, "0")}-${String(lunarMD.day).padStart(2, "0")}`)
 
@@ -97,8 +94,8 @@ describe("upcomingBirthdays（汇总与排序）", () => {
     person("1990-10-09", "后天星"),
     person("1990-10-15", "窗口外"),
     person("1990-10-08", "明天星"),
-    { id: "no-name", name: "", birthday: "1990-10-08" }, // 无姓名跳过
-    { id: "no-bd", name: "无生日" }, // 无生日跳过
+    { id: "no-name", name: "", birthday: "1990-10-08" },
+    { id: "no-bd", name: "无生日" },
   ]
 
   it("过滤窗口外与非法数据，按剩余天数升序", () => {

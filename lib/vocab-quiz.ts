@@ -1,13 +1,8 @@
-// 词汇问答出题逻辑（TODO 64 批 2）：随机 + 错词加权抽样，纯函数无 DOM 依赖（tests 可测）。
-// 主人拍板口径：随机出题，错词（wrong/partial 累计）加权更常出现。
+// 词汇问答出题逻辑（TODO 64 批 2）：随机 + 错词加权抽样，纯函数无 DOM 依赖（tests 可测）；主人拍板口径：错词（wrong/partial 累计）加权更常出现。
 
 import type { VocabEntry } from "./types"
 
-/**
- * 加权不重复抽样：权重 = 1 + wrongCount * 2。
- * 返回 min(count, entries.length) 个，顺序即出题顺序。
- * rand 注入便于测试（默认 Math.random）。
- */
+/** 加权不重复抽样：权重 = 1 + wrongCount * 2；返回 min(count, entries.length) 个，顺序即出题顺序；rand 注入便于测试（默认 Math.random）。 */
 export function pickQuizEntries(
   entries: VocabEntry[],
   count: number,

@@ -2,12 +2,9 @@ import type { Contribution } from "./types"
 import { getI18n } from "./i18n/index.ts"
 
 /**
- * 贡献账本（Profile 热力图数据源）的纯逻辑。
- *
- * 设计要点（详见 `docs/entry-points.md` §8.16）：
- * - 账本存「发生时间 `at`（epoch ms）」，**读取时**按当前 `dayStartOffset` 现算 dayKey；
- *   因此用户改「每天翻篇时间」后，历史记录会跟着重新分桶（语义自洽）。
- * - `dayStartOffset` 语义：某日 `offset` 之前的时刻归到**前一天**（默认 04:00）。
+ * 贡献账本（Profile 热力图数据源）的纯逻辑。账本存发生时间 at（epoch ms），读取时按当前
+ * dayStartOffset 现算 dayKey——用户改翻篇时间后历史记录重新分桶（语义自洽）；offset 语义：
+ * 某日 offset（默认 04:00）之前的时刻归前一天。详见 docs/entry-points.md §8.16。
  */
 
 /** 每天「翻篇」时刻默认值（HH:mm，用户本地时区）：04:00 之前仍算前一天 */
@@ -48,7 +45,6 @@ export function dayKey(at: number, offsetMinutes: number): string {
   return `${y}-${mo}-${day}`
 }
 
-/** 当前所属日键（按 offset 分桶） */
 export function todayKey(offsetMinutes: number, now: number = Date.now()): string {
   return dayKey(now, offsetMinutes)
 }
@@ -117,8 +113,8 @@ export function buildHeatmapGrid(todayKeyStr: string, weeks = 53): HeatmapCell[]
   const [y, mo, d] = todayKeyStr.split("-").map(Number)
   const today = new Date(y, (mo || 1) - 1, d || 1)
   const startSunday = new Date(today)
-  startSunday.setDate(startSunday.getDate() - today.getDay()) // 回到本周周日
-  startSunday.setDate(startSunday.getDate() - (weeks - 1) * 7) // 再往前 (weeks-1) 周
+  startSunday.setDate(startSunday.getDate() - today.getDay())
+  startSunday.setDate(startSunday.getDate() - (weeks - 1) * 7)
 
   const grid: HeatmapCell[][] = []
   for (let w = 0; w < weeks; w++) {

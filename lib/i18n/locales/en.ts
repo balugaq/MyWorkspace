@@ -1,5 +1,4 @@
-// 英文字典（TODO 40）：key 与 zh.ts 一一对应；缺 key 时 i18next 回落中文（fallbackLng: zh）。
-// 2026-10-17 全量补齐（27 命名空间，与 zh.ts 同构）。
+// 英文字典（TODO 40）：key 与 zh.ts 一一对应，缺 key 时 i18next 回落中文；2026-10-17 全量补齐（27 命名空间，与 zh.ts 同构）。
 
 const common = {
   save: "Save",
@@ -1061,7 +1060,6 @@ const push = {
 }
 
 const settingsExtra = {
-  // ===== 残留清扫批（弹窗与 lib 诊断文案），2026-10-17 深夜 =====
   skills: {
     searchPlaceholder: "Search skills by name or description…",
     noMatch: "No matching skills.",

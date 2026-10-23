@@ -1,7 +1,5 @@
 export interface ThirdPartyLicense {
-  /** 软件名称 */
   name: string
-  /** 作者 / 维护组织 */
   author: string
   /** 简短描述（中文，说明本项目如何用到它） */
   description: string
@@ -11,8 +9,7 @@ export interface ThirdPartyLicense {
   licenseUrl: string
 }
 
-// 收集自 package.json 的运行时依赖与关键构建依赖。
-// 许可证简称若有出入，链接指向的是对应标准许可证文本，整体可信。
+// 收集自 package.json 的运行时/关键构建依赖；许可证简称若有出入，链接指向对应标准许可证文本，整体可信。
 export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
   {
     name: "Next.js",

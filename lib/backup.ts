@@ -13,19 +13,10 @@ import type { BackupSectionId, BackupSections } from "./types"
 
 /**
  * 备份 / 恢复（ZIP，读写均由 fflate 完成）。
- *
- * 导出（`exportBackupZip`）：
- *   workplace-backup-YYYY-MM-DD.zip
- *   ├── manifest.json      # 元信息（app / version / exportedAt / sections）
- *   ├── workspace.json     # store 快照（按所选分区携带；settings 始终携带，等同 localStorage 持久化数据）
- *   ├── vault.json         # 保险库加密数据（仅勾选 vault 分区时打包；salt/iv/ciphertext 的 base64，主密码无关，可直接搬运）
- *   └── images/<id>.<ext>  # 全部用户图片（含暂存区；已是压缩格式，level 0 直存）
- *
- * 分区（TODO 41）：随笔 / 日历 / AI 对话 / 贡献账本 / 通知 / GitHub 队列 / 联系人 / 密码保险库；
- * 联系人与密码保险库为敏感分区，默认不导出（联系人自 TODO 48 持久化起可导出）。
- * 自定义节日（TODO 48）随「日历数据」分区携带。
- * 导入：`parseBackupFile` 识别 ZIP / 旧版纯 JSON；ZIP 经 `importBackupZip`
- * 按「替换 / 合并」两种模式恢复——两种模式都只处理备份携带的分区，未携带的分区保留当前数据。
+ * 布局：manifest.json（app/version/exportedAt/sections）+ workspace.json（store 快照，settings 始终携带）
+ *   + vault.json（保险库加密数据 salt/iv/ciphertext 的 base64，主密码无关可直接搬运，仅勾选 vault 分区时打包）
+ *   + images/<id>.<ext>（全部用户图片含暂存区）+ vocab.json（词汇表）。
+ * 导入按「替换 / 合并」恢复，只处理备份携带的分区，未携带的保留当前数据；parseBackupFile 兼容旧版纯 JSON。
  */
 
 const APP_KEY = "my-omni-workspace"
@@ -33,13 +24,10 @@ const APP_KEY = "my-omni-workspace"
 /** 分区元信息（TODO 41）：设置页导出弹窗按此渲染勾选项 */
 export const BACKUP_SECTION_META: {
   id: BackupSectionId
-  /** 展示名的 i18n key（TODO 40） */
   label: string
-  /** 说明文字的 i18n key（TODO 40） */
   descKey: string
   /** 敏感分区：默认不勾选（联系人 / 密码保险库） */
   sensitive: boolean
-  /** 联系人数据尚未持久化（TODO 48），导出入口暂不可用 */
   available: boolean
 }[] = [
   { id: "notes", label: "backup.section.notes", descKey: "backup.section.notesDesc", sensitive: false, available: true },
@@ -118,7 +106,6 @@ export async function exportBackupZip(sections?: BackupSections): Promise<Blob> 
     const bytes = new Uint8Array(await img.blob.arrayBuffer())
     files[`images/${img.id}.${mimeToExt(img.kind)}`] = [bytes, { level: 0 }]
   }
-  // 保险库：仅勾选 vault 分区时打包加密数据（base64）；不存在则跳过
   if (sections?.vault === true) {
     const vault = await exportVault()
     if (vault) {

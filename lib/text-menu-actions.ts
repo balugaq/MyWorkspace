@@ -1,22 +1,14 @@
 "use client"
 
-// 文字右键菜单「功能层」（TODO 50 / 主人要求的分离架构）：
-// 本文件只定义「能做什么」——统一的上下文接口 + 可复用的动作集合，
-// 不知道也不关心菜单长什么样（UI 见 components/text-context-menu.tsx）。
-// 任何地方的 ContextMenu（随笔编辑器、未来的只读文档、节点卡……）都可以：
-//   1) 直接复用 BUILTIN_TEXT_MENU_ACTIONS；
-//   2) 用自定义 TextMenuContext 适配自己的编辑器（TipTap / textarea / 任意 contenteditable）；
-//   3) 追加自有动作（如日历格的「今天放假」），不必经过这里。
+// 文字右键菜单「功能层」（TODO 50 / 主人要求的分离架构）：只定义「能做什么」——统一上下文接口 + 可复用动作，不关心 UI 长什么样（见 components/text-context-menu.tsx）。
+// 任何 ContextMenu 都可：复用 BUILTIN_TEXT_MENU_ACTIONS；用自定义 TextMenuContext 适配自己的编辑器（TipTap / textarea / 任意 contenteditable）；或追加自有动作，不必经过这里。
 
 import type { LucideIcon } from "lucide-react"
 import { Scissors, Copy, ClipboardPaste, TextSelect, Sparkles } from "lucide-react"
 
 /**
- * 文字右键菜单的统一上下文：功能层只认这个接口，不认任何具体组件。
- *
- * 所有回调由「宿主」（编辑器/文本框的封装方）提供；菜单打开时刻才求值，
- * 因此 getSelectedText 必须是函数——选区变化不触发 React 渲染，
- * 若传字符串快照会拿到过期值。
+ * 文字右键菜单统一上下文：功能层只认这个接口，不认任何具体组件。
+ * 所有回调由宿主提供、菜单打开时刻才求值——选区变化不触发 React 渲染，getSelectedText 必须是函数，传字符串快照会拿到过期值。
  */
 export interface TextMenuContext {
   /** 目标是否可编辑（决定剪切/粘贴是否出现；只读文档天然为 false） */

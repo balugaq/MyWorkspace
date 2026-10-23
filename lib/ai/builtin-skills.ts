@@ -1,11 +1,6 @@
-// 内置（builtin）技能：一组**只读**的数据查询能力，供 AI 助手通过 Tool Calling 调用。
-//
-// 与 public/skills/*.md（用户编写的「说明书」型技能，execute 仅回传正文）不同，
-// 本文件的技能是**代码驱动**的：execute 直接读取运行时状态与数据文件，返回结构化 JSON。
-// 所有技能均为只读操作，不修改任何状态 / 不写回磁盘。
-//
-// 工具名统一以 `wb_` 前缀，避免与用户 markdown 技能（文件名 slug）冲突。
-// 每个技能都带 zod 参数 schema，由 use-ai-chat.ts 注册为 AI SDK tool。
+// 内置（builtin）技能：代码驱动的**只读**数据查询能力，供 AI 助手通过 Tool Calling 调用
+// （与 public/skills/*.md 的「说明书」型技能不同，execute 直接读运行时状态返回结构化 JSON）。
+// 工具名统一 wb_ 前缀避免与用户 markdown 技能冲突；均带 zod schema，由 use-ai-chat.ts 注册为 AI SDK tool。
 
 "use client"
 
@@ -25,24 +20,18 @@ import { dayShortHint } from "@/lib/day-hint"
 import { collectDueNodes } from "@/lib/deadlines"
 import type { Category, Chapter, MindNode, FestivalDef, RelationFamily } from "@/lib/types"
 
-/** 一个内置技能的定义。execute 接收已校验的参数对象，返回可 JSON 序列化的结果。 */
+/** 内置技能定义：execute 接收已校验的参数对象，返回可 JSON 序列化的结果。 */
 export interface BuiltinSkill {
   /** tool 名（唯一，wb_ 前缀） */
   name: string
   /** 给 AI 选择用的描述 */
   description: string
-  /** 参数 zod schema */
   parameters: z.ZodTypeAny
   /** 实际执行：纯只读查询 */
   execute: (args: Record<string, unknown>) => Promise<unknown>
 }
 
-// ----------------------------- 通用辅助 -----------------------------
-
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-
-/** 解析 yyyy-MM-dd；非法抛错。 */
-function parseYmd(s: string): { year: number; month: number; day: number; date: Date } {
   if (!DATE_RE.test(s)) throw new Error(`日期格式应为 yyyy-MM-dd，收到：${s}`)
   const [y, m, d] = s.split("-").map(Number)
   const date = new Date(y, m - 1, d)
@@ -56,7 +45,6 @@ function parseYmd(s: string): { year: number; month: number; day: number; date: 
   return { year: y, month: m, day: d, date }
 }
 
-/** 按 id 或 name 在分类列表中查找分类；找不到返回 null。 */
 function findCategory(
   categories: Category[],
   args: Record<string, unknown>,
@@ -70,14 +58,13 @@ function findCategory(
   if (name) {
     const byName = categories.find((c) => c.name === name)
     if (byName) return byName
-    // 容错：子串匹配
     const bySub = categories.find((c) => c.name.includes(name))
     if (bySub) return bySub
   }
   return null
 }
 
-/** 用户自定义节日定义（TODO 48 起读 store 持久化；设置页可从 public/custom_festivals.yml 导入）。 */
+// TODO 48 起读 store 持久化；设置页可从 public/custom_festivals.yml 导入。
 function loadFestivalDefs(): FestivalDef[] {
   return useWorkspace.getState().customFestivals
 }
@@ -139,10 +126,7 @@ function nodeToPlain(n: MindNode) {
   }
 }
 
-// ----------------------------- 技能定义 -----------------------------
-
 export const BUILTIN_SKILLS: BuiltinSkill[] = [
-  // 1. 获取某一天笔记内容
   {
     name: "wb_get_day_note",
     description:
@@ -156,7 +140,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 2. 获取所有有笔记内容的日期
   {
     name: "wb_get_dates_with_notes",
     description:
@@ -172,7 +155,7 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 3. 获取某一天所有日期数据（镜像 calendar-workspace 的日格计算）
+  // 镜像 calendar-workspace 的日格计算
   {
     name: "wb_get_day_calendar_data",
     description:
@@ -225,7 +208,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 4. 获取所有联系人姓名
   {
     name: "wb_get_contact_names",
     description: "获取通讯录中所有联系人的姓名列表（本地持久化通讯录，只读）。",
@@ -236,7 +218,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 5. 获取指定的联系人姓名和描述
   {
     name: "wb_get_contact",
     description:
@@ -252,7 +233,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 6. 获取所有分类名称及类别
   {
     name: "wb_get_categories",
     description:
@@ -271,7 +251,7 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 6.5 列出 AI 会话（TODO 28 内链配套）：供 AI 拿会话 id 生成内链标记
+  // TODO 28 内链配套：供 AI 拿会话 id 生成内链标记
   {
     name: "wb_list_conversations",
     description:
@@ -291,7 +271,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 7. 获取某一分类下所有子分类（章节）名称（仅 NovelWorkspace 类）
   {
     name: "wb_get_chapters",
     description:
@@ -321,7 +300,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 8. 获取某一子分类中所有内容（仅 NovelWorkspace 类）
   {
     name: "wb_get_chapter_content",
     description:
@@ -369,7 +347,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 9. 获取思维导图下所有节点的连接关系及名称（仅 mindmap / relation 类，TODO 54 起按关系族）
   {
     name: "wb_get_mindmap_graph",
     description:
@@ -405,7 +382,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 10. 获取思维导图下指定节点的所有内容（仅 mindmap / relation 类，TODO 54 起按关系族）
   {
     name: "wb_get_mindmap_node",
     description:
@@ -456,7 +432,7 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 11. 查询最近的站内通知（TODO 20：通知中心，当前数据源为 GitHub sender）
+  // TODO 20 通知中心，数据源为 GitHub sender
   {
     name: "wb_get_recent_notifications",
     description:
@@ -490,7 +466,6 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 12. 获取 GitHub 队列内容（TODO 36：Issue/PR 看板队列，只读）
   {
     name: "wb_get_github_queue",
     description:
@@ -532,9 +507,8 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 联网搜索（TODO：百度千帆 AI 搜索）：需要实时信息时由模型主动调用。
-  // 经本地代理 /api/ai-search 转发（scripts/ai-search-proxy-lib.mjs）——
-  // qianfan.baidubce.com 无 CORS 头，浏览器直连会被拦；Key 存在 settings 里随请求带给本机代理。
+  // 联网搜索（TODO：百度千帆 AI 搜索）：经本地代理 /api/ai-search 转发——
+  // qianfan.baidubce.com 无 CORS 头，浏览器直连会被拦；Key 存 settings 随请求带给本机代理。
   {
     name: "wb_web_search",
     description:
@@ -571,8 +545,8 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
       if (!res.ok) {
         const detail = await res.text().catch(() => "")
         if (res.status === 404) {
-          // 404 = 请求打到了 next dev 本身：代理未拉起（通常是 dev 进程早于 dev.mjs
-          // 的代理改动启动，NEXT_PUBLIC_AI_SEARCH_PROXY 被编译成空 → 走了相对路径）
+          // 404 = 代理未拉起，请求打到了 next dev 本身（dev 进程早于 dev.mjs 的代理改动启动，
+          // NEXT_PUBLIC_AI_SEARCH_PROXY 被编译成空 → 走了相对路径）
           throw new Error(
             "联网搜索代理未启动（404）：请重启 npm run dev，启动日志应出现「AI 搜索代理已启动 http://127.0.0.1:3007」"
           )
@@ -583,8 +557,7 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     },
   },
 
-  // 富文本格式指南（TODO 32）：只读回传 16 色标签调色板与 Markdown 语法规范，
-  // 供 AI 在需要排版富文本时按规范输出（正文渲染管线已支持这些格式）。
+  // 富文本格式指南（TODO 32）：只读回传 16 色标签调色板与 Markdown 语法规范，供 AI 排版富文本。
   {
     name: "wb_format_guide",
     description:
@@ -611,9 +584,8 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     }),
   },
 
-  // 词汇表批量导入指南（TODO 64 批 2）：只读回传导入 JSON 规范，
-  // 供 AI 把书单/词表整理成词汇表导入格式（方案 A 两段式：AI 输出 JSON → 用户复制
-  // 粘贴到词汇表「AI 批量导入」弹窗入库，AI 不直接写库）。
+  // 词汇表批量导入指南（TODO 64 批 2）：只读回传导入 JSON 规范（方案 A 两段式：
+  // AI 输出 JSON → 用户复制粘贴到词汇表「AI 批量导入」弹窗入库，AI 不直接写库）。
   {
     name: "wb_prepare_vocab_import",
     description:
@@ -637,8 +609,7 @@ export const BUILTIN_SKILLS: BuiltinSkill[] = [
     }),
   },
 
-  // 内链标记指南（TODO 28）：只读回传内链语法。
-  // AI 可在回复里输出内链标记，读者点击即跳转到对应 AI 会话 / 思维导图节点（只读渲染时升级为链接）。
+  // 内链标记指南（TODO 28）：只读回传内链语法，AI 回复里输出标记即可跳转到对应 AI 会话 / 思维导图节点。
   {
     name: "wb_internal_link_guide",
     description:

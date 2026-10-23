@@ -1,14 +1,7 @@
-// ============================================================
-// ai-search-proxy-lib.mjs — AI 联网搜索本地代理（零依赖，纯 Node）
-//
-// 为什么需要它：百度千帆 AI 搜索接口（qianfan.baidubce.com/v2/ai_search/
-// chat/completions）不返回 Access-Control-Allow-Origin 头，浏览器直连会被
-// CORS 拦截；且本项目为静态导出（output:"export"）无法使用 Next Route
-// Handler，故与天气/新闻代理同一模式：本地 Node 进程转发，再回给前端。
-//
-// 与天气/新闻代理的区别：搜索 Key 存在前端设置里，随请求体带给本机代理，
-// 由本机代持转发（Key 不落盘、不出本机）。
-// ============================================================
+// ai-search-proxy-lib.mjs — AI 联网搜索本地代理（零依赖，纯 Node）。
+// 为什么需要：百度千帆 AI 搜索接口不返回 CORS 头，且本项目为静态导出（output:"export"）无法用
+// Next Route Handler，故与天气/新闻代理同一模式：本地 Node 进程转发后回给前端。
+// 区别：搜索 Key 存在前端设置，随请求体带给本机代理代持转发（Key 不落盘、不出本机）。
 import { createServer } from "node:http"
 
 const AI_SEARCH_URL = "https://qianfan.baidubce.com/v2/ai_search/chat/completions"
@@ -87,9 +80,8 @@ export async function handleAiSearchRequest(req, res, url) {
 export function startAiSearchProxy(port = 3007) {
   const server = createServer(async (req, res) => {
     try {
-      // CORS 预检：技能用 POST + application/json（非简单请求），浏览器会先发 OPTIONS。
-      // 不正确应答预检（缺 Allow-Methods / Allow-Headers），浏览器会直接报
-      // "Failed to fetch"，连真正的 POST 都不会发出。
+      // CORS 预检：POST + application/json 非简单请求，浏览器会先发 OPTIONS；
+      // 若不应答预检（缺 Allow-Methods / Allow-Headers），浏览器直接报 "Failed to fetch"，真正的 POST 都不会发出。
       if (req.method === "OPTIONS") {
         res.writeHead(204, {
           "Access-Control-Allow-Origin": "*",

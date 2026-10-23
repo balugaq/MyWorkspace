@@ -1,7 +1,6 @@
-// GitHub Issue/PR 拉取（TODO 36）：复用 github-sender 的「Bearer + 限流判定」思路，
-// 但独立成模块，不改动既有通知扫描链路（github-sender.ts）。仅用原生 fetch，无第三方依赖。
-//
-// 幂等去重键（IssueQueueItem.id）：`iq:{repo}:{kind}:{number}`（issue 与 PR 可能同 number，故拼 kind）。
+// GitHub Issue/PR 拉取（TODO 36）：复用 github-sender 的「Bearer + 限流判定」思路，但独立成模块，
+// 不改动既有通知扫描链路；仅原生 fetch，无第三方依赖。
+// 幂等去重键（IssueQueueItem.id）：`iq:{repo}:{kind}:{number}`——issue 与 PR 可能同 number，故拼 kind。
 
 import type { IssueQueueColumn, IssueQueueItem } from "./types"
 

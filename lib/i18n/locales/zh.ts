@@ -1,5 +1,4 @@
 // 中文源字典（TODO 40）：按视图/批次拆命名空间，聚合导出供 i18next resources 使用。
-// en 字典暂空（fallbackLng=zh 回落中文）；补 en 时按本文件逐命名空间翻译。
 
 const common = {
   save: "保存",
@@ -1153,7 +1152,6 @@ const push = {
 }
 
 const settingsExtra = {
-  // ===== 残留清扫批（弹窗与 lib 诊断文案），2026-10-17 深夜 =====
   skills: {
     searchPlaceholder: "搜索技能名称或描述…",
     noMatch: "没有匹配的技能。",

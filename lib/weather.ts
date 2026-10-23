@@ -1,19 +1,10 @@
-// UAPI 天气数据客户端：浏览器直连 uapis.cn 官方接口（TODO 34，替代原中国天气网本地代理）。
-//
-// 接口：GET https://uapis.cn/api/v1/misc/weather（与官方 SDK getMiscWeather 同源同参）
-// - 不传 city / adcode：接口按客户端 IP 自动定位（todo 示例口径：city 不要提供）
-// - Authorization: Bearer <UAPI 令牌> 可选（设置 → 高级 中配置）；无令牌也可调用
-// - 缓存：成功结果落 localStorage（mw:weather-cache），2 小时内直接复用；
-//   仅用户手动点击刷新（force）时绕过缓存重新获取
-// - 429 限流：命中后进入 10 分钟前端冷却（mw:weather-cooldown 持久化，刷新页面不绕过），
-//   冷却期内所有请求直接抛 RateLimitedError，由 UI 提示「10 分钟后再调用」
-//
-// 请求底座（Bearer / 错误归一）复用 lib/uapi.ts（TODO 23 抽取，与新闻热榜共用）。
+// UAPI 天气客户端（TODO 34，替代原中国天气网本地代理）：浏览器直连 GET https://uapis.cn/api/v1/misc/weather（与官方 SDK getMiscWeather 同源同参），不传 city/adcode 按客户端 IP 自动定位（示例口径：city 不要提供）；Bearer 令牌可选，请求底座复用 lib/uapi.ts（TODO 23）。
+// 缓存：成功结果落 localStorage（mw:weather-cache）2 小时内复用，仅用户手动刷新（force）绕过；429 后进入 10 分钟冷却（mw:weather-cooldown 持久化，刷新页面不绕过），冷却期内直接抛 RateLimitedError 由 UI 提示。
 
 import { uapiGet, UapiError, UapiRateLimitedError } from "./uapi"
 
-const CACHE_TTL_MS = 2 * 60 * 60 * 1000 // 2 小时获取 1 次
-const COOLDOWN_MS = 10 * 60 * 1000 // 429 后 10 分钟内不再发起请求
+const CACHE_TTL_MS = 2 * 60 * 60 * 1000
+const COOLDOWN_MS = 10 * 60 * 1000
 const CACHE_KEY = "mw:weather-cache"
 const COOLDOWN_KEY = "mw:weather-cooldown"
 
@@ -40,17 +31,13 @@ interface UapiWeatherResponse {
 }
 
 export interface WeatherNow {
-  /** 城市名（中文），如「北京」 */
   city: string
   /** 区县 / 更细一级行政区（IP 定位时常有），如「海淀区」 */
   district: string
   /** 当前温度 ℃ */
   temperature: number | null
-  /** 天气现象描述，如「晴」「多云」 */
   weather: string
-  /** 风向，如「西南风」 */
   windDirection: string
-  /** 风力等级，如「微风」 */
   windPower: string
   /** 相对湿度 % */
   humidity: number | null
@@ -143,11 +130,7 @@ async function requestWeather(token: string): Promise<WeatherNow> {
   return normalize(payload)
 }
 
-/**
- * 获取当前天气（IP 自动定位）。
- * @param token UAPI 令牌（可选，留空匿名调用）
- * @param opts.force true = 用户手动刷新，绕过 2 小时缓存强制获取
- */
+/** 获取当前天气（IP 自动定位）；token 留空匿名调用，opts.force = 用户手动刷新，绕过 2 小时缓存强制获取。 */
 export async function fetchWeather(
   token: string,
   opts?: { force?: boolean },

@@ -1,24 +1,20 @@
 // 思维导图节点风格配色工具：ARGB（#AARRGGBB）存储 + 渲染转换 + 预设调色板 + 随机和谐色。
-// 不引入第三方色盘库——取色器 UI（预设 + 原生 color input + 透明度滑块 + 随机）自绘即可，
-// 避免新增依赖与 THIRD_PARTY_LICENSES 登记负担。
+// 不引入第三方色盘库——取色器 UI 自绘即可，避免新增依赖与 THIRD_PARTY_LICENSES 登记负担。
 
-/**
- * 预设调色板：选取明度/饱和度均衡、在浅色与深色主题下都可读的颜色。
- * 每项均为不透明 ARGB（alpha=FF），UI 内可再用透明度滑块调低。
- */
+/** 预设调色板：明度/饱和度均衡（浅色/深色主题下都可读）；每项不透明 ARGB（alpha=FF），UI 可再用透明度滑块调低。 */
 export const NODE_PALETTE: string[] = [
-  "#FFFF5C8A", // 粉红
-  "#FFFFA94D", // 橙
-  "#FFFFD43B", // 黄
-  "#FF69DB7C", // 绿
-  "#FF38D9A9", // 青绿
-  "#FF4DABF7", // 蓝
-  "#FF748FFC", // 靛
-  "#FFB197FC", // 紫
-  "#FFF783AC", // 品红
-  "#FF9775FA", // 浅紫
-  "#FF63E6BE", // 薄荷
-  "#FF868E96", // 灰
+  "#FFFF5C8A",
+  "#FFFFA94D",
+  "#FFFFD43B",
+  "#FF69DB7C",
+  "#FF38D9A9",
+  "#FF4DABF7",
+  "#FF748FFC",
+  "#FFB197FC",
+  "#FFF783AC",
+  "#FF9775FA",
+  "#FF63E6BE",
+  "#FF868E96",
 ]
 
 /** 把 ARGB 字符串解析为 UI 用的 { rgb: #RRGGBB, alpha: 0–100 }；无效/为空返回默认。 */
@@ -37,7 +33,7 @@ export function parseArgb(v?: string): { rgb: string; alpha: number } {
  *  rgb 既接受 6 位 #RRGGBB，也接受 8 位 #AARRGGBB（前置 alpha 字节会被剥掉，改用入参 alpha）。 */
 export function toArgb(rgb: string, alpha: number): string {
   let hex = rgb.replace("#", "").toUpperCase()
-  if (hex.length === 8) hex = hex.slice(2) // 剥掉 ARGB 前置 alpha 字节，保留 RRGGBB
+  if (hex.length === 8) hex = hex.slice(2)
   const a = Math.round((Math.max(0, Math.min(100, alpha)) / 100) * 255)
     .toString(16)
     .toUpperCase()
@@ -91,8 +87,8 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
  */
 export function randomHarmoniousColor(): string {
   const h = Math.floor(Math.random() * 360)
-  const s = 0.55 + Math.random() * 0.2 // 0.55–0.75
-  const l = 0.55 + Math.random() * 0.1 // 0.55–0.65
+  const s = 0.55 + Math.random() * 0.2
+  const l = 0.55 + Math.random() * 0.1
   const [r, g, b] = hslToRgb(h, s, l)
   const rgb = `#${r.toString(16).padStart(2, "0")}${g
     .toString(16)

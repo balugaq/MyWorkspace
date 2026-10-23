@@ -1,8 +1,7 @@
 "use client"
 
 import type { Person } from "./address-book"
-// .ts 扩展名：node:test（--experimental-strip-types）直接跑本模块时需要显式扩展名
-// （allowImportingTsExtensions 已开，Next/Turbopack 构建同样接受）
+// .ts 扩展名：node:test（--experimental-strip-types）直接跑本模块时需要显式扩展名（Turbopack 构建同样接受）
 import { solarMatchForLunarMD } from "./lunar.ts"
 
 /** 判断给定公历日期（year/month/day）是否命中某联系人生日。 */
@@ -17,10 +16,8 @@ export function isBirthdayOn(person: Person, year: number, month: number, day: n
   const bDay = Number(m[3])
 
   if (!lunar) {
-    // 公历：只比对月日
     return bMonth === month && bDay === day
   }
-  // 农历：把该农历月日换算到本公历年的公历日期，比较
   const solar = solarMatchForLunarMD(year, bMonth, bDay)
   if (!solar) return false
   return solar.year === year && solar.month === month && solar.day === day
@@ -36,7 +33,7 @@ export function birthdaysOn(
   return (people ?? []).filter((p) => p.name && isBirthdayOn(p, year, month, day))
 }
 
-// ---- 生日横幅（TODO 61）：临近生日倒推 ----
+// 生日横幅（TODO 61）：临近生日倒推
 
 /** 解析 birthday 字符串 → { lunar, month, day }（忽略出生年份；非法返回 null） */
 function parseBirthdayMD(birthday: string | undefined): { lunar: boolean; month: number; day: number } | null {
@@ -99,7 +96,6 @@ export interface UpcomingBirthday {
   /** 生日日期的月 / 日（公历，农历生日已换算） */
   month: number
   day: number
-  /** 是否农历生日 */
   lunar: boolean
 }
 

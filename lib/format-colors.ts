@@ -1,14 +1,10 @@
 // 富文本 16 色文本标签（TODO 32）：调色板取自 Minecraft 格式化代码 §0–§f
-// （名称与色值对齐 zh.minecraft.wiki「格式化代码」页的颜色代码表）。
-//
-// 形态：行内标签 <色名>文字</色名>，如 <blue>蓝色的字</blue>。
-// 渲染层（TipTap FormatColor mark / MarkdownView）把它解析为带内联色值的 span，
-// 正文存储与 AI 输出里始终是纯文本标签——不落任何原始 HTML，XSS 防线不变。
+// （对齐 zh.minecraft.wiki「格式化代码」页色表），形态为行内标签 <色名>文字</色名>。
+// 正文存储与 AI 输出里始终是纯文本标签，由渲染层（TipTap FormatColor mark / MarkdownView）
+// 解析为带内联色值的 span——不落任何原始 HTML，XSS 防线不变。
 
 export interface FormatColorEntry {
-  /** 标签名（即 <tag>…</tag> 的 tag） */
   tag: string
-  /** 十六进制色值 */
   hex: string
   /** 中文名（技能文档 / 提示词用） */
   label: string

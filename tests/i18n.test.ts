@@ -46,7 +46,6 @@ describe("i18n 初始化与切换", () => {
 
   it("en 缺 key 回落中文", () => {
     syncLocale("en")
-    // en 字典未抽取的 key（后续批次补）回落 zh
     assert.equal(getI18n().t("not.extracted.yet"), "not.extracted.yet")
   })
 

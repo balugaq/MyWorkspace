@@ -4,22 +4,10 @@ import { Lunar, HolidayUtil } from "lunar-javascript"
 import { solarMatchForLunarMD, solarForLunarYMD } from "./lunar"
 
 /**
- * 节日数据模型与匹配。
- *
- * public/custom_festivals.yml 的 schema：
- *   festivals:
- *     - name: "名称"
- *       festival_rule: "5-2-7" | "11-27" | "2026-07-09" | "LMM-DD"(每年农历月日) | "LYYYY-MM-DD"(指定农历年某日)
- *       color: "#FF0000"        # 默认 slateblue
- *       holiday_override: true  # 是否节假日（日格标"假"）
- *       workday_override: false # 是否工作日（日格标"班"）
- *
- * festival_rule 解析：
- *   - n1-n2：每年固定公历月-日  （如 11-27）
- *   - yyyy-mm-dd：仅该年该日（如 2026-07-09）
- *   - m-w-d：每年某月第 N 个星期几（如 5-2-7 = 5月第2个周日；第5个以每4周一档，超过取消）
- *   - LMM-DD：每年农历月-日，换算成当年公历（如 L6-15 = 农历六月十五，每年命中）
- *   - LYYYY-MM-DD：指定农历年某日（如 L2026-08-15 = 农历2026年八月十五，仅该农历年命中一次）
+ * 节日数据模型与匹配。public/custom_festivals.yml schema：
+ *   festivals: [{ name, festival_rule, color（默认 slateblue）, holiday_override（日格标"假"）, workday_override（日格标"班"） }]
+ * festival_rule 语法："n1-n2" 每年公历月-日；"yyyy-mm-dd" 仅该年该日；"m-w-d" 某月第 N 个星期几
+ *   （如 5-2-7 = 5月第2个周日；第 5 个以每 4 周一档，超过取消）；"LMM-DD" 每年农历月-日；"LYYYY-MM-DD" 指定农历年某日。
  */
 
 /** 节日匹配规则类型 */
@@ -33,7 +21,6 @@ export type FestivalKind =
 
 export interface Festival {
   name: string
-  /** 节日的具体展示色 */
   color: string
   holiday: boolean
   workday: boolean
@@ -46,11 +33,8 @@ export interface Festival {
   weekday?: number // 0=周日
 }
 
-/** 二十四节气配色（紫） */
 export const JIEQI_COLOR = "#c084fc"
-/** 法定放假日配色（红） */
 export const HOLIDAY_COLOR = "#ef4444"
-/** 调休补班工作日配色（蓝） */
 export const WORKDAY_COLOR = "#3b82f6"
 
 /**
@@ -83,7 +67,6 @@ export function builtinChinaFestivals(
     h = null
   }
 
-  // 法定节假日 / 调休 优先
   if (h && h._p) {
     const work = !!h._p.work
     out.push({
@@ -94,16 +77,13 @@ export function builtinChinaFestivals(
       kind: "holiday",
     })
   }
-  // 二十四节气：仅在该日节气名与法定假日名**完全相同**时才跳过（例如二者都是「清明」）。
-  // 形如「清明」(节气) 与「清明节」(假日名) 视为正常并存，不做额外压制。
   if (jq && !(h && h._p && h._p.name === jq)) {
     out.push({ name: jq, color: JIEQI_COLOR, holiday: false, workday: false, kind: "jieqi" })
   }
   return out
 }
 
-// FestivalDef 自 TODO 48 起随联系人一起迁入 lib/types.ts（store 持久化类型）；
-// 此处 re-export 保持既有 import 路径（日历 / AI 技能等消费点无需改动）。
+// FestivalDef 自 TODO 48 迁入 lib/types.ts；re-export 保持既有 import 路径。
 import type { FestivalDef } from "./types"
 export type { FestivalDef }
 
@@ -117,10 +97,8 @@ export function parseFestivalRule(rule: string | undefined): Omit<Festival, "nam
   const s = rule.trim()
   if (!s) return null
 
-  // 农历：L 开头
   if (s.startsWith("L")) {
     const body = s.slice(1)
-    // LMM-DD：每年农历月-日（如 L8-15 = 农历八月十五，每年换算成公历都命中）
     const m = /^(\d{1,2})-(\d{1,2})$/.exec(body)
     if (m) {
       const mm = Number(m[1])
@@ -160,7 +138,7 @@ export function parseFestivalRule(rule: string | undefined): Omit<Festival, "nam
     // 月-周-日：某月第几个星期几。星期编码 1-7 = 周一到周日（7 即周日），
     // 兼容 schema 示例 "5-2-7"(5月第二个星期天)。内部统一转成 JS 的 0-6。
     if (a >= 1 && a <= 12 && b >= 1 && b <= 5 && c >= 1 && c <= 7) {
-      const jsWeekday = c % 7 // 7(周日)->0
+      const jsWeekday = c % 7
       return { kind: "weekdayOfMonth", mm: a, weekIndex: b, weekday: jsWeekday }
     }
     return null
@@ -179,7 +157,6 @@ function matchDate(f: Festival, year: number, month: number, day: number): boole
       if (f.mm !== month) return false
       const first = new Date(year, month - 1, 1)
       const firstWeekday = first.getDay()
-      // 该月第 weekIndex 个 weekday
       const offset = (f.weekday! - firstWeekday + 7) % 7
       const targetDay = 1 + offset + (f.weekIndex! - 1) * 7
       return targetDay === day
@@ -218,7 +195,6 @@ export function festivalsForDate(
     if (f.kind === "lunar") {
       let solar: { year: number; month: number; day: number } | null = null
       if (f.year != null) {
-        // 指定农历年：LYYYY-MM-DD（仅该农历年对应的公历日命中一次）
         solar = solarForLunarYMD(f.year, f.mm!, f.dd!)
       } else {
         // 每年农历月日：LMM-DD（沿用现有换算，农历年借用查询的公历年推算）

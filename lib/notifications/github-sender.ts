@@ -1,10 +1,6 @@
-// GitHub sender（TODO 18）：扫描配置仓库的 commit / issue / PR / release，
-// 产 NotificationItem 供通知中心入库。纯 fetch，无第三方依赖。
-//
-// 令牌：复用 settings.githubToken（见 lib/types.ts / lib/gh-card.ts 的 Bearer 用法）；
-// 未填则匿名。撞 403/429 且 x-ratelimit-remaining === "0" 时视为限流：
+// GitHub sender（TODO 18）：扫描配置仓库的 commit / issue / PR / release，产 NotificationItem 供通知中心入库。纯 fetch。
+// 令牌复用 settings.githubToken，未填则匿名；撞 403/429 且 x-ratelimit-remaining === "0" 视为限流：
 // 置 rateLimited=true 并立即中止剩余请求（已拿到的部分照常返回），下轮再试。
-//
 // 幂等去重键（NotificationItem.id）：
 //   gh:commit:{owner}/{repo}:{sha} | gh:issue:{owner}/{repo}:{number}
 //   gh:pr:{owner}/{repo}:{number}  | gh:release:{owner}/{repo}:{id}
@@ -18,7 +14,6 @@ const TITLE_MAX = 120
 const BRIEF_MAX = 200
 
 export interface GithubScanOptions {
-  /** 每仓库独立配置：owner/name + 该仓库自己的扫描类型开关 */
   repos: NotificationRepoConfig[]
   token: string // PAT；空串 = 匿名
   /** 已入库的通知 id 集合：用于 issue/PR 状态变化事件的判定（如 reopen 需要「见过关闭」） */
@@ -30,7 +25,7 @@ export interface GithubScanResult {
   rateLimited: boolean
 }
 
-// ---- GitHub REST 响应的最小类型面（只取用到的字段） ----
+// GitHub REST 响应的最小类型面（只取用到的字段）
 
 interface GhCommit {
   sha: string
@@ -53,10 +48,7 @@ interface GhIssue {
   state: "open" | "closed"
   /** 关闭时间（issue 与 PR 都有；重新打开后再次关闭会更新） */
   closed_at: string | null
-  /**
-   * 执行关闭的用户（TODO 47）：列表 API 在 state=closed 时返回；
-   * PR 被合并时也是执行 merge 的人。brief 文案用它，不与 user（作者）混淆。
-   */
+  /** 执行关闭的用户（TODO 47）：列表 API 在 state=closed 时返回；PR 被合并时也是执行 merge 的人。brief 用它，不与 user（作者）混淆。 */
   closed_by?: { login: string } | null
   body?: string | null
   /** assignee 登录名列表（「自动入 GitHub 队列」判定 assign 给自己用） */
@@ -80,8 +72,6 @@ interface GhRelease {
   created_at: string
 }
 
-// ---- 工具函数 ----
-
 function ghHeaders(token: string): Record<string, string> {
   const headers: Record<string, string> = { Accept: "application/vnd.github+json" }
   const t = token.trim()
@@ -89,7 +79,6 @@ function ghHeaders(token: string): Record<string, string> {
   return headers
 }
 
-/** 首行截断：取第一行非空文本，trim 后按 max 截断。 */
 function firstLine(text: string | null | undefined, max: number): string {
   if (!text) return ""
   const line = text
@@ -100,10 +89,7 @@ function firstLine(text: string | null | undefined, max: number): string {
   return line.length > max ? line.slice(0, max) + "…" : line
 }
 
-/**
- * 单请求取 JSON：网络错误 / 非 2xx 抛错（调用方 catch 跳过该请求）；
- * 403/429 且限流额度耗尽时置 state.rateLimited 并抛错。
- */
+/** 单请求取 JSON：网络错误 / 非 2xx 抛错（调用方 catch 跳过该请求）；403/429 且限流额度耗尽时置 state.rateLimited 并抛错。 */
 async function fetchJson(
   url: string,
   token: string,
@@ -120,15 +106,11 @@ async function fetchJson(
   return (await res.json()) as unknown
 }
 
-// ---- 各类型扫描 ----
-
 /**
- * commit 扫描：**不用** since 参数过滤——committer date 是「提交完成」的时间，
- * 不是「推送到 GitHub」的时间（先写好再 push 的 commit，committer date 会早于推送时刻，
- * 落在水线之前被 since 过滤漏掉）。改为拉最近 50 条 + sha 去重：
- *  - committer date > since 的（正常节奏：写完就推）→ 直接通知；
- *  - committer date ≤ since 但 sha 未见过 → 仅当该仓库此前已有 commit 入库记录时通知
- *    （晚推送的旧 commit）；首次扫描一个新仓库时不回溯历史，避免把旧 commit 全部当新通知刷屏。
+ * commit 扫描不用 since 参数过滤——committer date 是「提交完成」时间而非「推送到 GitHub」时间
+ * （先写好再 push 的 commit，committer date 会早于推送时刻，落在水线之前被 since 漏掉）。
+ * 改为拉最近 50 条 + sha 去重：committer date > since 的直接通知；≤ since 但 sha 未见过 →
+ * 仅当该仓库此前已有 commit 入库时通知（晚推送的旧 commit），首次扫描不回溯历史防刷屏。
  * 热力图入账仍用 committer date（落在写代码那天的格子里）。
  */
 async function scanCommits(
@@ -155,7 +137,7 @@ async function scanCommits(
   const items: NotificationItem[] = []
   for (const raw of data) {
     const c = raw as GhCommit
-    // 注意：这里用的是 **commit date**（committer.date，即最终落到 GitHub 时间线上的时间），
+    // 用 **commit date**（committer.date，最终落到 GitHub 时间线上的时间），
     // 不是 author.date（原始撰写时间，rebase/amend 后会保留旧值）。
     const committer = c.commit?.committer
     const author = c.commit?.author
@@ -165,12 +147,10 @@ async function scanCommits(
     if (!c.sha || !createdAt || !Number.isFinite(at)) continue
     const id = `gh:commit:${repo}:${c.sha}`
     const seen = knownIds.has(id)
-    // 通知判定：新提交（committer date 在窗口内） 或 晚推送的未见 commit（该仓库有历史时）
     if (at <= since && (seen || !hasHistory)) continue
     const message = c.commit?.message ?? ""
     const lines = message.split("\n")
     const title = firstLine(lines[0], TITLE_MAX)
-    // brief：次行；次行为空则回落首行
     const brief = firstLine(lines.slice(1).join("\n"), BRIEF_MAX) || firstLine(message, BRIEF_MAX)
     items.push({
       id,
@@ -187,14 +167,14 @@ async function scanCommits(
   return items
 }
 
-/** issues 一个请求两类共用：有 pull_request 字段 → pr，否则 issue。since 按 updated 过滤。
+/** issues 一个请求两类共用：有 pull_request 字段 → pr，否则 issue；since 按 updated 过滤。
  *
  * 事件判定（列表 API 只给「当前态」，不给事件流，因此按当前态 + 时间戳推断）：
- *  - created_at > since                       → open（新建）
- *  - closed_at > since（未合并）              → close（关闭；closed_at 稳定，id 不带时间戳 → 同次转换只通知一次）
- *  - PR 且 merged_at > since                  → merge（合并）
- *  - state=open 且曾关闭（closed_at 非空）且 knownIds 见过 :closed/:merged → reopen（重新打开；
- *    无此条件的话，普通评论也会让 updated_at 前进，会把没关过的老 issue 误判成 reopen）
+ *  - created_at > since → open（新建）；
+ *  - closed_at > since（未合并）→ close（closed_at 稳定，id 不带时间戳 → 同次转换只通知一次）；
+ *  - PR 且 merged_at > since → merge（合并）；
+ *  - state=open 且曾关闭（closed_at 非空）且 knownIds 见过 :closed/:merged → reopen
+ *    （无此条件的话，普通评论也会让 updated_at 前进，会把没关过的老 issue 误判成 reopen）。
  *
  * 已知限制：issue 的 closed→open→closed 二次循环时 :closed id 已存在，第二次关闭不再通知。
  */
@@ -222,7 +202,7 @@ async function scanIssuesAndPrs(
     const closedAt = it.closed_at ? Date.parse(it.closed_at) : NaN
     const mergedAt = it.pull_request?.merged_at ? Date.parse(it.pull_request.merged_at) : NaN
 
-    // 新建：open 事件，id 与旧版一致（不带后缀）
+    // open 事件：id 与旧版一致（不带后缀）
     if (createdAt > since) {
       items.push({
         id: `gh:${kindBase}:${repo}:${it.number}`,
@@ -343,14 +323,10 @@ async function scanReleases(
   return items
 }
 
-// ---- 入口 ----
-
 /**
- * 扫描所有配置仓库的所有启用类型。单仓库/单请求网络错误或解析异常：
- * catch 住跳过该请求继续扫其余，不让整轮失败。
- * 限流（403/429 且 remaining=0）：立即中止剩余请求，已拿到的部分照常返回。
- * issue/PR/release 条目保证 createdAt > since；commit 可能包含「晚推送」的旧 commit
- * （committer date 早于 since 但 sha 未入库——补捞，见 scanCommits 注释）。
+ * 扫描所有配置仓库的所有启用类型。单仓库/单请求网络错误或解析异常：catch 住跳过继续，不让整轮失败。
+ * 限流（403/429 且 remaining=0）立即中止剩余请求，已拿到的部分照常返回。
+ * issue/PR/release 条目保证 createdAt > since；commit 可能包含「晚推送」的旧 commit（补捞，见 scanCommits 注释）。
  */
 export async function scanGithubNotifications(
   since: number,
@@ -366,7 +342,6 @@ export async function scanGithubNotifications(
     // 取 max：正常轮次水位领先（只看新内容）；新启用 / 新添加的仓库从自己的起点开始，不回扫。
     const repoSince = Math.max(repoCfg.scanSince ?? LEGACY_REPO_SCAN_SINCE, since)
     const sinceIso = new Date(repoSince).toISOString()
-    // 每仓库按自己的扫描类型开关构建任务
     const tasks: Array<() => Promise<NotificationItem[]>> = []
     if (repoCfg.scanTypes.commits)
       tasks.push(() => scanCommits(repoName, sinceIso, opts.token, state, opts.knownIds))

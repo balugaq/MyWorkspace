@@ -25,11 +25,8 @@ describe("MW_LINK_RE", () => {
   })
 
   it("非法形状不匹配（段数校验在 parseInternalLink 层）", () => {
-    // conv: 后必须有 id 段
     assert.equal("[[mw:conv:|无id]]".match(MW_LINK_RE), null)
-    // 未知类型不匹配
     assert.equal("[[mw:unknown:abc|未知类型]]".match(MW_LINK_RE), null)
-    // 单层括号不匹配
     assert.equal("[mw:conv:abc|单层括号]".match(MW_LINK_RE), null)
   })
 

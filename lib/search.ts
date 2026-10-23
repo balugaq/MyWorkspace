@@ -25,11 +25,9 @@ export function runSearch(
   if (!query) return []
   const q = query.toLowerCase()
   const results: SearchResult[] = []
-  // 拼音增强：纯字母 query 追加全拼/首字母命中（如 "biji" 命中「笔记」），中文 query 退回 includes
   const match = (t?: string) => !!t && (t.toLowerCase().includes(q) || matchTextPinyin(t, query))
 
   const scanCategory = (cat: Category) => {
-    // 章节 / 通用条目
     if (cat.chapters) {
       for (const ch of cat.chapters) {
         const hay = [ch.title, ch.content, ...ch.tags].join(" ")
@@ -47,7 +45,7 @@ export function runSearch(
         }
       }
     }
-    // 思维导图节点与解决方案（TODO 54 起遍历该分类的关系族）
+    // TODO 54：遍历该分类的关系族
     const fams = families.filter((f) => f.categoryId === cat.id)
     for (const fam of fams) {
       for (const n of fam.nodes) {
@@ -85,7 +83,6 @@ export function runSearch(
     }
   }
 
-  // 分类范围
   if (scope === "all" || scope === "category" || scope === "todo" || scope === "mindmap") {
     for (const cat of categories) {
       if (scope === "category" && cat.id !== activeCategoryId) continue
@@ -95,7 +92,6 @@ export function runSearch(
     }
   }
 
-  // 日历
   if (scope === "all" || scope === "calendar") {
     for (const [date, day] of Object.entries(calendar)) {
       if (match(day.note)) {

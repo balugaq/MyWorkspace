@@ -39,7 +39,6 @@ export function collectDueNodes(
   return map
 }
 
-/** 判断一个思维导图节点是否应显示在日历上 */
 export function isScheduledNode(n: MindNode): boolean {
   return !!n.dueDate && !n.longTerm
 }

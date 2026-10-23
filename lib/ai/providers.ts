@@ -1,9 +1,5 @@
-// AI 供应商抽象：统一 OpenAI 兼容的 /v1/chat/completions 接口。
-// 内置 ZCode/BigModel（智谱）与 DeepSeek 的默认 baseURL/模型，用户无需填写；
-// 另提供「自定义」项，由用户自行填写任意 OpenAI 兼容端点的 baseURL 与模型名。
-//
-// 说明：本项目为纯静态导出（output: "export"），没有后端路由，
-// 因此所有调用都在浏览器端直接打供应商接口，API Key 仅存于本机 localStorage。
+// AI 供应商抽象：统一 OpenAI 兼容的 /v1/chat/completions 接口；内置智谱/DeepSeek 默认配置，另提供自定义端点。
+// 本项目为纯静态导出（output: "export"）无后端路由，所有调用在浏览器端直连供应商，API Key 仅存本机 localStorage。
 
 import type { AIProviderId } from "@/lib/types"
 
@@ -50,7 +46,6 @@ export interface ResolvedProvider {
   model: string
 }
 
-/** 根据用户在设置里选择的 provider 与输入，解析出实际请求的 baseURL / key / model */
 export function resolveProvider(
   providerId: AIProviderId,
   apiKey: string,

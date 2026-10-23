@@ -1,14 +1,7 @@
 #!/usr/bin/env node
 /**
- * 本地静态服务器 —— 托管 `next build`（output: "export"）产出的 `out/` 目录。
- *
- * 零依赖实现（仅用 Node.js 内置 http/fs/path），跨平台可用。
- * 用法：
- *   node scripts/serve-static.mjs            # 默认端口 3000，目录 ./out
- *   node scripts/serve-static.mjs 8080       # 指定端口
- *   node scripts/serve-static.mjs 8080 dist  # 指定端口与目录
- *
- * 输入 `Ctrl+C` 停止。
+ * 本地静态服务器：托管 `next build`（output: "export"）产出的 `out/` 目录。零依赖，跨平台可用。
+ * 用法：node scripts/serve-static.mjs [端口] [目录]（默认 3000 与 ./out），Ctrl+C 停止。
  */
 
 import { createServer } from "node:http"
@@ -18,7 +11,7 @@ import { fileURLToPath } from "node:url"
 import { handleAiSearchRequest } from "./ai-search-proxy-lib.mjs"
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url))
-const root = ROOT // 项目根目录
+const root = ROOT
 
 function parseArgs(argv) {
   const portArg = Number(argv[2])
@@ -63,8 +56,7 @@ function safePath(urlPathname, baseDir) {
 
 const server = createServer(async (req, res) => {
   try {
-    // AI 联网搜索代理（百度千帆 AI 搜索）：源站无 CORS 头，同进程转发
-    // （天气数据 TODO 34 起由前端直连 uapis.cn，不再有 /api/weather 同源接口）
+    // /api/ai-search 同进程转发（源站无 CORS 头）；天气 TODO 34 起前端直连 uapis.cn，无 /api/weather 接口
     if ((req.url ?? "/").startsWith("/api/ai-search")) {
       const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
       await handleAiSearchRequest(req, res, url)
@@ -72,7 +64,6 @@ const server = createServer(async (req, res) => {
     }
 
     const reqPath = (req.url ?? "/").split("?")[0]
-    // 目录内真实文件；若不存在则回退到 index.html（支持 SPA 直链）
     let file = safePath(reqPath, publicDir)
     if (!file) {
       res.writeHead(403)

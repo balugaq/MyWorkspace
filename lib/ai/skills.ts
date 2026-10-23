@@ -1,20 +1,11 @@
-// 读取 public/skills 下的 .md 技能文件，解析为可供 AI 调用的「技能说明书」。
-//
-// 静态导出站点无法在运行时列目录，因此用一个 manifest.json 登记文件名清单；
-// 前端先取清单，再并发读取各 .md 正文。每个 .md 即一个 skill：
-//   - 文件名（去扩展名、转 slug）作为 tool 名
-//   - 首个 "# 标题" 作为展示名
-//   - 标题之后的首段非空文本作为给 AI 选择用的描述
-//   - 全文作为「说明书正文」，AI 调用该 skill 时由前端回传，AI 据此处理用户输入。
+// 读取 public/skills 下的 .md 技能文件，解析为「技能说明书」：文件名转 slug 作 tool 名，
+// 首个 "# 标题" 作展示名，标题后的首段作给 AI 选择用的描述，全文作说明书正文（调用时回传给 AI）。
+// 静态导出无法运行时列目录，因此用 manifest.json 登记文件名清单，前端先取清单再并发读取各 .md。
 
 export interface Skill {
-  /** tool 名（slug） */
   name: string
-  /** 展示名（来自 # 标题） */
   displayName: string
-  /** 给 AI 选择用的描述（首段） */
   description: string
-  /** 说明书全文 */
   body: string
 }
 

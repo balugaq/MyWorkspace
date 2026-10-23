@@ -1,5 +1,4 @@
-// lib/vocab-store.ts 的纯逻辑测试（node:test，`npm test` 跑）。
-// 覆盖 TODO 64 批 1 可独立验证的纯函数：批量导入文本解析 parseVocabImport。
+// lib/vocab-store.ts 纯逻辑测试（node:test，`npm test` 跑），覆盖 TODO 64 批 1 的 parseVocabImport。
 // IndexedDB 相关函数（缓存 / 去重入库 / 导入导出）依赖浏览器环境，不在 node 测试范围。
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
