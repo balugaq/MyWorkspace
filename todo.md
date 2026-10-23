@@ -406,7 +406,7 @@ TODO 38. （状态：已完成）
 TODO 39. （状态：已完成）
 个人主页里面有一个待办事项，在这里加一个ai按钮，然后点击就可以 askAiAbout，引导ai结合具体各项skill支持访问的数据来综合给出待办事项，再切到对应对话。
 
-TODO 40. （状态：已完成，待目视确认）
+TODO 40. （状态：已完成）
 多语言支持，找找有没有现成库吧
 
 - 一句话：react-i18next 方案，13 批全站抽取完成，en.ts 与 zh 同构（931 key），`{lang:key}` 正文占位符编辑态不替换。
@@ -593,7 +593,7 @@ TODO 74. （状态：已完成，待目视确认）
 加一个 ai 会话标题生成的，就调用当前的ai生成标题。
 默认先就现在的截断，然后ai回复完之后再静默让ai生成一个标题。（要求不超过10个字且没有句号结尾，如果ai给的过长就还是自动截断就行）
 
-TODO 75. （状态：已完成，待目视确认）
+TODO 75. （状态：已完成）
 将全部界面的背景图都改为 refs/polar-light.txt 那样的游动极光背景（包括所有workspace的背景界面，关系图的背景界面）
 
 - 一句话：调参常量在 aurora-background.tsx 顶部与 app/page.tsx 的 AURORA_GLASS。
@@ -607,14 +607,42 @@ TODO 76. （状态：待处理）
 然后esc可以依次关闭并保存节点详情和退出展开状态
 点的颜色直接沿用节点的设置颜色即可。
 
-TODO 77. （状态：已完成，待目视确认）
+TODO 77. （状态：已完成）
 设置 - AI助手 里技能启停增加一个搜索框
 
-TODO 78. （状态：已完成，待目视确认）
+TODO 78. （状态：已完成）
 在设置 - AI助手里AI头像下有个"仅本机明文存储于 localStorage，请不要在共享环境使用。"是什么鬼，这不应该是放到千帆API KEY下的说明吗
 
-TODO 79. （状态：已完成，待目视确认）
+TODO 79. （状态：已完成）
 在设置 - 通用中，启动行为里添加上所有的workspace view
 
 TODO 80. （状态：待处理）
 在联系人 - 联系人编辑界面 - 添加联系方式里，在深色模式下，联系方式选择的dropdown会完全变白，啥也看不到，需要修复
+
+TODO 81. （状态：已完成）
+deploy.yml 在 Build 步骤前加 `npm run lint && npm test`（来自 maintainability-review.md 缺口 #1/#6）——当前 lint 和 76 条测试都不在部署门禁上，坏代码只要类型过关就能带着 lint 错误和挂掉的测试上线，i18n en/zh 同构测试也只在本地域内生效
+
+TODO 82. （状态：待处理）
+依赖漏洞治理（来自 maintainability-review.md，当前 npm audit 11 条漏洞：2 critical / 5 high，`next` 本体 advisory 在构建与客户端运行时路径上不可忽略）：
+1. 启用 Dependabot alerts（仓库设置一键）或 CI 加 `npm audit --audit-level=high`
+2. 跑一次 `npm audit fix` 后回归测试，处理掉 markdown-it / postcss / modelcontextprotocol-sdk 一批
+3. 评估 `next` critical advisory 的升级
+
+TODO 83. （状态：待处理）
+给「persist merge 迁移」配回归测试（来自 maintainability-review.md）：构造 v-1 存档 JSON，断言 `merge` 迁移结果——把 AGENTS.md 红线 #1「新增字段必须过 merge」从文字约定变成机械检查，typecheck 挡不住「忘了写 merge 兼容」
+
+TODO 84. （状态：待处理）
+补 `no-floating-promises` / `no-misused-promises` 两条 type-aware lint 规则（来自 maintainability-review.md 缺口 #3）：当前 eslint 仅 next 预设，漏 `await` 的 detached promise 在严格 TS 下仍静默
+
+TODO 85. （状态：待处理）
+大文件拆分计划（来自 maintainability-review.md，当前 17/149 文件超 500 行）：
+1. 第一刀：`lib/store.ts`（2239 行）按领域切片（calendar / ai / vault / relations）
+2. 第二刀：`components/settings-view.tsx`（1927 行）按设置分区拆
+3. 动手前先跑一轮针对 components/ 的重复猎捕（多个 *-workspace.tsx 疑有相似的骨架模式，待验证）
+
+TODO 86. （状态：待处理）
+写一份 docs/HANDOFF.md（来自 maintainability-review.md，连续性措施）：发布流程、`update-dependencies` 脚本的存在与用法、localStorage schema 迁移惯例——给未来接手者（包括未来的 LLM 代理）
+
+TODO 87. （状态：待处理）
+添加 GitHub Release workflow
+
