@@ -160,11 +160,7 @@ mindmap节点的右键contextmenu：
 TODO 17. （状态：已完成）
 给ai对话框两边内容添加文字朗读功能？
 
-- 已实现（2026-10-11）：**方案落地即零 API 依赖**——用浏览器自带 `speechSynthesis`（系统 TTS，免费离线，主人原以为要找 API，其实 Web Speech API 白嫖即可）。
-  - `lib/tts.ts`：`extractSpeakableText`（markdown → 可读纯文本：代码块→「代码已省略」占位、图片/裸 URL 剥除、链接只读标题、内链标记读标题、格式色/强调符号/标题列表引用前缀剥离、表格竖线转空格）+ `chunkForSpeech`（按句切块 ≤180 字符贪心合并，规避 Chrome 超长 utterance 中途静默中断的已知 bug）+ `startSpeaking`/`stopSpeaking`（token 计数防旧回调外泄，lang=zh-CN 中英混排交系统 TTS）。
-  - ai-chat.tsx：每条消息操作区（复制旁）加朗读按钮——用户与 AI 消息**两边都有**；朗读中图标变 ■（点击停止）；流式进行中禁用；切走视图/组件卸载自动 stopSpeaking；不支持 TTS 的浏览器按钮报错提示。
-  - 测试：tests/tts.test.ts（8 用例：文本提取 / 切块）。坑：被测模块内部 import 也要带 .ts 扩展（10-07 同款坑重犯）。
-- typecheck / lint / test 全绿（60 用例）。**朗读效果待主人目视确认**（声音取决于 Windows 系统 TTS 语音；点朗读按钮试听，再点停止）。
+- 一句话：用浏览器自带 speechSynthesis 实现（lib/tts.ts），零 API 依赖。
 
 TODO 18. （状态：已完成）
 新增消息通知
@@ -285,13 +281,7 @@ TODO 27. （状态：已完成）
 TODO 28. （状态：已完成）
 增加一些内链访问。。。自动跳转到某个AI对话、思维导图节点等
 
-- 已实现（2026-10-11）：
-  - 标记协议（lib/internal-links.ts 纯函数）：`[[mw:conv:{会话id}|显示标题]]` 跳 AI 会话；`[[mw:node:{族id}:{节点id}|显示标题]]` 跳思维导图节点。段数校验在 parse 层（RE 只管形状）。
-  - 渲染激活范围＝只读：`upgradeInternalLinks(editor)`（仿 upgradeLinkCards 模式，components/richtext/upgrade.ts）在 RichTextView 的 setContent 后把标记文本替换为 `internalLink` mark（原文本 marks 原样保留、guard 防死循环）；**编辑器不调用**——编辑态标记保持原样文本，无文档改写与回写风险。mark 输出 `<a data-mw-internal="完整标记">`，点击由 RichTextView 容器事件委托统一处理。
-  - 跳转执行（internal-link-mark.ts `navigateInternalLink`）：conv→`goAIChat`+`selectConversation`；node→`setActiveCategory`+`setPendingFamilyId`+`setActiveItem`（补选高亮，TODO 54 机制）；目标已删 toast 提示不跳转。
-  - AI 侧：新内置技能 `wb_internal_link_guide`（只读回传内链语法 + 规则：id 必须来自真实数据、标记不要进代码块）+ `wb_list_conversations`（列会话拿 id；节点 id 走既有 wb_get_mindmap_graph）；SYSTEM_BASE 加一句引导。
-  - 测试：tests/internal-links.test.ts（7 用例：两种类型匹配 / uuid id / 非法形状 / 段数校验分层）。
-- typecheck / lint / test 全绿（52 用例）。**点击跳转与链接观感待主人目视确认**（验收路径：AI 对话里让 AI「引用某个已有对话生成内链」或手动在章节正文里写一条 `[[mw:conv:...|xx]]` 后切预览；注意编辑态标记显示为原文属预期）。
+- 一句话：内链标记协议 `[[mw:conv:{会话id}|标题]]` / `[[mw:node:{族id}:{节点id}|标题]]`，编辑态显示原文不渲染。
 
 TODO 29. （状态：已完成）
 AI 接入联网搜索
@@ -400,7 +390,6 @@ Github监听也可以联动一下这里的queue
 另外写成skill，ai可以获取里面信息，或访问issue里面内容（访问可能得看看行不行？当然这个ai功能暂时不重要，开个新的todo以后再做）
 
 TODO 37. （状态：已完成）
-文档规范整改已完成：新增 `docs/data-storage.md`（持久化字段总表，按存储后端划分，含数据链路/See also/Notice）；移除所有行数标记（`ui-conventions.md`/`remote-image-cache-design.md`）；`entry-points.md` 内嵌长括号解释拆为「字段说明」表并补数据链路/See also/Notice（§8.1/§8.8/§8.10/§8.13）；修正陈旧引用（`settings-dialog`→`settings-view`、日历纯月视图、备份为 ZIP）；精简 `lib/image-store.ts` 头注释。
 文档（docs/和AGENTS.md）很久没有更新过了，是需要更新一下（todo 11）
 需要说明规范是
 1. 禁止一切行数标记，只能以文件名，字段名，方法名，库名为索引。
@@ -420,14 +409,7 @@ TODO 39. （状态：已完成）
 TODO 40. （状态：已完成，待目视确认）
 多语言支持，找找有没有现成库吧
 
-- 已实现（2026-10-11，主人拍板：react-i18next / 中英 / 框架+设置页样板+`{lang:key}` 正文占位符）：
-  - 依赖：`i18next` 26 + `react-i18next` 17（纯前端 static export + 单页 view 切换无路由，客户端单例即可，不用 next-intl 的路由能力）；licenses.ts 已补两条声明。
-  - 框架：`lib/i18n/index.ts`（i18next 单例 + initReactI18next，fallbackLng=zh，en 缺 key 回落中文）+ `locales/zh.ts` / `en.ts` 字典；`syncLocale()` 统一切换；`Settings.uiLanguage`（"zh"|"en"）持久化，设置 → 通用/基础「语言」Select 激活（原 disabled 占位退役），启动同步挂 app/page.tsx（hydrate 后 syncLocale）。
-  - store settings 组装兜底（importData / mergeData 非法值回落 zh；persist merge settings 原样并入、uiLanguage 经 DEFAULT_SETTINGS 与组件 `?? "zh"` 读取兜底——动 settings 组装前先 grep 全部三处再下结论）。
-  - 样板抽取：settings-view 标题 + 七个分区导航（labelKey）+ 通用分区全部文案（含主题/字体/启动视图选项 label 动态 key）。
-  - `{lang:key}` 正文占位符（主人口径）：`replaceLangTokens`（围栏代码块内不替换、坏 key 保留原文），接入 RichTextView setContent 前 + MarkdownView lexer 前；**编辑器不替换**——token 是存储协议（与内链同思路），编辑态显示原文。
-  - 测试：tests/i18n.test.ts（7 用例：中英切换 / 回落 / 占位符 / 代码块豁免 / 坏 key）。
-- typecheck / lint / test 全绿（67 用例）。**待主人目视确认**（设置页切 English → 标题/分区/通用分区变英文；正文写 `{lang:settings.title}` 预览显示「设置」；其余视图仍中文属预期——后续批次渐进抽取）。
+- 一句话：react-i18next 方案，13 批全站抽取完成，en.ts 与 zh 同构（931 key），`{lang:key}` 正文占位符编辑态不替换。
 
 TODO 41. （状态：已完成）
 导出增加一个可以选择导出哪些内容，包括AI对话数据，随笔数据，日历数据，联系人数据，密码保险，通知数据，github队列数据（等等的，未来如果写新功能也要加进来，需要添加到docs中说明），比如联系人（todo 48）和密码这些敏感信息可以选择导出时不顺带（默认就这2个不携带导出）
@@ -445,16 +427,15 @@ TODO 44. （状态：已完成）
 另外 AI 功能是可能失败的（如 HTTP 429），这需要额外发一个通知说明新闻精选运行失败。
 
 TODO 45. （状态：已完成）
-修复：通知卡片头行的可截断 span（仓库 / 摘要 / 精选数）缺 min-w-0，flex 子项 min-width:auto 使 truncate 失效、长文字撑破卡片；已补 min-w-0。
-补充（2026-10-03）：4 处类型徽标补 shrink-0 防挤压换行。
 通知页面里的卡片里的单行文字过长会超出框，需要加截断
 
 TODO 46. （状态：已完成）
 github 队列应当以"加入到这个队列的时间"最新排上面
 
 TODO 46.1 （状态：已完成）
-2026-10-03 静态核实：queue 两处滚动容器（L171 看板 / L182 列内）均已挂 native-scroll，并把这两处补进了 docs/ui-conventions.md 正例清单；根因（主人 DevTools 截图坐实）：html/body 的 scrollbar-width/color 是继承属性，继承到所有后代后同样触发 Chrome 121+ 陷阱，全站 ::-webkit-scrollbar 胶囊被禁用、退化系统细条；平时看到的胶囊多为 Base UI ScrollArea 自绘。修复：globals.css 内容容器组（.native-scroll/textarea/pre/table）显式重置标准属性切断继承，Firefox 经 @-moz-document 回落 thin+主题色；顺带补 queue 列内容器缺的 min-h-0；docs 继承陷阱已补记。
 issue queue里面的滑动条都不符合docs下说明的滑动条风格，需要修改
+
+- 一句话：根因（html/body scrollbar 属性继承陷阱）已记入 docs/ui-conventions.md。
 
 TODO 46.2 （状态：已完成）
 1. 删除「从监听同步」按钮
@@ -479,20 +460,18 @@ patch 随笔的文字选择的右键contextmenu
 3. 粘贴 （若可以编辑）
 4. 全选
 5. AI （只在随笔中显示）
-- 已改（2026-10-03）：外壳与功能分离（主人要求，记入 docs/ui-conventions.md §7）——功能层 lib/text-menu-actions.ts（TextMenuContext 能力接口 + BUILTIN_TEXT_MENU_ACTIONS：剪切/复制/粘贴/全选/AI），外壳层 components/text-context-menu.tsx（base-ui 渲染，按能力过滤、AI 项前自动分隔）。RichTextEditor 两个分支（TipTap 可视化 / 源码 textarea）均接入；「AI」项仅在传入 onAiText 时出现，随笔 novel-workspace 传入（选中内容经 askAiAbout 新建会话分析）。富文本复制抽为 richtext/clipboard.ts copySelectionRich，浮动工具条与右键共用。剪切/粘贴仅在可编辑宿主出现（只读文档天然只有复制/全选）。待主人目视确认菜单样式与各操作实际效果。
+
+- 一句话：外壳与功能分离的规范已记入 docs/ui-conventions.md §7。
 
 TODO 51. （状态：已完成）
-实现（2026-10-03 改版，主人反馈要的是主题不是主题色）：ThemePreference 扩展为 light/dark/system/green/purple/orange，设置里「主题」下拉直接多出绿色/紫色/橙色三项；彩色主题是一套固定配色（浅色基调+主题色强调，不分亮暗），next-themes attribute=class 挂成 html.green 等类，globals.css 提供 html.green/purple/orange 三套完整变量；原 settings.themeColor 独立维度已整体移除（types/store/provider/设置 UI/CSS 清零）。
 新增更多主题颜色：绿色、紫色、橙色等（当前只有亮/暗两套，见设置里主题切换）。
 
 TODO 52. （状态：已完成）
 现在个人主页里的4个组件（天气，待办，使用时长，专注钟），都是较少文字量却占据了较大空间，应当只占据需要的空间，不要撑到那么大的大小
 另外应该要支持用户可以自己调整这些组件的位置（下面的activity&contributions）
-- 已改：小组件区由 sm:grid-cols-2 等宽两列改为 flex-wrap + 内容自适应宽度（专注钟定宽 w-64 保证按钮排布，其余 w-fit）；四卡支持拖拽调序（HTML5 DnD，拖法与 sidebar 分类一致：落点左半插前/右半插后），顺序持久化到 settings.profileWidgetOrder（types.ts 新增 ProfileWidgetId + normalizeProfileWidgetOrder 兜底，store merge 接入）。拖拽手感与视觉效果待主人目视确认。
 
 TODO 53. （状态：已完成）
 专注钟默认改为正计时，按钮状态切换改为缓慢向下移出画面，然后向上浮出新的按钮
-- 已改（2026-10-03，此条目上一轮的状态更新被覆盖丢失，现补回）：focusMode 默认 "down"→"up"；控制按钮组状态切换加双向动画——旧按钮 500ms 下移+淡出（fill-mode-forwards 锁终态、退场期禁点击），新按钮 500ms 自下向上浮入。动画效果待主人目视确认。
 
 TODO 54. （状态：已完成）
 应当在待办事项里加一个自带的关系类，打开按钮加到个人主页那个待办事项的卡片里
@@ -503,29 +482,15 @@ TODO 54. （状态：已完成）
 对于1个或若干的节点，现在有新的"搬迁"选择在contextmenu里，点开后，先列表显示当前有什么分类（或添加，对于当前所处分类暗色表示禁用）然后最底下添加一个"搬迁至其他图"的按钮，点击后可以显示可以搬迁到其他的关系类图（如自带的待办事项关系类图，和随笔里其他的关系类图）然后再打开到这个指定的图的上面的界面里。
 对于旧数据，先默认按移动到默认的"我的分类"里处理。
 
-### TODO 54 实施记录（2026-10-05，方案 B：族外置顶层）
-- 数据结构：`lib/types.ts` 新增 `RelationFamily`（id/name/categoryId/nodes/edges/view/viewport），删除 `Category.relation` 与 `RelationContent`；store 顶层新增 `relationFamilies`（key=族 id）与 `pendingFamilyId`（跨组件跳族标记，刷新置空不持久化生效），顶层 `mindmapViewports` 废弃。
-- 旧数据迁移：`lib/store.ts` 的 `migrateRelationState`（persist merge / importData 替换 / mergeData 合并三处共用）——旧 `categories[].relation` 迁为每分类一个默认族「我的分类」（id 稳定 `fam_${catId}`，viewport 取 `mindmapViewports[catId]` 后整体废弃）；坏值兜底（nodes/edges 非 Array 归空、view 非法回落 mindmap、族缺 id/categoryId 丢弃、孤儿族丢弃）；每个 relation 分类保底一个族；内建「待办事项」relation 分类（id `todo-relations`，builtin）缺失自动补建含默认族；备份「随笔数据」分区现随带 `relationFamilies`，旧备份导入同样走迁移。
-- actions 全量改族定位：addNode/addChildNode/updateNode/removeNode/setNodeSolution/connectNodes/removeEdge/removeSub/setFamilyView/setFamilyViewport；新增 addRelationFamily / renameRelationFamily / deleteRelationFamily（清理族内节点贡献）/ moveNodesToFamily（只搬节点 + 两端都在搬移集合内的边）/ setPendingFamilyId；removeCategory 连带删族清账；扫描/搜索/标签/截止/图片引用（lib/search、tags、deadlines、image-refs、builtin-skills 的 wb_get_mindmap_graph / wb_get_mindmap_node 增 familyId/familyName 参数）全部改读族。
-- 图内族 sidebar（FamilySidebar）：列族/切换/行内新建与重命名/删除（AlertDialog 确认）；底部「AI 分析」（askAiAbout 携带族上下文，AI 用既有只读技能出报告）与「整理布局」（lib/ai/relayout.ts 函数式一次性调用，经 request-queue 并发纪律：强制同步时让位对话队列、多次调用串行；prompt 给节点清单要求返回 JSON {nodeId:{x,y}}，解析容错支持代码围栏与前后缀说明文字，逐坐标校验有限数值才写回，失败 toast 不落库）。
-- 多选与搬迁：React Flow 默认 Shift+左键框选（onSelectionChange 收集 selectedIds）；多选右键隐藏「添加子节点」，标记完成（选内有未完成则全标记完成）/添加标签/节点风格/截止日期批量套用；「搬迁」弹窗 MoveNodesDialog——上半区当前分类各族（当前族暗色禁用、可就地新建族），底部「搬迁至其他图」列其他 relation 分类的族；跨分类搬迁后 setActiveCategory + setPendingFamilyId 直达目标族。画布切族整体重挂（key=family.id）重放各族视口存档。
-- Profile 待办卡新增「打开关系图」按钮 → 跳转内建「待办事项」分类。
-- typecheck / lint 均 0 错误（仅 vault 一条历史 warning）；`.relation` 残留仅剩迁移代码与注释。以上均待主人目视确认（族 sidebar 交互、多选批量、搬迁跳转、AI 分析/整理布局效果）。
-- 修复（2026-10-05 主人实测报错「Maximum update depth exceeded」）：根因是 xyflow v12 `SelectionListenerInner` 把 `onSelectionChange` prop 放进 effect 依赖，内联箭头函数每次渲染新引用 → effect 每次渲染重跑 → setState(新 Set) → 再渲染死循环。改为 `useCallback` 稳定引用 + 内容相同返回旧 Set（React 跳过重渲染）双保险。
-- 修复（2026-10-05 主人实测多选右键弹浏览器原生菜单）：根因是 xyflow v12 多选时渲染盖在节点上层的选区矩形 `.react-flow__nodesselection-rect`（z-index:3 + pointer-events:all），其 onContextMenu 未 preventDefault 也不转发到节点。关闭其 pointer-events 让事件穿透回节点卡片（base-ui 批量菜单照常触发）；拖整组不受影响（xyflow 拖任一选中节点即带动全组，getDragItems 收集全部 selected）。
-- 修复补充（同日，上轮 Tailwind 任意变体实测无效）：Tailwind v4 utilities 全部在 cascade layer 里，xyflow 的 style.css 未分层——按 CSS cascade 规则**未分层样式压过任何 layer，specificity 无效**，故 `[&_.react-flow__nodesselection-rect]:pointer-events-none` 类虽生成但不生效。改为 app/globals.css 末尾写未分层普通 CSS（`.react-flow .react-flow__nodesselection-rect { pointer-events: none }`，specificity 0,2,0 胜 0,1,0），组件内无效类已删。
-- 修复（2026-10-05 主人实测右键选区内不同节点「搬迁 n 个节点」数量不一致）：rfNode 渲染缓存命中条件漏了 multiCount——它是 data 里的闭包快照（菜单数量显示源），选区数量变化时已选中节点 multi 布尔不变→缓存命中→data 不重建→显示过期旧数量（新进选区节点则重建显示新数量）。已把 multiCount 纳入缓存 key。行为层 handleMenuAction 实时读 selectedIds 本就正确，纯显示过期。
-- 死循环修复续（2026-10-05 深夜，主人实测 onSelectionChange 修复后仍复现一次、措辞变为 render-phase 变体）：确定缺陷——store `setFamilyViewport` 无条件造新 viewport/family 对象（值相同也写 store），配合 onMoveEnd（内联箭头 + xyflow panZoom end/fitView 可重复触发）构成「视口事件→写 store→重渲染」回流燃料。修复：store 侧加值等守卫（x/y/zoom 相同直接不写）；组件侧 onMoveEnd useCallback + 数值级比较双重拦截；onConnectStart/onConnectEnd/onPaneContextMenu/onEdgeClick 全部 useCallback 化（xyflow StoreUpdater 把每个 prop 放进独立 effect，内联箭头让 store 每渲染 setState 一轮）。
-- 死循环修复终（2026-10-05 下午，主人实测点击节点仍触发，useEffect 变体）：**结构性根治**——三次死循环的共同根源是 selected 双向同步：快照按 `activeItemId || selectedIds` 派生 selected 推给 React Flow，RF 的用户选择又经 onSelectionChange 回写 selectedIds，两条流失步即振荡（点击/框选/视口只是不同发作方式）。重构为单向：①React Flow 内部选中是唯一真相，rfNodes 快照的 selected 改读本地画布态现值（localSelected map，useNodesState 上移初值空数组由 sync 首帧推入）；②sync effect 守卫去掉 selected 比较、重建时 `selected: n.selected`（**永不反向写选中**）；③activeItemId 改由专门 effect「只补选不清除」编程写入一次（保住添加子节点/列表跳转高亮，不破坏多选；点击路径 RF 自己已选中故 no-op）。typecheck/lint 均 0 错误。
+- 一句话：旧数据已迁移（categories[].relation → 顶层 relationFamilies）；期间多轮 xyflow 选中双向同步死循环的修复根因见 2026-10-05 工作日志。
 
 TODO 55. （状态：已完成）
 1. 自定义节日编辑：设置 → 账户与同步新增「自定义节日」管理区（列表 + 新建/编辑/删除弹窗，字段：名称/规则/颜色/放假/上班），与「从 yml 导入」并存；保存时用 parseFestivalRule 校验规则格式
 2. 日历日期右键交互：右键任意日格弹出菜单（样式与关系类图节点右键一致），红字「今天放假」/蓝字「今天上班」快速标记；实现为往 store.customFestivals 写一条 festival_rule="YYYY-MM-DD" 的一次性节日（复用假/班角标管线），再点同项=取消标记，假/班互斥
 
-TODO 55 补充调整（2026-10-03）：自定义节日管理从设置页移入日历页——日历工具栏右侧新增管理按钮（CalendarCog 图标），弹窗内右上角「添加节日」按钮，新增按名称/规则搜索；设置页仅保留 yml 导入入口（文案已注明节日改在日历页管理）。
+补充调整（2026-10-03）：自定义节日管理从设置页移入日历页——日历工具栏右侧新增管理按钮（CalendarCog 图标），弹窗内右上角「添加节日」按钮，新增按名称/规则搜索；设置页仅保留 yml 导入入口（文案已注明节日改在日历页管理）。
 
 TODO 56. （状态：已完成）
-实现：通知页 sender 筛选行下新增搜索框（匹配标题/摘要/仓库/来源名，与筛选叠加，空结果有专属提示）；brandheader 搜索框改为仅 view==="workspace"（随笔）时渲染。
 1. 通知页面里增加一个搜索框
 2. brandheader 里的搜索框改为仅在随笔时出现（其他视图不显示）
 
@@ -543,11 +508,6 @@ TODO 58. （状态：已完成）
 当我在随笔界面里还没打开任何界面时，也显示"还没有分类"
 但实际，在有分类时不应这样显示，而是显示"打开一个分类"等提示信息
 
-### TODO 57/58 实施记录（2026-10-04）
-- 57：新建 components/ai-brand.tsx（AiIcon 原子图标 = 主人指定 SVG，签名兼容 lucide；AiText 渐变彩色「AI」字 violet→fuchsia→sky）。工具栏「AI 对话」图标 BotMessageSquare→AiIcon、文本 AI 彩色；profile「问 AI 今日待办」、右键菜单 AI 项文本同步彩色。彩色渐变色值如需调整改 AiText 一处即可。
-- 58：page.tsx 主区空态按 categories.length 分支——有分类未打开显示「打开一个分类」，无分类保持「还没有分类」引导创建。
-- 均待主人目视确认（图标观感 / 渐变配色 / 空态文案）。
-
 TODO 59. （状态：待处理）
 AI 整理关系图（从 TODO 54 拆出，本轮不做）：读取图中已有内容和用户提供的素材，生成或补充关系图（写回节点+连线）。功能较大，执行前需主人指明作用域 scope（当前族 / 整个分类 / 跨分类）。
 
@@ -555,64 +515,24 @@ TODO 60. （状态：已完成）
 加一个自动备份功能，保留最近5条备份（每天关机时自动保存1次）
 当当前数据量与备份数据量相差值超过50%时，弹窗提醒用户可能有数据丢失，需注意备份数据
 
-- 已实现（2026-10-05，@TODO 63 与本条重复，63 一并关闭）：新建 `lib/auto-backup.ts`——备份存 IndexedDB（库名 workspace-autobackup，备份可能超 localStorage 限额），快照 = exportData 全分区（除保险库——加密数据独立存储），key=dayKey（沿用 settings.dayStartOffset 的 04:00 翻篇口径，同一天只留一份），滚动保留最近 5 份。
-- 关机时机：`AutoBackupWatcher`（挂 page.tsx 全局）监听 visibilitychange→hidden 与 beforeunload 双路径，lib 内当天去重防重复写。
-- 差异提醒：启动 3s 后比较当前快照与最新备份的数据量（JSON 字符长度，备份大小为基数），相差超 50% 弹 AlertDialog（双向报：骤减=可能丢数据、骤增=可能误导入），每次启动最多一次。
-- 管理入口：设置 → 账户与同步 → 「自动备份」块——备份列表（时间/大小）、立即备份、恢复（AlertDialog 确认，替换导入，走 importData 含旧数据迁移）、删除。图片不随快照携带（仍在本地图片库）。
-- typecheck / lint 均 0 错误。待主人目视确认（设置页区块、提醒弹窗样式）。
+- 一句话：备份存 IndexedDB（workspace-autobackup），管理入口在设置→账户与同步。
 
 TODO 61. （状态：已完成）
 生日横幅
 xxx最近生日（） 或 最近有n人生日（xxx，xxx）
 这个怎么显示内容需要先设计一下，暂时不确定
 
-- 已实现（2026-10-06，验收口径经主人确认：brandHeader 内 / 前 7 天可配置 / 自己生日纳入）：
-  - `lib/birthday.ts` 新增 `nextBirthdayIn(person, today)`（下一个生日日期 + 剩余天数；公历 2/29 非闰年回落 2/28 防止 Date 溢出进位到 3 月；农历经 solarMatchForLunarMD 换算，当年已过自动回落次年）与 `upcomingBirthdays(people, daysAhead, today)`（窗口内汇总，按剩余天数升序、同天按姓名）。
-  - 数据源：store.contacts（Person.birthday，公历 / L 前缀农历）+ 设置→账户的用户生日（作为伪联系人 `__self__` 纳入，名字取 settings.userName）。
-  - 横幅 UI：`components/brand-header.tsx` 中间段 BirthdayBanner（桌面端 md:flex 显示、移动端隐藏；无临近生日时不占位）。文案按主人原文形态：单人「xxx 最近生日（M月D日，还有 n 天 · 农历）」、多人「最近有 n 人生日（xxx、xxx 等 n 人）」（取前 3 个名字）；当天过生日 → 横幅高亮 primary 色 + ✨ + Cake 图标脉冲，hover 显示每人明细，点击跳转联系人页。
-  - 配置：Settings 新增 `birthdayBannerDays`（默认 7，0 = 仅当天，上限 60，`normalizeBirthdayBannerDays` 兜底接入 persist merge 与 importData 两处 settings 组装）；设置 → 通用/基础 新增「生日横幅提前天数」数字输入。
-  - 测试：新增 `tests/birthday.test.ts`（11 用例：公历倒推 / 当天 / 已过归明年 / 2/29 闰年两态 / 农历动态构造换算日 / 汇总排序与窗口过滤），全套 28 用例通过。
-- typecheck / lint / test 均 0 错误。待主人目视确认（横幅出现时机、文案、当天高亮、点击跳转、设置项生效）。
-
 TODO 62. (状态：待处理)
 最大的问题就是他没有成为整个 Windows 桌面的一部分，工具这些本应是小组件一样的
 
 TODO 63. （状态：已完成）
 @ todo 60
-
-- 与 TODO 60 内容重复，已随 TODO 60 一并实现（2026-10-05），实现记录见 TODO 60。
+- 一句话：与 TODO 60 内容重复，已随 60 一并实现。
 
 TODO 64. （状态：已完成）
 todo：增加一个词汇表，有搜索就好了
 词汇表结构如下：
 词 -> 词的释义解释
-
-### TODO 64 规划与实施记录（2026-10-07，主人已拍板：IndexedDB 存储 / AI 批量加词方案 A（两段式）/ 出题=随机+错词加权 / 位置=工具栏卡片）
-
-**已确认口径补充**：source 独立小系统（不与标签共用）——底层 id 引用、name 随意改、dropdown 快捷写入 + 独立管理界面（删除来源仅摘标记，词条保留）；词汇底层 id 表示、显示层随意增删改；每轮 quiz result 全量持久化（不设轮数上限）。
-
-**批 1（已完成，2026-10-07）**：
-- 数据模型（lib/types.ts）：VocabRating 四档（wrong/partial/correct/beyond，VOCAB_RATING_META 四色徽标）/ VocabSource / VocabEntry（review: total/lastRating/lastAt/wrongCount）/ VocabQuizRecord（含答题时释义快照）/ VocabImportItem；BackupSectionId 加 "vocabulary"；VIEW_LABEL 加词汇表。
-- 存储层（lib/vocab-store.ts）：IndexedDB workspace-vocab 三 store（entries/sources/records），模块级内存缓存 + 写穿；API：loadVocab / ensureVocabSource（按名幂等）/ renameVocabSource / deleteVocabSource（摘标记回写受影响词条）/ isVocabWordTaken / upsertVocabEntry / removeVocabEntry / addVocabEntries（word trim+忽略大小写去重，跳过保留旧释义；source 按名取建）/ saveQuizResult（记录持久化 + review 回写）/ parseVocabImport（纯函数，导出解析）/ exportVocab / importVocab（replace 整库覆盖；merge 按 id+word O(n) 去重、孤儿 sourceId 置空）。
-- 视图接线：store view 加 "vocabulary" + goVocabulary；toolbar-panel TOOL_CARDS 加「词汇表」（BookOpen）；page.tsx 分发 VocabularyWorkspace。
-- 词汇工作区（components/vocabulary-workspace.tsx）：顶栏（词数/来源数/轮数统计 + 来源管理 + AI 批量导入 + 添加词条）→ 搜索（拼音搜 word+definition）+ 来源筛选（全部/未分类/各来源）→ 列表（词+来源徽标+最近评价四色徽标+练过次数+释义截断，渲染上限 200 条提示总数）；词条编辑弹窗（word 重名拦截 + source Select 选择 + 新来源名快捷写入输入框）；来源管理弹窗（列表/添加/行内重命名/删除确认含受影响词条数）；批量导入弹窗（粘贴 JSON → parseVocabImport 解析 → 有效/无效/重复统计 + 前 3 词预览 → 确认入库）。
-- 备份分区（lib/backup.ts）：exportBackupZip 打包 vocab.json（exportVocab）；importBackupZip 恢复（replace/merge 双模式）；BACKUP_SECTION_META 加「词汇表」（非敏感默认勾选，导出弹窗自动出现）。
-- 测试：tests/vocab-store.test.ts（parseVocabImport 6 用例：纯数组/items 包裹/invalid 计数/trim/非法输入/带围栏文本拒绝）。
-- typecheck / lint / test 全绿（34 用例）。待主人目视确认。
-
-**批 2（已完成，2026-10-07）**：
-- 问答状态机（components/vocabulary-workspace.tsx）：顶栏「开始问答」→ 配置弹窗（范围 Select 默认当前筛选 + 题数 Input，显示范围内词数）→ 作答视图（词居中大字 font-serif text-4xl + 每秒实时计时 + textarea + 提交本题/结束本轮）→ 评分中（逐题串行评分防打爆 API，行内 Loader2 进度）→ 报告（每题四档徽标 + 用时 + 你的作答 + AI 点评；评分分布统计；全部成功自动存档 saveQuizResult，有失败题可行内重试、返回时保存成功题）→ 再来一轮/返回列表。中途退出 AlertDialog 确认（作答不保存）。
-- AI 评分（lib/ai/vocab-grader.ts，仿 relayout 模式）：requestDirectCompletion 函数式调用（request-queue 并发纪律）；评分前程序化预搜——复用 wb_web_search 同款本机代理（/api/ai-search + settings.baiduAiSearchApiKey），失败不阻塞评分；SYSTEM_PROMPT 四档标准（wrong/partial/correct/beyond）+ extractJsonObject 容错（代码围栏兼容）+ rating 白名单校验；作答截断 2000 字符。
-- 出题抽样（lib/vocab-quiz.ts 纯函数）：pickQuizEntries 加权不重复抽样，权重 = 1 + wrongCount × 2（错词更常出现，主人拍板口径），rand 注入可测。
-- wb_prepare_vocab_import 内置技能（lib/ai/builtin-skills.ts）：只读回传导入 JSON 规范（format/rules/example，单次 ≤50 条、不编造、中文释义）；request-queue.ts SYSTEM_BASE 加一句引导（用户要批量整理词汇时先调此技能）。
-- 词长限制（主人 2026-10-07 口径）：VOCAB_WORD_MAX = 100（vocab-store.ts 导出）——编辑弹窗 Input maxLength=100 + placeholder 提示；parseVocabImport / addVocabEntries 超 100 计 invalid。
-- 测试：tests/vocab-quiz.test.ts（3 用例：数量截断/不重复/错词加权统计性）+ vocab-store.test.ts 补词长上限用例；全套 38 用例通过。
-- typecheck / lint / test 全绿。答题/报告界面与 AI 评分效果待主人目视确认（评分需已配置模型；预搜需已配置百度千帆 Key，未配置时仅按词库释义评分）。
-
-**批 1 修正（2026-10-07，主人目视反馈两处）**：
-- 词汇列表横长占满屏 → 列表（含空态文案）包进 `max-w-[440px]` 容器，右缘对齐筛选框右缘（搜索框 max-w-72 288px + gap-2 8px + 来源下拉 w-36 144px）。
-- 来源下拉选中后显示分类 id → 根因：本项目 Select 是 base-ui 封装，`SelectValue` 不传 children 时渲染**原始 value**（id），项目其他下拉均手写标签兜底、词汇工作区两处漏了。修复：来源筛选下拉与词条编辑弹窗的来源下拉均改为 `<SelectValue>{按 id 查名}</SelectValue>`（未知 id 回落「全部来源」/「未分类」）。
-- typecheck / lint / test 均 0 错误。宽度对齐效果待主人目视确认。
 
 然后可以点击一个按钮，输入或选择题数，然后就可以开启一轮问答，问答内容就是屏幕中间贴出这个词汇，然后下面textarea输入这个词的意思。
 记录每题分别答题的时间，每题只有最终打完之后才一次性提交给ai（进入评分阶段）
@@ -620,6 +540,8 @@ todo：增加一个词汇表，有搜索就好了
 反馈到词汇表组件里呈现结果。
 作答系统需要好好设计一下
 然后添加一个skill可以ai批量添加词汇，方便我把4本英语书内容全放里面去
+
+- 一句话（拍板口径）：IndexedDB 存储 / AI 批量加词两段式 / 出题随机+错词加权 / 位置=工具栏卡片。
 
 TODO 65.（状态：待处理）
 @ todo 59
@@ -630,43 +552,24 @@ scope是指这个ai可以操作的范围（比如能不能访问到外部的关�
 TODO 66. （状态：已完成）
 删除关系族时，如果没有节点，则不用弹窗提醒
 
-- 已改（2026-10-05）：FamilySidebar 删除按钮——族内 nodes 为空时直接调 deleteRelationFamily 并 toast「已删除关系族」，不再弹 AlertDialog 确认；非空族维持原确认弹窗（因删除会连带节点、连线与贡献记录）。待主人目视确认。
-
 TODO 67. （状态：已完成）
 设置增加一个标签管理
-
-- 已实现（2026-10-05，验收口径经主人确认：重命名+删除+创建；联系人 roles 纳入；放「通用」分区）：
-  - store 新增 `renameTag(from, to)` / `deleteTag(name)`——全站遍历四个数据域（随笔章节 tags / 关系族节点 tags / 联系人 roles / 全局标签库 knownTags），「先算后写」模式（set 外算新值与计数，无变更不触发 set，引用级不变性保持）；重命名撞已有标签名时替换后去重即自然合并；返回使用处计数供 UI toast。
-  - `lib/tags.ts` 新增 `collectTagUsage(categories, families, contacts)`——标签 → 使用处数量统计（口径 = 实际挂载处，knownTags 库条目不计）。
-  - 设置 → 通用/基础 末尾新增「标签管理」块（TagManagerBlock）：列表（使用数徽标，0 显示「仅标签库」）+ 拼音搜索（复用 lib/pinyin）+ 新建（入 knownTags，重名拦截）+ 行内重命名（撞名合并 toast）+ 删除（AlertDialog 确认，显示将清理的引用数）。
-  - 联系人 roles 的顿号/逗号分隔此前已做好（`split(/[、,，]/)` + placeholder「用顿号/逗号分隔」），本轮核实无需改动。
-- typecheck / lint 均 0 错误。待主人目视确认（设置页区块交互、搜索、合并/删除提示）。
 
 TODO 68. （状态：已完成）
 @ todo 32
 todo 32 效果未实现
 用户在AI对话栏输入<blue>这是一段文字</blue>并回车后（借AI对话栏自动渲染富文本来看效果），显示的文本为<blue>这是一段文字 后面的</blue>显示上被吞掉，点击复制文字后可以确认原文仍为<blue>这是一段文字</blue>请调查无法渲染的根因
 
-- 根因已查明并修复（2026-10-05/06）：`lib/format-colors.ts` 的 `FORMAT_COLOR_TAG_AT` 是 `^<(/)?(色名)>$` **全锚定**正则，却同时用在两个语义不同的地方——`components/markdown-view.tsx`（marked 管线，对 html token **整串**匹配，全锚定正确）与 `components/richtext/format-color.ts`（TipTap 管线，AI 对话气泡渲染走这里，对 `slice(pos, pos+32)` **滑动窗口**匹配，需要前缀语义）。全锚定在滑动窗口下：文本中间的开标签（后面跟着文字，窗口非纯标签）永不命中 → `<blue>` 原样显示；扫到字符串末尾的 `</blue>` 时剩余窗口恰为标签本身 → 孤立命中，push 了没有配对 open 的 close token → 渲染成孤立 `</span>`，视觉上 `</blue>` 被吞。即：**开闭标签永远一坏一好，色标签管线此前从未真正渲染成功过**（32 一直处于未验证状态）。
-- 修复：`lib/format-colors.ts` 新增 `FORMAT_COLOR_TAG_PREFIX`（`^<(/)?(色名)>` 无 `$` 尾锚）；`format-color.ts` 的 inline 规则改用 PREFIX，marked 路径继续用 AT（语义正确不动）。
-- 验证：新建 `tests/format-colors.test.ts`（node:test，17 用例含根因回归样本：AT 仅末尾闭标签孤立命中 / PREFIX 开闭配对 / 16 色遍历 / `<blueberry>` 等误匹配防护 / marked 路径 AT 整串语义回归），`npm test` 全过。
-- 顺带落地测试基建（主人提议，对齐 src/test 习惯）：`tests/` 目录 + `package.json` `test` script（node --test --experimental-strip-types，零新依赖）+ tsconfig `allowImportingTsExtensions` + 新增 `tests/contributions.test.ts`（04:00 翻篇口径常驻回归）；AGENTS.md 验收口径（TL;DR 1 / 第 2 节 / 红线 3、8、9 / Git 工作流 / 第 7 节测试约定）统一加入 `npm test`。
-- typecheck / lint / test 均 0 错误。渲染效果待主人目视确认（`npm run dev` → AI 对话栏输入 `<blue>这是一段文字</blue>` 发送 → 用户气泡应显示蓝色「这是一段文字」）。
-- 补漏（2026-10-06 主人目视反馈「标签匹配正常但仍无颜色」）：32 的第二处欠账——mark 的 `renderHTML` 只输出 `data-format-color` 属性，**全项目没有任何 CSS 消费它**（随笔预览的 marked 管线是自己上内联 style 的，所以只有那边有颜色）。修复：`renderHTML` 直接输出 `style: color: <hex>`（色值唯一来源 lib/format-colors.ts 的 FORMAT_COLOR_MAP），编辑态/只读态一并生效。typecheck / lint / test 复跑全绿；颜色效果待主人再次目视确认。
+- 一句话：根因（全锚定正则被误用于滑动窗口匹配）已沉淀为回归用例 tests/format-colors.test.ts。
 
 TODO 69. （状态：已完成）
 允许关系族之间调整位置
-
-- 已改（2026-10-05）：族 sidebar 行支持 HTML5 DnD 拖拽排序（交互与 app-sidebar 分类拖拽一致：落点行上半=插到它前面、下半=插到它后面；落点在自身原位或紧邻下一位视为没动不落库；重命名编辑态禁用拖拽）。存储不新增字段——顺序继续承载在 relationFamilies 的 key 插入顺序上，store 新增 `moveRelationFamily(familyId, toIndex)`（toIndex 为同分类族数组的目标插入索引，原数组口径；重建对象时同分类族按新顺序填回原有 key 槽位、其余分类族位置原样保留；搬迁弹窗等所有按 categoryId 过滤的消费方自动跟随新顺序）。typecheck / lint 均 0 错误。待主人目视确认拖拽手感与落点指示。
 
 TODO 70. （状态：已完成）
 当前docs规范风格的滑动条，会在深色主题颜色下，与背景融为一体，导致无法看到滑动条。
 同时，滑动条过长时，在显示屏幕上滑动条的底部会出现白色矩形（这一条尚需多加验证，有时显示有时不显示的）
 
-- 已实现（2026-10-11）：
-  - 融入背景根因：滑块色用 `var(--color-border)`，而 `.dark` 的 border 是 **12% 透明白**（oklch(1 0 0 / 12%)），叠在深背景上几乎隐形；且原生滑条与 Base UI ScrollArea 自绘滑条（`bg-border`）是同一个色，全站一起隐身。修复：globals.css 新增专用变量 `--scrollbar-thumb` / `--scrollbar-thumb-hover`（浅色沿用 border / muted-foreground，观感不变；`.dark` 调亮为 30% / 45% 白），原生 webkit 滑块、html/body 与 Firefox 的 `scrollbar-color`、Base UI 自绘 Thumb（scroll-area.tsx 改 `bg-(--scrollbar-thumb)`）全部走该变量——彩色主题（浅色基调）引用主题自己的 border，自动跟随。
-  - 底部白色矩形：按「横竖滚动条交汇角（scrollbar-corner）默认底色在深色下呈白」处理，全组滚动容器显式 `::-webkit-scrollbar-corner { background: transparent }`。此现象主人自述偶发未稳定复现，**修完仍需主人遇到时再确认**；若复现且不是 corner，需截图定位。
-- typecheck / lint / test 全绿（45 用例）。**颜色可见度与 corner 效果待主人目视确认**（深色主题看侧边栏/长列表/代码块滚动条）。
+- 一句话：滑条颜色统一走 --scrollbar-thumb 变量；corner 白块偶发未稳定复现，遇到时再确认。
 
 TODO 71. （状态：已完成）
 GitHub 队列四条（2026-10-10 主人口头）：
@@ -675,23 +578,9 @@ GitHub 队列四条（2026-10-10 主人口头）：
 3. 设置里添加监听仓库支持完整链接
 4. 队列搜索框占位符过长溢出，简短
 
-- 已实现：
-  - `lib/github-queue.ts` 新增 `fetchSingleIssue`（GET /repos/{o}/{n}/issues/{number}，issues API 同时覆盖 PR；404/限流有专属错误）+ `parseRepoInput` / `parseIssueRef`（链接/裸路径/owner-repo#编号解析，统一从组件收编进 lib，设置页共用）。
-  - 队列工作区（github-queue-workspace.tsx）：顶栏新增「添加 Issue/PR」按钮 + 弹窗（粘贴链接或 owner/repo#123 → 拉取入队；已在队列中刷新状态保留所在列与 queuedAt）。
-  - 添加监听仓库改为「先回扫校验、通过才落监听配置」——404 报「仓库不存在，未添加」，限流/网络失败同样不落配置（推翻原「监听配置先生效不回滚」口径，主人明确要求 404 不予添加）。
-  - 设置页（settings-view.tsx）添加监听仓库输入先用 parseRepoInput 归一（支持完整链接），再走 REPO_RE 校验与查重；placeholder 文案同步。
-  - 队列搜索框占位符缩短为「搜索 issue/PR」。
-  - 测试：tests/github-queue-parse.test.ts（9 用例）——其中抓到 parseRepoInput 对垃圾输入原样返回的既有缺陷，已修（归一结果不符 owner/repo 形态返回空串）。
-- typecheck / lint / test 全绿（45 用例）。交互效果待主人目视确认。
-
 TODO 72. （状态：已完成）
 1. code block 行号标识可能不会正确对应到正确的行号上（如果一行内容过多挤压到下一行的情况下，会导致下一行行号标识偏移）
 2. 在code block右上角语言标识处添加一个点击复制按钮。
-
-- 已实现（2026-10-11）：
-  - 行号偏移根因：`components/richtext/rich-text-view.tsx` 给 `.rich-text-content` 挂的 `[overflow-wrap:anywhere]` 是**继承属性**，穿透进 pre>code 把长行强制软断成多视觉行，NodeView「行数 = \n 切分」假设失效（源码行 ≠ 视觉行）。修复：globals.css 对 `.rich-text-content pre`（含内层 code）显式恢复 `overflow-wrap:normal; word-break:normal`——长行回到 pre 自身 overflow-x 内部横滚，行号恒对齐（NodeView 头注释同步更新）。
-  - 复制按钮：NodeView 右上角改为 `.code-block-meta` 容器（语言角标 + 复制按钮横排）；点击复制源码纯文本（textContent，Clipboard API + execCommand 降级），成功后图标短暂切 ✓（1.2s 还原）；mousedown preventDefault 防止编辑态点按钮丢选区。按钮为原生 DOM 内联 SVG（NodeView 不走 React）。
-- typecheck / lint / test 全绿（45 用例）。**视觉效果待主人目视确认**（长行代码块：折行变横滚 + 行号对齐；右上角复制按钮 hover/点击反馈；亮暗主题下观感）。
 
 TODO 73. （状态：已完成）
 1. 在词汇表里，当用户添加一个词且这个词已经存在时，在用户输入完词条名后就在词条名的下面添加一个提示显示已经存在并在旁边加一个切换按钮，引导用户直接加载已有内容再进行编辑。
@@ -700,39 +589,14 @@ TODO 73. （状态：已完成）
 题号选择呢就是没写的题显示蓝色背景圆，写了的题显示绿色背景圆。
 3. 一次问答最多100题
 
-- 已实现（2026-10-07，与本条登记前口头反馈一致，实施记录见当日日志与 docs/entry-points.md §8.18）：重名词提示 + 「载入已有内容编辑」；quiz 自由切题（左右箭头 + 题号蓝/绿圆点）+ 一次性提交（未答确认按空白）+ 上限 100 题。待主人目视确认。
-
 TODO 74. （状态：已完成，待目视确认）
 加一个 ai 会话标题生成的，就调用当前的ai生成标题。
 默认先就现在的截断，然后ai回复完之后再静默让ai生成一个标题。（要求不超过10个字且没有句号结尾，如果ai给的过长就还是自动截断就行）
 
-- 已实现（2026-10-17 深夜）：
-  - `lib/ai/title.ts`：sanitizeGeneratedTitle 纯函数（去首尾引号 → 取首行 → 截断 10 字 → 去尾部句读；顺序为先截断再清尾，保证第 10 字恰为句号时结尾无残留）。
-  - `lib/ai/request-queue.ts`：首轮 finalize 成功后（非错误回复）静默触发 maybeGenerateTitle——generateText 非流式调用当前模型，结果经清洗后走 renameConversation 写回；titleAttempted Set 防重复（每会话仅尝试一次）；触发条件=标题仍是「首条消息截断 10 字」形态（重命名/已生成过即跳过）；失败静默保持截断形态。
-  - 测试：tests/ai-title.test.ts 7 用例（引号/句读/多行/截断/空串）。全绿 76 用例。待目视确认：新建会话发一条消息，AI 回完后侧边栏标题应自动变为语义标题（≤10 字）。
-
-### TODO 40 后续批次（2026-10-17 主人口径：逐批套用模板，文本只写 zh，en 暂不写——缺 key 自动回落中文）
-- ~~批 1：全局外壳（toolbar-panel / status-bar / brand-header 静态项 / global-search / add-category-dialog / page 空态 / app-sidebar）~~ ✅ 2026-10-17 完成（新增命名空间 toolbar/statusBar/brandHeader/search/home/addCategory/templates/sidebar + common 扩充）。
-- ~~批 2：AI 对话（ai-chat / ai-sessions-panel / ai-models-dialog / ai-personas-dialog）~~ ✅ 2026-10-17 完成（命名空间 aiChat/sessions/models/personas；PRESET_QUESTIONS 改 key 数组、两处消费渲染 t(q)、applyPreset/askAiAbout 传翻译后文本）
-- ~~批 3：随笔（novel-workspace / text-context-menu / rich-text-editor）~~ ✅ 2026-10-17 完成（novel 命名空间；「问 AI」前缀整段抽插值）
-- ~~批 4：思维导图（mindmap-workspace / node-inspector / mindmap/nodes）~~ ✅ 2026-10-17 完成（mindmap/inspector 命名空间；AI 分析 prompt 整段插值；局部变量 t×2 改名防撞）
-- ~~批 5：日历（calendar-workspace + 自定义节日弹窗）~~ ✅ 2026-10-17 完成（calendar 命名空间；WEEKDAYS 改 key 数组；AI prompt 与 date-fns zhCN 日期格式留遗留）
-- ~~批 6：联系人（contacts-workspace）~~ ✅ 2026-10-17 完成（contacts 命名空间；TYPE_LABEL 改 key 映射、自定义类型原文直显）
-- ~~批 7：保险库（vault-workspace）~~ ✅ 2026-10-17 完成（vault 命名空间；provider 的 throw error message 属 lib 层，归批 13）
-- ~~批 8：个人主页（profile-workspace / weather-widget）~~ ✅ 2026-10-17 完成（profile/weather 命名空间；CN_MONTHS/月大小/星期改 key 化；「今日待办」AI prompt 整段插值）
-- ~~批 9：通知（notifications-workspace / notification-toast-queue / health-reminder-toasts）~~ ✅ 2026-10-17 完成（notif/health 命名空间；relativeTimeMs 用 getI18n()；国内判定走数据原文与语言无关）
-- ~~批 10：GitHub 队列（github-queue-workspace）~~ ✅ 2026-10-17 完成（queue 命名空间，监听/单条添加全套错误 toast）
-- ~~批 11：词汇表（vocabulary-workspace）~~ ✅ 2026-10-17 完成（vocab 命名空间 ~90 key；导入报告改尾段插值拼接）
-- ~~批 12：设置页剩余分区（shortcuts / account / ai / advanced / notifications / news）~~ ✅ 2026-10-17 完成（settings 命名空间扩展 ~130 key 经 settingsExtra 合并；SCAN_TYPE label 改 key；SHORTCUT_META label 以中文原文作 key 自然回落显示）
-- 批 13：lib 层系统文案（store toast / notifications senders / scheduler / qq-channel——非组件内直接 i18n.t()，语言切换后新文案按当前语言）
-- 专项遗留：brand-header 生日横幅模板串（复杂插值，待专项）。**全站 13 批全部完成（2026-10-17）**——**en.ts 已全量编写（2026-10-17 深夜）：931 key 与 zh 完全同构**（i18n.test.ts 加 en/zh 同构防漂移用例 + en 抽查，69 用例全绿）。切 English 后全站即为英文。
-
 TODO 75. （状态：已完成，待目视确认）
 将全部界面的背景图都改为 refs/polar-light.txt 那样的游动极光背景（包括所有workspace的背景界面，关系图的背景界面）
 
-- 已实现（2026-10-18，Coder 落地）：components/aurora-background.tsx 全局单例 canvas（忠实移植 refs/polar-light.txt：200 星 + 4 层波浪，参数原样）；暗色原版配色、浅色淡化版（浅青灰底 #eef4f2 + 降饱和波浪 alpha 0.15-0.26 + 深色暗点）。settings.auroraBackground 默认 true（store merge 兜底 `!== false`），设置→通用加 Switch；开启时 page.tsx 主列/侧栏/状态栏 + brand-header/toolbar-panel 加 bg-*/60 backdrop-blur-md 毛玻璃，ReactFlow 画布透明化（保留网格点）。调参常量：aurora-background.tsx 顶部（WAVE_SPEED/WAVE_AMPLITUDE/STAR_COUNT/DARK_PALETTE/LIGHT_PALETTE）+ app/page.tsx AURORA_GLASS。typecheck/lint/test 全绿（76 用例），主理人复跑核验通过。待目视确认：暗/浅两主题的极光观感、毛玻璃可读性、关系图画布透出效果。
-- 追加重构（2026-10-18 主人二轮口径：**屏幕只有最多 50 个星光点**，原 200 颗常驻星移除）：50 个星光点带生命周期——每 10s 随机熄灭 5 个（淡出）+ 淡出后随机新位置/新亮度淡入；单点加大（基础半径 3.2，直径约 5~10px）无模糊（主人口径：原样显示，不加 shadowBlur），亮度 0.55~1.0（暗）/ 0.3~0.55（浅）。DPR 适配保留。调参：STAR_COUNT / STAR_RADIUS / LIFE_CYCLE_MS / EXPIRE_PER_CYCLE / LIFE_FADE_STEP。
-- 可见性修复（2026-10-18 主人截图反馈「看不到星点」）：根因是 canvas 未适配 devicePixelRatio——Windows 显示缩放下 1px 级星点被稀释成不可见淡斑。修复：resize 按 dpr 缩放物理像素 + ctx.setTransform；常驻星半径 0~1.5→0.6~1.8、亮度下限 0.1→0.25（暗）/0.05→0.15（浅）；生命星半径 1.8→2.4、halo 12/8。
+- 一句话：调参常量在 aurora-background.tsx 顶部与 app/page.tsx 的 AURORA_GLASS。
 
 TODO 76. （状态：待处理）
 关系类图的渲染又需要好好大修一下
@@ -746,18 +610,11 @@ TODO 76. （状态：待处理）
 TODO 77. （状态：已完成，待目视确认）
 设置 - AI助手 里技能启停增加一个搜索框
 
-- 已实现（2026-10-18）：ai-skills-dialog.tsx 标题下加搜索 Input（skills.searchPlaceholder），按技能名称/描述大小写不敏感过滤（useMemo），无结果空态 skills.noMatch；rows/visibleRows useMemo 防渲染抖动。zh/en 字典各 2 key（1083 key）。全绿 76 用例。待目视：搜索过滤与空态。
-- 修复（同日）：首次插入时锚点失配（skills 是独立 const 而非嵌套块）导致 key 未入字典、弹窗显示裸 key——已补插并经运行时校验（zh/en skills.searchPlaceholder 实值读取 ✓）。教训：字典插入后必须跑 key diff + 实值读取双校验。
-
 TODO 78. （状态：已完成，待目视确认）
 在设置 - AI助手里AI头像下有个"仅本机明文存储于 localStorage，请不要在共享环境使用。"是什么鬼，这不应该是放到千帆API KEY下的说明吗
 
-- 已实现（2026-10-18）：plaintextWarn 从 AI 头像区块移除，挪到「联网搜索 API Key（百度千帆 AI 搜索）」的说明文字之下（webSearchKeyDesc 之后）。文案本身不变（zh/en 通用句）。全绿 76 用例。待目视：位置正确、间距正常。
-
 TODO 79. （状态：已完成，待目视确认）
 在设置 - 通用中，启动行为里添加上所有的workspace view
-
-- 已实现（2026-10-18）：DefaultView 扩为全部 10 个 view + last（lib/types.ts，注释标明新增 view 时同步补 DEFAULT_VIEWS）；store 的 applyDefaultView 通式化（非 last 一律 state.view = dv，workspace 保留持久化分类、其余清 activeCategoryId）；设置页 DEFAULT_VIEWS 补通讯录/密码保险库/通知/GitHub 队列/词汇表/个人主页/设置 7 项；字典 viewOptions 补 7 key × zh/en（合计 11 项，diff=0）。全绿 76 用例。待目视：下拉 11 项齐全、选任一新 view 重启后落到对应界面。
 
 TODO 80. （状态：待处理）
 在联系人 - 联系人编辑界面 - 添加联系方式里，在深色模式下，联系方式选择的dropdown会完全变白，啥也看不到，需要修复
