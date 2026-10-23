@@ -285,7 +285,6 @@ export function CalendarWorkspace() {
               <ChevronRight className="size-4" />
             </Button>
           </div>
-          </div>
           <div className="flex-1" />
           <Button
             variant="outline"

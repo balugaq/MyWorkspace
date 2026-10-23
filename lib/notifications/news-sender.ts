@@ -105,8 +105,6 @@ async function fetchHotboard(type: (typeof NEWS_TYPES)[number], token: string): 
   return out
 }
 
-// ---- prompt 与解析 ----
-
 function buildNewsPrompt(entries: HotEntry[]): string {
   const dateStr = new Date().toLocaleDateString("zh-CN", { dateStyle: "long" })
   const data = entries.map((e) => ({

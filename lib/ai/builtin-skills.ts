@@ -32,6 +32,9 @@ export interface BuiltinSkill {
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+// 解析 yyyy-MM-dd；非法抛错
+function parseYmd(s: string): { year: number; month: number; day: number; date: Date } {
   if (!DATE_RE.test(s)) throw new Error(`日期格式应为 yyyy-MM-dd，收到：${s}`)
   const [y, m, d] = s.split("-").map(Number)
   const date = new Date(y, m - 1, d)

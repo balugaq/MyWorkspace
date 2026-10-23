@@ -10,6 +10,8 @@ export function extractSpeakableText(md: string): string {
   let s = md
   // 格式色标签 <blue>…</blue> 等 → 纯文字（复用 16 色管线同一份剥离逻辑）
   s = stripFormatColorTags(s)
+  // 内链标记 [[mw:...|标题]] → 标题
+  s = s.replace(/\[\[mw:(?:conv|node):[\w-]+(?::[\w-]+)*\|([^\]\n]+)\]\]/g, "$1")
   // 代码块 → 占位（朗读 token 流没有意义）
   s = s.replace(/```[\s\S]*?(?:```|$)/g, "（代码已省略）")
   s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, "")

@@ -120,8 +120,8 @@ export default function Page() {
 
   const activeCategory = categories.find((c) => c.id === activeCategoryId)
 
+  // TODO 75：极光开启时根容器透明，露出底层极光 canvas
   return (
-    {/* TODO 75：极光开启时根容器透明，露出底层极光 canvas */}
     <div
       className={`flex h-svh flex-col overflow-hidden${auroraBackground ? "" : " bg-background"}`}
     >

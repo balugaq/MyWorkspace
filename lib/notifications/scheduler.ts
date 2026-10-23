@@ -1,7 +1,6 @@
-// 通知调度器（TODO 20 / TODO 18）：
-// - 每 5 分钟调 scanNow() 扫描配置仓库的新动态（GitHub sender），去重入库；
-// - 维护活跃心跳 lastActiveAt（启动 / 每 5 分钟 / pagehide 各更新一次），
-//   pagehide 的更新 ≈「关机时间」，作为下轮扫描的兜底起算点（关机期间漏扫的补上）。
+// 通知调度器（TODO 20 / TODO 18）：每 5 分钟调 scanNow() 扫描配置仓库的新动态（GitHub sender），去重入库；
+// 维护活跃心跳 lastActiveAt（启动 / 每 5 分钟 / pagehide 各更新一次），pagehide 的更新 ≈「关机时间」，
+// 作为下轮扫描的兜底起算点（关机期间漏扫的补上）。
 // 幂等：startNotificationScheduler 模块级 flag，重复调用直接 return。
 
 import { useWorkspace } from "@/lib/store"
@@ -46,10 +45,9 @@ const KIND_TO_CONTRIB: Record<"commit" | "issue" | "pr", ContributionType> = {
 
 /**
  * 通知条目 → GitHub 队列卡片（Backlog 列，TODO 36 补充的「监听自动入队」）。
- * number 从通知的 html_url 提取（.../issues/123 或 .../pull/123）；
- * id 与手动拉取路径一致（iq:{repo}:{kind}:{number}），addToIssueQueue 按 id 去重且
- * 保留用户手动移动过的列，重复触发无副作用。assigneeMe 由调用方按
- * 「自有仓库全量、他人仓库仅 @me」规则判定后传入。
+ * number 从通知的 html_url 提取（.../issues/123 或 .../pull/123）；id 与手动拉取路径一致
+ * （iq:{repo}:{kind}:{number}），addToIssueQueue 按 id 去重且保留用户手动移动过的列，重复触发无副作用。
+ * assigneeMe 由调用方按「自有仓库全量、他人仓库仅 @me」规则判定后传入。
  */
 function notificationToBacklogItem(
   n: NotificationItem,
@@ -172,7 +170,6 @@ export async function scanNow(): Promise<void> {
         const autoItems = openCandidates
           .map((n) => ({ n, isMine: n.repo.split("/")[0] === login }))
           .filter(({ n, isMine }) => {
-            // 自有仓库 → 全量入队；他人仓库 → 仅 assign 给自己
             return isMine || (n.assignees?.includes(login) ?? false)
           })
           .map(({ n, isMine }) =>

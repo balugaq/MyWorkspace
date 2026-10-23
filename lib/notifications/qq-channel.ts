@@ -1,13 +1,9 @@
-// QQ 互联通知渠道（TODO 22）：把通知推送到主人的 QQ 私信。
-// 通道：本机常驻中转服务 POST <relayUrl>，body {"text":"..."}；地址可在设置页配置，
-//       默认 http://localhost:18899/send（DEFAULT_QQ_RELAY_URL，留空 / 非法时回落）。
-// 已实测：服务支持 CORS（ACAO:* + 允许 Content-Type），浏览器端可直接调用。
+// QQ 互联通知渠道（TODO 22）：把通知推送到主人的 QQ 私信。本机常驻中转服务 POST <relayUrl>，body {"text":"..."}；
+// 地址设置页可配，默认 http://localhost:18899/send（DEFAULT_QQ_RELAY_URL，留空/非法时回落）。已实测服务支持 CORS，浏览器可直调。
 // 约束：正文以 [MyWorkspace] 开头标注来源；消息保持简短（机器人每日额度有限）；
-//       超时 20 秒（服务转发较慢，短超时会误判失败）；失败静默（不打扰、不重试）。
-// TODO 44：带 newsPack 的新闻包通知只发 1 条汇总消息。
-// 改版（主人定稿）：整包**所有新闻的完整文字内容**拼成一条长消息一次发完
-//       （每条：序号 + [领域] 标题 + 时间/地点/人物/经过/影响/精神/作文素材/链接），
-//       超长按行边界自动分段发送。
+// 超时 20 秒（服务转发较慢，短超时会误判失败）；失败静默（不打扰、不重试）。
+// TODO 44 / 改版（主人定稿）：带 newsPack 的新闻包整包**所有新闻的完整文字内容**拼成一条长消息一次发完
+// （每条：序号 + [领域] 标题 + 时间/地点/人物/经过/影响/精神/作文素材/链接），超长按行边界自动分段发送。
 import type { NotificationItem } from "@/lib/types"
 import { DEFAULT_QQ_RELAY_URL } from "@/lib/types"
 import { getI18n } from "@/lib/i18n"
@@ -22,7 +18,6 @@ export const KIND_LABEL: Record<NotificationItem["kind"], string> = {
   news: "新闻",
 }
 
-/** 单条超长截断（QQ 消息保持精简） */
 function clip(text: string, max = 60): string {
   const t = text.trim()
   return t.length > max ? t.slice(0, max - 1) + "…" : t
@@ -75,7 +70,7 @@ async function sendQqText(text: string, relayUrl: string): Promise<boolean> {
 
 /** 推送一条通知到 QQ 私信；返回是否成功（失败由调用方静默处理） */
 export async function sendQqNotification(item: NotificationItem, relayUrl: string): Promise<boolean> {
-  // 新闻包：整包所有新闻的完整文字内容拼成一条长消息一次发完（超长由 splitText 按行边界分段）
+  // 新闻包：按主人定稿口径整包完整内容一次发完（超长由 splitText 按行边界分段）
   if (item.newsPack && item.newsPack.length > 0) {
     const body =
       `${item.title}\n` +
