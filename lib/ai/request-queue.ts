@@ -1,11 +1,6 @@
-// 全局 AI 请求队列（模块级单例）：流式请求的所有权从 React 组件移到此处，
-// 因此切换会话 / 切走视图都不会杀掉在途请求；请求完成后按 conversationId 写回 store。
-//
-// "AI 对话强制同步"（settings.aiForceSync）开启时，所有会话请求串行处理（单队列）；
-// 关闭时允许并发（同一会话仍不会重复发起）。
-//
-// 容错与 use-ai-chat 一致：自定义 fetch 在 abort 时把 reject 转空响应以避免 unhandled rejection；
-// 流被中止（用户点停止）时视为预期行为，静默收尾、不报错。
+// 全局 AI 请求队列（模块级单例）：流式请求所有权从 React 组件移到此处，切会话/切视图不杀在途请求，
+// 完成后按 conversationId 写回 store；aiForceSync 开启时全队列串行，关闭时允许并发（同一会话不重复发起）。
+// 自定义 fetch 在 abort 时把 reject 转空响应避免 unhandled rejection；用户中止视为预期行为，静默收尾不报错。
 
 "use client"
 
@@ -37,8 +32,7 @@ const SYSTEM_BASE = `你是一个集成在「全能工作台」个人应用里�
 
 排版富文本回复时可直接使用 Markdown（**粗体**、*斜体*、~~删除线~~、标题、有序/无序/任务列表、表格、代码块、引用、链接），无需额外确认；也可用 16 色文本标签给文字上色，例如 <blue>蓝色的字</blue>，全部色名：black、dark_blue、dark_green、dark_aqua、dark_red、dark_purple、gold、gray、dark_gray、blue、green、aqua、red、light_purple、yellow、white（不要输出其他 HTML 标签）。需要完整格式规范时调用 wb_format_guide 技能获取。`
 
-// 组装 system 提示词：基础提示词 + 当前选中的全局人设（来自设置）+ 动态上下文（当前时间）。
-// 在每次请求时读取最新设置，因此切换人设无需重新构建即可生效。
+// 每次请求实时读取设置组装 system 提示词（基础 + 全局人设 + 当前时间），切换人设无需重建即生效。
 function buildSystemPrompt(): string {
   const parts = [SYSTEM_BASE]
   const { aiPersonas, aiActivePersonaId } = useWorkspace.getState().settings
@@ -59,10 +53,10 @@ function newId(): string {
   return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
-// ---- 模块级状态（ephemeral，不持久化到 localStorage） ----
+// 模块级状态均为 ephemeral，不持久化到 localStorage
 const liveMessages = new Map<string, AIChatMessage[]>()
-const streaming = new Set<string>() // 正在流式输出的会话
-const queued = new Set<string>() // 在队列中等待（强制同步模式下）的会话
+const streaming = new Set<string>()
+const queued = new Set<string>()
 const listeners = new Set<() => void>()
 
 interface Job {
@@ -79,12 +73,9 @@ const pendingQueue: Job[] = []
 
 const EMPTY: AIChatMessage[] = []
 
-// 流式期间 text-delta 频率可达每秒数百次，同步 notify 会让 React 在并发渲染的
-// yield 间隙不断收到新快照、嵌套调度更新，50 层即抛 "Maximum update depth exceeded"
-// （且每个 delta 都会触发 RichTextView 全文重渲染）。改为按帧合并：一帧内多次
-// delta 只通知一次；终态（finish / 删除会话等）的通知最多延迟一帧，无感知影响。
-// 注意：live/store 数据在 notify 之前就已写入（liveMessages / useWorkspace），这里
-// 只延迟「通知 React 来读」的时机，不存在读到旧值的问题。
+// 流式 text-delta 每秒可达数百次，同步 notify 会在 React 并发渲染的 yield 间隙嵌套调度更新，
+// 50 层即抛 "Maximum update depth exceeded"（且每个 delta 都触发 RichTextView 全文重渲染），
+// 故按帧合并：一帧只通知一次，终态最多延迟一帧。数据在 notify 前已写入，这里只延迟「通知 React 来读」的时机，无旧值问题。
 let notifyQueued = false
 function notify() {
   if (notifyQueued) return
@@ -132,7 +123,7 @@ export function enqueue(conversationId: string, userContent: string, config: AIC
   ]
   // 立即持久化用户消息（不含助手占位，避免空占位落盘）
   state.setConversationMessages(conversationId, [...history, userMsg])
-  // 内存 live 含助手占位，用于流式渲染（仅在切回该会话时可见，不占用 localStorage）
+  // live 含助手占位仅供流式渲染，不落盘
   liveMessages.set(conversationId, newHistory)
   queued.add(conversationId)
   notify()
@@ -149,8 +140,7 @@ export function enqueue(conversationId: string, userContent: string, config: AIC
   pump()
 }
 
-// 重新回答：截取最后一条用户消息之后的所有内容（含其对应的助手回复），
-// 再以相同的用户输入重发——实现「重新回答」当前这条 AI 回复。
+// 重新回答：截掉最后一条用户消息之后的内容，以相同输入重发。
 export function regenerate(conversationId: string, config: AIChatConfig) {
   if (!conversationId) return
   if (activeJobs.has(conversationId) || queued.has(conversationId)) return
@@ -159,7 +149,6 @@ export function regenerate(conversationId: string, config: AIChatConfig) {
   const conv = state.conversations.find((c) => c.id === conversationId)
   if (!conv) return
   const msgs = conv.messages
-  // 找到最后一条用户消息，作为重发的输入
   let lastUserIdx = -1
   for (let i = msgs.length - 1; i >= 0; i--) {
     if (msgs[i].role === "user") {
@@ -169,7 +158,6 @@ export function regenerate(conversationId: string, config: AIChatConfig) {
   }
   if (lastUserIdx === -1) return
   const userContent = msgs[lastUserIdx].content
-  // 截掉该用户消息之后的所有内容（多半是上一次的助手回复），再以相同输入重发
   const trimmed = msgs.slice(0, lastUserIdx)
   state.setConversationMessages(conversationId, trimmed)
   enqueue(conversationId, userContent, config)
@@ -189,9 +177,8 @@ export function stopConversation(conversationId: string) {
   }
 }
 
-// ---- 函数式一次性调用（TODO 54「AI 整理布局」等）：不走对话流，直接 generateText ----
-// 并发纪律与对话请求一致：settings.aiForceSync 开启时等对话队列空闲后再执行；
-// 多个一次性调用之间彼此串行（promise 链），避免并发轰炸供应商触发限流。
+// 函数式一次性调用（TODO 54「AI 整理布局」等）：不走对话流直接 generateText；aiForceSync 开启时
+// 等对话队列空闲后再执行，多个一次性调用经 promise 链彼此串行，避免并发轰炸供应商触发限流。
 
 let directChain: Promise<unknown> = Promise.resolve()
 
@@ -220,10 +207,7 @@ function resolveDirectConfig(): AIChatConfig {
   }
 }
 
-/**
- * 函数式一次性 AI 补全：返回模型完整文本；失败抛 Error（由调用方 toast）。
- * 走 request-queue 的并发纪律（强制同步时让位于对话队列；多个直接调用彼此串行）。
- */
+// 一次性 AI 补全：返回完整文本，失败抛 Error（由调用方 toast）；并发纪律同对话队列（强制同步让位、彼此串行）。
 export async function requestDirectCompletion(
   userPrompt: string,
   systemPrompt?: string,
@@ -279,12 +263,10 @@ function patchAssistant(
   )
 }
 
-// GLM 兼容归一化（保守，正常请求为 no-op）：
-// 1) 剥掉 message 上的 reasoning_content —— 智谱等供应商视其为响应侧字段，
-//    多步续步时原样回传会被 400；
-// 2) assistant 消息带 tool_calls 且 content 为 null 时置 "" —— GLM 对 content:null 报参数错误，
-//    OpenAI 对两种写法均接受。
-// 请求体由 provider-utils postToApi 以 JSON 字符串传入（见 init.body），解析失败则原样透传。
+// GLM 兼容归一化（正常请求为 no-op）：剥掉 message 上的 reasoning_content（智谱等供应商视其为
+// 响应侧字段，多步续步回传会被 400）；assistant 带 tool_calls 且 content 为 null 时置 ""
+// （GLM 对 content:null 报参数错误，OpenAI 两者均接受）。请求体由 provider-utils postToApi
+// 以 JSON 字符串传入，解析失败原样透传。
 function patchProviderRequestBody(init?: RequestInit): RequestInit | undefined {
   try {
     if (!init || typeof init.body !== "string") return init
@@ -318,9 +300,8 @@ function patchProviderRequestBody(init?: RequestInit): RequestInit | undefined {
   }
 }
 
-// 标题自动生成（TODO 74）：首轮回复完成后，若会话标题仍是「首条消息截断」形态（从未重命名/生成过），
-// 静默调用当前模型生成一个 ≤10 字、无句号结尾的标题写回；失败保持截断形态，不提示。
-// titleAttempted 防重复请求：每个会话只尝试一次。
+// 标题自动生成（TODO 74）：首轮回复后若标题仍是首条消息截断形态（从未重命名/生成过），
+// 静默生成 ≤10 字、无句号结尾的标题写回；失败保持截断形态。titleAttempted 保证每会话只尝试一次。
 const titleAttempted = new Set<string>()
 
 async function maybeGenerateTitle(job: Job, finalContent: string) {
@@ -373,9 +354,8 @@ async function runJob(job: Job) {
       .then(async (res) => {
         httpStatus = res.status
         httpStatusText = res.statusText
-        // 只在错误响应（非 2xx）上预读 body 供诊断：2xx 多是 SSE 流，clone() + text() 必须等
-        // 整个流读完才 resolve，会阻塞到 Response 才交给 SDK，把逐字流式退化成「一次性整段返回」
-        // （且中止时读到的正文为空）。所以 2xx 直接 return，不 clone、不预读。
+        // 只在非 2xx 上预读 body 供诊断：2xx 是 SSE 流，clone()+text() 需等流读完才 resolve，
+        // 会阻塞 Response 交给 SDK、把逐字流式退化成整段返回，故 2xx 直接 return 不预读。
         if (res.status < 200 || res.status >= 300) {
           try {
             const clone = res.clone()
@@ -486,7 +466,7 @@ async function runJob(job: Job) {
     let finalContent: string
     if (body) {
       // 诊断透出：此前只给模板话术，errorMsg / httpStatus / 供应商响应全被丢弃，
-      // 导致 GLM 等供应商在工具结果回传（多步续步）阶段报错时无从定位根因。
+      // GLM 等供应商在工具结果回传（多步续步）阶段报错时无从定位根因。
       let diag = ""
       if (sawError) {
         const parts: string[] = []
@@ -512,8 +492,7 @@ async function runJob(job: Job) {
           : providerErr
             ? getI18n().t("push.rqProviderError", { err: providerErr })
             : errorMsg ?? "未知错误"
-      // 非 2xx 时把服务器真实返回的响应体（已限长）一并附上，便于排查
-      // （如 429 的限流说明、具体错误码等）；避免只看到状态码却不知因由。
+      // 非 2xx 时附上服务器真实响应体（已限长，如 429 的限流说明、具体错误码），避免只见状态码不知因由。
       const detail =
         httpStatus != null && httpStatus !== 200 && rawBody && rawBody.trim()
           ? rawBody.trim().replace(/```/g, "'''")
@@ -554,14 +533,12 @@ async function runJob(job: Job) {
       tools,
       stopWhen: stepCountIs(12),
       abortSignal: controller.signal,
-      // 显式关闭 AI SDK 遥测：SDK 在 streamText 内部会用
-      // `completion: result._totalUsage.promise.then(() => void 0)`（ai/dist/index.js 的
-      // telemetryDispatcher.startTracingChannelContext 调用）建一个只给 Telemetry 用的派生 promise，
-      // 而该 promise 只在 Node 运行时才会被 SDK 兜住（openTelemetryChannelSpanContext 里
-      // `if (!isNodeRuntime()) return`）。浏览器环境没人接它，一旦 _totalUsage 被 reject
-      // （用户点停止 → abortSignal.reason；429 无输出 → AI_NoOutputGeneratedError），
-      // 就变成未捕获 rejection 弹到 Next.js 运行时面板。传 isEnabled:false 后 dispatcher 直接返回 {}，
-      // 连那个派生 promise 都不会被创建（本应用不使用 SDK 遥测，无行为影响）。
+      // 显式关闭 AI SDK 遥测：streamText 内部会给 _totalUsage 建一个仅遥测用的派生 promise
+      // （telemetryDispatcher.startTracingChannelContext），它只在 Node 运行时被 SDK 兜住
+      // （openTelemetryChannelSpanContext 里 if (!isNodeRuntime()) return）；浏览器中一旦 reject
+      // （用户中止的 abortSignal.reason、429 的 AI_NoOutputGeneratedError）即成未捕获 rejection
+      // 弹进 Next.js 运行时面板。isEnabled:false 后 dispatcher 直接返回 {}，该 promise 根本不会
+      // 创建（本应用不用遥测，无行为影响）。
       telemetry: { isEnabled: false },
       onError: (err) => {
         errorMsg = err instanceof Error ? err.message : String(err)
@@ -593,26 +570,23 @@ async function runJob(job: Job) {
         }
       }
     } catch (streamErr) {
-      // fullStream 消费阶段抛错（onError 未吞掉时）：用户中止不再提前 return —— 提前 return 会跳过
-      // 下方统一收尾，被 abortSignal.reason 拒绝的那批 result promise 就无人吸收，进而冒成未捕获
-      // rejection（Next.js 运行时面板的 "AbortError: signal is aborted without reason"）。
-      // 这里只决定是否标记失败，收尾一律交给下方统一处理；中止时保留已生成内容（finish(true)）。
+      // fullStream 抛错时（含用户中止）不可提前 return：会跳过下方统一收尾，abortSignal.reason
+      // 拒绝的那批 result promise 无人吸收，冒成未捕获 rejection；此处只决定是否标记失败，
+      // 收尾一律交给 finish（中止时保留已生成内容）。
       if (!(streamErr instanceof Error && controller.signal.aborted)) {
         sawError = true
         errorMsg = streamErr instanceof Error ? streamErr.message : String(streamErr)
       }
     }
 
-    // 统一收尾：吸收 result 上所有可能 reject 的 promise。
-    // 为什么要吸收：用户点「停止」时 SDK 会把 abortSignal.reason（abort() 无参数 =>
-    // DOMException "signal is aborted without reason"）作为 error 去拒绝这批 promise；请求完全
-    // 失败（如 429）/ 空内容时会以 AI_NoOutputGeneratedError 拒绝。不吸收就会变成未捕获 rejection。
-    // 注意必须放在 fullStream 消费循环之后：这些字段均标注 "Automatically consumes the stream"，
-    // 循环内访问会与 fullStream 抢消费。429/网络错信息已通过 errorMsg / httpStatus 在对话框展示。
-    // 清单依据 ai@7 的 StreamTextResult 接口维护（node_modules/ai/dist/index.d.ts），包含其全部
-    // PromiseLike 取值器；SDK 升级后若新增 PromiseLike 字段，需同步补到这里。
-    // 切勿加入 elementStream：它是 AsyncIterableStream 且无 array output 规格时会同步抛
-    // UnsupportedFunctionalityError（index.d.ts 里其余 *Stream 都是惰性 getter，不访问即不创建）。
+    // 统一收尾：吸收 result 上全部 PromiseLike 取值器——用户中止时 SDK 以 abortSignal.reason
+    // （abort() 无参 => DOMException "signal is aborted without reason"）、429/空内容时以
+    // AI_NoOutputGeneratedError 拒绝它们，不吸收即未捕获 rejection；429/网络错信息已通过
+    // errorMsg / httpStatus 在对话框展示。必须在 fullStream 消费循环之后访问：这些字段均标注
+    // "Automatically consumes the stream"，循环内访问会抢消费。清单依据 ai@7 的 StreamTextResult
+    // 接口（node_modules/ai/dist/index.d.ts）维护，SDK 升级新增 PromiseLike 字段需同步补上；
+    // 切勿加入 elementStream：AsyncIterableStream 且无 array output 规格时会同步抛
+    // UnsupportedFunctionalityError（其余 *Stream 均为惰性 getter，不访问即不创建）。
     const absorbed = await Promise.allSettled([
       result.consumeStream(), // [0] 主动 finalize 流，其错误沿用下方原有诊断逻辑
       result.text,
@@ -641,8 +615,8 @@ async function runJob(job: Job) {
       result.output,
     ])
 
-    // flush 阶段（consumeStream）的错误仍按原有诊断处理：429/网络错信息已通过 errorMsg / httpStatus
-    // 在对话框正常展示，NoOutputGeneratedError 无需提示，用户中止不覆盖 errorMsg。
+    // flush 阶段（consumeStream）的错误仍按原诊断处理：429/网络错已通过 errorMsg / httpStatus
+    // 在对话框展示，NoOutputGeneratedError 无需提示，用户中止不覆盖 errorMsg。
     const flushOutcome = absorbed[0]
     if (flushOutcome.status === "rejected" && !controller.signal.aborted) {
       const flushErr: unknown = flushOutcome.reason
@@ -658,8 +632,8 @@ async function runJob(job: Job) {
       }
     }
 
-    // 捕获 OpenAI 兼容 usage（inputTokens / outputTokens）用于 token 统计。流已消费，此处可安全读取；
-    // 中止时该 promise 已被拒绝（上面已吸收），这里静默忽略，不影响正文。
+    // 捕获 OpenAI 兼容 usage（inputTokens / outputTokens）供 token 统计：流已消费，此处可安全读取；
+    // 中止时该 promise 已在上面被吸收，此处静默忽略，不影响正文。
     try {
       const u = await result.usage
       const input = u.inputTokens ?? 0

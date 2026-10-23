@@ -1,8 +1,6 @@
-// AI 助手视图：会话列表已迁至全局侧边栏（components/ai/ai-sessions-panel.tsx，TODO 25），
-// 本组件只负责主区的消息流与输入框。会话持久化在 store（localStorage），刷新后保留。
-// 流式请求由 lib/ai/request-queue 全局持有——切换会话 / 切走视图都不会中断在途请求。
-// 配置（provider / apiKey）来自 store.settings；skills 由队列内部读取。
-// 用户消息与 AI 回复统一用 RichTextView 渲染（与节点内容同管线：表格/代码高亮/卡片/内文图一致生效）。
+// AI 助手视图：会话列表已迁至全局侧边栏（components/ai/ai-sessions-panel.tsx，TODO 25），本组件只管主区消息流与输入框；
+// 流式请求由 lib/ai/request-queue 全局持有（切会话/切视图不中断在途请求），配置来自 store.settings，skills 由队列内部读取。
+// 会话持久化在 store（localStorage），刷新后保留；消息与 AI 回复统一用 RichTextView 渲染（与节点内容同管线：表格/代码高亮/卡片/内文图一致生效）。
 
 "use client"
 
@@ -35,15 +33,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 import { cn } from "@/lib/utils"
 
-// 新对话空状态下的预置问题；第三个由我们替用户补充。
-// （导出供日历侧边栏的「AI 快捷提问」面板复用，TODO 25。）
+// 新对话空状态的预置问题（导出供日历「AI 快捷提问」面板复用，TODO 25）；第三个由我们替用户补充。
 export const PRESET_QUESTIONS = [
   "aiChat.preset.today",
   "aiChat.preset.opensource",
   "aiChat.preset.agent",
 ]
 
-// 复制消息原文（raw 文本）到剪贴板，并给出轻量提示。
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text)
@@ -58,8 +54,7 @@ function shortQueryTitle(content: string): string {
   return content.length > 20 ? content.slice(0, 20) + "…" : content
 }
 
-// 自定义 rAF 缓动滚动（原生 scrollIntoView 无 duration）；rafRef 记录动画帧 id，供重复点击时取消上一个动画。
-// 直接写 viewport 的 scrollTop 与 ScrollArea 兼容（viewport 即原生滚动容器）。
+// 自定义 rAF 缓动滚动（原生 scrollIntoView 无 duration）；直接写 viewport 的 scrollTop 与 ScrollArea 兼容。
 function animateScrollTop(
   container: HTMLElement,
   targetTop: number,
@@ -117,8 +112,7 @@ export function AIChatWorkspace() {
     [activeModel],
   )
 
-  // 进入视图时确保至少有一个会话、且有一个被选中。
-  // createdRef 防止 StrictMode 下重复创建；prevLenRef 在「全部删除」后允许再次创建。
+  // 进入视图确保至少一个会话且被选中；createdRef 防 StrictMode 重复创建，prevLenRef 在「全部删除」后允许再次创建。
   const createdRef = useRef(false)
   const prevLenRef = useRef(0)
   useEffect(() => {
@@ -131,8 +125,7 @@ export function AIChatWorkspace() {
     } else if (len > 0 && !activeId) {
       selectConversation(conversations[0].id)
     }
-  // 仅依赖 length 与 activeId：conversations 数组身份每次提交都会变，但本 effect
-  // 只在「无会话」或「无选中」时动作，无需对其整体建立依赖。
+  // 仅依赖 length 与 activeId：conversations 数组身份每次提交都会变，但 effect 只在「无会话/无选中」时动作
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversations.length, activeId, createConversation, selectConversation])
 
@@ -181,10 +174,8 @@ export function AIChatWorkspace() {
     conversationId: active?.id ?? "",
   })
 
-  // 打开对话 / 新消息后滚到底部
-  // 消息列表现为 Base UI ScrollArea，实际可滚动的是 viewport（data-slot="scroll-area-viewport"）。
-  // 同时依赖 messages 与 activeId：切换对话（即「打开对话」）时即使 messages 引用未变也要滚到底；
-  // 用 requestAnimationFrame 等浏览器完成布局（含图片等异步撑高）后再定位，避免滚不到位。
+  // 打开对话/新消息后滚到底部：实际可滚动的是 ScrollArea viewport；依赖 messages 与 activeId
+  // （切对话时即使 messages 引用未变也滚），rAF 等浏览器完成布局（含图片撑高）后再定位，避免滚不到位。
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -198,8 +189,7 @@ export function AIChatWorkspace() {
     return () => cancelAnimationFrame(raf)
   }, [messages, activeId])
 
-  // —— Query bar（桌面端右侧问题导航）——
-  // userMsgs：当前会话的全部用户提问（过滤空内容）；bar 只显示最近 9 条（旧上新下）。
+  // Query bar（桌面端右侧问题导航）：userMsgs 为当前会话全部用户提问（过滤空内容），bar 只显示最近 9 条（旧上新下）。
   const userMsgs = useMemo(
     () => messages.filter((m) => m.role === "user" && m.content.trim().length > 0),
     [messages],
@@ -211,9 +201,8 @@ export function AIChatWorkspace() {
   // 「回到底部」按钮：消息可滚动且用户不在底部时渐显，到底后消失
   const [showScrollDown, setShowScrollDown] = useState(false)
 
-  // 滚动追踪「当前所处位置」：监听真实滚动容器（ScrollArea viewport），
-  // rAF 节流地遍历用户消息 DOM，取「视口顶部之下、底部已进入视口上半部」的最近一条；
-  // 视口在第一条之前则取第一条；一条用户消息都没有则清空。
+  // 滚动追踪「当前所处位置」：监听真实滚动容器（ScrollArea viewport），rAF 节流遍历用户消息 DOM，
+  // 取底部已进入视口上半部的最近一条；视口在第一条之前则取第一条；无用户消息则清空。
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -312,8 +301,8 @@ export function AIChatWorkspace() {
     }
   }
 
-  // 消费外部触发的"打开 AI 闲聊并自动询问"（如日历 DayDetail 的 节日/笔记 查询）：
-  // 新建会话切到本视图后，pendingAiQuery 就绪即发送；若无模型配置则填入输入框并提示。
+  // 消费外部触发的「打开 AI 闲聊并自动询问」（如日历 DayDetail 的节日/笔记查询）：
+  // pendingAiQuery 就绪即发送；无模型配置则填入输入框并提示。
   useEffect(() => {
     const text = pendingAiQuery
     if (!text) return
@@ -333,7 +322,6 @@ export function AIChatWorkspace() {
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      {/* 主区 */}
       <div className="flex min-h-0 flex-1 flex-col">
         <header className="flex items-center gap-2 border-b px-4 py-2">
           <Bot className="size-4 text-primary" />
@@ -342,8 +330,7 @@ export function AIChatWorkspace() {
         </header>
 
         <ScrollArea className="min-h-0 flex-1 overflow-hidden">
-          {/* 聊天框内容限宽 屏宽/2 + 160，水平居中；w-full 钉住宽度（mx-auto 会取消 flex stretch，
-              不钉则随 field-sizing 内容收缩）；滚动容器本身延伸到屏幕右缘，滚动条贴最右侧 */}
+          {/* 内容限宽 屏宽/2+160 居中；w-full 钉住宽度（mx-auto 会取消 flex stretch，不钉则随 field-sizing 内容收缩）；滚动容器延伸到屏幕右缘，滚动条贴最右 */}
           <div ref={scrollRef} className="mx-auto flex w-full max-w-[calc(50vw+160px)] flex-col px-4 py-3">
           {!hasKey && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
@@ -388,9 +375,7 @@ export function AIChatWorkspace() {
           {messages.map((m) => {
             const isUser = m.role === "user"
             return (
-              // 外层竖列：气泡 + 反应按钮；用户消息整体靠右、AI 消息靠左，
-              // 反应按钮因此自然贴在气泡正下方（气泡之外）。
-              // data-msg-id / data-msg-role 供 query bar 滚动定位取真实 DOM。
+              // 外层竖列：气泡 + 反应按钮；用户靠右、AI 靠左，反应按钮自然贴气泡正下方；data-msg-id / data-msg-role 供 query bar 滚动定位
               <div
                 key={m.id}
                 data-msg-id={m.id}
@@ -403,7 +388,6 @@ export function AIChatWorkspace() {
                     isUser ? "flex-row-reverse" : "flex-row",
                   )}
                 >
-                  {/* 头像：左侧机器人默认头像 / 右侧用户头像（可自定义） */}
                   {isUser ? (
                     userAvatar ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -438,9 +422,7 @@ export function AIChatWorkspace() {
                     )}
                   >
                     {m.content ? (
-                      // 用户与 AI 回复统一走 RichTextView（与节点内容同渲染管线：
-                      // 表格 / 代码高亮 / 任务列表 / GitHub·B站卡 / 内文图一致生效）。
-                      // 用户与 AI 消息统一走 RichTextView：气泡限宽 2/3、超宽软折行、手工换行保留。
+                      // 用户与 AI 消息统一走 RichTextView（与节点内容同渲染管线：表格/代码高亮/卡片/内文图一致生效）
                       <RichTextView
                         content={m.content}
                         className="chat-md"
@@ -474,7 +456,6 @@ export function AIChatWorkspace() {
                   </div>
                 </div>
 
-                {/* 反应（reaction）：直接贴在气泡下方、气泡之外，以 icon 按钮呈现 */}
                 <div className="flex items-center gap-0.5 text-muted-foreground">
                   <button
                     type="button"
@@ -528,7 +509,6 @@ export function AIChatWorkspace() {
             submit()
           }}
         >
-          {/* 回到底部：消息溢出且不在底部时渐显（fade+zoom 入场）；黑底白 V 形符号，hover 变灰，点击滑到底后消失 */}
           {showScrollDown && (
             <button
               type="button"
@@ -540,7 +520,7 @@ export function AIChatWorkspace() {
               <ChevronDown className="size-5" />
             </button>
           )}
-          {/* 输入框：NativeScrollArea 自绘胶囊滑块（与消息区 ScrollArea 同风格）；原生条隐藏 */}
+          {/* 输入框用 NativeScrollArea 自绘胶囊滑块，与消息区 ScrollArea 同风格 */}
           <NativeScrollArea className="min-h-9 flex-1">
             <Textarea
               value={input}
@@ -602,8 +582,7 @@ export function AIChatWorkspace() {
         <ModelManagerDialog open={modelsOpen} onOpenChange={setModelsOpen} />
       </div>
 
-      {/* Query bar（仅桌面端）：悬浮于屏幕右缘、不占布局（主区因此延伸到最右、滚动条贴屏幕最右侧）。
-          热区条 right-6 起步，与贴边滚动条之间留出 gap 不重叠；鼠标靠近热区/条体显形，离开隐没 */}
+      {/* Query bar（仅桌面端）：悬浮右缘不占布局（主区延伸到最右、滚动条贴屏幕最右）；热区条 right-6 起步与贴边滚动条留 gap；hover 显形、离开隐没 */}
       <aside className="group/qbar pointer-events-none absolute inset-y-0 right-6 z-10 hidden w-[11.11vw] flex-col justify-center md:flex">
         {/* 窄竖条热区：贴近右缘但避开滚动条，hover 触发 bar 显形 */}
         <div className="pointer-events-auto absolute inset-y-0 right-0 w-10" aria-hidden />
@@ -626,7 +605,6 @@ export function AIChatWorkspace() {
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {/* 当前提问：文字变蓝，左侧加蓝色横标装饰 */}
                     {isActive && (
                       <span
                         className="inline-block h-0.5 w-3 shrink-0 rounded-full bg-primary align-middle"

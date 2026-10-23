@@ -1,4 +1,3 @@
-// 模板类型
 export type TemplateType =
   | "novel"
   | "study"
@@ -8,7 +7,6 @@ export type TemplateType =
   | "calendar"
   | "custom"
 
-// 解决方案状态
 export type SolutionStatus = "doing" | "paused" | "done"
 
 // 小说类 / 通用类的条目（章节、笔记条目等）
@@ -21,42 +19,37 @@ export interface Chapter {
   done?: boolean
 }
 
-// 思维导图节点上的解决方案
 export interface Solution {
   content: string
   status: SolutionStatus
 }
 
-// 思维导图 Todo 节点
 export interface MindNode {
   id: string
   title: string
   content: string
-  cause: string // 原因
-  leadTo: string // 导向
-  result: string // 结果
+  cause: string
+  leadTo: string
+  result: string
   sub: string[] // 子任务节点 id 列表
   solution: Solution | null
   position: { x: number; y: number }
-  solutionPosition?: { x: number; y: number } // 解决方案节点的独立位置（可拖拽后记忆）
+  solutionPosition?: { x: number; y: number } // 拖拽后记忆的独立位置
   tags?: string[] // 与章节共用的标签体系
   dueDate?: string | null // 截止日期 yyyy-MM-dd；null / 缺省 = 长期任务
-  longTerm?: boolean // 是否为长期任务（true 时不显示在日历）
-  done?: boolean // 节点本身是否已完成
-  createdAt?: number // 节点创建时间（epoch ms）；旧存档缺失时由迁移逻辑补齐
-  completedAt?: number | null // 节点完成时间（epoch ms）；null = 未完成；旧存档缺失时由迁移逻辑补齐
-  hidden?: boolean // 是否在图里隐藏（隐藏后仅列表显示）
-  /** 单图节点的图片缩放倍数（1 = 100%）；仅当节点内容恰好含 1 张图时生效，范围 0.1–4 */
+  longTerm?: boolean // true 时不显示在日历
+  done?: boolean
+  createdAt?: number // epoch ms；旧存档缺失时由迁移逻辑补齐
+  completedAt?: number | null // epoch ms；null = 未完成；旧存档缺失时由迁移逻辑补齐
+  hidden?: boolean // 隐藏后仅列表显示
+  // 缩放倍数（1 = 100%）；仅节点恰含 1 张图时生效，范围 0.1–4
   imageZoom?: number
-  /** 节点风格：边框颜色，ARGB 十六进制（#AARRGGBB；缺 alpha 视为不透明 #RRGGBB）。
-   *  为空时回落到主题默认（border-border）。 */
+  // 边框颜色 #AARRGGBB（缺 alpha 视为不透明）；空回落主题默认 border-border
   borderColor?: string
-  /** 节点风格：背景颜色，ARGB 十六进制（同 borderColor 格式）。
-   *  为空时回落到主题默认（bg-card）。 */
+  // 背景颜色，同 borderColor 格式；空回落 bg-card
   bgColor?: string
 }
 
-// 节点之间的连线
 export interface MindEdge {
   id: string
   source: string
@@ -67,7 +60,7 @@ export interface MindEdge {
 // connectNodes 的结果
 export type ConnectResult = "created" | "exists" | "invalid"
 
-// 关系类思维图视口（与 @xyflow/react 的 Viewport 结构一致），持久化保存上次浏览位置
+// 与 @xyflow/react 的 Viewport 结构一致，持久化保存上次浏览位置
 export type MindmapViewport = { x: number; y: number; zoom: number }
 
 // 关系族（TODO 54）：一个 relation 分类下可建多张独立图（自己的 nodes/edges/view/viewport）。
@@ -75,7 +68,6 @@ export type MindmapViewport = { x: number; y: number; zoom: number }
 export interface RelationFamily {
   id: string
   name: string
-  /** 归属的 relation 分类 id */
   categoryId: string
   nodes: MindNode[]
   edges: MindEdge[]
@@ -83,15 +75,14 @@ export interface RelationFamily {
   viewport?: MindmapViewport
 }
 
-/** 内建 relation 分类「待办事项」的固定 id（merge 缺失时自动补建，Profile 待办卡「打开关系图」跳转目标） */
+// 内建 relation 分类「待办事项」的固定 id（merge 缺失时自动补建，Profile 待办卡「打开关系图」跳转目标）
 export const BUILTIN_TODO_RELATIONS_CATEGORY_ID = "todo-relations"
 
 export interface CategoryConfig {
   autoNumber?: boolean
-  unit?: string // 单条目单位（量词），如 "章" "首" "回" "条" "课"；唯一来源，同时决定导航「上一X/下一X」与自动编号标题「第%X」，缺省回退为 "章"
+  unit?: string // 单条目量词，如 "章" "首" "回"；唯一来源，决定导航「上一X/下一X」与自动编号标题「第%X」，缺省 "章"
 }
 
-// 分类
 export interface Category {
   id: string
   name: string
@@ -100,11 +91,9 @@ export interface Category {
   config: CategoryConfig
   builtin?: boolean
   chapters?: Chapter[] // novel / study / work / life / custom
-  // relation 模板的思维图数据已外置到顶层 relationFamilies（TODO 54，RelationFamily.categoryId 归属）；
-  // 旧存档的 Category.relation 由 store merge 迁移后删除
+  // relation 思维图数据已外置到顶层 relationFamilies（TODO 54）；旧存档 Category.relation 由 store merge 迁移后删除
 }
 
-// 日历
 export interface CalendarTodo {
   id: string
   content: string
@@ -125,38 +114,30 @@ export interface CalendarDay {
 
 export type CalendarData = Record<string, CalendarDay> // key: yyyy-MM-dd
 
-// ---- 贡献账本（Profile 热力图数据源）----
+// 贡献账本：Profile 热力图数据源
 
-/**
- * 贡献类型。含思维图节点的「新建 / 完成」两类，每日签到（TODO 9 已实现），以及专注钟（TODO 10 已实现）。
- */
 export type ContributionType =
   | "mindmap-node-created"
   | "mindmap-node-done"
-  | "check-in" // 签到（TODO 9 已实现）
-  | "focus" // 专注钟（TODO 10 已实现）
-  | "github-commit" // GitHub commit（TODO 18：committer/author 与「账户与同步 → 名称」一致计 1）
-  | "github-issue" // GitHub issue（TODO 18：作者与「账户与同步 → 名称」一致计 2）
-  | "github-pr" // GitHub PR（TODO 18：作者与「账户与同步 → 名称」一致计 2）
+  | "check-in" // TODO 9 已实现
+  | "focus" // TODO 10 已实现
+  | "github-commit" // TODO 18：committer/author 与「账户与同步 → 名称」一致计 1
+  | "github-issue" // TODO 18：作者与「账户与同步 → 名称」一致计 2
+  | "github-pr" // TODO 18：作者与「账户与同步 → 名称」一致计 2
 
-/**
- * 一条贡献记录（**真账本，非派生**）。
- * 存「发生时间 `at`」，读取时按当前 `settings.dayStartOffset` 现算所属日 —— 改翻篇时间后历史会重新分桶。
- */
+// 真账本（非派生）：读取时按当前 settings.dayStartOffset 现算所属日——改翻篇时间后历史重新分桶
 export interface Contribution {
-  /** 复合 id：`${nodeId}:created` | `${nodeId}:done`（唯一，且可从 id 反查节点，便于删除时清理） */
+  // 复合 id：`${nodeId}:created` | `${nodeId}:done`（可反查节点，便于删除清理）
   id: string
-  /** 发生时间（epoch ms） */
+  // 发生时间（epoch ms）
   at: number
-  /** 贡献值：新建 0.2 / 完成 1 */
   amount: number
   type: ContributionType
-  /** 快照：写入时节点的 title（之后改标题不回填） */
+  // 写入时节点的 title 快照（之后改标题不回填）
   content: string
 }
 
-/** 各贡献类型的权重（唯一来源，集中管理）。
- *  注：`focus` 的 0 为占位；真实 amount 由专注分钟运行时算（floor(分钟 / 10)），不读此值。 */
+// 各贡献类型权重唯一来源。focus 的 0 为占位，真实 amount 运行时按 floor(分钟 / 10) 计算
 export const CONTRIBUTION_AMOUNT: Record<ContributionType, number> = {
   "mindmap-node-created": 0.2,
   "mindmap-node-done": 1,
@@ -167,15 +148,14 @@ export const CONTRIBUTION_AMOUNT: Record<ContributionType, number> = {
   "github-pr": 2,
 }
 
-// ---- 站内通知（TODO 20 / TODO 18：通知中心 + GitHub sender）----
+// 站内通知（TODO 20 / 18：通知中心 + GitHub sender）
 
 export type NotificationKind = "commit" | "issue" | "pr" | "release" | "news"
 
-/** 通知事件类型：open = 新建（issue/PR 创建、commit、release 均视为 open）；
- * close / reopen = issue/PR 状态变化；merge = PR 合并。旧存档条目无此字段，按 open 处理。 */
+// open = 新建（issue/PR 创建、commit、release 均视为 open）；close / reopen / merge = 状态变化。旧存档缺省按 open
 export type NotificationEvent = "open" | "close" | "reopen" | "merge"
 
-/** 事件中文标签（通知中心胶囊 / QQ 消息拼接用） */
+// 事件中文标签（通知中心胶囊 / QQ 消息拼接用）
 export const GH_EVENT_LABEL: Record<NotificationEvent, string> = {
   open: "开启",
   close: "关闭",
@@ -184,68 +164,55 @@ export const GH_EVENT_LABEL: Record<NotificationEvent, string> = {
 }
 
 export interface NotificationItem {
-  /** 幂等去重键：gh:commit:{owner}/{repo}:{sha} | gh:issue:{owner}/{repo}:{number} | gh:pr:{owner}/{repo}:{number} | gh:release:{owner}/{repo}:{id}；
-   * 状态变化事件带状态后缀：gh:issue:{owner}/{repo}:{number}:closed 等（同一次转换只通知一次） */
+  // 幂等去重键：gh:commit:{owner}/{repo}:{sha} | gh:issue:{owner}/{repo}:{number} | gh:pr:{owner}/{repo}:{number} | gh:release:{owner}/{repo}:{id}；
+  // 状态变化带后缀如 gh:issue:{owner}/{repo}:{number}:closed（同一转换只通知一次）
   id: string
-  /** 内置 sender 标识，固定 "github"；未来扩展新 sender 用 */
+  // 固定 "github"；扩展新 sender 用
   senderId: string
   kind: NotificationKind
-  /** 事件类型；缺省视为 open（兼容旧存档） */
+  // 缺省视为 open（兼容旧存档）
   event?: NotificationEvent
-  /** 扫描器首次发现并入库的时间（epoch ms）。晚推送的 commit 等场景下与 createdAt
-   * （事件发生时间）不同；通知页按它排序，保证刚收到的永远在最上面。旧档缺省回落 createdAt */
+  // 扫描器入库时间（epoch ms），晚推送场景下与 createdAt（事件发生时间）不同；通知页按它排序；旧档缺省回落 createdAt
   foundAt?: number
-  /** 仓库，格式 owner/name */
+  // 格式 owner/name
   repo: string
-  /** issue / PR 的编号（仅这两类携带），通知界面与 QQ 消息展示为 #N */
+  // 仅 issue/PR 携带，展示为 #N
   number?: number
   title: string
-  /** 正文/描述摘要 */
   brief: string
-  /** 跳转用的 html_url */
   url: string
-  /** committer/author/login */
+  // committer/author/login
   actor: string
-  /** issue/PR 的 assignee 登录名列表（仅 issue/PR 类携带，供「自动入 GitHub 队列」判定 assign 给自己用） */
+  // 仅 issue/PR 携带；供「自动入 GitHub 队列」判定 assign 给自己用
   assignees?: string[]
-  /** 发生时间（ISO 字符串） */
+  // ISO 字符串
   createdAt: string
-  /** 新闻精选（TODO 23）专有：AI 精选解读的富字段。仅 kind === "news" 的旧版单条通知携带
-   * （TODO 44 起一轮精选只生成 1 条「新闻包」通知，改走 newsPack；本字段保留兼容旧存档） */
+  // TODO 23 专有：仅旧版单条新闻通知携带；TODO 44 起改走 newsPack，字段保留兼容旧存档
   news?: NewsDetail
-  /** 新闻包（TODO 44）：一轮精选的全部条目。仅 kind === "news" 的包通知携带；
-   * 旧存档无此字段读 undefined，天然兼容 */
+  // TODO 44：一轮精选的全部条目，仅 kind === "news" 包通知携带；旧存档读 undefined 天然兼容
   newsPack?: NewsDetail[]
 }
 
-/** 新闻精选单条解读（TODO 23）：由 AI 从多平台热榜中精选后按固定 schema 返回，
- * 程序解析该 JSON 生成通知。字段名与 todo 23 给定的 JSON 口径一致（camelCase 转写）。
- * 注：TODO 44 起单条解读承载在 newsPack 内，事件标题存入新增的 title 字段；
- * 旧存档的单条 news 无此字段（标题在 NotificationItem.title 上），读 undefined 天然兼容。 */
+// TODO 23：AI 精选按固定 schema 返回的解读 JSON（camelCase，与 todo 23 给定口径一致），程序解析生成通知。
+// TODO 44 起单条解读承载在 newsPack 内；旧存档单条 news 无 title（标题在 NotificationItem.title 上），读 undefined 天然兼容
 export interface NewsDetail {
-  /** 事件标题（TODO 44 新增，仅 newsPack 内的条目携带；旧存档缺省） */
+  // TODO 44 新增，仅 newsPack 内携带；旧存档缺省
   title?: string
-  /** 领域：「国内」/「国外」 */
+  // 「国内」/「国外」
   field: string
-  /** 事件时间描述，如「2026年8月27日—9月上旬」 */
   time: string
-  /** 地点 */
   place: string
-  /** 相关人物 / 群体 */
+  // 相关人物 / 群体
   individuals: string
-  /** 事件经过 */
+  // 事件经过
   throughout: string
-  /** 影响 */
   effect: string
-  /** 精神启示 */
   spirit: string
-  /** 作文素材示例 */
   essayExample: string
-  /** 相关链接（来自热榜原始条目 url） */
+  // 来自热榜原始条目 url
   link: string[]
 }
 
-// 全局搜索结果
 export type SearchScope = "all" | "category" | "calendar" | "todo" | "mindmap"
 
 export interface SearchResult {
@@ -256,11 +223,10 @@ export interface SearchResult {
   snippet: string
   source: string
   categoryId: string | null
-  targetId: string | null // chapter/node id or date
+  targetId: string | null // chapter/node id 或日期
   date?: string
 }
 
-// 模板元信息
 export interface TemplateMeta {
   type: TemplateType
   label: string
@@ -282,15 +248,12 @@ export const STATUS_META: Record<SolutionStatus, { label: string; symbol: string
   done: { label: "已完成", symbol: "✓" },
 }
 
-// ---- 系统设置 / 快捷键 ----
-
-// 可自定义的全局快捷键动作
 export type ShortcutAction = "newCategory" | "goCalendar" | "search"
 
-// 一个组合键绑定：modifier=true 表示配合 Ctrl/Cmd 使用
+// modifier=true 表示配合 Ctrl/Cmd 使用
 export interface ShortcutBinding {
-  modifier: boolean // Ctrl / Cmd
-  key: string // 单字符，如 "n" / "b" / "k"
+  modifier: boolean
+  key: string // 单字符
 }
 
 export interface ShortcutMeta {
@@ -301,7 +264,7 @@ export interface ShortcutMeta {
 }
 
 export const SHORTCUT_META: ShortcutMeta[] = [
-  // label/description 为 i18n key（TODO 40 批 13 收尾）：消费处 t() 渲染
+  // label/description 为 i18n key，消费处 t() 渲染（TODO 40）
   { action: "newCategory", label: "settings.shortcut.newCategory", description: "settings.shortcut.newCategoryDesc", defaults: { modifier: true, key: "m" } },
   { action: "goCalendar", label: "settings.shortcut.goCalendar", description: "settings.shortcut.goCalendarDesc", defaults: { modifier: true, key: "b" } },
   { action: "search", label: "settings.shortcut.search", description: "settings.shortcut.searchDesc", defaults: { modifier: true, key: "k" } },
@@ -310,40 +273,38 @@ export const SHORTCUT_META: ShortcutMeta[] = [
 // AI 供应商选择（见 lib/ai/providers.ts）
 export type AIProviderId = "zcode" | "deepseek" | "custom"
 
-// AI 人设：可创建多个，供全局选择使用（注入每段 AI 对话的 system 提示词）。
+// AI 人设：可创建多个，全局选一条注入每段对话的 system 提示词
 export interface AIPersona {
   id: string
-  name: string // 展示名
-  content: string // 人设正文（自定义指令）
+  name: string
+  content: string
 }
 
-// AI 助手：单条对话消息（用户 / 助手）
 export interface AIChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
-  /** 消息创建时间（epoch ms）；用于对话列表按时间分组与置顶排序。旧存档消息可能缺失，分组时回落 updatedAt/createdAt */
+  // 创建时间（epoch ms）；对话列表分组 / 置顶排序用，旧存档缺失时回落 updatedAt/createdAt
   createdAt?: number
-  /** 本次回复过程中 AI 调用过的技能（用于 UI 展示） */
+  // 本轮 AI 调用过的技能（UI 展示用）
   tools?: { name: string; display?: string; result?: string }[]
-  /** 该轮（助手消息）消耗的 token（来自 OpenAI 兼容 usage）；用于状态栏汇总 */
+  // 本轮（助手消息）消耗 token（OpenAI 兼容 usage），状态栏汇总用
   tokens?: { input: number; output: number }
 }
 
-// AI 助手：一个独立对话（各自持有完整上下文，持久化到 localStorage）
+// 独立对话（各自持有完整上下文，持久化到 localStorage）
 export interface Conversation {
   id: string
   title: string
   messages: AIChatMessage[]
   createdAt: number
   updatedAt: number
-  /** 是否置顶：置顶的对话排在列表最前（旧存档缺此字段回落 false，无需迁移） */
+  // 旧存档缺省回落 false，无需迁移
   pinned?: boolean
 }
 
-// 底部状态栏 / 导航等处使用的「视图显示名」。新增视图时只需在此补一项，
-// 避免像此前「密码保险库」那样漏改状态栏导致显示成「工作台」。
-// （workspace 视图的显示名是动态的——当前分类名或「工作台」，故不在此列出。）
+// 状态栏 / 导航的「视图显示名」，新增视图必须在此补项（此前漏改导致显示成「工作台」）；
+// workspace 视图显示名是动态的（当前分类名或「工作台」），不在此列出
 export const VIEW_LABEL: Record<
   | "calendar"
   | "contacts"
@@ -367,9 +328,9 @@ export const VIEW_LABEL: Record<
   vocabulary: "词汇表",
 }
 
-// ---- 词汇表（TODO 64）：IndexedDB 独立存储（lib/vocab-store.ts），不进 localStorage persist ----
+// 词汇表（TODO 64）：IndexedDB 独立存储（lib/vocab-store.ts），不进 localStorage persist
 
-/** 问答评价四档（主人口径）：不符合释义 / 部分符合 / 符合 / 符合且给出更多正确义项 */
+// 问答评价四档（主人口径）：不符合释义 / 部分符合 / 符合 / 符合且给出更多正确义项
 export type VocabRating = "wrong" | "partial" | "correct" | "beyond"
 
 export const VOCAB_RATING_META: Record<
@@ -382,7 +343,7 @@ export const VOCAB_RATING_META: Record<
   beyond: { label: "超越", className: "bg-sky-500/10 text-sky-600 dark:text-sky-400" },
 }
 
-/** 词条来源（TODO 64 主人口径）：独立小系统（不与标签共用），底层 id 引用、name 可随意改 */
+// 词条来源（TODO 64 主人口径）：独立小系统（不与标签共用），底层 id 引用、name 可随意改
 export interface VocabSource {
   id: string
   name: string
@@ -390,37 +351,35 @@ export interface VocabSource {
 }
 
 export interface VocabReview {
-  /** 累计被测次数 */
   total: number
-  /** 最近一次评价 */
   lastRating?: VocabRating
   lastAt?: number
-  /** 累计「错误 + 部分正确」次数（出题加权用） */
+  // 累计「错误 + 部分正确」次数（出题加权用）
   wrongCount: number
 }
 
 export interface VocabEntry {
   id: string
-  /** 词条本身（显示层可随意改；去重按 word 精确匹配 trim 后） */
+  // 显示层可随意改；去重按 word trim 后精确匹配
   word: string
-  /** 释义（多行纯文本） */
+  // 多行纯文本
   definition: string
-  /** 来源 id（VocabSource.id）；来源被删除时置空，词条保留 */
+  // 来源被删除时置空，词条保留
   sourceId?: string
   createdAt: number
   review: VocabReview
 }
 
-/** 一轮问答的持久化记录（全量保留，IndexedDB records store） */
+// 一轮问答记录（全量保留，IndexedDB records store）
 export interface VocabQuizRecord {
   id: string
   at: number
-  /** 本轮范围（来源名，全部为 null） */
+  // 来源名；当前全部为 null
   sourceName: string | null
   items: {
     id: string
     word: string
-    /** 答题时的释义快照（词义后续可改，记录当时评的是什么） */
+    // 答题时的释义快照（词义后续可改）
     definition: string
     answer: string
     timeMs: number
@@ -429,30 +388,28 @@ export interface VocabQuizRecord {
   }[]
 }
 
-/** 批量导入的 JSON 词条形状（AI wb_prepare_vocab_import 技能 / 手动粘贴共用） */
+// 批量导入的 JSON 词条形状（AI wb_prepare_vocab_import 技能 / 手动粘贴共用）
 export interface VocabImportItem {
   word: string
   definition: string
   source?: string
 }
 
-// 通知系统日志（TODO 27）：记录每轮扫描检查了哪些仓库、发现哪些新内容，以及是否发送了通知提示。
+// 通知系统日志（TODO 27）：每轮扫描的仓库、新发现内容与是否发送通知
 export interface NotificationLogEntry {
   id: string
   at: number
-  /** scan = 一轮扫描摘要；item = 单个新发现的 commit/issue/pr/release */
+  // scan = 一轮扫描摘要；item = 单个新发现的 commit/issue/pr/release
   kind: "scan" | "item"
   message: string
-  /** 该条内容是否发送了通知提示（按渠道勾选与仅监听规则判定） */
+  // 是否发送了通知提示（按渠道勾选与仅监听规则判定）
   notified: boolean
 }
 
-// 可持久化的系统设置
-/** 主题（TODO 51 改版）：light/dark/system 为默认蓝紫的亮暗；green/purple/orange 为独立彩色主题（一套固定配色，不分亮暗） */
+// TODO 51 改版：light/dark/system 为默认蓝紫亮暗；green/purple/orange 为独立彩色主题（一套固定配色，不分亮暗）
 export type ThemePreference = "light" | "dark" | "system" | "green" | "purple" | "orange"
-/** 默认启动视图；"last" = 打开上次的视图（view/activeCategoryId 本身已持久化，rehydrate 后即为上次状态） */
-// 启动行为可选视图（TODO 79）：全部 workspace view + last（持久化的上次视图）。
-// 新增 view 时同步在此补项与 settings-view 的 DEFAULT_VIEWS。
+// 默认启动视图；"last" = 上次持久化的视图（view/activeCategoryId 已持久化，rehydrate 后即为上次状态）
+// TODO 79：全部 workspace view + last；新增 view 时同步补项与 settings-view 的 DEFAULT_VIEWS
 export type DefaultView =
   | "workspace"
   | "calendar"
@@ -465,75 +422,64 @@ export type DefaultView =
   | "github-queue"
   | "vocabulary"
   | "last"
-/** 界面字体家族：映射根元素 fontFamily 的 CSS 变量（--font-sans / --font-serif / --font-mono） */
+// 映射根元素 fontFamily 的 CSS 变量（--font-sans / --font-serif / --font-mono）
 export type UIFontFamily = "system" | "serif" | "mono"
-/** 界面显示语言（TODO 40）：zh = 中文（源文案）；en = English */
+// TODO 40：zh = 中文（源文案）；en = English
 export type UILanguage = "zh" | "en"
 
-// AI 模型条目：支持配置多个模型，每条独立保存 provider / key / baseUrl / model。
-// 各 Key 仅存于本机 localStorage（纯前端静态站，无后端），互不干扰。
+// AI 模型条目：每条独立保存 provider / key / baseUrl / model；Key 仅存本机 localStorage（纯前端静态站，无后端）
 export interface AIModelEntry {
   id: string
-  label: string // 展示名，如「GPT-4o」「我的 DeepSeek」
+  label: string
   provider: AIProviderId
   apiKey: string
   baseUrl: string // 仅 custom 供应商使用
-  model: string // 覆盖模型名（留空则用供应商默认模型，如 智谱 glm-4-plus / DeepSeek deepseek-chat）
+  model: string // 覆盖模型名；留空用供应商默认（如 glm-4-plus / deepseek-chat）
 }
 
 export interface Settings {
   theme: ThemePreference
   defaultView: DefaultView
   shortcuts: Record<ShortcutAction, ShortcutBinding>
-  fontSize: number // 全局基础字号 rem，例如 16（对应 --font-size-base）
-  // 界面字体家族：映射根元素 fontFamily（system → var(--font-sans) 等，见 components/theme-provider.tsx）
+  fontSize: number // 全局基础字号 rem（对应 --font-size-base）
   uiFontFamily: UIFontFamily
-  // 界面显示语言（TODO 40 多语言）：zh 中文（源文案）/ en English；字典见 lib/i18n/locales。
-  // 注意：全站文案按批次渐进抽取，未用 t() 的组件在任何语言下都显示中文。
+  // TODO 40：字典见 lib/i18n/locales；全站文案渐进抽取中，未用 t() 的组件任何语言下都显示中文
   uiLanguage: UILanguage
-  githubToken: string // GitHub 个人访问令牌（PAT），用于提升 GitHub 预览卡的 API 限额；留空则匿名（60 次/小时/IP）
-  // UAPI（uapis.cn）令牌：天气接口（/api/v1/misc/weather）的可选 Bearer 令牌；
-  // 留空则匿名调用（免费基础数据，限流较紧，429 时前端冷却 10 分钟）。
+  githubToken: string // GitHub PAT，提升预览卡 API 限额；留空匿名（60 次/小时/IP）
+  // UAPI（uapis.cn）天气接口（/api/v1/misc/weather）Bearer 令牌；留空匿名（免费数据限流紧，429 前端冷却 10 分钟）
   uapiToken: string
-  // AI 助手：支持配置多个模型，可随时切换当前使用的模型。
   aiModels: AIModelEntry[]
-  aiActiveModelId: string | null // 当前选中的模型 id；为空表示尚未配置任何模型
-  // 全局技能启停：null = 全部启用；否则为「启用」的技能名列表（用户技能名 + 内置技能名）。
+  aiActiveModelId: string | null // 为空 = 尚未配置任何模型
+  // null = 全部启用；否则为「启用」的技能名列表（用户 + 内置）
   aiEnabledSkills: string[] | null
-  aiUserAvatar: string // 用户头像（data URL，压缩后存储）；留空则用默认用户图标
-  aiAssistantAvatar: string // AI 头像（data URL，压缩后存储）；留空则用默认机器人图标
-  // 联网搜索 API Key（百度千帆 AI 搜索，wb_web_search 技能）；留空则该技能不可用。
-  // Key 仅存本机 localStorage，经本地代理转发到千帆。
+  aiUserAvatar: string // data URL，压缩存储；留空用默认用户图标
+  aiAssistantAvatar: string // data URL，压缩存储；留空用默认机器人图标
+  // 百度千帆 AI 搜索（wb_web_search 技能）Key；留空技能不可用，仅存本机、经本地代理转发千帆
   baiduAiSearchApiKey: string
-  // 用户自定义「所在地区」标签（Profile 头像下方展示）；留空则默认显示「中国」
+  // 自定义「所在地区」标签（Profile 展示）；留空显示「中国」
   location: string
-  // 用户昵称（Profile 头像下方展示）；留空则默认显示「未命名用户」
+  // 昵称（Profile 展示）；留空显示「未命名用户」
   userName: string
-  // 用户生日（yyyy-MM-dd，日历侧栏「人生进度条」使用）；留空表示未设置
+  // 生日 yyyy-MM-dd（日历「人生进度条」用）；留空 = 未设置
   birthday: string
-  // AI 对话强制同步：开启后所有对话的用户请求统一进入单队列串行处理；
-  // 关闭则允许并发（同一会话仍不会重复发起）。两种模式下切换会话/视图都不会中断在途请求。
+  // 开启：对话请求统一单队列串行；关闭：允许并发（同会话不重复发起）。切换会话 / 视图不中断在途请求
   aiForceSync: boolean
-  // AI 人设：可创建多条，全局选择其中一条作为「当前人设」注入每段对话的 system 提示词。
-  // aiPersonas 为空 或 aiActivePersonaId 为 null/不存在 → 仅用基础提示词（不使用人设）。
+  // aiPersonas 为空或 aiActivePersonaId 为 null/不存在 → 仅用基础提示词（不使用人设）
   aiPersonas: AIPersona[]
   aiActivePersonaId: string | null
-  /** 每天几点「翻篇」（HH:mm，用户本地时区）。默认 "04:00"：04:00 之前仍算前一天。
-   *  影响贡献热力图按日分桶（见 lib/contributions.ts）；后续签到类功能亦复用同一 offset。 */
+  // 每天几点「翻篇」（HH:mm，本地时区）。默认 "04:00"，之前算前一天；贡献热力图按日分桶（lib/contributions.ts），签到类功能复用同一 offset
   dayStartOffset: string
-  // 通知 sender 要扫描的仓库列表，每个仓库带自己的扫描类型开关（TODO 18 反馈：按仓库单独配置）。
+  // 要扫描的仓库列表，各仓库带独立扫描类型开关（TODO 18）
   notificationRepos: NotificationRepoConfig[]
-  // 扫描间隔自适应（TODO 49）：开启后按监听功能数量（各仓库开启的扫描类型总数）
-  // 自动放慢扫描——每满 16 个延长 1 分钟（基准 5 分钟）。默认开启；关闭则固定 5 分钟。
+  // 扫描间隔自适应（TODO 49）：按监听功能总数自动放慢——每满 16 个延长 1 分钟（基准 5 分钟）。默认开启，关闭则固定 5 分钟
   scanAdaptive: boolean
-  // 通知发送渠道（TODO 22）：勾选哪些渠道，扫描到新通知时就以哪些方式投递。
-  // builtin = 右下角弹窗；qq = 本机 QQ 中转服务（默认 localhost:18899，地址可配置）。
+  // 通知渠道（TODO 22）：builtin = 右下角弹窗；qq = 本机 QQ 中转服务（默认 localhost:18899，地址可配置）
   notificationChannels: { builtin: boolean; qq: boolean }
-  // 新闻精选 sender 开关（TODO 23）：关闭后调度器不再自动拉取热榜生成新闻通知。默认开启。
+  // 新闻精选 sender 开关（TODO 23）：关闭则不再自动拉取热榜生成通知。默认开启
   newsEnabled: boolean
-  // QQ 互联通知的中转服务地址（POST {"text":"..."}）；留空 / 非法回落 DEFAULT_QQ_RELAY_URL
+  // QQ 中转地址（POST {"text":"..."}）；留空 / 非法回落 DEFAULT_QQ_RELAY_URL
   qqRelayUrl: string
-  // 保险库侧边栏密码生成器偏好（TODO 25）：位数与启用的字符集，持久化记住
+  // 保险库密码生成器偏好（TODO 25）：位数与启用字符集，持久化记住
   pwdGenerator: {
     length: number
     upper: boolean
@@ -541,23 +487,21 @@ export interface Settings {
     digits: boolean
     symbols: boolean
   }
-  // Profile 页四个小组件（TODO 52）的展示顺序：天气 / 日期牌 / 使用时长 / 专注钟
+  // Profile 四小组件（TODO 52）展示顺序：天气 / 日期牌 / 使用时长 / 专注钟
   profileWidgetOrder: ProfileWidgetId[]
-  // 生日横幅（TODO 61）：brandHeader 顶部横幅提前 n 天显示临近生日（含当天），0 = 仅当天
+  // 生日横幅（TODO 61）：brandHeader 提前 n 天显示临近生日（含当天），0 = 仅当天
   birthdayBannerDays: number
-  // 游动极光背景（TODO 75）：开启后所有界面底层渲染游动极光 canvas
-  // （components/aurora-background.tsx，暗色原版配色 / 浅色淡化版）；关闭回落纯色 bg-background
+  // 游动极光背景（TODO 75）：底层渲染 aurora canvas（components/aurora-background.tsx，暗色原版 / 浅色淡化配色）；关闭回落纯色 bg-background
   auroraBackground: boolean
 }
 
-// ---- Profile 页小组件（TODO 52）----
+// Profile 页小组件（TODO 52）
 
 export type ProfileWidgetId = "weather" | "date" | "usage" | "focus"
 
-/** Profile 小组件默认顺序 */
 export const PROFILE_WIDGET_IDS: ProfileWidgetId[] = ["weather", "date", "usage", "focus"]
 
-/** 规范化 Profile 小组件顺序：仅保留合法 id（去重），缺失的默认项按默认顺序补到末尾 */
+// 仅保留合法 id（去重），缺失的默认项按默认顺序补到末尾
 export function normalizeProfileWidgetOrder(value: unknown): ProfileWidgetId[] {
   const valid = new Set(PROFILE_WIDGET_IDS)
   const out: ProfileWidgetId[] = []
@@ -574,9 +518,8 @@ export function normalizeProfileWidgetOrder(value: unknown): ProfileWidgetId[] {
   return out
 }
 
-// ---- 通知扫描配置（TODO 18 / 20）----
+// 通知扫描配置（TODO 18 / 20）
 
-/** 单仓库的扫描类型开关 */
 export interface NotificationScanTypes {
   commits: boolean
   issues: boolean
@@ -584,25 +527,19 @@ export interface NotificationScanTypes {
   releases: boolean
 }
 
-/** 通知扫描的仓库配置：owner/name + 该仓库独立的扫描类型 */
-/** 旧仓库配置没有持久化扫描起点时的兜底值：2026-09-24 02:00（GMT+8）。
- * 早于该时间的内容不做任何回扫。 */
+// 旧仓库配置无扫描起点时的兜底：2026-09-24 02:00（GMT+8），早于该时间的内容不回扫
 export const LEGACY_REPO_SCAN_SINCE = Date.parse("2026-09-24T02:00:00+08:00")
 
 export interface NotificationRepoConfig {
   repo: string // "owner/name"
   scanTypes: NotificationScanTypes
-  /** 扫描起点（毫秒时间戳）：添加仓库 / 启用某类扫描时置为当前时间，只扫这之后的内容；
-   * 旧配置缺失时回落 LEGACY_REPO_SCAN_SINCE */
+  // 添加仓库 / 启用某类扫描时置为当前时间，只扫这之后的内容；旧配置缺失回落 LEGACY_REPO_SCAN_SINCE
   scanSince: number
-  /**
-   * 仅监听 commit：该仓库的 commit 仍会被扫描并按 committer 匹配计贡献（热力图），
-   * 但**不产生通知、不弹弹窗**。issue/PR/release 不受影响，照常通知。
-   */
+  // 仅监听 commit：仍扫描并按 committer 匹配计贡献（热力图），但不产生通知、不弹弹窗；issue/PR/release 照常通知
   commitMonitorOnly: boolean
 }
 
-/** 新增仓库的默认扫描类型：commit 默认关，其余默认开（主人指定） */
+// 新增仓库默认扫描类型：commit 关，其余开（主人指定）
 export const DEFAULT_NOTIFICATION_SCAN_TYPES: NotificationScanTypes = {
   commits: false,
   issues: true,
@@ -610,11 +547,8 @@ export const DEFAULT_NOTIFICATION_SCAN_TYPES: NotificationScanTypes = {
   releases: true,
 }
 
-/**
- * 规范化仓库配置列表：兼容旧存档的 string[]（每个仓库套默认扫描类型），
- * 对象条目逐键兜底（commits 缺省视为关，其余缺省视为开，与默认值语义一致）。
- * persist merge 与备份导入（importData）两处组装 settings 时都要过一遍。
- */
+// 兼容旧存档 string[]（每个仓库套默认扫描类型），对象条目逐键兜底（commits 缺省视为关，其余缺省视为开）；
+// persist merge 与备份导入（importData）两处组装 settings 时都要过一遍
 export function normalizeNotificationRepos(value: unknown): NotificationRepoConfig[] {
   if (!Array.isArray(value)) return []
   const out: NotificationRepoConfig[] = []
@@ -657,10 +591,10 @@ export function normalizeNotificationChannels(value: unknown): { builtin: boolea
   return { builtin: v.builtin !== false, qq: v.qq === true }
 }
 
-/** QQ 中转服务默认地址（可在设置页修改；留空 / 非法时回落此值） */
+// QQ 中转默认地址（留空 / 非法时回落此值）
 export const DEFAULT_QQ_RELAY_URL = "http://localhost:18899/send"
 
-/** 规范化 QQ 中转地址：空 / 非 http(s) 字符串回落默认值 */
+// 空 / 非 http(s) 字符串回落默认值
 export function normalizeQqRelayUrl(value: unknown): string {
   if (typeof value === "string") {
     const v = value.trim()
@@ -702,83 +636,81 @@ export const DEFAULT_SETTINGS: Settings = {
   qqRelayUrl: DEFAULT_QQ_RELAY_URL,
   pwdGenerator: { length: 16, upper: true, lower: true, digits: true, symbols: true },
   profileWidgetOrder: [...PROFILE_WIDGET_IDS],
-  // 生日横幅提前天数（TODO 61）：默认 7 = 生日前 7 天（含当天）开始显示
+  // 默认 7 = 生日前 7 天（含当天）开始显示
   birthdayBannerDays: 7,
-  // 游动极光背景（TODO 75）：默认开启
+  // TODO 75：默认开启
   auroraBackground: true,
 }
 
-/** 生日横幅提前天数兜底（TODO 61）：缺失 / 非法 / 越界（0-60 之外的整数）回落默认 7 */
+// 兜底（TODO 61）：缺失 / 非法 / 越界（0-60 之外的整数）回落 7
 export function normalizeBirthdayBannerDays(value: unknown): number {
   const n = typeof value === "number" ? Math.floor(value) : Number.NaN
   if (!Number.isFinite(n) || n < 0 || n > 60) return 7
   return n
 }
 
-// ---- GitHub Issue/PR 看板队列（TODO 36）----
-// 看板按列分组；队列是 GitHub 监听的派生视图：「添加监听仓库」自动建监听并回扫一次存量，
-// 此后监听增量入队（自有仓库全量、他人仓库仅 @me），close/merge/reopen 只回写状态标记。
+// GitHub Issue/PR 看板队列（TODO 36）：队列是监听的派生视图，「添加监听仓库」自动建监听并回扫一次存量，
+// 此后监听增量入队（自有仓库全量、他人仓库仅 @me），close/merge/reopen 只回写状态标记
 
 export type IssueQueueColumn = "urgent" | "assigned" | "completed" | "backlog"
 
 export interface IssueQueueItem {
-  /** 去重键：`iq:{repo}:{kind}:{number}`（issue 与 PR 可能同 number，故拼 kind） */
+  // 去重键：`iq:{repo}:{kind}:{number}`（issue 与 PR 可能同 number，故拼 kind）
   id: string
   kind: "issue" | "pr"
-  /** "owner/name" */
+  // "owner/name"
   repo: string
   number: number
   title: string
-  /** 正文首行截取 */
+  // 正文首行截取
   bodySnippet: string
-  /** 提交者（user.login） */
+  // user.login
   actor: string
   htmlUrl: string
   state: "open" | "closed"
-  /** 仅 PR：是否已合并 */
+  // 仅 PR 携带
   merged: boolean
-  /** 是否 assign 给当前登录用户（仅 Mine 模式或比对 login 后判定） */
+  // Mine 模式或比对 login 后判定
   assigneeMe: boolean
   column: IssueQueueColumn
-  /** 首次加入队列的时间（epoch ms）；重复加入保留首值；旧存档缺省，排序时回落 0 沉底 */
+  // 首次入队时间（epoch ms）；重复加入保留首值；旧档缺省排序回落 0 沉底
   queuedAt?: number
   createdAt: string
   updatedAt: string
 }
 
 
-// ---- 通讯录（TODO 48：持久化驱动；public/address_book.yml 降级为「设置 → 从 yml 导入」的可选来源）----
+// 通讯录（TODO 48：持久化驱动；public/address_book.yml 降级为可选导入源）
 export interface ContactItem {
-  /** phone | qq | email | wechat（允许自定义字符串） */
+  // phone | qq | email | wechat，允许自定义字符串
   type?: string
   value?: string
 }
 
 export interface Person {
-  /** 稳定 id：界面新建时生成；yml 导入时自动分配（yml 文件本身无此字段） */
+  // 界面新建时生成；yml 导入时自动分配（yml 文件无此字段）
   id: string
   name: string
   description?: string
-  /** 公历 "YYYY-MM-DD" 或农历 "LYYYY-MM-DD"（L 前缀） */
+  // 公历 "YYYY-MM-DD" 或农历 "LYYYY-MM-DD"（L 前缀）
   birthday?: string
   address?: string
   roles?: string[]
   contact?: ContactItem[]
 }
 
-// ---- 自定义节日定义（TODO 48：持久化驱动；public/custom_festivals.yml 降级为可选导入源）----
+// 自定义节日定义（TODO 48：持久化驱动；public/custom_festivals.yml 降级为可选导入源）
 export interface FestivalDef {
   name: string
-  /** 匹配规则（如 "MM-DD" / "LMM-DD" / "LYYYY-MM-DD"，解析见 lib/festivals.ts） */
+  // 匹配规则，如 "MM-DD" / "LMM-DD" / "LYYYY-MM-DD"，解析见 lib/festivals.ts
   festival_rule?: string
   color?: string
   holiday_override?: boolean
   workday_override?: boolean
 }
 
-// ---- 备份导出分区（TODO 41）----
-// 导出备份时可按分区选择性携带数据；联系人 / 密码保险库属敏感数据，默认不导出。
-// 未来新增可导出数据时，在此扩充 id 并同步 lib/backup.ts 的 BACKUP_SECTION_META 与 docs/entry-points.md。
+// 备份导出分区（TODO 41）：按分区选择性携带数据；联系人 / 密码保险库属敏感数据，默认不导出；
+// 新增可导出数据时在此扩充 id，并同步 lib/backup.ts 的 BACKUP_SECTION_META 与 docs/entry-points.md
 
 export type BackupSectionId =
   | "notes" // 随笔数据（categories）
@@ -791,5 +723,5 @@ export type BackupSectionId =
   | "vault" // 密码保险库（ZIP 内 vault.json，AES-256 加密 blob）
   | "vocabulary" // 词汇表（TODO 64：ZIP 内 vocab.json，IndexedDB 词条 + 来源 + 问答记录）
 
-/** 各分区是否导出；缺省 = 不导出（由调用方填默认值） */
+// 各分区是否导出；缺省 = 不导出（由调用方填默认值）
 export type BackupSections = Partial<Record<BackupSectionId, boolean>>

@@ -26,13 +26,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { NativeScrollArea } from "@/components/ui/native-scroll-area"
 import { AiText } from "@/components/ai-brand"
 
-// GitHub 风格贡献热力图：53 周 × 7 天，数据来自 store 的真实「贡献账本」
-// （lib/contributions.ts 纯逻辑 + lib/store.ts 记账）。
-// 颜色按「当日 amount 之和」走 0 / (0,1] / (1,3] / (3,6] / >6 共 5 级；
-// 读取时按 settings.dayStartOffset 现算所属日（改翻篇时间历史会重新分桶）。
+// 贡献热力图（lib/contributions.ts 纯逻辑 + lib/store.ts 记账）：按「当日 amount 之和」分 5 级
+// 0 / (0,1] / (1,3] / (3,6] / >6；读取按 settings.dayStartOffset 现算所属日（改翻篇时间历史会重新分桶）。
 const WEEKS = 53
 const LEVEL_COLORS = [
-  "rgba(128,128,128,0.18)", // 0 级：无贡献
+  "rgba(128,128,128,0.18)",
   "#0e4429",
   "#006d32",
   "#26a641",
@@ -52,7 +50,7 @@ const CONTRIB_TYPE_META: Record<ContributionType, { label: string; badge: string
 
 const WEEKDAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""]
 
-// TODO 52：各小组件外壳宽度——专注钟定宽（保证按钮排布），其余内容自适应、不撑满整行
+// TODO 52：小组件外壳宽度——专注钟定宽保证按钮排布，其余自适应、不撑满整行
 const WIDGET_WRAP_CLASS: Record<ProfileWidgetId, string> = {
   weather: "w-fit max-w-xs",
   date: "w-fit",
@@ -60,7 +58,7 @@ const WIDGET_WRAP_CLASS: Record<ProfileWidgetId, string> = {
   focus: "w-64",
 }
 
-// TODO 39 日期牌（参考主人提供的日历牌图）：公历月中文 + 大小月，传统纸质日历牌写法
+// TODO 39 日期牌（主人提供的日历牌图）：传统纸质日历牌写法
 const CN_MONTHS = ["", "profile.cnMonth.1", "profile.cnMonth.2", "profile.cnMonth.3", "profile.cnMonth.4", "profile.cnMonth.5", "profile.cnMonth.6", "profile.cnMonth.7", "profile.cnMonth.8", "profile.cnMonth.9", "profile.cnMonth.10", "profile.cnMonth.11", "profile.cnMonth.12"]
 
 // 公历月大小：31 天「大」、30 天「小」、2 月一律「平」（平闰同写，日历牌口径）
@@ -69,8 +67,7 @@ function solarMonthSize(year: number, month: number): string {
   return new Date(year, month, 0).getDate() === 31 ? "big" : "small"
 }
 
-// 贡献值展示：四舍五入取整（todo.md 口径）。
-// amount < 0.5 的日子（例如当天只新建 1 个节点 = 0.2）会显示 0 —— 主人明确要求照实显示，不做修饰。
+// 贡献值四舍五入取整（todo.md 口径）；amount < 0.5 显示 0（如当天只建 1 节点 = 0.2）——主人明确要求照实显示
 function formatAmount(n: number): string {
   return String(Math.round(n))
 }
@@ -174,9 +171,7 @@ export function ProfileWorkspace() {
     [contributions],
   )
 
-  // ---- 专注钟（TODO 10）----
-  // 本地计时状态 + 刷新恢复（localStorage 键 mw:focus-timer）。
-  // persisted: { mode, running, startedAt, accumulatedPausedMs, durationMs?, seconds? }
+  // 专注钟（TODO 10）：本地计时状态 + 刷新恢复（localStorage 键 mw:focus-timer）
   const addFocusContribution = useWorkspace((s) => s.addFocusContribution)
   const FOCUS_KEY = "mw:focus-timer"
   type FocusPersist = {
@@ -213,13 +208,12 @@ export function ProfileWorkspace() {
   const [focusDialogOpen, setFocusDialogOpen] = useState(false)
   const [pendingFocusMinutes, setPendingFocusMinutes] = useState(0)
   const [focusContentInput, setFocusContentInput] = useState("")
-  // 暂停起点（仅内存，不持久化）；重载后若处于暂停态，挂载时记为「此刻」以便继续时把刷新间隙计入暂停
+  // 暂停起点（仅内存，不持久化）；重载后若暂停态，挂载记为「此刻」，继续时把刷新间隙计入暂停
   const pauseStartRef = useRef<number | null>(
     initialFocus && !initialFocus.running && initialFocus.startedAt != null ? Date.now() : null,
   )
 
-  // TODO 53：控制按钮状态切换动画——旧按钮缓慢下移出，新按钮自下向上浮出。
-  // running 变化时先让当前按钮组播退场动画（leaving），500ms 后切换到新按钮组并以进场动画浮现。
+  // TODO 53：控制按钮切换动画——running 变化时旧按钮组先播退场（leaving），500ms 后切新组进场
   const [shownRunning, setShownRunning] = useState(initialFocus?.running ?? false)
   const [leaving, setLeaving] = useState(false)
   const prevRunningRef = useRef(running)
@@ -240,7 +234,7 @@ export function ProfileWorkspace() {
     const totalSec = Math.max(0, Math.floor(elapsedMs / 1000))
     const minutes = totalSec / 60
     const amount = Math.floor(minutes / 10)
-    // 结束即停表（两条路径都先清空计时状态；持久化 effect 会因 startTs 置空移除 localStorage 键）
+    // 结束即停表：startTs 置空后持久化 effect 会移除 localStorage 键
     setRunning(false)
     setStartTs(null)
     setAccumulatedPausedMs(0)
@@ -327,7 +321,7 @@ export function ProfileWorkspace() {
     setFocusHint("")
   }
 
-  // 结束弹窗：确认 → 用用户填写的 content 入账；取消 → 不传 content，用默认自动文案入账（保证已得贡献不丢失）。两条路径都只写一次。
+  // 结束弹窗：确认→用填写 content 入账；取消→默认自动文案入账，保证贡献不丢；两条路径各写一次
   const handleFocusConfirm = useCallback(() => {
     const written = addFocusContribution(pendingFocusMinutes, focusContentInput)
     if (written >= 1) toast.success(t("profile.focusDone", { n: written }))
@@ -344,8 +338,7 @@ export function ProfileWorkspace() {
     setFocusContentInput("")
   }, [addFocusContribution, pendingFocusMinutes, t])
 
-  // 外部关闭(点遮罩 / 按 Esc)不应静默丢弃已得贡献：统一走「取消」语义(用默认自动文案入账)。
-  // 点遮罩由 Dialog 的 disablePointerDismissal 直接拦截;这里兜底 Esc 等外部 reason。
+  // 外部关闭不静默丢弃已得贡献，统一走「取消」语义入账；点遮罩由 disablePointerDismissal 拦截，此处兜底 Esc 等 reason。
   const handleFocusDialogOpenChange = useCallback(
     (open: boolean, details?: { reason?: string }) => {
       const reason = details?.reason
@@ -361,15 +354,13 @@ export function ProfileWorkspace() {
   const focusMm = String(Math.floor(focusSeconds / 60)).padStart(2, "0")
   const focusSs = String(focusSeconds % 60).padStart(2, "0")
 
-  // 日期 / 星期：实时计算（非占位）
   const now = new Date()
   const month = now.getMonth() + 1
   const day = now.getDate()
   const weekday = t(`profile.weekday.${now.getDay()}`)
 
-  // TODO 39：「问 AI 今日待办」——引导 AI 综合各只读技能可访问的本地数据，汇总今日待办清单。
-  // 走 store.askAiToday 链路：按翻篇时间记档当天会话——当天内重复点击直接打开原会话（不重发），
-  // 跨天或原会话被删才新建并发送。
+  // TODO 39：问 AI 今日待办，走 store.askAiToday 链路——按翻篇时间记档当天会话，
+  // 当天内重复点击直接打开原会话（不重发），跨天或原会话被删才新建并发送。
   const askAiTodayAction = useWorkspace((s) => s.askAiToday)
   const askAiToday = () => {
     const prompt =
@@ -377,9 +368,8 @@ export function ProfileWorkspace() {
     askAiTodayAction(prompt)
   }
 
-  // 软件使用时长：从首个贡献到现在的日历差值（实时刷新，每 30s 重算）。
-  // 纯派生值：只依赖 contributions，不落存储字段，因此导入/导出备份时不会随数据流动，
-  // 天然避免把别的设备/安装的时间线带进来污染本机数据。
+  // 软件使用时长：首个贡献至今的日历差值，每 30s 重算；纯派生值不落存储字段，
+  // 导入/导出备份不随数据流动，避免带入其他设备/安装的时间线。
   const [usageNow, setUsageNow] = useState(() => Date.now())
   useEffect(() => {
     const iv = setInterval(() => setUsageNow(Date.now()), 30_000)
@@ -494,29 +484,24 @@ export function ProfileWorkspace() {
       })
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // 临时功能：存量贡献「补算历史」（幂等）。
-  // 主人用完会要求删除 —— 摘除时删掉本 handleScan + 热力图卡片头部的「补算历史」按钮即可。
+  // 临时功能：存量贡献「补算历史」（幂等），主人用完会要求删除——
+  // 摘除时删掉本 handleScan + 热力图卡片头部的「补算历史」按钮即可。
   const handleScan = () => {
     const added = scanLegacyContributions()
     if (added > 0) toast.success(t("profile.backfilled", { n: added }))
     else toast.info(t("profile.noBackfill"))
   }
-  // ─────────────────────────────────────────────────────────────
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      {/* 顶栏：固定左上角 title（350×80） */}
       <header className="flex items-center px-8 py-6">
         <h1 className="text-2xl font-bold leading-tight text-foreground">Profile Dashboard</h1>
       </header>
 
-      {/* 主体双栏：用 ScrollArea 滚动（细滚动条，与 sidebar 风格一致） */}
+      {/* 主体双栏：ScrollArea 滚动（细滚动条与 sidebar 一致） */}
       <ScrollArea className="min-h-0 flex-1">
         <div className="grid grid-cols-1 gap-6 px-8 pb-4 lg:grid-cols-[auto_1fr]">
-        {/* 左栏：头像 + 昵称/地区 + 签到 */}
         <div className="flex flex-col gap-4">
-          {/* 用户头像 256×256 圆角 */}
           <div className="size-64 overflow-hidden rounded-2xl border border-border bg-card">
             {settings.aiUserAvatar ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -533,7 +518,6 @@ export function ProfileWorkspace() {
           </div>
 
           <div className="flex flex-col gap-1">
-            {/* 用户名：双击编辑（不可留空，空则回退上一值） */}
             {nameEditing ? (
               <input
                 autoFocus
@@ -562,14 +546,13 @@ export function ProfileWorkspace() {
               </span>
             )}
 
-            {/* 所在地区：仅展示，编辑入口在「设置 → 账户与同步」 */}
             <span className="flex w-fit items-center gap-1 text-sm text-muted-foreground">
               <span aria-hidden>📍</span>
               {displayLocation}
             </span>
           </div>
 
-          {/* 签到功能：点击 toast 成功 + 写 check-in 贡献（进热力图）+ 当天禁用 / 暗色图层仅覆盖按钮 */}
+          {/* 签到：写 check-in 贡献进热力图；当天禁用，暗色图层仅覆盖按钮 */}
           <div className="w-64 rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <CalendarCheck className="size-4 text-primary" />
@@ -594,10 +577,8 @@ export function ProfileWorkspace() {
           </div>
         </div>
 
-        {/* 右栏：天气 + 日期（上）；贡献图（下） */}
         <div className="flex min-w-0 flex-col gap-4">
-          {/* TODO 52：小组件区改为 flex-wrap 内容自适应宽度（不再两列等宽铺满），
-              支持拖拽调序（顺序持久化 settings.profileWidgetOrder，拖法与 sidebar 分类一致） */}
+          {/* TODO 52：flex-wrap 自适应宽度（不再两列等宽铺满），拖拽调序拖法与 sidebar 分类一致 */}
           <div className="flex flex-wrap items-start gap-4">
             {widgetOrder.map((id, i) => (
               <div
@@ -628,7 +609,7 @@ export function ProfileWorkspace() {
 
             {id === "date" && (
             <div className="rounded-xl border border-border bg-card p-4">
-              {/* 日期卡（TODO 40）：zh 系语言保留竖排「X月大小」传统样式；其他语言平铺两行（月日 + 星期） */}
+              {/* 日期卡（TODO 40）：zh 竖排「X月大小」传统样式，其他语言平铺两行 */}
               {settings.uiLanguage === "zh" ? (
               <div className="flex h-[92px] items-center justify-center gap-4 rounded-lg bg-[#f2f0e8] px-4 dark:bg-[#0b0d0b]">
                 <span className="text-xs font-medium text-[#55714e] [writing-mode:vertical-rl] dark:text-[#8fae8b]">
@@ -651,8 +632,7 @@ export function ProfileWorkspace() {
                 </span>
               </div>
               )}
-              {/* AI 入口（TODO 39）：替换原「今日暂无待办事项」死文案；「AI」用渐变彩色字（TODO 57） */}
-              {/* 打开关系图（TODO 54）：跳转内建「待办事项」relation 分类 */}
+              {/* AI 入口（TODO 39）：「AI」用渐变彩色字（TODO 57） */}
               <div className="mt-3 flex w-fit flex-wrap gap-1.5">
                 <Button
                   variant="outline"
@@ -706,7 +686,6 @@ export function ProfileWorkspace() {
               ⏱ {t("profile.focusClock")}
             </div>
 
-            {/* 模式切换（分段） */}
             <div className="mt-3 flex gap-2">
               <button
                 type="button"
@@ -732,7 +711,6 @@ export function ProfileWorkspace() {
               </button>
             </div>
 
-            {/* 倒计时专注时长输入（仅倒计时模式可编辑） */}
             {focusMode === "down" && (
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                 <span>{t("profile.focusDuration")}</span>
@@ -752,17 +730,15 @@ export function ProfileWorkspace() {
               </div>
             )}
 
-            {/* 计时显示 MM:SS */}
             <div className="mt-3 text-center text-3xl font-semibold tabular-nums text-foreground">
               {focusMm}:{focusSs}
             </div>
 
-            {/* 提示文案 */}
             {focusHint && (
               <p className="mt-2 text-center text-xs text-muted-foreground">{focusHint}</p>
             )}
 
-            {/* 控制按钮（TODO 53：状态切换时旧按钮缓慢下移出，新按钮自下向上浮出） */}
+            {/* 控制按钮（TODO 53 切换动画，机制见上方 TODO 53 注释） */}
             <div className="relative mt-3">
               <div
                 key={leaving ? "out" : `in-${shownRunning}`}
@@ -789,7 +765,8 @@ export function ProfileWorkspace() {
               </div>
             </div>
 
-            {/* 结束弹窗：≥10 分钟时填写 content 后入账。showCloseButton=false 去掉右上角 X；disablePointerDismissal 禁点遮罩关闭；Esc 由 onOpenChange 拦截走「取消」语义入账，三路均不丢贡献 */}
+            {/* 结束弹窗：≥10 分钟填写 content 后入账；showCloseButton=false 去 X、disablePointerDismissal 禁点遮罩、
+                Esc 由 onOpenChange 拦截走「取消」入账，三路均不丢贡献 */}
             <Dialog open={focusDialogOpen} onOpenChange={handleFocusDialogOpenChange} disablePointerDismissal>
               <DialogContent showCloseButton={false}>
                 <DialogHeader>
@@ -826,7 +803,6 @@ export function ProfileWorkspace() {
             ))}
           </div>
 
-          {/* GitHub 式横向贡献热力图 */}
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-sm font-medium text-foreground">
@@ -850,7 +826,6 @@ export function ProfileWorkspace() {
 
             <ScrollArea horizontal className="w-full overflow-hidden">
               <div className="flex gap-2 pb-2">
-              {/* 周几标签列 */}
               <div className="flex shrink-0 flex-col gap-1 pt-4">
                 {WEEKDAY_LABELS.map((label, i) => (
                   <span
@@ -863,7 +838,7 @@ export function ProfileWorkspace() {
               </div>
 
               <div>
-                {/* 月份标签行（动态：仅在月份变化的那列打标签） */}
+                {/* 月份标签行（仅月份变化的列有标签） */}
                 <div className="mb-1 flex gap-1">
                   {monthLabels.map((label, i) => (
                     <span
@@ -875,7 +850,7 @@ export function ProfileWorkspace() {
                   ))}
                 </div>
 
-                {/* 热力格子：53 列 × 7 行（真实数据；晚于今天的格子透明且无 tooltip） */}
+                {/* 热力格子：53 列 × 7 行；晚于今天的格子透明且无 tooltip */}
                 <div className="flex gap-1">
                   {grid.map((col, w) => (
                     <div key={w} className="flex flex-col gap-1">
@@ -907,7 +882,6 @@ export function ProfileWorkspace() {
               </div>
             </ScrollArea>
 
-            {/* 图例 */}
             <div className="mt-2 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
               {t("profile.less")}
               {LEVEL_COLORS.map((c, i) => (
@@ -920,7 +894,6 @@ export function ProfileWorkspace() {
               {t("profile.more")}
             </div>
 
-            {/* 贡献详情列表 */}
             <div className="mt-4 border-t border-border pt-4">
               <p className="text-xs font-medium text-muted-foreground">{t("profile.contribDetail")}</p>
               {sorted.length === 0 ? (
@@ -972,7 +945,7 @@ export function ProfileWorkspace() {
         </div>
       </ScrollArea>
 
-      {/* 右下角：每日诗歌（API 接入，按日期缓存，可手动刷新）——悬空文字：绝对定位浮在页面右下角，无背景底色，不占布局 */}
+      {/* 右下角每日诗歌：按日期缓存、可手动刷新；悬空文字绝对定位，无底色不占布局 */}
       {settings.uiLanguage === "zh" && poemVisible && (
         <footer className="pointer-events-none absolute right-8 bottom-4 z-10 flex items-end justify-end gap-2 text-right text-xs text-muted-foreground">
           <div className="flex flex-col items-end gap-0.5">

@@ -67,7 +67,7 @@ const nodeTypes = { todo: TodoNode, solution: SolutionNode }
 
 export function MindmapWorkspace({ category }: { category: Category }) {
   const { t } = useTranslation()
-  // 关系族（TODO 54）：当前分类下的所有族；当前族为组件内 state（默认第一个族）
+  // TODO 54：当前分类的族列表；当前族为组件内 state，默认第一个族
   const relationFamilies = useWorkspace((s) => s.relationFamilies)
   const pendingFamilyId = useWorkspace((s) => s.pendingFamilyId)
   const setPendingFamilyId = useWorkspace((s) => s.setPendingFamilyId)
@@ -88,7 +88,6 @@ export function MindmapWorkspace({ category }: { category: Category }) {
     }
   }, [pendingFamilyId, families, setPendingFamilyId])
 
-  // 当前族被删除时回落到第一个族
   useEffect(() => {
     if (activeFamilyId && !families.some((f) => f.id === activeFamilyId)) {
       setActiveFamilyId(null)
@@ -171,7 +170,7 @@ function ViewBtn({
   )
 }
 
-// ---------------- 族 sidebar（TODO 54：图内显示范围内，列出/切换/新建/重命名/删除族 + AI 入口） ----------------
+// 族 sidebar（TODO 54）：列出/切换/新建/重命名/删除族 + AI 入口
 
 function FamilySidebar({
   category,
@@ -197,8 +196,7 @@ function FamilySidebar({
   const [renameDraft, setRenameDraft] = useState("")
   const [confirmDelId, setConfirmDelId] = useState<string | null>(null)
   const [relayoutBusy, setRelayoutBusy] = useState(false)
-  // 新建提交状态机：Enter → committed、Esc → cancelled、点击别处失焦 → 提交。
-  // 防两条坑：Enter 提交后输入框卸载可能再触发一次 blur（会建出两个族）；Esc 后的 blur 不能变成创建。
+  // 提交状态机：Enter→committed、Esc→cancelled、失焦→提交；防 Enter 后卸载再触发 blur 重复建族、Esc 后 blur 误创建
   const addStateRef = useRef<"idle" | "committed" | "cancelled">("idle")
   const renameInputRef = useRef<HTMLInputElement>(null)
 
@@ -233,7 +231,7 @@ function FamilySidebar({
     return true
   }
 
-  // AI 分析（只读）：askAiAbout 新建会话并携带族上下文，AI 用既有只读技能拉数据出报告
+  // AI 分析（只读）：askAiAbout 新建会话并携带族上下文
   const handleAiAnalyze = () => {
     const prompt =
 t("mindmap.aiAnalyzePrompt", {
@@ -247,7 +245,7 @@ t("mindmap.aiAnalyzePrompt", {
     askAiAbout(prompt)
   }
 
-  // AI 整理布局（写操作）：函数式调用 + JSON 解析落库，失败 toast 不落库
+  // AI 整理布局（写操作）：失败 toast 不落库
   const handleRelayout = async () => {
     if (relayoutBusy) return
     setRelayoutBusy(true)
@@ -426,7 +424,7 @@ t("mindmap.aiAnalyzePrompt", {
         </Button>
       </div>
 
-      {/* 删除族确认：ESC 视为取消（与其它弹窗行为一致） */}
+      {/* ESC 视为取消（与其它弹窗一致） */}
       <AlertDialog
         open={confirmDelId !== null}
         onOpenChange={(v) => !v && setConfirmDelId(null)}
@@ -460,7 +458,7 @@ t("mindmap.aiAnalyzePrompt", {
   )
 }
 
-// ---------------- 搬迁弹窗（TODO 54） ----------------
+// 搬迁弹窗（TODO 54）
 
 function MoveNodesDialog({
   open,
@@ -496,7 +494,6 @@ function MoveNodesDialog({
   const [target, setTarget] = useState<string | null>(null)
   const [newName, setNewName] = useState("")
 
-  // 每次打开重置选择
   useEffect(() => {
     if (open) {
       setTarget(null)
@@ -534,7 +531,6 @@ function MoveNodesDialog({
         </DialogHeader>
 
         <div className="native-scroll flex max-h-[55vh] flex-col gap-3 overflow-auto pr-1">
-          {/* 当前分类的族 */}
           <section className="flex flex-col gap-1.5">
             <p className="text-xs font-medium text-muted-foreground">
               {t("mindmap.familiesOf", { name: category.name })}
@@ -561,7 +557,6 @@ function MoveNodesDialog({
                 </button>
               )
             })}
-            {/* 就地新建族 */}
             <div className="flex items-center gap-1.5">
               <Input
                 value={newName}
@@ -587,7 +582,6 @@ function MoveNodesDialog({
             </div>
           </section>
 
-          {/* 搬迁至其他图 */}
           {otherRelCats.length > 0 && (
             <section className="flex flex-col gap-1.5">
               <p className="text-xs font-medium text-muted-foreground">{t("mindmap.moveToOther")}</p>
@@ -631,8 +625,6 @@ function MoveNodesDialog({
   )
 }
 
-// ---------------- 画布 ----------------
-
 function Canvas({
   category,
   family,
@@ -646,7 +638,7 @@ function Canvas({
 }) {
   const { t } = useTranslation()
   const activeItemId = useWorkspace((s) => s.activeItemId)
-  // TODO 75：极光背景开启时 ReactFlow 画布容器透明化露出底层极光（网格点 Background 保留）
+  // TODO 75：极光开启时画布容器透明露出底层极光（网格点 Background 保留）
   const auroraBackground = useWorkspace((s) => s.settings.auroraBackground)
   const setActiveItem = useWorkspace((s) => s.setActiveItem)
   const addNode = useWorkspace((s) => s.addNode)
@@ -655,7 +647,7 @@ function Canvas({
   const connectNodes = useWorkspace((s) => s.connectNodes)
   const removeEdge = useWorkspace((s) => s.removeEdge)
   const removeNode = useWorkspace((s) => s.removeNode)
-  // 上次浏览视口存档（TODO 54 起存于族内）：有有效存档则重挂载后恢复（否则初始 fitView 自适应）
+  // 视口存档存于族内（TODO 54）：有有效存档则重挂载后恢复，否则初始 fitView 自适应
   const savedViewport = useWorkspace((s) => s.relationFamilies[family.id]?.viewport)
   const setFamilyViewport = useWorkspace((s) => s.setFamilyViewport)
   const restoredViewport =
@@ -668,13 +660,12 @@ function Canvas({
   const { screenToFlowPosition, fitView } = useReactFlow()
   const canvasWrapRef = useRef<HTMLDivElement>(null)
 
-  // 多选选区（TODO 54：React Flow 默认 Shift+左键拖框选；右键菜单批量项作用于该选区）
+  // 多选选区（TODO 54）：Shift+左键拖框选；右键菜单批量项作用于该选区
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   useEffect(() => {
     setSelectedIds(new Set())
   }, [family.id])
-  // 稳定引用 + 内容相同返回旧 Set：xyflow 的 SelectionListener 把 onSelectionChange prop
-  // 放进了 effect 依赖，内联函数（每次渲染新引用）会造成 setState→渲染→再触发的死循环
+  // 稳定引用 + 内容相同返回旧 Set：xyflow 把 onSelectionChange 放进 effect 依赖，内联函数会引发 setState→渲染死循环
   const handleSelectionChange = useCallback((params: OnSelectionChangeParams) => {
     setSelectedIds((prev) => {
       const next = new Set(
@@ -685,10 +676,9 @@ function Canvas({
     })
   }, [])
 
-  // 鸟瞰模式：允许无限缩小（默认 minZoom=0.5 限制缩小），并禁用拖拽/连线避免缩很小误触
+  // 鸟瞰：允许无限缩小（默认 minZoom=0.5），并禁拖拽/连线防缩小误触
   const [birdView, setBirdView] = useState(false)
-  // 仅在 birdView 真实变化（进/出鸟瞰）时才 fitView：首次挂载与 dev StrictMode 双挂载都跳过，
-  // 否则 fitView 动画会覆盖 defaultViewport 恢复的视口存档（先到位、稍后被拉回原点）
+  // 仅 birdView 真实变化时才 fitView：跳过首挂载与 StrictMode 双挂载，否则 fitView 动画会覆盖视口存档
   const prevBirdViewRef = useRef<boolean | null>(null)
   useEffect(() => {
     const prev = prevBirdViewRef.current
@@ -697,7 +687,6 @@ function Canvas({
     fitView({ padding: 0.2, duration: 300 })
   }, [birdView, fitView])
 
-  // 在画面中心新建节点
   const addAtCenter = useCallback(() => {
     const el = canvasWrapRef.current
     if (el) {
@@ -713,7 +702,7 @@ function Canvas({
     toast.success(t("mindmap.nodeAdded"))
   }, [screenToFlowPosition, addNode, family.id, t])
 
-  // 是否正在从节点手柄拖拽连线（拖拽中不播放连线动画，松手后再播放）
+  // 拖拽连线中不播放连线动画，松手后再播放
   const [isConnecting, setIsConnecting] = useState(false)
 
   // 已折叠（隐藏其子任务子树）的节点 id 集合，纯视图态，不持久化
@@ -728,7 +717,6 @@ function Canvas({
     })
   }, [])
 
-  // 计算所有被折叠节点直接/间接隐藏的子任务
   const hidden = useMemo(() => {
     const res = new Set<string>()
     const visit = (id: string) => {
@@ -745,7 +733,7 @@ function Canvas({
 
   const selectedNode = family.nodes.find((n) => n.id === activeItemId) ?? null
 
-  // 单图缩放的右下角实时倍数显示：缩放中可见，停止后淡出。
+  // 单图缩放倍数徽标：缩放中可见，停止后淡出
   const [zoomBadge, setZoomBadge] = useState<{ value: number; visible: boolean } | null>(null)
   const zoomHideTimer = useRef<number | undefined>(undefined)
   const zoomPersist = useRef<{ id: string; value: number } | null>(null)
@@ -774,8 +762,7 @@ function Canvas({
     }
   }, [])
 
-  // 节点右键菜单动作（由 TodoNode 上报，此处统一执行 store 变更）。
-  // TODO 54：多选态（右键节点在选区内且选区 >1）时，除「添加子节点」外的项批量套用到整个选区。
+  // 右键菜单动作（TodoNode 上报，此处统一执行 store 变更）；TODO 54：多选态（选区>1）除「添加子节点」外批量套用
   const handleMenuAction = useCallback(
     (nodeId: string, action: string) => {
       const isBatch = selectedIds.size > 1 && selectedIds.has(nodeId)
@@ -788,19 +775,17 @@ function Canvas({
         return
       }
       if (action === "add-child") {
-        // 仅单选态出现；走 store 统一入口（与 NodeInspector.handleAddChild 同一逻辑）
+        // 仅单选态出现；与 NodeInspector.handleAddChild 同一 store 入口
         const childId = addChildNode(family.id, nodeId)
         if (childId) {
-          // 右键菜单关闭时 base-ui 会把焦点还给节点触发器，随后的点击/选区时序可能
-          // 把 addNode 里设置的 activeItemId 覆盖掉（这正是「添加后不切详情」的根因），
-          // 延后一拍重新断言，确保详情面板稳定切到新节点。
+          // base-ui 关菜单时把焦点还给节点触发器，可能覆盖 addNode 设置的 activeItemId
+          // （「添加后不切详情」根因），延后一拍重新断言
           window.setTimeout(() => setActiveItem(childId), 0)
         }
         return
       }
       if (action === "toggle-done") {
-        // 批量口径：选区内有未完成 → 全部标记完成；否则全部取消完成。
-        // done 跃迁时 updateNode 内部自动记录贡献账 / completedAt
+        // 批量口径：选区内有未完成→全部完成，否则全部取消；done 跃迁时 updateNode 自动记贡献账/completedAt
         const nextDone = targets.some((n) => !n.done)
         for (const n of targets) {
           updateNode(family.id, n.id, { done: nextDone })
@@ -859,10 +844,10 @@ function Canvas({
     [selectedIds, family.nodes, family.id, addChildNode, setActiveItem, updateNode, t],
   )
 
-  // 按 Delete / Backspace 请求删除当前选中的节点（弹出确认，避开文本输入框）
+  // Delete/Backspace 删除选中节点（弹确认，避开输入框）
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
-  // 删除确认弹窗：ESC 视为取消关闭（与其它弹窗行为一致）
+  // ESC 视为取消（与其它弹窗一致）
   useEscapeClose(pendingDeleteId !== null, () => setPendingDeleteId(null))
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -886,11 +871,9 @@ function Canvas({
     return () => window.removeEventListener("keydown", onKey)
   }, [activeItemId, family.nodes, family.edges, family.id, removeNode, t])
 
-  // ---- 渲染防风暴缓存：只改 1 个节点不再重建整张画布 ----
-  // rfNode 逐节点缓存：node 引用 / 折叠态 / 选中态 / 多选态 / 多选数量都没变就复用同一对象（含回调闭包），
-  // 让 React Flow 的逐节点 memo 生效。回调按 nodeId 派发，旧闭包最多滞后一个快照，语义无影响。
-  // multiCount 必须入 key：它是 data 里的闭包快照（右键菜单「搬迁 n 个节点」的显示源），
-  // 若只比 multi 布尔值，选区数量变化时已选中节点不重建 data，菜单会显示过期的旧数量。
+  // 渲染防风暴缓存：逐节点缓存 rf 对象（node 引用/折叠/选中/多选态/多选数量不变即复用，含回调闭包），
+  // 让 React Flow 逐节点 memo 生效；回调按 nodeId 派发，旧闭包最多滞后一个快照，语义无影响。
+  // multiCount 必须入 key：它是 data 闭包快照（右键菜单「搬迁 n 个」显示源），只比 multi 布尔值会显示过期数量
   const rfNodeCacheRef = useRef(
     new Map<
       string,
@@ -911,11 +894,9 @@ function Canvas({
   )
   const lastRfEdgesRef = useRef<Edge[] | null>(null)
 
-  // ---- 本地画布态（React Flow 持有位置，避免拖拽时每帧写 store 导致卡顿/节点消失） ----
-  // 初值空数组：快照由下方 sync effect 首帧推入——这样 rfNodes 能读到本地 selected 现值。
-  // **selected 单向铁律**：React Flow 的内部选中是唯一真相，快照只读不写 selected
-  // （sync effect 用本地现值回填），否则与 onSelectionChange→selectedIds 回写构成双向
-  // 同步环——历次「Maximum update depth exceeded」的死循环根源。
+  // 本地画布态：React Flow 持有位置，避免拖拽每帧写 store；初值空数组，快照由下方 sync effect 首帧推入。
+  // **selected 单向铁律**：React Flow 内部选中是唯一真相，快照只读不写 selected，
+  // 否则与 onSelectionChange→selectedIds 回写构成双向环——历次「Maximum update depth exceeded」死循环根源。
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
 
@@ -933,7 +914,7 @@ function Canvas({
     const multiActive = selectedIds.size > 1
     for (const n of family.nodes) {
       if (hidden.has(n.id)) continue
-      if (n.hidden) continue // 用户隐藏：不在画布显示
+      if (n.hidden) continue
       seen.add(n.id)
       const selected = localSelected.get(n.id) ?? false
       const isCollapsed = collapsed.has(n.id)
@@ -1093,32 +1074,29 @@ function Canvas({
     return list
   }, [family.edges, family.nodes, hidden, isConnecting])
 
-  // 把 store 的结构/内容变化（增删节点、改标题/标签、折叠、临时右键线）同步进本地画布态，
-  // 但保留当前拖拽中的位置与选中态（**不写 selected**：选中以 React Flow 内部为唯一真相，
-  // 快照若反向派生 selected 会与 onSelectionChange→selectedIds 回写构成死循环）。
+  // 同步 store 的结构/内容变化进本地画布态，保留拖拽中的位置与选中
+  // （不写 selected：见上方「selected 单向铁律」，否则构成死循环）。
   useEffect(() => {
     const sn = new Map(rfNodes.map((n) => [n.id, n]))
     const se = new Map(rfEdges.map((e) => [e.id, e]))
 
     setNodes((curr) => {
       let mutated = false
-      // 1) 通过 store 但保留本地位置与选中（拖拽/框选不被打断）；data 一致时直接复用引用，
-      //    让 React Flow 只重渲染真正变化的节点
+      // 1) 保留本地位置与选中（拖拽/框选不被打断）；data 一致时直接复用引用，让 React Flow 只重渲染真正变化的节点
       let next = curr.map((n) => {
         const s = sn.get(n.id)
-        if (!s) return n // 交由下方“移除”处理
+        if (!s) return n
         if (n.data === s.data) return n
         mutated = true
         return { ...s, position: n.position, selected: n.selected }
       })
-      // 2) 补入 store 新增的节点
       for (const [id, s] of sn) {
         if (!next.some((n) => n.id === id)) {
           next = [...next, s]
           mutated = true
         }
       }
-      // 3) 移除已不存在的节点（排除拖拽临时线，它会由 dragLine 状态重新加入）
+      // 3) 移除已不存在的节点
       const filtered = next.filter((n) => sn.has(n.id))
       if (filtered.length !== next.length) mutated = true
       next = filtered
@@ -1146,8 +1124,7 @@ function Canvas({
     })
   }, [rfNodes, rfEdges, setNodes, setEdges])
 
-  // activeItemId 编程选中：只在目标节点未选中时补选一次（不清除其他选中、不破坏多选）。
-  // 用户点击路径 React Flow 自己已选中，这里 no-op；列表跳转 / 添加子节点等非画布路径由此补高亮。
+  // activeItemId 编程选中：仅目标未选中时补选，不清除其他选中/不破坏多选（列表跳转等非画布路径由此补高亮）
   useEffect(() => {
     if (!activeItemId) return
     setNodes((curr) => {
@@ -1182,8 +1159,7 @@ function Canvas({
     [connectNodes, family.id, t],
   )
 
-  // 视口存档：useCallback 稳定引用 + 数值级守卫（xyflow 的 panZoom end / fitView 可能重复
-  // 触发 moveEnd；值不变时 store 侧与组件侧双重拦截，杜绝「写 store → 重渲染」回流）
+  // 视口存档：xyflow 的 panZoom end/fitView 可能重复触发 moveEnd，值不变时双重拦截，杜绝「写 store→重渲染」回流
   const handleMoveEnd = useCallback(
     (_: unknown, viewport: { x: number; y: number; zoom: number }) => {
       const prev = family.viewport
@@ -1200,8 +1176,8 @@ function Canvas({
     [family.viewport, family.id, setFamilyViewport],
   )
 
-  // 其余传给 ReactFlow 的回调统一 useCallback：xyflow 的 StoreUpdater 把每个 prop
- // 放进独立 effect，内联箭头（每次渲染新引用）会让 store 每渲染都 setState 一轮
+  // 其余传给 ReactFlow 的回调统一 useCallback：StoreUpdater 把每个 prop 放进独立 effect，
+  // 内联箭头（每次渲染新引用）会让 store 每渲染都 setState 一轮
   const handleConnectStart = useCallback(() => setIsConnecting(true), [])
   const handleConnectEnd = useCallback(() => setIsConnecting(false), [])
   const handlePaneContextMenu = useCallback(
@@ -1227,7 +1203,6 @@ function Canvas({
     [setActiveItem]
   )
 
-  // 单击同样打开节点详情
   const onNodeClick = useCallback(
     (_: React.MouseEvent, n: Node) => {
       if (!n.id.startsWith("sol-")) setActiveItem(n.id)
@@ -1265,7 +1240,7 @@ function Canvas({
 
   return (
     <div className="flex h-full">
-      {/* 族 sidebar（TODO 54：仅图内显示范围内） */}
+      {/* 族 sidebar（TODO 54） */}
       <FamilySidebar
         category={category}
         family={family}
@@ -1335,7 +1310,6 @@ function Canvas({
             </p>
           </div>
         )}
-        {/* 单图缩放实时倍数：缩放中显示，停止后淡出 */}
         {zoomBadge && (
           <div
             className={cn(

@@ -39,12 +39,7 @@ import { AI_PROVIDERS } from "@/lib/ai/providers"
 import { normalizeDayStartOffset, parseDayStartOffset, todayKey } from "./contributions"
 import { imageIdsInText } from "./image-refs"
 
-/**
- * 人设迁移：把旧存档/旧备份里的单一 `aiPersona` 字符串升级为多人人设列表。
- * - aiPersonas 已有数据 → 原样保留；aiActivePersonaId 指向不存在的人设时复位为 null。
- * - aiPersonas 为空且旧 aiPersona 非空 → 生成一条「默认人设」并设为当前。
- * 返回最终应写入 settings 的 { aiPersonas, aiActivePersonaId }。
- */
+/** 人设迁移：旧存档单一 `aiPersona` 升级为多人人设列表；已有 aiPersonas 原样保留，选中 id 无效时复位 null（仅用基础提示词）。 */
 function migratePersona(rawSettings: Record<string, unknown>): {
   aiPersonas: AIPersona[]
   aiActivePersonaId: string | null
@@ -64,7 +59,6 @@ function migratePersona(rawSettings: Record<string, unknown>): {
       aiActivePersonaId = id
     }
   }
-  // 选中的人设若不存在，复位为 null（仅用基础提示词）。
   if (aiActivePersonaId && !aiPersonas.some((p) => p.id === aiActivePersonaId)) {
     aiActivePersonaId = null
   }
@@ -115,8 +109,6 @@ function normalizeMindNodes(raw: unknown): MindNode[] {
     })
 }
 
-// ---- 关系族（TODO 54）：旧版 Category.relation + mindmapViewports → relationFamilies 迁移 ----
-
 /** 迁移 / 新建默认族的统一命名 */
 const DEFAULT_FAMILY_NAME = "我的分类"
 
@@ -159,13 +151,8 @@ function normalizeFamily(raw: unknown, fallbackCategoryId: string): RelationFami
   }
 }
 
-/**
- * 关系族总迁移（TODO 54）：persist merge / 备份导入（替换 / 合并）三处共用。
- * - 新格式 relationFamilies（Record）逐条规范化，坏值兜底；categoryId 指向不存在分类的孤儿族丢弃。
- * - 旧格式：categories[].relation（单图）迁移为每分类一个默认族「我的分类」（id 稳定 `fam_${catId}`），
- *   viewport 取 legacyViewports[catId]；迁移后删除 Category.relation 键，mindmapViewports 整体废弃。
- * - 兜底：每个 relation 分类至少一个族；内建「待办事项」分类缺失则自动补建（含默认族）。
- */
+/** 关系族总迁移（TODO 54）：persist merge / 备份导入三处共用；新格式逐条规范化，旧格式 categories[].relation +
+ * mindmapViewports 迁移为每分类一个默认族（id 稳定 `fam_${catId}`）后废弃原键。 */
 function migrateRelationState(
   rawCategories: unknown,
   rawFamilies: unknown,
@@ -264,7 +251,6 @@ interface WorkspaceState {
   selectedDate: string
   hydrated: boolean
 
-  // 系统设置
   settings: Settings
   // UI 弹窗状态（跨组件触发，例如全局快捷键 Ctrl+M）
   addCategoryOpen: boolean
@@ -285,7 +271,6 @@ interface WorkspaceState {
   // 全局标签库：容纳从联系人 roles 等外部来源导入的标签，供 TagPicker 复用
   knownTags: string[]
 
-  // AI 助手：多会话（各自持有上下文，持久化到 localStorage）
   conversations: Conversation[]
   activeConversationId: string | null
   // 外部（如日历 DayDetail）触发的"打开 AI 闲聊并自动询问"：携带待发送 query；消费后清空（不持久化）。
@@ -297,11 +282,9 @@ interface WorkspaceState {
   // 贡献账本（Profile 热力图数据源）：每条为一次「新建/完成节点」事件（真账本，非派生）
   contributions: Contribution[]
 
-  // 通知中心（TODO 20 / TODO 18）：GitHub sender 等产生的站内通知，持久化，按 createdAt
-  // 降序，上限 200 条（超出截断最旧）
+  // 站内通知（TODO 20 / 18，GitHub sender 等入库）：按「发现时间」降序，上限 200 条（超出截断最旧）
   notifications: NotificationItem[]
-  // 通知系统日志（TODO 27）：每轮扫描检查了哪些仓库/发现哪些新内容、是否发送通知提示，
-  // 持久化，按 at 降序，上限 500 条（超出截断最旧）
+  // 通知系统日志（TODO 27）：每轮扫描检查了哪些仓库/发现哪些新内容、是否发送提示；按 at 降序，上限 500 条
   notificationLogs: NotificationLogEntry[]
   // 扫描水位（epoch ms）：上一轮成功扫描的时间，作为下轮起算点；null = 从未扫过
   notificationWatermark: number | null
@@ -313,8 +296,7 @@ interface WorkspaceState {
   // 健康提醒上次触发时间（epoch ms，TODO 26）：持久化 + 按墙钟对表，重启/后台冻结不丢计时
   lastWaterRemindAt: number | null
   lastStandRemindAt: number | null
-  // 新闻精选上次触发时刻（epoch ms，TODO 23）：与 18:00 周期起点比对判断本周期是否已拉取；
-  // null = 从未拉过
+  // 新闻精选上次触发时刻（epoch ms，TODO 23）：与 18:00 周期起点比对判断本周期是否已拉取；null = 从未拉过
   newsLastFetchedAt: number | null
 
   // 关系族（TODO 54）：key = family.id；每族一张独立图（nodes/edges/view/viewport），经 categoryId 归属 relation 分类。
@@ -331,7 +313,6 @@ interface WorkspaceState {
   // 自定义节日定义（TODO 48：持久化驱动；public/custom_festivals.yml 经设置页按钮导入）
   customFestivals: FestivalDef[]
 
-  // 分类
   addCategory: (
     name: string,
     template: TemplateType,
@@ -355,7 +336,6 @@ interface WorkspaceState {
   goGithubQueue: () => void
   goVocabulary: () => void
 
-  // AI 助手：多会话管理（各自持有上下文）
   createConversation: () => string
   /** 后台静默新建会话（TODO 23 新闻精选用）：不切换 activeConversationId，不打断当前会话 */
   createConversationSilent: (title: string) => string
@@ -370,17 +350,14 @@ interface WorkspaceState {
   /** Profile「问 AI 今日待办」：当天已有对应会话则直接打开该会话；否则新建会话发送并记录（按翻篇时间划分"今天"） */
   askAiToday: (text: string) => void
 
-  // 系统设置 / UI
   updateSettings: (patch: Partial<Settings>) => void
   setShortcut: (action: ShortcutAction, binding: ShortcutBinding) => void
   setAddCategoryOpen: (v: boolean) => void
   setConfigEditorOpen: (v: boolean) => void
   setImagesOpen: (v: boolean) => void
 
-  // 日历 / DayDetail 分隔条宽度（持久化）
   setCalendarDetailWidth: (w: number) => void
 
-  // 桌面端侧边栏宽度（持久化）
   setSidebarWidth: (w: number) => void
   setSidebarCollapsed: (v: boolean) => void
   // 侧边栏收起后贴边悬浮开关的纵向位置（距视口顶部 px；null = 默认垂直居中），拖动后持久化
@@ -395,13 +372,11 @@ interface WorkspaceState {
   /** 全站删除标签（TODO 67）：从章节 / 思维图节点 / 联系人角色 / 全局标签库移除。返回清理的使用处数量（不含标签库条目本身） */
   deleteTag: (name: string) => number
 
-  // 数据备份
-  /** 导出 store 快照为 JSON；sections 指定导出分区（TODO 41），缺省导出除 vault 外全部分区 */
+  /** 导出 store 快照为 JSON；sections 指定导出分区（TODO 41），缺省口径见实现内注释 */
   exportData: (sections?: BackupSections) => string | null
   importData: (json: string) => boolean
   mergeData: (json: string) => boolean
 
-  // 小说 / 通用条目
   addChapter: (catId: string) => void
   updateChapter: (
     catId: string,
@@ -429,34 +404,27 @@ interface WorkspaceState {
   appendContributions: (
     entries: Array<{ id: string; type: ContributionType; at: number; content: string }>
   ) => void
-  /** 通知入库（TODO 20 / 18）：按 id 去重合并，按 createdAt 降序，上限 200 条截断最旧。 */
+  /** 通知入库（TODO 20 / 18）：按 id 去重合并（已有条目保留原样），按「发现时间」降序，上限 200 条截断最旧。 */
   addNotifications: (items: NotificationItem[]) => void
   // 追加通知系统日志（TODO 27）：按 id 去重、at 降序、上限 500 条
   appendNotificationLogs: (entries: NotificationLogEntry[]) => void
-  /** 扫描水位：上一轮成功扫描时间（epoch ms）。 */
   setNotificationWatermark: (ms: number) => void
-  /** 最近活跃时间（epoch ms）：调度器心跳 / pagehide 更新。 */
   setLastActiveAt: (ms: number) => void
-  /** 标记通知全部已读（更新已读水位为当前时间）。 */
   markNotificationsRead: () => void
-  /** 健康提醒触发时间记账（TODO 26）。 */
   setLastWaterRemindAt: (ms: number) => void
   setLastStandRemindAt: (ms: number) => void
   setNewsLastFetchedAt: (ms: number) => void
 
-  // GitHub 队列（TODO 36）
   /** 拉取到的 issue/PR 加入队列：按 id 去重（已存在则覆盖，保留其当前所在列） */
   addToIssueQueue: (items: IssueQueueItem[]) => void
   /** 移动某卡片到指定列（手动搬运 = 重新入队，刷新 queuedAt 让卡片浮到新列顶） */
   moveIssueQueueItem: (id: string, column: IssueQueueColumn) => void
-  /** 从队列移除某卡片 */
   removeIssueQueueItem: (id: string) => void
   /** 批量回写 issue/PR 状态标记（state/merged）：监听收到 close/merge/reopen 事件时联动；列与排序位次不动 */
   syncIssueQueueStates: (
     entries: Array<{ id: string; state: "open" | "closed"; merged: boolean }>
   ) => void
 
-  // 通讯录 / 自定义节日（TODO 48：持久化驱动）
   /** yml 导入：整表替换联系人 */
   setContacts: (items: Person[]) => void
   /** yml 导入：整表替换自定义节日 */
@@ -479,12 +447,9 @@ interface WorkspaceState {
   ) => ConnectResult
   removeEdge: (familyId: string, edgeId: string) => void
   removeSub: (familyId: string, nodeId: string, subId: string) => void
-  /** 切换族视图（mindmap / list） */
   setFamilyView: (familyId: string, view: "mindmap" | "list") => void
-  /** 族视口存档（写族内 viewport；旧版顶层 mindmapViewports 已废弃） */
   setFamilyViewport: (familyId: string, viewport: MindmapViewport) => void
 
-  // 关系族管理（TODO 54）
   /** 新建族：返回新族 id（默认命名「我的分类」） */
   addRelationFamily: (categoryId: string, name?: string) => string
   renameRelationFamily: (familyId: string, name: string) => void
@@ -496,7 +461,6 @@ interface WorkspaceState {
   moveNodesToFamily: (familyId: string, nodeIds: string[], targetFamilyId: string) => void
   setPendingFamilyId: (id: string | null) => void
 
-  // 日历
   setSelectedDate: (date: string) => void
   setDayNote: (date: string, note: string) => void
   addCalendarTodo: (date: string, content: string) => void
@@ -509,12 +473,8 @@ interface WorkspaceState {
 const STORAGE_NAME = "my-omni-workspace"
 const STORAGE_FLUSH_MS = 800
 
-/**
- * 防抖持久化存储：zustand 每次 set() 都会调 setItem——默认实现意味着每敲一个字
- * 都要 JSON.stringify 整个状态 + 同步写 localStorage（大状态下单次几十 ms）。
- * 这里 setItem 只暂存状态对象（O(1)），静止 800ms 后才序列化落盘；
- * pagehide / 切后台立即 flush，最多丢最后 800ms 的变更。
- */
+/** 防抖持久化：zustand 每次 set() 都会同步 JSON.stringify 全量状态写 localStorage，
+ * 这里 setItem 只暂存对象、静止 800ms 后才落盘；pagehide / 切后台立即 flush，最多丢最后 800ms 的变更。 */
 function createDebouncedStorage(): PersistStorage<WorkspaceState> {
   let pending: StorageValue<WorkspaceState> | null = null
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -583,13 +543,10 @@ export const useWorkspace = create<WorkspaceState>()(
       configEditorOpen: false,
       imagesOpen: false,
 
-      // 日历 / DayDetail 分隔条默认宽度（px），与原 w-96 一致
       calendarDetailWidth: 384,
 
-      // 桌面端侧边栏默认宽度（px），与原 w-72=18rem 一致
       sidebarWidth: 288,
 
-      // 侧边栏 / 工具栏默认展开（TODO 25）
       sidebarCollapsed: false,
       sidebarToggleY: null,
       toolbarCollapsed: false,
@@ -606,7 +563,7 @@ export const useWorkspace = create<WorkspaceState>()(
       // 贡献账本：默认空（存量由 Profile 页「补算历史」一次性补齐）
       contributions: [],
 
-      // 通知中心：默认空（GitHub sender 由调度器入库）；水位 / 活跃时间初始 null
+      // 通知中心：默认空（GitHub sender 由调度器入库）
       notifications: [],
       notificationLogs: [],
       notificationWatermark: null,
@@ -614,17 +571,15 @@ export const useWorkspace = create<WorkspaceState>()(
       lastReadNotificationsAt: null,
       lastWaterRemindAt: null,
       lastStandRemindAt: null,
-      // 新闻精选：从未拉过
       newsLastFetchedAt: null,
 
       // 关系族（TODO 54）：初始空（内建「待办事项」与旧数据迁移由 merge 的 migrateRelationState 补建）
       relationFamilies: {},
       pendingFamilyId: null,
 
-      // GitHub 队列（TODO 36）：默认空
       issueQueue: [],
 
-      // 通讯录 / 自定义节日（TODO 48）：默认空（由设置页「从 yml 导入」或界面新建填充）
+      // 通讯录 / 自定义节日（TODO 48）：由设置页「从 yml 导入」或界面新建填充
       contacts: [],
       customFestivals: [],
 
@@ -654,7 +609,6 @@ export const useWorkspace = create<WorkspaceState>()(
 
       addKnownTags: (tags) =>
         set((s) => {
-          // 已存在的标签（忽略大小写 + 首尾空格）直接跳过
           const existing = new Set(s.knownTags.map((t) => t.trim().toLowerCase()))
           const additions = tags
             .map((t) => t.trim())
@@ -716,7 +670,6 @@ export const useWorkspace = create<WorkspaceState>()(
             contactsTouched = true
           }
         }
-        // 全局标签库：from 移除；to 不存在（精确匹配）则补入
         const knownHasTo = s.knownTags.some((x) => x === t)
         const knownTags = dedupeTags([...s.knownTags.filter((x) => x !== f), ...(knownHasTo ? [] : [t])])
         const knownTouched = s.knownTags.some((x) => x === f) || !knownHasTo
@@ -869,16 +822,13 @@ export const useWorkspace = create<WorkspaceState>()(
           const migratedNotes = hasNotes
             ? migrateRelationState(data.categories, data.relationFamilies, undefined)
             : null
-          // AI 对话：仅当备份显式包含 conversations 时才覆盖（旧版无此字段则保留当前对话）。
           const convs = hasAi ? (data.conversations as Conversation[]) : null
-          // 贡献账本：仅当备份显式包含数组时才覆盖（旧备份无此字段 → 保留当前账本，不清空）
           const bContribs = hasContribs ? (data.contributions as Contribution[]) : null
           // settings：备份携带才覆盖（分区导出始终携带 settings；防御旧备份缺失时保留现值）
           const bSettings =
             data.settings && typeof data.settings === "object" ? (data.settings as object) : null
           const persona = migratePersona((bSettings ?? {}) as Record<string, unknown>)
           set({
-            // 随笔分区：出现才替换；未出现保留当前分类与选中态
             ...(migratedNotes
               ? {
                   categories: migratedNotes.categories,
@@ -925,7 +875,6 @@ export const useWorkspace = create<WorkspaceState>()(
                   ? data.activeConversationId
                   : convs[0]?.id ?? null)
               : cur.activeConversationId,
-            // 账本：备份显式包含则覆盖，否则保留当前（向后兼容旧备份）
             contributions: bContribs ?? cur.contributions,
             // 通知分区：列表整体替换；日志 / 水位出现才覆盖
             ...(hasNotifications
@@ -940,9 +889,7 @@ export const useWorkspace = create<WorkspaceState>()(
                     : {}),
                 }
               : {}),
-            // GitHub 队列分区：整体替换
             ...(hasQueue ? { issueQueue: data.issueQueue as IssueQueueItem[] } : {}),
-            // 通讯录分区（TODO 48）：整体替换
             ...(hasContacts ? { contacts: data.contacts as Person[] } : {}),
             // 自定义节日（TODO 48，随日历分区携带）：整体替换
             ...(hasFestivals ? { customFestivals: data.customFestivals as FestivalDef[] } : {}),
@@ -1006,7 +953,6 @@ export const useWorkspace = create<WorkspaceState>()(
             patch.categories = migrated.categories
             patch.relationFamilies = migrated.relationFamilies
           }
-          // 日历：按日期合并
           if (hasCalendar) {
             const calendar: CalendarData = { ...cur.calendar }
             const bCal = data.calendar as CalendarData
@@ -1017,7 +963,6 @@ export const useWorkspace = create<WorkspaceState>()(
             }
             patch.calendar = calendar
           }
-          // 贡献账本：按 id 合并（同 id 覆盖，新 id 追加）
           if (hasContribs) {
             const contribMap = new Map<string, Contribution>()
             for (const x of cur.contributions) contribMap.set(x.id, x)
@@ -1059,14 +1004,12 @@ export const useWorkspace = create<WorkspaceState>()(
                   : Math.max(cur.notificationWatermark ?? 0, bWm)
             }
           }
-          // GitHub 队列分区：按 id 合并
           if (hasQueue) {
             const qMap = new Map<string, IssueQueueItem>()
             for (const it of cur.issueQueue) qMap.set(it.id, it)
             for (const it of data.issueQueue as IssueQueueItem[]) qMap.set(it.id, it)
             patch.issueQueue = [...qMap.values()]
           }
-          // 通讯录分区（TODO 48）：按 id 合并（同 id 以备份为准，新 id 追加）
           if (hasContacts) {
             const cMap = new Map<string, Person>()
             for (const p of cur.contacts) cMap.set(p.id, p)
@@ -1179,7 +1122,6 @@ export const useWorkspace = create<WorkspaceState>()(
           ),
         })),
 
-      // 把 fromIndex 处元素移动到 toIndex（数组内前移/后移）
       moveCategory: (fromIndex, toIndex) =>
         set((s) => {
           const arr = [...s.categories]
@@ -1225,7 +1167,6 @@ export const useWorkspace = create<WorkspaceState>()(
       goGithubQueue: () => set({ view: "github-queue", activeCategoryId: null }),
       goVocabulary: () => set({ view: "vocabulary", activeCategoryId: null }),
 
-      // ---- AI 助手：多会话（各自持有上下文） ----
       createConversation: () => {
         const id = uid()
         const now = Date.now()
@@ -1243,7 +1184,6 @@ export const useWorkspace = create<WorkspaceState>()(
         return id
       },
       selectConversation: (id) => set({ activeConversationId: id }),
-      // 后台静默建会话（TODO 23 新闻精选）：不切换 activeConversationId、不切视图
       createConversationSilent: (title) => {
         const id = uid()
         const now = Date.now()
@@ -1286,16 +1226,13 @@ export const useWorkspace = create<WorkspaceState>()(
             c.id === id ? { ...c, messages, updatedAt: Date.now() } : c,
           ),
         })),
-      // 外部（如日历 DayDetail）触发：新建会话、切到 AI 闲聊，并挂起一条待发送 query。
-      // 由 AIChatWorkspace 在会话就绪后消费（send 后再 clearPendingAiQuery）。
+      // 由 AIChatWorkspace 在会话就绪后消费（send 后再 clearPendingAiQuery）
       askAiAbout: (text) => {
         get().createConversation()
         set({ view: "ai-chat", activeCategoryId: null, pendingAiQuery: text })
       },
       clearPendingAiQuery: () => set({ pendingAiQuery: null }),
 
-      // Profile「问 AI 今日待办」：按 settings.dayStartOffset 翻篇时间算出"今天"的 dayKey。
-      // 当天已记录且会话仍存在 → 直接打开那个会话（不再发新 query）；否则新建会话发送并记录。
       askAiToday: (text) => {
         const s = get()
         const dayKey = todayKey(parseDayStartOffset(s.settings.dayStartOffset))
@@ -1387,7 +1324,6 @@ export const useWorkspace = create<WorkspaceState>()(
               ...s.relationFamilies,
               [familyId]: { ...fam, nodes: [...fam.nodes, node] },
             },
-            // 记账：新建节点 +0.2
             contributions: [
               ...s.contributions,
               {
@@ -1404,9 +1340,7 @@ export const useWorkspace = create<WorkspaceState>()(
         return id
       },
 
-      // 添加子节点统一入口（原 NodeInspector.handleAddChild 与右键菜单两处重复逻辑合并）：
-      // 末尾显式 setActiveItem(childId)——仅靠 addNode 内部的 activeItemId 赋值，
-      // 在右键菜单路径下会被菜单关闭后的焦点/点击时序覆盖，详情面板不切换。
+      // 末尾显式 setActiveItem(childId)：右键菜单路径下仅靠 addNode 的赋值会被菜单关闭后的焦点/点击时序覆盖
       addChildNode: (familyId, parentId) => {
         const s = get()
         const fam = s.relationFamilies[familyId]
@@ -1455,7 +1389,6 @@ export const useWorkspace = create<WorkspaceState>()(
           let contributions = s.contributions
           if ("done" in patch && !!prev.done !== !!next.done) {
             const doneId = `${nodeId}:done`
-            // 先删同 id 旧条（upsert，防重复），再按需补
             const withoutDone = contributions.filter((x) => x.id !== doneId)
             contributions = next.done
               ? [
@@ -1502,8 +1435,6 @@ export const useWorkspace = create<WorkspaceState>()(
           }
         }),
 
-      // 一次性存量补算（幂等）：为账本缺失的节点补 created / done 记录，返回新增条数。
-      // 临时功能：入口在 Profile 页「补算历史」按钮，主人用完会要求删除 —— 与按钮一并摘除。
       scanLegacyContributions: () => {
         let added = 0
         set((s) => {
@@ -1543,8 +1474,7 @@ export const useWorkspace = create<WorkspaceState>()(
         return added
       },
 
-      // 每日签到（TODO 9）：写一条 `check-in:${dayKey}` 贡献（amount 2），状态由账本按 dayKey 推导。
-      // 复用 TODO 8 的 settings.dayStartOffset 同一 offset 配置；过 04:00 后 dayKey 变化即自动「未签到」。
+      // 复用 TODO 8 的 settings.dayStartOffset 同一 offset；过翻篇点 dayKey 变化即自动「未签到」。
       checkIn: () => {
         const off = parseDayStartOffset(get().settings.dayStartOffset)
         const dayKey = todayKey(off)
@@ -1565,9 +1495,7 @@ export const useWorkspace = create<WorkspaceState>()(
         }))
       },
 
-      // 专注钟（TODO 10）：结束专注时按专注分钟写一条 `focus:<dayKey>` 贡献（amount = floor(分钟/10)）。
-      // 不足 10 分钟不写，返回 0；同 dayKey 已存在则覆盖（取本次 amount，at 更新为最新）。
-      // 复用 settings.dayStartOffset 同一 offset，过 04:00 后 dayKey 变化即视为新的一天。
+      // 专注钟（TODO 10）：复用 settings.dayStartOffset 同一 offset，过翻篇点即视为新的一天。
       addFocusContribution: (minutes, content) => {
         const amount = Math.floor(minutes / 10)
         if (amount < 1) return 0
@@ -1591,8 +1519,6 @@ export const useWorkspace = create<WorkspaceState>()(
         return amount
       },
 
-      // 批量追加贡献（TODO 18）：按 id 与现有账本去重后追加；amount 按
-      // CONTRIBUTION_AMOUNT[type] 统一取值（权重唯一来源在 lib/types.ts）。
       appendContributions: (entries) =>
         set((s) => {
           if (entries.length === 0) return {}
@@ -1610,8 +1536,6 @@ export const useWorkspace = create<WorkspaceState>()(
           return { contributions: [...s.contributions, ...additions] }
         }),
 
-      // 通知入库（TODO 20 / 18）：按 id 去重合并（已有条目保留原样），按 createdAt
-      // 降序排列，上限 200 条（超出截断最旧）。
       addNotifications: (items) =>
         set((s) => {
           if (items.length === 0) return {}
@@ -1627,7 +1551,6 @@ export const useWorkspace = create<WorkspaceState>()(
 
       setNotificationWatermark: (ms) => set({ notificationWatermark: ms }),
 
-      // 通知系统日志入库（TODO 27）：按 id 去重合并，按 at 降序，上限 500 条（超出截断最旧）。
       appendNotificationLogs: (entries) =>
         set((s) => {
           if (entries.length === 0) return {}
@@ -1647,7 +1570,6 @@ export const useWorkspace = create<WorkspaceState>()(
       setLastStandRemindAt: (ms) => set({ lastStandRemindAt: ms }),
       setNewsLastFetchedAt: (ms) => set({ newsLastFetchedAt: ms }),
 
-      // ---- GitHub 队列（TODO 36） ----
       addToIssueQueue: (items) =>
         set((s) => {
           if (!items.length) return {}
@@ -1668,7 +1590,6 @@ export const useWorkspace = create<WorkspaceState>()(
       moveIssueQueueItem: (id, column) =>
         set((s) => ({
           issueQueue: s.issueQueue.map((it) =>
-            // 手动搬运 = 重新入队：刷新 queuedAt 让卡片浮到新列顶（TODO 46 后续口径）
             it.id === id ? { ...it, column, queuedAt: Date.now() } : it
           ),
         })),
@@ -1681,13 +1602,11 @@ export const useWorkspace = create<WorkspaceState>()(
           return {
             issueQueue: s.issueQueue.map((it) => {
               const e = byId.get(it.id)
-              // id 不在队列中的条目忽略；未命中的条目保持原引用
               return e ? { ...it, state: e.state, merged: e.merged } : it
             }),
           }
         }),
 
-      // ---- 通讯录 / 自定义节日（TODO 48：持久化驱动） ----
       setContacts: (items) => set({ contacts: items }),
       setCustomFestivals: (items) => set({ customFestivals: items }),
       addContact: () => {
@@ -1849,7 +1768,6 @@ export const useWorkspace = create<WorkspaceState>()(
           }
         }),
 
-      // ---- 关系族管理（TODO 54） ----
       addRelationFamily: (categoryId, name) => {
         const id = `fam_${uid()}`
         set((s) => {
@@ -1913,8 +1831,7 @@ export const useWorkspace = create<WorkspaceState>()(
         }),
 
       // 调整族位置（TODO 69）：同分类族重排，其余分类族的 key 位置原样保留。
-      // 族列表顺序由 relationFamilies 的 key 插入顺序承载（所有消费方均按 categoryId 过滤后使用），
-      // 故重建对象时同分类族按新顺序填回原有槽位即可，无需额外顺序字段。
+      // 顺序由 relationFamilies 的 key 插入顺序承载（消费方均按 categoryId 过滤），无需额外顺序字段。
       moveRelationFamily: (familyId, toIndex) =>
         set((s) => {
           const fam = s.relationFamilies[familyId]
@@ -1943,7 +1860,6 @@ export const useWorkspace = create<WorkspaceState>()(
           return { relationFamilies }
         }),
 
-      // 搬迁节点：只搬节点 + 两端都在搬移集合内的边（节点本身无分类归属，跨分类搬迁只改族的节点集合）
       moveNodesToFamily: (familyId, nodeIds, targetFamilyId) =>
         set((s) => {
           if (familyId === targetFamilyId) return {}
@@ -2064,7 +1980,6 @@ export const useWorkspace = create<WorkspaceState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.hydrated = true
-          // 应用用户设置的默认视图（仅当尚未处于某个明确视图时属于启动行为）
           applyDefaultView(state)
           // pendingAiQuery / pendingFamilyId 不持久化：刷新后不应自动重发/跳转，置空保险
           state.pendingAiQuery = null
@@ -2104,15 +2019,11 @@ export const useWorkspace = create<WorkspaceState>()(
         }
         // 迁移：旧版单一人设字符串（aiPersona）升级为多人人设列表 + 全局选中。
         const persona = migratePersona(rawSettings)
-        // 若历史数据没有 settings，则并入当前默认设置
-        // 关系族（TODO 54）：新格式 relationFamilies 规范化；旧格式 categories[].relation +
-        // mindmapViewports 迁移为每分类一个默认族「我的分类」（id 稳定 `fam_${catId}`，viewport 随迁）；
-        // 内建「待办事项」分类缺失时自动补建（含默认族）
+        // 关系族（TODO 54）：规范化 / 迁移（旧格式 relation + mindmapViewports → 默认族），内建「待办事项」分类缺失时补建
         const relationState = migrateRelationState(p.categories, p.relationFamilies, persisted ? (persisted as Record<string, unknown>).mindmapViewports : undefined)
         return {
           ...current,
           ...p,
-          // 旧存档节点可能缺失 createdAt / completedAt：补齐默认值并随本次写入持久化。
           categories: relationState.categories,
           relationFamilies: relationState.relationFamilies,
           // 跨组件跳族标记：不持久化生效
@@ -2223,7 +2134,6 @@ export function toChineseNumber(n: number): string {
     const ones = n % 10
     return digits[tens] + "十" + (ones ? digits[ones] : "")
   }
-  // 100-999
   let result = ""
   const str = String(n)
   for (let i = 0; i < str.length; i++) {

@@ -648,7 +648,10 @@ TODO 87. （状态：待处理）
 
 TODO 88. （状态：待处理）
 通知页面里加一个，和 github contribution 一样的，折叠过多消息。
-默认打开只显示100条消息，可以
+默认打开只显示100条消息，可以点击展开按钮继续查看。
 
-TODO 89. （状态：待通知）
+TODO 89. （状态：待处理）
 通知改成放到brand header里的用户头像的左边，功能不变
+
+TODO 90. （状态：待处理）
+npm run lint / test 里的问题逐一处理，同时加到现有的 ai agent workbuddy check 流程那里
