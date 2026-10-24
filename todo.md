@@ -625,11 +625,15 @@ TODO 80. （状态：已完成，待目视确认）
 TODO 81. （状态：已完成）
 deploy.yml 在 Build 步骤前加 `npm run lint && npm test`（来自 maintainability-review.md 缺口 #1/#6）——当前 lint 和 76 条测试都不在部署门禁上，坏代码只要类型过关就能带着 lint 错误和挂掉的测试上线，i18n en/zh 同构测试也只在本地域内生效
 
-TODO 82. （状态：待处理）
+TODO 82. （状态：已完成）
 依赖漏洞治理（来自 maintainability-review.md，当前 npm audit 11 条漏洞：2 critical / 5 high，`next` 本体 advisory 在构建与客户端运行时路径上不可忽略）：
 1. 启用 Dependabot alerts（仓库设置一键）或 CI 加 `npm audit --audit-level=high`
 2. 跑一次 `npm audit fix` 后回归测试，处理掉 markdown-it / postcss / modelcontextprotocol-sdk 一批
 3. 评估 `next` critical advisory 的升级
+
+- 逐项落实情况（2026-10-25 核实）：① `.github/dependabot.yml` 已配置（npm + github-actions 周更、dev 依赖分组、tiptap/ai-sdk 分组、忽略 next/react/react-dom semver-major）；本轮给 `.github/workflows/ci.yml` 补上 `npm audit --audit-level=high` 门禁步骤（跑在 npm ci 后，审计实际安装树，high/critical 即失败）。「Dependabot alerts」为仓库设置项，需主人在 GitHub 仓库 Settings → Code security 一键开启，代码侧已就绪。
+  ② 已随先前依赖更新完成：当前 `npm audit` 0 漏洞（review 记录的 11 条已清，next 16.4.2）。
+  ③ 已消解：next 16.4.2 不在 advisory 区间（9.3.4-canary.0 – 16.4.0）内，无需升级动作。
 
 TODO 83. （状态：待处理）
 给「persist merge 迁移」配回归测试（来自 maintainability-review.md）：构造 v-1 存档 JSON，断言 `merge` 迁移结果——把 AGENTS.md 红线 #1「新增字段必须过 merge」从文字约定变成机械检查，typecheck 挡不住「忘了写 merge 兼容」
