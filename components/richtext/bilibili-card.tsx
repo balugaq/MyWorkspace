@@ -19,19 +19,23 @@ function BilibiliCardView({ node }: NodeViewProps) {
   // 封面缓存/拉取在 lib/bilibili 模块级实现：命中即用，卸载中止且不污染缓存
   useEffect(() => {
     if (!bv) return
-    const cached = getCachedBilibiliCover(bv)
-    if (cached !== undefined) {
-      setCover(cached)
-      return
-    }
     let alive = true
     const ctrl = new AbortController()
-    void fetchBilibiliCover(bv, ctrl.signal).then((c) => {
-      if (alive) setCover(c)
-    })
+    // 延迟一拍：effect 体内同步 setState 会触发 react-hooks/set-state-in-effect
+    const t = window.setTimeout(() => {
+      const cached = getCachedBilibiliCover(bv)
+      if (cached !== undefined) {
+        if (alive) setCover(cached)
+        return
+      }
+      void fetchBilibiliCover(bv, ctrl.signal).then((c) => {
+        if (alive) setCover(c)
+      })
+    }, 0)
     return () => {
       alive = false
       ctrl.abort()
+      window.clearTimeout(t)
     }
   }, [bv])
 

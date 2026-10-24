@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useSyncExternalStore } from "react"
 import { Cake, Search, Command, User, PanelLeft, UserCircle, Settings2 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
@@ -88,11 +88,12 @@ export function BrandHeader({
   const goAIChat = useWorkspace((s) => s.goAIChat)
   const goProfile = useWorkspace((s) => s.goProfile)
   const goSettings = useWorkspace((s) => s.goSettings)
-  const [isMac, setIsMac] = useState(false)
-
-  useEffect(() => {
-    setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent))
-  }, [])
+  // 客户端专用平台检测：useSyncExternalStore 订阅空源（渲染期不可直接读 navigator 触发 hydration 差异）
+  const isMac = useSyncExternalStore(
+    () => () => {},
+    () => /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent),
+    () => false,
+  )
 
   const avatar = settings.aiUserAvatar ? (
     // eslint-disable-next-line @next/next/no-img-element

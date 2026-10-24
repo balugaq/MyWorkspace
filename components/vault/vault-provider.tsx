@@ -27,6 +27,9 @@ export interface VaultEntry {
 
 type Status = "loading" | "no-vault" | "locked" | "unlocked"
 
+// 空闲自动锁定：解锁后 3 分钟无操作自动 lock()
+const IDLE_MS = 3 * 60 * 1000
+
 interface VaultContextValue {
   status: Status
   entries: VaultEntry[]
@@ -151,8 +154,6 @@ export function VaultProvider({ children }: { children: ReactNode }) {
     setStatus("locked")
   }, [])
 
-  // 空闲自动锁定：解锁后 3 分钟无操作自动 lock()
-  const IDLE_MS = 3 * 60 * 1000
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resetIdle = useCallback(() => {
     if (idleTimer.current) clearTimeout(idleTimer.current)

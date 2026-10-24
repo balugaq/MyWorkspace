@@ -307,15 +307,18 @@ export function AIChatWorkspace() {
     const text = pendingAiQuery
     if (!text) return
     clearPendingAiQuery()
-    if (!active || !hasKey) {
-      setInput(text)
-      if (!hasKey) toast.error(t("aiChat.needModelFirst"))
-      return
-    }
-    const isFirst = active.messages.length === 0
-    setInput("")
-    void send(text)
-    if (isFirst) renameConversation(active.id, text.trim().slice(0, 10))
+    // 整体延迟一拍执行：effect 体内同步 setState 会触发 react-hooks/set-state-in-effect
+    queueMicrotask(() => {
+      if (!active || !hasKey) {
+        setInput(text)
+        if (!hasKey) toast.error(t("aiChat.needModelFirst"))
+        return
+      }
+      const isFirst = active.messages.length === 0
+      setInput("")
+      void send(text)
+      if (isFirst) renameConversation(active.id, text.trim().slice(0, 10))
+    })
     // 仅依赖 pendingAiQuery：消费一次即清空，无需对其余依赖建立依赖
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAiQuery])

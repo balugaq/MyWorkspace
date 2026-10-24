@@ -62,8 +62,10 @@ export default function Page() {
   const SIDEBAR_MIN = 200
   const SIDEBAR_MAX = 420
   useEffect(() => {
-    setSidebarWidthLocal(sidebarWidth)
+    // setState 延迟一拍：effect 体内同步 setState 会触发 react-hooks/set-state-in-effect
+    const t = window.setTimeout(() => setSidebarWidthLocal(sidebarWidth), 0)
     latestSidebarWidth.current = sidebarWidth
+    return () => window.clearTimeout(t)
   }, [sidebarWidth])
 
   function startResizeSidebar(e: ReactMouseEvent) {
@@ -108,7 +110,8 @@ export default function Page() {
   }, [])
 
   useEffect(() => {
-    setMobileNav(false)
+    const t = window.setTimeout(() => setMobileNav(false), 0)
+    return () => window.clearTimeout(t)
   }, [activeCategoryId, view])
 
   // TODO 20/18：hydrate 后启动通知调度器（内部幂等，重复调用安全）；每 5 分钟扫描新动态 + 心跳

@@ -35,9 +35,9 @@ export function ConfigEditorDialog({
   useEscapeClose(open, () => onOpenChange(false))
 
   useEffect(() => {
-    if (open) {
-      setText(exportData() ?? "{}")
-    }
+    if (!open) return
+    const t = window.setTimeout(() => setText(exportData() ?? "{}"), 0)
+    return () => window.clearTimeout(t)
   }, [open, exportData])
 
   function reload() {

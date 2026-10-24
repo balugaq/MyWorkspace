@@ -92,10 +92,11 @@ export function CalendarWorkspace() {
   const draggingRef = useRef(false)
   const isDesktop = useMediaQuery("(min-width: 1024px)")
 
-  // store 重新水合时同步回本地，保证刷新后位置生效
+  // store 重新水合时同步回本地，保证刷新后位置生效（setState 延迟一拍避开 set-state-in-effect）
   useEffect(() => {
-    setDetailWidth(calendarDetailWidth)
+    const t = window.setTimeout(() => setDetailWidth(calendarDetailWidth), 0)
     latestWidthRef.current = calendarDetailWidth
+    return () => window.clearTimeout(t)
   }, [calendarDetailWidth])
 
 

@@ -16,11 +16,12 @@ import {
   GripVertical,
   NotebookPen,
   CalendarDays,
+  SquarePen,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { useTranslation } from "react-i18next"
-import { getIcon } from "@/lib/icons"
+import { ICONS } from "@/lib/icons"
 import type { Category } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -213,7 +214,9 @@ function VaultSidePanel() {
   }, [pwdCfg.upper, pwdCfg.lower, pwdCfg.digits, pwdCfg.symbols])
 
   useEffect(() => {
-    setPassword(generatePassword(pwdCfg.length, sets))
+    // setState 延迟一拍：effect 体内同步 setState 会触发 react-hooks/set-state-in-effect
+    const t = window.setTimeout(() => setPassword(generatePassword(pwdCfg.length, sets)), 0)
+    return () => window.clearTimeout(t)
   }, [pwdCfg.length, sets])
 
   const copyPassword = () => {
@@ -426,7 +429,8 @@ function CategoryItem({ category, active }: { category: Category; active: boolea
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(category.name)
 
-  const Icon = getIcon(category.icon)
+  // 模块级常量表查找而非工厂调用：render 期间调用组件工厂会触发 react-hooks/static-components
+  const Icon = ICONS[category.icon] ?? SquarePen
   const isRelation = category.template === "relation"
   const isNovelLike = !isRelation
   const items = category.chapters ?? []

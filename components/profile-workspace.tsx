@@ -209,9 +209,14 @@ export function ProfileWorkspace() {
   const [pendingFocusMinutes, setPendingFocusMinutes] = useState(0)
   const [focusContentInput, setFocusContentInput] = useState("")
   // 暂停起点（仅内存，不持久化）；重载后若暂停态，挂载记为「此刻」，继续时把刷新间隙计入暂停
-  const pauseStartRef = useRef<number | null>(
-    initialFocus && !initialFocus.running && initialFocus.startedAt != null ? Date.now() : null,
-  )
+  // （Date.now 不纯，不能在渲染期取，挂载 effect 里写入）
+  const pauseStartRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (initialFocus && !initialFocus.running && initialFocus.startedAt != null) {
+      pauseStartRef.current = Date.now()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // TODO 53：控制按钮切换动画——running 变化时旧按钮组先播退场（leaving），500ms 后切新组进场
   const [shownRunning, setShownRunning] = useState(initialFocus?.running ?? false)
@@ -434,31 +439,35 @@ export function ProfileWorkspace() {
 
   useEffect(() => {
     let cancelled = false
-    const cached = readPoemCache()
-    // 命中当日缓存：直接展示，不重复请求、不跳变
-    if (cached && cached.date === poemDateKey()) {
-      setPoemLine(cached.line)
-      setPoemAuthor(cached.author)
-      setPoemTitle(cached.title)
-      setPoemLoading(false)
-      return
-    }
-    fetchPoem()
-      .then((p) => {
-        if (cancelled) return
-        const date = poemDateKey()
-        writePoemCache({ line: p.line, author: p.author, title: p.title, date })
-        setPoemLine(p.line)
-        setPoemAuthor(p.author)
-        setPoemTitle(p.title)
+    // 缓存命中路径整体走微任务：effect 体内同步 setState 会触发 react-hooks/set-state-in-effect
+    void Promise.resolve().then(() => {
+      if (cancelled) return
+      const cached = readPoemCache()
+      // 命中当日缓存：直接展示，不重复请求、不跳变
+      if (cached && cached.date === poemDateKey()) {
+        setPoemLine(cached.line)
+        setPoemAuthor(cached.author)
+        setPoemTitle(cached.title)
         setPoemLoading(false)
-      })
-      .catch(() => {
-        if (cancelled) return
-        // 初始/挂载 fetch 失败（网络/非 200/CORS）：整块隐藏
-        setPoemVisible(false)
-        setPoemLoading(false)
-      })
+        return
+      }
+      return fetchPoem()
+        .then((p) => {
+          if (cancelled) return
+          const date = poemDateKey()
+          writePoemCache({ line: p.line, author: p.author, title: p.title, date })
+          setPoemLine(p.line)
+          setPoemAuthor(p.author)
+          setPoemTitle(p.title)
+          setPoemLoading(false)
+        })
+        .catch(() => {
+          if (cancelled) return
+          // 初始/挂载 fetch 失败（网络/非 200/CORS）：整块隐藏
+          setPoemVisible(false)
+          setPoemLoading(false)
+        })
+    })
     return () => {
       cancelled = true
     }

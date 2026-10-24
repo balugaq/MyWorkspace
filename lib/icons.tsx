@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-const MAP: Record<string, LucideIcon> = {
+export const ICONS: Record<string, LucideIcon> = {
   BookOpen,
   GraduationCap,
   Briefcase,
@@ -20,5 +20,5 @@ const MAP: Record<string, LucideIcon> = {
 }
 
 export function getIcon(name: string): LucideIcon {
-  return MAP[name] ?? SquarePen
+  return ICONS[name] ?? SquarePen
 }

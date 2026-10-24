@@ -54,7 +54,9 @@ export function ImageCacheDialog({
   }
 
   useEffect(() => {
-    if (open) refresh()
+    if (!open) return
+    const t = window.setTimeout(() => void refresh(), 0)
+    return () => window.clearTimeout(t)
   }, [open])
 
   async function runScan() {

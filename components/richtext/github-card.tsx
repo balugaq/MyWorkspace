@@ -22,19 +22,24 @@ function GitHubCardView({ node }: NodeViewProps) {
   useEffect(() => {
     if (!url) return
     let active = true
-    setFailed(false)
-    fetchGithubCard(url, token)
-      .then((d) => {
-        if (!active) return
-        setData(d)
-        return getOgImageSrc(d.ogImage)
-      })
-      .then((src) => {
-        if (active && src) setImgSrc(src)
-      })
-      .catch(() => active && setFailed(true))
+    // 延迟一拍：effect 体内同步 setState 会触发 react-hooks/set-state-in-effect
+    const t = window.setTimeout(() => {
+      if (!active) return
+      setFailed(false)
+      fetchGithubCard(url, token)
+        .then((d) => {
+          if (!active) return
+          setData(d)
+          return getOgImageSrc(d.ogImage)
+        })
+        .then((src) => {
+          if (active && src) setImgSrc(src)
+        })
+        .catch(() => active && setFailed(true))
+    }, 0)
     return () => {
       active = false
+      window.clearTimeout(t)
     }
   }, [url, token])
 

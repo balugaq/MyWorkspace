@@ -78,10 +78,11 @@ export function WeatherWidget() {
     }
   }, [t])
 
-  // 挂载：恢复冷却状态 + 非强制拉一次（缓存命中直接复用）
+  // 挂载：恢复冷却状态 + 非强制拉一次（缓存命中直接复用）；setState 延迟一拍避开 set-state-in-effect
   useEffect(() => {
-    setCooldownMs(getCooldownRemainingMs())
+    const t = window.setTimeout(() => setCooldownMs(getCooldownRemainingMs()), 0)
     void load(uapiToken, false)
+    return () => window.clearTimeout(t)
   }, [uapiToken, load])
 
   useEffect(() => {

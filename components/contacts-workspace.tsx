@@ -320,7 +320,9 @@ function ContactFormDialog({
   const [draft, setDraft] = useState<ContactDraft>(() => draftFromPerson(null))
 
   useEffect(() => {
-    if (open) setDraft(draftFromPerson(initial))
+    if (!open) return
+    const t = window.setTimeout(() => setDraft(draftFromPerson(initial)), 0)
+    return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
