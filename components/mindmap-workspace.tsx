@@ -66,14 +66,17 @@ import { cn } from "@/lib/utils"
 const nodeTypes = { todo: TodoNode, solution: SolutionNode }
 
 // 渲染防风暴缓存（模块级 WeakMap，以 store 源对象为弱引用键，对象删除后自动 GC，无需手动清理）：
-// 逐节点缓存 rf 对象（node 引用/折叠/选中/多选态/多选数量不变即复用，含回调闭包），
+// 逐节点缓存 React Flow 节点对象（node 引用/折叠/选中/多选态/多选数量不变即复用，含回调闭包），
 // 让 React Flow 逐节点 memo 生效；回调按 nodeId 派发，旧闭包最多滞后一个快照，语义无影响。
 // multiCount 必须入 key：它是 data 闭包快照（右键菜单「搬迁 n 个」显示源），只比 multi 布尔值会显示过期数量
-const rfNodeCache = new WeakMap<MindNode, Map<string, Node>>()
-const rfSolNodeCache = new WeakMap<MindNode, Node>()
+const flowNodeCache = new WeakMap<MindNode, Map<string, Node>>()
+const flowSolNodeCache = new WeakMap<MindNode, Node>()
 // edge 逐边缓存：源 edge/node 引用与 animated 标志没变就复用同一对象
-const rfEdgeCache = new WeakMap<MindEdge, Map<string, Edge>>()
-const rfSolEdgeCache = new WeakMap<MindNode, Edge>()
+const flowEdgeCache = new WeakMap<MindEdge, Map<string, Edge>>()
+const flowSolEdgeCache = new WeakMap<MindNode, Edge>()
+// 注：react-hooks/refs 会把「模块级 WeakMap 取值后传参」误判为 ref 访问，已在下方
+// 报错处用 eslint-disable-next-line 局部豁免。该缓存是保命设计——复用 React Flow
+// 节点对象引用让逐节点 memo 生效，删掉会复现渲染死循环，故保留。
 
 export function MindmapWorkspace({ category }: { category: Category }) {
   const { t } = useTranslation()
@@ -912,14 +915,14 @@ function Canvas({
       const multi = multiActive && selectedIds.has(n.id)
       const multiCount = selectedIds.size
       const key = `${selected ? 1 : 0}|${isCollapsed ? 1 : 0}|${multi ? 1 : 0}|${multiCount}`
-      let variants = rfNodeCache.get(n)
+      let variants = flowNodeCache.get(n)
       if (!variants) {
         variants = new Map()
-        rfNodeCache.set(n, variants)
+        flowNodeCache.set(n, variants)
       }
-      let rf = variants.get(key)
-      if (!rf) {
-        rf = {
+      let flowNode = variants.get(key)
+      if (!flowNode) {
+        flowNode = {
           id: n.id,
           type: "todo",
           position: n.position,
@@ -934,11 +937,15 @@ function Canvas({
           },
           selected,
         }
-        variants.set(key, rf)
+        // 局部豁免：模块级 WeakMap 缓存复用是防 xyflow 渲染死循环的保命设计（对象引用
+        // 稳定才能让逐节点 memo 生效），Compiler 无法证明其稳定性，属已知误报。
+        // eslint-disable-next-line react-hooks/refs
+        variants.set(key, flowNode)
       }
-      list.push(rf)
+      // eslint-disable-next-line react-hooks/refs
+      list.push(flowNode)
       if (n.solution && n.solution.content.trim()) {
-        let solRf = rfSolNodeCache.get(n)
+        let solRf = flowSolNodeCache.get(n)
         if (!solRf) {
           solRf = {
             id: `sol-${n.id}`,
@@ -948,7 +955,7 @@ function Canvas({
             draggable: true,
             selectable: false,
           }
-          rfSolNodeCache.set(n, solRf)
+          flowSolNodeCache.set(n, solRf)
         }
         list.push(solRf)
       }
@@ -973,10 +980,10 @@ function Canvas({
       if (hidden.has(e.source) || hidden.has(e.target)) continue
       if (hiddenIds.has(e.source) || hiddenIds.has(e.target)) continue
       const animated = e.kind === "flow" && !isConnecting
-      let variants = rfEdgeCache.get(e)
+      let variants = flowEdgeCache.get(e)
       if (!variants) {
         variants = new Map()
-        rfEdgeCache.set(e, variants)
+        flowEdgeCache.set(e, variants)
       }
       let edge = variants.get(String(animated))
       if (!edge) {
@@ -999,7 +1006,7 @@ function Canvas({
       if (hidden.has(n.id)) continue
       if (n.hidden) continue
       if (n.solution && n.solution.content.trim()) {
-        let edge = rfSolEdgeCache.get(n)
+        let edge = flowSolEdgeCache.get(n)
         if (!edge) {
           edge = {
             id: `sol-edge-${n.id}`,
@@ -1008,7 +1015,7 @@ function Canvas({
             style: { stroke: "var(--solution)", strokeWidth: 2.5 },
             selectable: false,
           }
-          rfSolEdgeCache.set(n, edge)
+          flowSolEdgeCache.set(n, edge)
         }
         list.push(edge)
       }

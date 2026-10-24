@@ -78,10 +78,12 @@ export function WeatherWidget() {
     }
   }, [t])
 
-  // 挂载：恢复冷却状态 + 非强制拉一次（缓存命中直接复用）；setState 延迟一拍避开 set-state-in-effect
+  // 挂载：恢复冷却状态 + 非强制拉一次（缓存命中直接复用）；整体延迟一拍避开 react-hooks/set-state-in-effect
   useEffect(() => {
-    const t = window.setTimeout(() => setCooldownMs(getCooldownRemainingMs()), 0)
-    void load(uapiToken, false)
+    const t = window.setTimeout(() => {
+      setCooldownMs(getCooldownRemainingMs())
+      void load(uapiToken, false)
+    }, 0)
     return () => window.clearTimeout(t)
   }, [uapiToken, load])
 
