@@ -21,6 +21,10 @@ updates:
       tiptap:
         patterns:
           - "@tiptap/*"
+      ai-sdk:
+        patterns:
+          - "ai"
+          - "@ai-sdk/*"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
