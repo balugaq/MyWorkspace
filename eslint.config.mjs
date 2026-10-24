@@ -13,6 +13,11 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     ".ref/**",
   ]),
+  {
+    rules: {
+      "linebreak-style": ["error", "unix"],
+    },
+  },
 ]);
 
 export default eslintConfig;
