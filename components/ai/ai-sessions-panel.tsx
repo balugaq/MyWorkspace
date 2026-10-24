@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
+import { useNow } from "@/hooks/use-now"
 
 // 锚点：最后一条用户消息的创建时间（继续对话自动置顶）；旧消息/无消息回落 updatedAt/createdAt。
 function conversationAnchor(c: Conversation): number {
@@ -119,8 +120,9 @@ export function AiSessionsPanel() {
     deleteConversation(id)
   }
 
+  // 时间走 useNow（外部时钟源，每分钟刷新）：渲染期直接调 Date.now() 会触发 react-hooks/purity
+  const now = useNow()
   const groups = useMemo(() => {
-    const now = Date.now()
     const byKey = new Map<string, Conversation[]>()
     for (const c of conversations) {
       const k = bucketKey(c, now)
@@ -139,7 +141,7 @@ export function AiSessionsPanel() {
       return b.key.localeCompare(a.key)
     })
     return list
-  }, [conversations])
+  }, [conversations, now])
 
   return (
     <div className="flex h-full min-h-0 flex-col">

@@ -32,7 +32,7 @@ import {
 import { toast } from "sonner"
 import { useWorkspace } from "@/lib/store"
 import { useTranslation } from "react-i18next"
-import type { Category, MindNode, RelationFamily } from "@/lib/types"
+import type { Category, MindEdge, MindNode, RelationFamily } from "@/lib/types"
 import { STATUS_META } from "@/lib/types"
 import { isPristineNode } from "@/lib/mindmap"
 import { relayoutFamilyNodes } from "@/lib/ai/relayout"
@@ -65,6 +65,16 @@ import { cn } from "@/lib/utils"
 
 const nodeTypes = { todo: TodoNode, solution: SolutionNode }
 
+// 渲染防风暴缓存（模块级 WeakMap，以 store 源对象为弱引用键，对象删除后自动 GC，无需手动清理）：
+// 逐节点缓存 rf 对象（node 引用/折叠/选中/多选态/多选数量不变即复用，含回调闭包），
+// 让 React Flow 逐节点 memo 生效；回调按 nodeId 派发，旧闭包最多滞后一个快照，语义无影响。
+// multiCount 必须入 key：它是 data 闭包快照（右键菜单「搬迁 n 个」显示源），只比 multi 布尔值会显示过期数量
+const rfNodeCache = new WeakMap<MindNode, Map<string, Node>>()
+const rfSolNodeCache = new WeakMap<MindNode, Node>()
+// edge 逐边缓存：源 edge/node 引用与 animated 标志没变就复用同一对象
+const rfEdgeCache = new WeakMap<MindEdge, Map<string, Edge>>()
+const rfSolEdgeCache = new WeakMap<MindNode, Edge>()
+
 export function MindmapWorkspace({ category }: { category: Category }) {
   const { t } = useTranslation()
   // TODO 54：当前分类的族列表；当前族为组件内 state，默认第一个族
@@ -80,19 +90,18 @@ export function MindmapWorkspace({ category }: { category: Category }) {
   const [activeFamilyId, setActiveFamilyId] = useState<string | null>(null)
   const family = families.find((f) => f.id === activeFamilyId) ?? families[0] ?? null
 
-  // 消费跨组件跳族标记（如搬迁后跳转到目标分类并选中目标族）
+  // 消费跨组件跳族标记（如搬迁后跳转到目标分类并选中目标族）；
+  // setState 延迟一拍：effect 体内同步 setState 会触发 react-hooks/set-state-in-effect
   useEffect(() => {
-    if (pendingFamilyId && families.some((f) => f.id === pendingFamilyId)) {
+    if (!pendingFamilyId || !families.some((f) => f.id === pendingFamilyId)) return
+    const t = window.setTimeout(() => {
       setActiveFamilyId(pendingFamilyId)
       setPendingFamilyId(null)
-    }
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [pendingFamilyId, families, setPendingFamilyId])
 
-  useEffect(() => {
-    if (activeFamilyId && !families.some((f) => f.id === activeFamilyId)) {
-      setActiveFamilyId(null)
-    }
-  }, [activeFamilyId, families])
+  // 注：activeFamilyId 指向已删除族时无需清 state——下方 find 未命中自动回落 families[0]
 
   const view = family?.view ?? "mindmap"
 
@@ -495,10 +504,12 @@ function MoveNodesDialog({
   const [newName, setNewName] = useState("")
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    const t = window.setTimeout(() => {
       setTarget(null)
       setNewName("")
-    }
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [open])
 
   const createInline = () => {
@@ -662,8 +673,10 @@ function Canvas({
 
   // 多选选区（TODO 54）：Shift+左键拖框选；右键菜单批量项作用于该选区
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // 切族时清空选区；延迟一拍避开 react-hooks/set-state-in-effect
   useEffect(() => {
-    setSelectedIds(new Set())
+    const t = window.setTimeout(() => setSelectedIds(new Set()), 0)
+    return () => window.clearTimeout(t)
   }, [family.id])
   // 稳定引用 + 内容相同返回旧 Set：xyflow 把 onSelectionChange 放进 effect 依赖，内联函数会引发 setState→渲染死循环
   const handleSelectionChange = useCallback((params: OnSelectionChangeParams) => {
@@ -761,6 +774,10 @@ function Canvas({
       if (zoomPersistTimer.current) window.clearTimeout(zoomPersistTimer.current)
     }
   }, [])
+
+  // 搬迁弹窗：多选批量 / 单节点（声明在 handleMenuAction 之前，其内部要引用 setMoveIds）
+  const [moveIds, setMoveIds] = useState<string[] | null>(null)
+  useEscapeClose(moveIds !== null, () => setMoveIds(null))
 
   // 右键菜单动作（TodoNode 上报，此处统一执行 store 变更）；TODO 54：多选态（选区>1）除「添加子节点」外批量套用
   const handleMenuAction = useCallback(
@@ -871,29 +888,6 @@ function Canvas({
     return () => window.removeEventListener("keydown", onKey)
   }, [activeItemId, family.nodes, family.edges, family.id, removeNode, t])
 
-  // 渲染防风暴缓存：逐节点缓存 rf 对象（node 引用/折叠/选中/多选态/多选数量不变即复用，含回调闭包），
-  // 让 React Flow 逐节点 memo 生效；回调按 nodeId 派发，旧闭包最多滞后一个快照，语义无影响。
-  // multiCount 必须入 key：它是 data 闭包快照（右键菜单「搬迁 n 个」显示源），只比 multi 布尔值会显示过期数量
-  const rfNodeCacheRef = useRef(
-    new Map<
-      string,
-      {
-        node: MindNode
-        collapsed: boolean
-        selected: boolean
-        multi: boolean
-        multiCount: number
-        rf: Node
-      }
-    >()
-  )
-  const lastRfNodesRef = useRef<Node[] | null>(null)
-  // edge 逐边缓存：源 edge/node 引用与 animated 标志没变就复用同一对象
-  const edgeCacheRef = useRef(
-    new Map<string, { key: unknown; animated: boolean | undefined; edge: Edge }>()
-  )
-  const lastRfEdgesRef = useRef<Edge[] | null>(null)
-
   // 本地画布态：React Flow 持有位置，避免拖拽每帧写 store；初值空数组，快照由下方 sync effect 首帧推入。
   // **selected 单向铁律**：React Flow 内部选中是唯一真相，快照只读不写 selected，
   // 否则与 onSelectionChange→selectedIds 回写构成双向环——历次「Maximum update depth exceeded」死循环根源。
@@ -908,30 +902,23 @@ function Canvas({
   }, [nodes])
 
   const rfNodes: Node[] = useMemo(() => {
-    const cache = rfNodeCacheRef.current
     const list: Node[] = []
-    const seen = new Set<string>()
     const multiActive = selectedIds.size > 1
     for (const n of family.nodes) {
       if (hidden.has(n.id)) continue
       if (n.hidden) continue
-      seen.add(n.id)
       const selected = localSelected.get(n.id) ?? false
       const isCollapsed = collapsed.has(n.id)
       const multi = multiActive && selectedIds.has(n.id)
       const multiCount = selectedIds.size
-      const hit = cache.get(n.id)
-      let rf: Node
-      if (
-        hit &&
-        hit.node === n &&
-        hit.selected === selected &&
-        hit.collapsed === isCollapsed &&
-        hit.multi === multi &&
-        hit.multiCount === multiCount
-      ) {
-        rf = hit.rf
-      } else {
+      const key = `${selected ? 1 : 0}|${isCollapsed ? 1 : 0}|${multi ? 1 : 0}|${multiCount}`
+      let variants = rfNodeCache.get(n)
+      if (!variants) {
+        variants = new Map()
+        rfNodeCache.set(n, variants)
+      }
+      let rf = variants.get(key)
+      if (!rf) {
         rf = {
           id: n.id,
           type: "todo",
@@ -947,55 +934,25 @@ function Canvas({
           },
           selected,
         }
-        cache.set(n.id, {
-          node: n,
-          collapsed: isCollapsed,
-          selected,
-          multi,
-          multiCount,
-          rf,
-        })
+        variants.set(key, rf)
       }
       list.push(rf)
       if (n.solution && n.solution.content.trim()) {
-        const solKey = `sol-${n.id}`
-        seen.add(solKey)
-        const solHit = cache.get(solKey)
-        if (solHit && solHit.node === n) {
-          list.push(solHit.rf)
-        } else {
-          const solRf: Node = {
-            id: solKey,
+        let solRf = rfSolNodeCache.get(n)
+        if (!solRf) {
+          solRf = {
+            id: `sol-${n.id}`,
             type: "solution",
             position: n.solutionPosition ?? { x: n.position.x + 20, y: n.position.y + 190 },
             data: { node: n },
             draggable: true,
             selectable: false,
           }
-          cache.set(solKey, {
-            node: n,
-            collapsed: false,
-            selected: false,
-            multi: false,
-            multiCount: 0,
-            rf: solRf,
-          })
-          list.push(solRf)
+          rfSolNodeCache.set(n, solRf)
         }
+        list.push(solRf)
       }
     }
-    // 清理已删除节点的缓存，避免长会话下 Map 无限增长
-    if (cache.size > seen.size) {
-      for (const key of cache.keys()) {
-        if (!seen.has(key)) cache.delete(key)
-      }
-    }
-    // 全部复用且结构未变：返回旧数组引用，下游同步 effect 直接跳过
-    const prev = lastRfNodesRef.current
-    if (prev && prev.length === list.length && prev.every((p, i) => p === list[i])) {
-      return prev
-    }
-    lastRfNodesRef.current = list
     return list
   }, [
     family.nodes,
@@ -1009,21 +966,21 @@ function Canvas({
   ])
 
   const rfEdges: Edge[] = useMemo(() => {
-    const cache = edgeCacheRef.current
     const list: Edge[] = []
-    const seen = new Set<string>()
     // 用户隐藏的节点 id（用于过滤连线）
     const hiddenIds = new Set(family.nodes.filter((n) => n.hidden).map((n) => n.id))
     for (const e of family.edges) {
       if (hidden.has(e.source) || hidden.has(e.target)) continue
       if (hiddenIds.has(e.source) || hiddenIds.has(e.target)) continue
       const animated = e.kind === "flow" && !isConnecting
-      seen.add(e.id)
-      const hit = cache.get(e.id)
-      if (hit && hit.key === e && hit.animated === animated) {
-        list.push(hit.edge)
-      } else {
-        const edge: Edge = {
+      let variants = rfEdgeCache.get(e)
+      if (!variants) {
+        variants = new Map()
+        rfEdgeCache.set(e, variants)
+      }
+      let edge = variants.get(String(animated))
+      if (!edge) {
+        edge = {
           id: e.id,
           source: e.source,
           target: e.target,
@@ -1033,44 +990,29 @@ function Canvas({
               ? { stroke: "var(--muted-foreground)", strokeDasharray: "5 5" }
               : { stroke: "var(--primary)", strokeWidth: 2 },
         }
-        cache.set(e.id, { key: e, animated, edge })
-        list.push(edge)
+        variants.set(String(animated), edge)
       }
+      list.push(edge)
     }
     // 解决方案绿线（按节点引用缓存）
     for (const n of family.nodes) {
       if (hidden.has(n.id)) continue
       if (n.hidden) continue
       if (n.solution && n.solution.content.trim()) {
-        const id = `sol-edge-${n.id}`
-        seen.add(id)
-        const hit = cache.get(id)
-        if (hit && hit.key === n) {
-          list.push(hit.edge)
-        } else {
-          const edge: Edge = {
-            id,
+        let edge = rfSolEdgeCache.get(n)
+        if (!edge) {
+          edge = {
+            id: `sol-edge-${n.id}`,
             source: n.id,
             target: `sol-${n.id}`,
             style: { stroke: "var(--solution)", strokeWidth: 2.5 },
             selectable: false,
           }
-          cache.set(id, { key: n, animated: false, edge })
-          list.push(edge)
+          rfSolEdgeCache.set(n, edge)
         }
+        list.push(edge)
       }
     }
-    // 清理已删除连线/节点的缓存
-    if (cache.size > seen.size) {
-      for (const key of cache.keys()) {
-        if (!seen.has(key)) cache.delete(key)
-      }
-    }
-    const prev = lastRfEdgesRef.current
-    if (prev && prev.length === list.length && prev.every((p, i) => p === list[i])) {
-      return prev
-    }
-    lastRfEdgesRef.current = list
     return list
   }, [family.edges, family.nodes, hidden, isConnecting])
 
@@ -1233,10 +1175,6 @@ function Canvas({
     },
     [screenToFlowPosition, addNode, family.id, setActiveItem, t]
   )
-
-  // 搬迁弹窗：多选批量 / 单节点
-  const [moveIds, setMoveIds] = useState<string[] | null>(null)
-  useEscapeClose(moveIds !== null, () => setMoveIds(null))
 
   return (
     <div className="flex h-full">

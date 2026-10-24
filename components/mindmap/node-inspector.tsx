@@ -66,7 +66,8 @@ export function NodeInspector({
   // 内容打字防抖（300ms）：受控 textarea 每键直写 store 会触发全量 persist 序列化 + 画布同步，打字极卡。
   // 打字先落本地 live state（仅本面板重渲染），停顿 300ms 或切换节点/卸载/pagehide 才一次性提交 updateNode。
   const liveContentRef = useRef<{ id: string; value: string } | null>(null)
-  const [liveContent, setLiveContent] = useState<string | null>(null)
+  // live state 携带来源 nodeId：渲染期判定归属只需读 state，不必碰 ref（react-hooks/refs）
+  const [liveContent, setLiveContent] = useState<{ id: string; value: string } | null>(null)
   const contentTimerRef = useRef<number | undefined>(undefined)
 
   // 只提交、不碰 React state（卸载 / pagehide 场景安全复用）
@@ -88,7 +89,7 @@ export function NodeInspector({
 
   const handleContentChange = (v: string) => {
     liveContentRef.current = { id: node.id, value: v }
-    setLiveContent(v)
+    setLiveContent({ id: node.id, value: v })
     if (contentTimerRef.current !== undefined) window.clearTimeout(contentTimerRef.current)
     contentTimerRef.current = window.setTimeout(() => {
       contentTimerRef.current = undefined
@@ -121,8 +122,8 @@ export function NodeInspector({
 
   // 本节点有未提交草稿用草稿，否则用 store 真值；id 守卫防止切换节点后的首帧把上节点的草稿带进新节点。
   const contentValue =
-    liveContent !== null && liveContentRef.current?.id === node.id
-      ? liveContent
+    liveContent !== null && liveContent.id === node.id
+      ? liveContent.value
       : node.content
 
   useEscapeClose(confirmDel, () => setConfirmDel(false))

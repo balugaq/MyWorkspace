@@ -57,14 +57,18 @@ export function NotificationToastQueue() {
   // 把刚排的 5 秒定时器与滑入 rAF 一并取消 → 永不自动滑出。
   useEffect(() => {
     if (current || summaryCount !== null || queue.length === 0) return
-    if (queue.length > MERGE_THRESHOLD) {
-      setSummaryCount(queue.length)
-      setQueue([])
-      return
-    }
-    const [next, ...rest] = queue
-    setQueue(rest)
-    setCurrent(next)
+    // 取件 setState 延迟一拍：effect 体内同步 setState 会触发 react-hooks/set-state-in-effect
+    const t = window.setTimeout(() => {
+      if (queue.length > MERGE_THRESHOLD) {
+        setSummaryCount(queue.length)
+        setQueue([])
+        return
+      }
+      const [next, ...rest] = queue
+      setQueue(rest)
+      setCurrent(next)
+    }, 0)
+    return () => window.clearTimeout(t)
   }, [current, summaryCount, queue])
 
   // 展示生命周期：滑入延迟必须用 setTimeout 而非 rAF——后台标签页 rAF 被浏览器暂停、滑入永不触发，
@@ -72,10 +76,14 @@ export function NotificationToastQueue() {
   // 停留 5 秒滑出 + 兜底 eject（transitionend 后台可能不触发）；后台时不启动任何计时，回前台再展示，队列不丢。
   useEffect(() => {
     if (!current && summaryCount === null) return
-    // 复位滑入态，确保本条从隐藏位重新滑入
-    setVisible(false)
     let alive = true
     const timers: number[] = []
+    // 复位滑入态，确保本条从隐藏位重新滑入；延迟一拍避开 react-hooks/set-state-in-effect
+    timers.push(
+      window.setTimeout(() => {
+        if (alive) setVisible(false)
+      }, 0),
+    )
 
     const arm = () => {
       if (!alive) return
@@ -95,7 +103,7 @@ export function NotificationToastQueue() {
         }, DWELL_MS + SLIDE_MS + EJECT_MS)
       )
       // dismiss()（手动提前滑出）要清的是「滑出」定时器
-      dismissTimer.current = timers[1]
+      dismissTimer.current = timers[2]
     }
 
     let onVis: (() => void) | null = null

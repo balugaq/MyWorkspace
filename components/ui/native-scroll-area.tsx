@@ -22,8 +22,10 @@ import { cn } from "@/lib/utils"
 
 type ThumbBox = { height: number; top: number }
 
-function useScrollThumb() {
-  const scrollRef = useRef<HTMLElement | null>(null)
+function useScrollThumb(
+  hostRef: React.RefObject<HTMLDivElement | null>,
+  scrollRef: React.RefObject<HTMLElement | null>,
+) {
   const rafRef = useRef(0)
   const [thumb, setThumb] = useState<ThumbBox | null>(null)
 
@@ -43,31 +45,52 @@ function useScrollThumb() {
     const maxScroll = scrollHeight - clientHeight
     const top = maxScroll > 0 ? (scrollTop / maxScroll) * (clientHeight - height) : 0
     setThumb({ height, top })
-  }, [])
+  }, [scrollRef])
 
   useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const onScroll = () => {
-      if (rafRef.current) return
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = 0
-        update()
-      })
+    const host = hostRef.current
+    if (!host) return
+    // 滚动容器是 children 的根 DOM 节点（textarea / EditorContent 根 div 等）。
+    // 不能渲染期经 cloneElement 注入 ref（react-hooks/refs），改为 effect 里从宿主 firstElementChild 取；
+    // rich-text-editor 切模式会换子元素而不重挂本组件，故用 MutationObserver 监听直接子节点变化后重挂监听。
+    let cleanupEl: (() => void) | null = null
+    const attach = () => {
+      cleanupEl?.()
+      cleanupEl = null
+      const el = (host.firstElementChild as HTMLElement | null) ?? null
+      scrollRef.current = el
+      if (!el) {
+        setThumb(null)
+        return
+      }
+      const onScroll = () => {
+        if (rafRef.current) return
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = 0
+          update()
+        })
+      }
+      el.addEventListener("scroll", onScroll, { passive: true })
+      // 容器自身尺寸变化（如 textarea field-sizing 随内容增高）时重算
+      const ro = new ResizeObserver(onScroll)
+      ro.observe(el)
+      update()
+      cleanupEl = () => {
+        el.removeEventListener("scroll", onScroll)
+        ro.disconnect()
+      }
     }
-    el.addEventListener("scroll", onScroll, { passive: true })
-    // 容器自身尺寸变化（如 textarea field-sizing 随内容增高）时重算
-    const ro = new ResizeObserver(onScroll)
-    ro.observe(el)
-    update()
+    attach()
+    const mo = new MutationObserver(attach)
+    mo.observe(host, { childList: true })
     return () => {
-      el.removeEventListener("scroll", onScroll)
-      ro.disconnect()
+      mo.disconnect()
+      cleanupEl?.()
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [update])
+  }, [update, hostRef, scrollRef])
 
-  return { scrollRef, thumb }
+  return { thumb }
 }
 
 export function NativeScrollArea({
@@ -77,16 +100,17 @@ export function NativeScrollArea({
   children: React.ReactElement
   className?: string
 }) {
-  const { scrollRef, thumb } = useScrollThumb()
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  const scrollRef = useRef<HTMLElement | null>(null)
+  const { thumb } = useScrollThumb(hostRef, scrollRef)
   const trackRef = useRef<HTMLDivElement | null>(null)
 
+  // 只合并 className，不再注入 ref：ref 统一由 useScrollThumb 在 effect 里从宿主 firstElementChild 取得
   const el = children as React.ReactElement<{
-    ref?: unknown
     className?: string
   }>
   const child = isValidElement(children)
     ? cloneElement(el, {
-        ref: scrollRef,
         className: cn(el.props.className, "hide-native-scrollbar"),
       })
     : children
@@ -143,7 +167,7 @@ export function NativeScrollArea({
   }, [hasThumb, scrollRef])
 
   return (
-    <div data-slot="native-scroll-area" className={cn("group/nsa relative", className)}>
+    <div ref={hostRef} data-slot="native-scroll-area" className={cn("group/nsa relative", className)}>
       {child}
       {thumb && (
         <div

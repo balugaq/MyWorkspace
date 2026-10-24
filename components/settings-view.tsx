@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { RefreshCw, Keyboard, Download, Upload, FileCog, Image as ImageIcon, Scale, User, Sparkles, Wrench, Bot, Trash2, ChevronRight, Check, Braces, History, RotateCcw, Tag as TagIcon, Plus, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useNow } from "@/hooks/use-now"
 import { useWorkspace } from "@/lib/store"
 import {
   exportBackupZip,
@@ -569,10 +570,12 @@ export function SettingsView() {
   const contributions = useWorkspace((s) => s.contributions)
   // 软件使用时长：复用贡献账本派生（lib/contributions.ts），不另存字段（与 Profile 页同源）
   const usageFirstAt = firstContributionAt(contributions)
+  // 时间走 useNow（外部时钟源）：渲染期直接调 Date.now() 会触发 react-hooks/purity
+  const now = useNow()
   const usageText =
     usageFirstAt == null
       ? t("settings.noUsage")
-      : formatUsageDuration(Date.now() - usageFirstAt, Date.now())
+      : formatUsageDuration(now - usageFirstAt, now)
   const updateSettings = useWorkspace((s) => s.updateSettings)
   const setShortcut = useWorkspace((s) => s.setShortcut)
   const avatarInputRef = useRef<HTMLInputElement>(null)

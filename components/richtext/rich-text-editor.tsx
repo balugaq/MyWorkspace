@@ -57,9 +57,7 @@ export function RichTextEditor({
 
   const [mode, setMode] = useState<"visual" | "source">("source")
 
-  // 源码 textarea 引用（右键菜单的剪切/粘贴/全选需实时读选区）。不能直接写 ref={textareaRef}：
-  // NativeScrollArea 会 cloneElement 注入自己的 scrollRef、覆盖子元素 ref（React 19 ref 即 prop），
-  // 故改为在 textarea 的 onContextMenu 里同步记录 currentTarget（右键必先于菜单求值，切模式重挂载后自动更新）。
+  // 源码 textarea 引用（右键菜单的剪切/粘贴/全选需实时读选区）
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const editor = useEditor(
@@ -263,10 +261,7 @@ export function RichTextEditor({
         <TextContextMenu ctx={sourceCtx} className="flex min-h-0 flex-1">
           <NativeScrollArea className="min-h-0 flex-1">
             <textarea
-              onContextMenu={(e) => {
-                // NativeScrollArea 覆盖子元素 ref prop（见上方 textareaRef 说明），改由本事件捕获真实 DOM
-                textareaRef.current = e.currentTarget
-              }}
+              ref={textareaRef}
               value={value}
               onChange={(e) => onChange(e.target.value)}
               onPaste={handleSourcePaste}
