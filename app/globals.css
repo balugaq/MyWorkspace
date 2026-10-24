@@ -54,6 +54,9 @@
 }
 
 :root {
+    /* TODO 80：声明 color-scheme 让原生表单控件（select 下拉弹窗、number 步进器等）
+       跟随主题。不声明时浏览器按浅色渲染弹窗，深色主题下白底 + 继承的近白文字不可见 */
+    color-scheme: light;
     /* 系统字体栈（离线可用，替代 next/font/google；中文优先中文字体） */
     --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
         "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
@@ -104,6 +107,8 @@
 }
 
 .dark {
+    /* TODO 80：深色主题同步声明 color-scheme，原生 select 弹窗改走系统暗色渲染 */
+    color-scheme: dark;
     --background: oklch(0.18 0.02 275);
     --foreground: oklch(0.95 0.01 265);
     --card: oklch(0.22 0.025 275);
@@ -143,6 +148,16 @@
        取中性灰 oklch(0.5)——可见但不刺眼；hover 略亮一档 */
     --scrollbar-thumb: oklch(0.5 0.01 270);
     --scrollbar-thumb-hover: oklch(0.62 0.01 270);
+}
+
+/* TODO 80（续）：color-scheme 只决定表单控件的系统级渲染（Firefox/Safari、
+   number 步进器吃这套），Chromium 在 Windows 上画原生 select 的弹出列表时
+   不完全遵循它——必须显式给 option 上背景/文字色才能锁定观感。
+   按主人要求统一灰底（--muted）+ 主题正文色（--foreground）：
+   浅色/彩色主题为浅灰底深字，深色主题为深灰底浅字，杜绝白底白字 */
+select option {
+    background-color: var(--muted);
+    color: var(--foreground);
 }
 
 /* TODO 51（改版）：独立彩色主题——settings.theme = green / purple / orange 时，

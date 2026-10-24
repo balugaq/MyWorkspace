@@ -122,3 +122,24 @@ Tailwind 的任意属性 utility（如 `[overflow-wrap:anywhere]`）是**单类�
 - **样式 / 视觉 / 布局类改动**：由**宿主在 `npm run dev` 下目视核验**（AI 禁止自行开浏览器 —— 不得用无头 Edge / Chrome / 任何浏览器自动化代劳）。
 - **AI 只负责静态核对**：`npm run typecheck` + `npm run lint` 均 **0 error**，并用 `grep` 确认关键类名 / 选择器真正落地（例：`max-w-[66%]`、`w-full`、`.rich-text-content pre` / `table` 的 5 处滑条选择器、`chat-md-user` 无残留）。
 - `grep` 只能证明「规则写对了」，证明不了「布局真的对」—— 所以布局最终以宿主目视为准。
+
+---
+
+## 9. 原生表单控件：`color-scheme` 必须随主题声明（TODO 80）
+
+| 项 | 说明 |
+| --- | --- |
+| 规则一 | `app/globals.css` 的 `:root` 声明 `color-scheme: light`，`.dark` 声明 `color-scheme: dark` |
+| 规则二 | 同一文件内 `select option { background-color: var(--muted); color: var(--foreground); }`，按主人要求统一灰底 + 主题正文色 |
+| 根因 | 不声明 `color-scheme` 时，浏览器按浅色渲染原生 `<select>` 下拉弹窗与 `<input type="number">` 步进器；深色主题下弹窗白底 + 继承的近白文字 = 白底白字不可见（联系人弹窗「添加联系方式」即此症状） |
+| 为什么两条都要 | `color-scheme` 只管系统级渲染（Firefox/Safari、步进器、复选框吃这套）；Chromium 在 Windows 上画 select 弹出列表不完全遵循它，必须显式给 option 上色才能锁定观感。第一轮只加 color-scheme，主人实测深色下仍白底白字（hover 才变黑字），第二轮补 option 显式着色 |
+| 覆盖范围 | 全应用原生表单控件；`.dark` 与 `:root` 同特异度、源序在后者胜。彩色主题（green/purple/orange）为浅色基调，继承 `:root` 的 `light` 即可，无需单独声明；`--muted` / `--foreground` 四个主题块均有定义 |
+| 不适用 | base-ui Select / 自绘浮层等自定义下拉走项目 token 渲染，与此规则无关 |
+
+---
+
+## 10. 变更记录
+
+| 日期 | 变更 |
+| --- | --- |
+| 2026-10-25 | 新增第 9 节：原生表单控件 `color-scheme` + `select option` 显式着色规则（TODO 80） |

@@ -616,8 +616,11 @@ TODO 78. （状态：已完成）
 TODO 79. （状态：已完成）
 在设置 - 通用中，启动行为里添加上所有的workspace view
 
-TODO 80. （状态：待处理）
+TODO 80. （状态：已完成，待目视确认）
 在联系人 - 联系人编辑界面 - 添加联系方式里，在深色模式下，联系方式选择的dropdown会完全变白，啥也看不到，需要修复
+
+- 一句话：根因是全局未声明 `color-scheme` 且未给 option 显式着色，Chromium 按浅色渲染原生 select 弹窗（白底+近白文字）。修法：`app/globals.css` 的 `:root` / `.dark` 声明 `color-scheme`，并加 `select option { background-color: var(--muted); color: var(--foreground); }` 按主人要求统一灰底（浅色主题浅灰底、深色主题深灰底）；生日类型 select 同款 bug 一并覆盖；规则已沉淀至 docs/ui-conventions.md 第 9 节。
+- 第二轮（2026-10-25 主人实测反馈）：仅 color-scheme 不够，Chromium 弹窗不完全遵循，补 option 显式着色；主人要求「显示成灰底」。
 
 TODO 81. （状态：已完成）
 deploy.yml 在 Build 步骤前加 `npm run lint && npm test`（来自 maintainability-review.md 缺口 #1/#6）——当前 lint 和 76 条测试都不在部署门禁上，坏代码只要类型过关就能带着 lint 错误和挂掉的测试上线，i18n en/zh 同构测试也只在本地域内生效
