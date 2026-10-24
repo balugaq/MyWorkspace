@@ -3,7 +3,7 @@
 "use client"
 
 import { useMemo, useSyncExternalStore } from "react"
-import { Cake, Search, Command, User, PanelLeft, UserCircle, Settings2 } from "lucide-react"
+import { Cake, Search, Command, User, PanelLeft, UserCircle, Settings2, Bell } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import {
@@ -88,6 +88,13 @@ export function BrandHeader({
   const goAIChat = useWorkspace((s) => s.goAIChat)
   const goProfile = useWorkspace((s) => s.goProfile)
   const goSettings = useWorkspace((s) => s.goSettings)
+  // 通知未读数：createdAt 晚于已读水位的条数（进通知页即标记已读、徽标清零，逻辑在 store.goNotifications）
+  const goNotifications = useWorkspace((s) => s.goNotifications)
+  const notifications = useWorkspace((s) => s.notifications)
+  const lastReadNotificationsAt = useWorkspace((s) => s.lastReadNotificationsAt)
+  const unreadCount = notifications.filter(
+    (n) => Date.parse(n.createdAt) > (lastReadNotificationsAt ?? 0),
+  ).length
   // 客户端专用平台检测：useSyncExternalStore 订阅空源（渲染期不可直接读 navigator 触发 hydration 差异）
   const isMac = useSyncExternalStore(
     () => () => {},
@@ -157,6 +164,21 @@ export function BrandHeader({
             </kbd>
           </button>
         )}
+
+        {/* TODO 89：通知铃铛移到用户头像左侧，功能不变（点击进通知页即标记已读） */}
+        <button
+          type="button"
+          onClick={goNotifications}
+          title={t("notif.title")}
+          className="relative flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent transition-colors hover:bg-sidebar-accent/70"
+        >
+          <Bell className="size-4 text-muted-foreground" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
 
         {/* 头像菜单含个人/设置项；独立设置按钮已移除（功能与菜单重复） */}
         <DropdownMenu>

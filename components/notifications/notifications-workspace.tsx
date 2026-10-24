@@ -401,6 +401,8 @@ export function NotificationsWorkspace() {
   const [senderFilter, setSenderFilter] = useState<SenderFilter>("all")
   // TODO 56：关键词搜索，与 sender 筛选叠加
   const [search, setSearch] = useState("")
+  // TODO 88：默认只渲染前 100 条，避免通知过多时一次性铺满；点击「展开更多」再 +100
+  const [visibleCount, setVisibleCount] = useState(100)
 
   const filtered =
     senderFilter === "all" ? notifications : notifications.filter((n) => n.senderId === senderFilter)
@@ -421,6 +423,8 @@ export function NotificationsWorkspace() {
     )
   }, [sorted, search])
 
+  const shown = visible.slice(0, visibleCount)
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center px-8 py-6">
@@ -437,7 +441,10 @@ export function NotificationsWorkspace() {
                   <button
                     key={f}
                     type="button"
-                    onClick={() => setSenderFilter(f)}
+                    onClick={() => {
+                      setSenderFilter(f)
+                      setVisibleCount(100)
+                    }}
                     className={cn(
                       "rounded-full px-3 py-1 text-xs transition-colors",
                       senderFilter === f
@@ -459,7 +466,10 @@ export function NotificationsWorkspace() {
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value)
+                    setVisibleCount(100)
+                  }}
                   placeholder={t("notif.searchPlaceholder")}
                   className="pl-8"
                 />
@@ -493,20 +503,34 @@ export function NotificationsWorkspace() {
               {!search.trim() && senderFilter === "news" && <TriggerNewsButton />}
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              {/* 按「发现时间」降序：晚推送的旧 commit createdAt 很早，按发生时间排会被压到深处 */}
-              {visible.map((n) =>
-                n.kind === "news" && n.newsPack && n.newsPack.length > 0 ? (
-                  <NewsPackCard key={n.id} item={n} />
-                ) : n.kind === "news" && n.news ? (
-                  <NewsCard key={n.id} item={n} />
-                ) : n.kind === "news" ? (
-                  <PlainNewsCard key={n.id} item={n} />
-                ) : (
-                  <GithubCard key={n.id} item={n} />
-                ),
+            <>
+              <div className="flex flex-col gap-2">
+                {/* 按「发现时间」降序：晚推送的旧 commit createdAt 很早，按发生时间排会被压到深处 */}
+                {shown.map((n) =>
+                  n.kind === "news" && n.newsPack && n.newsPack.length > 0 ? (
+                    <NewsPackCard key={n.id} item={n} />
+                  ) : n.kind === "news" && n.news ? (
+                    <NewsCard key={n.id} item={n} />
+                  ) : n.kind === "news" ? (
+                    <PlainNewsCard key={n.id} item={n} />
+                  ) : (
+                    <GithubCard key={n.id} item={n} />
+                  ),
+                )}
+              </div>
+              {/* TODO 88：超过默认 100 条时显示「展开更多」，每次再揭示 100 条 */}
+              {visible.length > visibleCount && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mx-auto gap-1.5"
+                  onClick={() => setVisibleCount((c) => c + 100)}
+                >
+                  {t("notif.loadMore", { n: visible.length - visibleCount })}
+                </Button>
               )}
-            </div>
+            </>
           )}
         </div>
       </div>

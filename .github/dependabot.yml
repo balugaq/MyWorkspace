@@ -17,6 +17,10 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: "development"
+      # tiptap 全家 peer 精确锁版本（如 @tiptap/core@3.32.0），单包升级必炸
+      tiptap:
+        patterns:
+          - "@tiptap/*"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"

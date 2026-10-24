@@ -844,6 +844,7 @@ const notif = {
   noNew: "This round's results are already in the notification center — nothing new",
   generating: "Generating…",
   manualTrigger: "Trigger now",
+  loadMore: "Show more ({{n}} remaining)",
   closeToast: "Close notification",
   summaryCount: "You have {{n}} new messages",
   detail: {

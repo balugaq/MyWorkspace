@@ -11,7 +11,6 @@ import {
   KeyRound,
   PenLine,
   Users,
-  Bell,
   GitPullRequest,
 } from "lucide-react"
 import { useWorkspace } from "@/lib/store"
@@ -20,13 +19,12 @@ import { cn } from "@/lib/utils"
 import { AiIcon, AiText } from "@/components/ai-brand"
 
 // 工具卡片清单，id 与 view 值对应
-const TOOL_CARDS: { id: string; nameKey: string; icon: ComponentType<{ className?: string }> }[] = [
+  const TOOL_CARDS: { id: string; nameKey: string; icon: ComponentType<{ className?: string }> }[] = [
   { id: "ai-chat", nameKey: "toolbar.aiChat", icon: AiIcon },
   { id: "workspace", nameKey: "toolbar.notes", icon: PenLine },
   { id: "calendar", nameKey: "toolbar.calendar", icon: CalendarDays },
   { id: "contacts", nameKey: "toolbar.contacts", icon: Users },
   { id: "vault", nameKey: "toolbar.vault", icon: KeyRound },
-  { id: "notifications", nameKey: "toolbar.notifications", icon: Bell },
   { id: "github-queue", nameKey: "toolbar.githubQueue", icon: GitPullRequest },
   { id: "vocabulary", nameKey: "toolbar.vocabulary", icon: BookOpen },
 ] as const
@@ -45,15 +43,8 @@ export function ToolbarPanel() {
   const goCalendar = useWorkspace((s) => s.goCalendar)
   const goContacts = useWorkspace((s) => s.goContacts)
   const goVault = useWorkspace((s) => s.goVault)
-  const goNotifications = useWorkspace((s) => s.goNotifications)
   const goGithubQueue = useWorkspace((s) => s.goGithubQueue)
   const goVocabulary = useWorkspace((s) => s.goVocabulary)
-  // 未读数：createdAt 晚于已读水位的条数（进通知页即标记已读、徽标清零）
-  const notifications = useWorkspace((s) => s.notifications)
-  const lastReadNotificationsAt = useWorkspace((s) => s.lastReadNotificationsAt)
-  const unreadCount = notifications.filter(
-    (n) => Date.parse(n.createdAt) > (lastReadNotificationsAt ?? 0)
-  ).length
 
   const activate = (id: (typeof TOOL_CARDS)[number]["id"]) => {
     // 「AI 对话 / 随笔」需要内容区，收起状态下自动展开
@@ -75,9 +66,6 @@ export function ToolbarPanel() {
         break
       case "vault":
         goVault()
-        break
-      case "notifications":
-        goNotifications()
         break
       case "github-queue":
         goGithubQueue()
@@ -121,7 +109,6 @@ export function ToolbarPanel() {
             {TOOL_CARDS.map((tc) => {
               const Icon = tc.icon
               const active = view === tc.id
-              const showBadge = tc.id === "notifications" && unreadCount > 0
               return (
                 <button
                   key={tc.id}
@@ -146,11 +133,6 @@ export function ToolbarPanel() {
                       t(tc.nameKey)
                     )}
                   </span>
-                  {showBadge && (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
                 </button>
               )
             })}

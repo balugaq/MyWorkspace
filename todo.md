@@ -646,12 +646,16 @@ TODO 86. （状态：待处理）
 TODO 87. （状态：待处理）
 添加 GitHub Release workflow
 
-TODO 88. （状态：待处理）
+TODO 88. （状态：已完成）
 通知页面里加一个，和 github contribution 一样的，折叠过多消息。
 默认打开只显示100条消息，可以点击展开按钮继续查看。
 
-TODO 89. （状态：待处理）
+- 一句话：notifications-workspace.tsx 新增 visibleCount=100 折叠 + 「展开更多（剩余 N 条）」按钮（每次 +100），搜索/来源切换时重置回 100；未读标记逻辑不变。
+
+TODO 89. （状态：已完成）
 通知改成放到brand header里的用户头像的左边，功能不变
+
+- 一句话：通知铃铛+未读徽标从 toolbar-panel.tsx 底部导航移除，移到 brand-header.tsx 头像左侧；点击 goNotifications 进入通知页（store 内标记已读逻辑不变）。
 
 TODO 90. （状态：待处理）
 npm run lint / test 里的问题逐一处理，同时加到现有的 ai agent workbuddy check 流程那里

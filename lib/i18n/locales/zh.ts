@@ -921,6 +921,7 @@ const notif = {
   noNew: "本轮结果已在通知中心，无新增",
   generating: "生成中…",
   manualTrigger: "手动触发",
+  loadMore: "展开更多（剩余 {{n}} 条）",
   closeToast: "关闭通知",
   summaryCount: "你有 {{n}} 条新消息",
   detail: {
