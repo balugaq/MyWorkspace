@@ -1167,7 +1167,7 @@ export function SettingsView() {
             </section>
 
             <section className="flex flex-col gap-2">
-              <Label className="text-xs font-medium text-muted-foreground">{t("settings.licenses")}</Label>
+              <Label className="text-xs font-medium text-muted-foreground">{t("licenses.title")}</Label>
               <Button variant="outline" className="w-full justify-start gap-2" onClick={() => setLicenseOpen(true)}>
                 <Scale className="size-4" />
                 {t("settings.viewLicenses")}

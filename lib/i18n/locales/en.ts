@@ -24,6 +24,10 @@ const common = {
   selectAll: "Select all",
   quote: "Quote",
   loadingImage: "[Loading image…]",
+  collapse: "Collapse",
+  loading: "Loading…",
+  refresh: "Refresh",
+  saved: "Saved",
 }
 
 const settings = {
@@ -142,28 +146,6 @@ const settings = {
   dataDeleted: "Data deleted, resetting…",
   shortcuts: "Shortcuts",
   shortcutUpdated: "Shortcut for \"{{label}}\" updated",
-  backup: {
-    section: {
-      notes: "Notes data",
-      notesDesc: "All categories, chapters and mindmap nodes",
-      calendar: "Calendar data",
-      calendarDesc: "Notes / todos / events aggregated by date",
-      ai: "AI chat data",
-      aiDesc: "All conversations and message context",
-      contributions: "Contribution records",
-      contributionsDesc: "Profile heatmap and activity ledger",
-      notifications: "Notification data",
-      notificationsDesc: "Notification center entries, scan logs and watermark",
-      githubQueue: "GitHub queue data",
-      githubQueueDesc: "Issue / PR kanban queue cards",
-      contacts: "Contacts data",
-      contactsDesc: "Address book (created in-app and imported from yml)",
-      vault: "Password vault",
-      vaultDesc: "Encrypted blob (AES-256-GCM); master password required to restore",
-      vocabulary: "Vocabulary",
-      vocabularyDesc: "Words / sources / quiz records (IndexedDB, TODO 64)",
-    },
-  },
   shortcut: {
     newCategory: "New category",
     newCategoryDesc: "Open the \"Add category\" dialog",
@@ -937,6 +919,7 @@ const vocab = {
   stats: "{{words}} words · {{sources}} sources · {{rounds}} rounds practiced",
   startQuiz: "Start quiz",
   sourceManage: "Manage sources",
+  sourceDesc: "Manage the source categories of your vocabulary: add, rename or delete sources; entries of a deleted source become uncategorized.",
   aiImport: "AI bulk import",
   addEntry: "Add word",
   searchPlaceholder: "Search words / definitions (pinyin supported)",
@@ -1123,28 +1106,6 @@ const settingsExtra = {
   pressKeys: "Press the key combination…",
   aiModelLabel: "Model",
   qqRelayDesc: "URL of the local relay service (POST JSON {\"text\":\"...\"}); falls back to the default when empty. QQ notifications only work when the workspace runs locally with the relay service up.",
-  backup: {
-    section: {
-      notes: "Notes data",
-      notesDesc: "All categories, chapters and mindmap nodes",
-      calendar: "Calendar data",
-      calendarDesc: "Notes / todos / events aggregated by date",
-      ai: "AI chat data",
-      aiDesc: "All conversations and message context",
-      contributions: "Contribution records",
-      contributionsDesc: "Profile heatmap and activity ledger",
-      notifications: "Notification data",
-      notificationsDesc: "Notification center entries, scan logs and watermark",
-      githubQueue: "GitHub queue data",
-      githubQueueDesc: "Issue / PR kanban queue cards",
-      contacts: "Contacts data",
-      contactsDesc: "Address book (created in-app and imported from yml)",
-      vault: "Password vault",
-      vaultDesc: "Encrypted blob (AES-256-GCM); master password required to restore",
-      vocabulary: "Vocabulary",
-      vocabularyDesc: "Words / sources / quiz records (IndexedDB, TODO 64)",
-    },
-  },
   shortcut: {
     newCategory: "New category",
     newCategoryDesc: "Open the \"Add category\" dialog",
@@ -1207,14 +1168,42 @@ const licenses = {
   license: "License",
 }
 
+// Backup section copy: referenced as top-level backup.* by BACKUP_SECTIONS in lib/backup.ts
+// (migrated out of settings / settingsExtra on 2026-10-24 — prefix mismatch made all backup.* keys miss)
+const backup = {
+  section: {
+    notes: "Notes data",
+    notesDesc: "All categories, chapters and mindmap nodes",
+    calendar: "Calendar data",
+    calendarDesc: "Notes / todos / events aggregated by date",
+    ai: "AI chat data",
+    aiDesc: "All conversations and message context",
+    contributions: "Contribution records",
+    contributionsDesc: "Profile heatmap and activity ledger",
+    notifications: "Notification data",
+    notificationsDesc: "Notification center entries, scan logs and watermark",
+    githubQueue: "GitHub queue data",
+    githubQueueDesc: "Issue / PR kanban queue cards",
+    contacts: "Contacts data",
+    contactsDesc: "Address book (created in-app and imported from yml)",
+    vault: "Password vault",
+    vaultDesc: "Encrypted blob (AES-256-GCM); master password required to restore",
+    vocabulary: "Vocabulary",
+    vocabularyDesc: "Words / sources / quiz records (IndexedDB, TODO 64)",
+  },
+}
+
 const rt = {
   copyPlain: "Copy as plain text",
   copyRich: "Copy as rich text",
+  biliTitle: "Bilibili video",
+  ghLoading: "Fetching repository info…",
 }
 
 export const en = {
   common,
   settings: { ...settings, ...settingsExtra },
+  backup,
   toolbar,
   statusBar,
   brandHeader,

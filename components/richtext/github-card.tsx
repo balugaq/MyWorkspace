@@ -58,7 +58,7 @@ function GitHubCardView({ node }: NodeViewProps) {
       <NodeViewWrapper className="my-2">
         <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <span className="size-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
-          {getI18n().t("richtext.ghLoading")}
+          {getI18n().t("rt.ghLoading")}
         </div>
       </NodeViewWrapper>
     )

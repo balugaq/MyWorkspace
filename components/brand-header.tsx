@@ -170,9 +170,9 @@ export function BrandHeader({
           type="button"
           onClick={goNotifications}
           title={t("notif.title")}
-          className="relative flex size-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent transition-colors hover:bg-sidebar-accent/70"
+          className="relative flex size-8 shrink-0 cursor-pointer items-center justify-center transition-colors hover:opacity-80"
         >
-          <Bell className="size-4 text-muted-foreground" />
+          <Bell className="size-4.5 text-foreground" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground">
               {unreadCount > 99 ? "99+" : unreadCount}

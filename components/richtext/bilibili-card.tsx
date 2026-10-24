@@ -49,7 +49,7 @@ function BilibiliCardView({ node }: NodeViewProps) {
       >
         {/* TODO 21：与 GitHub 卡统一顺序 */}
         <div className="space-y-1.5 p-3">
-          <p className="text-sm font-medium leading-snug">{getI18n().t("richtext.biliTitle")}</p>
+          <p className="text-sm font-medium leading-snug">{getI18n().t("rt.biliTitle")}</p>
           <p className="truncate text-xs text-muted-foreground">{url} ↗</p>
         </div>
         {bv ? (

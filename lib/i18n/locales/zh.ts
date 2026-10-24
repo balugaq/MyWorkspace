@@ -24,6 +24,10 @@ const common = {
   selectAll: "全选",
   quote: "引用",
   loadingImage: "[加载图片…]",
+  collapse: "收起",
+  loading: "加载中…",
+  refresh: "刷新",
+  saved: "已保存",
 }
 
 const settings = {
@@ -152,28 +156,6 @@ const settings = {
   dataDeleted: "数据已删除，正在重置…",
   shortcuts: "快捷键",
   shortcutUpdated: "已更新「{{label}}」快捷键",
-  backup: {
-    section: {
-      notes: "随笔数据",
-      notesDesc: "全部分类、章节与思维图节点",
-      calendar: "日历数据",
-      calendarDesc: "按日期聚合的笔记 / 待办 / 事件",
-      ai: "AI 对话数据",
-      aiDesc: "全部会话与消息上下文",
-      contributions: "贡献记录",
-      contributionsDesc: "Profile 热力图与活动记录账本",
-      notifications: "通知数据",
-      notificationsDesc: "通知中心条目、扫描日志与水位",
-      githubQueue: "GitHub 队列数据",
-      githubQueueDesc: "Issue / PR 看板队列卡片",
-      contacts: "联系人数据",
-      contactsDesc: "通讯录（含界面新建与 yml 导入的条目）",
-      vault: "密码保险库",
-      vaultDesc: "加密 blob（AES-256-GCM），恢复需主密码",
-      vocabulary: "词汇表",
-      vocabularyDesc: "词条 / 来源 / 问答记录（IndexedDB，TODO 64）",
-    },
-  },
   shortcut: {
     newCategory: "新建分类",
     newCategoryDesc: "打开“添加分类”弹窗",
@@ -1017,6 +999,7 @@ const vocab = {
   stats: "{{words}} 词 · {{sources}} 来源 · 已练 {{rounds}} 轮",
   startQuiz: "开始问答",
   sourceManage: "来源管理",
+  sourceDesc: "管理词汇表的来源分类：新增、重命名或删除来源；删除来源后其词条会变为未分类。",
   aiImport: "AI 批量导入",
   addEntry: "添加词条",
   searchPlaceholder: "搜索词条 / 释义",
@@ -1215,28 +1198,6 @@ const settingsExtra = {
   pressKeys: "按下组合键…",
   aiModelLabel: "模型",
   qqRelayDesc: "本机常驻中转服务的地址（POST JSON {\"text\":\"...\"}）；留空回落默认值。QQ 通知仅在本机运行工作台且中转服务常驻时可用。",
-  backup: {
-    section: {
-      notes: "随笔数据",
-      notesDesc: "全部分类、章节与思维图节点",
-      calendar: "日历数据",
-      calendarDesc: "按日期聚合的笔记 / 待办 / 事件",
-      ai: "AI 对话数据",
-      aiDesc: "全部会话与消息上下文",
-      contributions: "贡献记录",
-      contributionsDesc: "Profile 热力图与活动记录账本",
-      notifications: "通知数据",
-      notificationsDesc: "通知中心条目、扫描日志与水位",
-      githubQueue: "GitHub 队列数据",
-      githubQueueDesc: "Issue / PR 看板队列卡片",
-      contacts: "联系人数据",
-      contactsDesc: "通讯录（含界面新建与 yml 导入的条目）",
-      vault: "密码保险库",
-      vaultDesc: "加密 blob（AES-256-GCM），恢复需主密码",
-      vocabulary: "词汇表",
-      vocabularyDesc: "词条 / 来源 / 问答记录（IndexedDB，TODO 64）",
-    },
-  },
   shortcut: {
     newCategory: "新建分类",
     newCategoryDesc: "打开“添加分类”弹窗",
@@ -1299,14 +1260,42 @@ const licenses = {
   license: "许可证",
 }
 
+// 备份分区文案：lib/backup.ts BACKUP_SECTIONS 以顶层 backup.* 前缀引用
+// （2026-10-24 从 settings / settingsExtra 迁出——原前缀不匹配，backup.* 全部未命中）
+const backup = {
+  section: {
+    notes: "随笔数据",
+    notesDesc: "全部分类、章节与思维图节点",
+    calendar: "日历数据",
+    calendarDesc: "按日期聚合的笔记 / 待办 / 事件",
+    ai: "AI 对话数据",
+    aiDesc: "全部会话与消息上下文",
+    contributions: "贡献记录",
+    contributionsDesc: "Profile 热力图与活动记录账本",
+    notifications: "通知数据",
+    notificationsDesc: "通知中心条目、扫描日志与水位",
+    githubQueue: "GitHub 队列数据",
+    githubQueueDesc: "Issue / PR 看板队列卡片",
+    contacts: "联系人数据",
+    contactsDesc: "通讯录（含界面新建与 yml 导入的条目）",
+    vault: "密码保险库",
+    vaultDesc: "加密 blob（AES-256-GCM），恢复需主密码",
+    vocabulary: "词汇表",
+    vocabularyDesc: "词条 / 来源 / 问答记录（IndexedDB，TODO 64）",
+  },
+}
+
 const rt = {
   copyPlain: "复制为纯文本",
   copyRich: "复制为富文本",
+  biliTitle: "B 站视频",
+  ghLoading: "正在获取仓库信息…",
 }
 
 export const zh = {
   common,
   settings: { ...settings, ...settingsExtra },
+  backup,
   toolbar,
   statusBar,
   brandHeader,
