@@ -146,13 +146,6 @@ export const THIRD_PARTY_LICENSES: ThirdPartyLicense[] = [
     licenseUrl: "https://opensource.org/licenses/MIT",
   },
   {
-    name: "fast-xml-parser",
-    author: "Naveen (natural-intelligence)",
-    description: "XML 解析（自定义数据兼容）。",
-    license: "MIT",
-    licenseUrl: "https://opensource.org/licenses/MIT",
-  },
-  {
     name: "cmdk",
     author: "Paco Coursey",
     description: "命令面板（全局搜索交互）。",
