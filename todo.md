@@ -645,11 +645,16 @@ TODO 84. （状态：已完成）
 
 - 一句话：eslint.config.mjs 对 `**/*.ts{,x}` 开 `projectService` + 两条规则（不开 recommended-type-checked 全集，避免 no-unsafe-* 家族大面积重写）；tests/ 目录 override 关 floating（node:test 的 describe/it/test 返回 Promise 属 runner 协议）；存量 187 条（159 floating + 28 misused）全部修掉——floating 补 `void` 标记，misused 的 async 处理器包一层 `() => void fn()`，settings 两处 onChange async 抽为共用 `handleAvatarFile`。
 
-TODO 85. （状态：待处理）
+TODO 85. （状态：第一刀已完成；第二刀 settings-view、第三刀 组件重复猎捕待处理）
 大文件拆分计划（来自 maintainability-review.md，当前 17/149 文件超 500 行）：
-1. 第一刀：`lib/store.ts`（2239 行）按领域切片（calendar / ai / vault / relations）
-2. 第二刀：`components/settings-view.tsx`（1927 行）按设置分区拆
-3. 动手前先跑一轮针对 components/ 的重复猎捕（多个 *-workspace.tsx 疑有相似的骨架模式，待验证）
+1. 第一刀：`lib/store.ts`（2239 行）按领域切片（calendar / ai / vault / relations）— 已完成
+   - store.ts 2239→381 行（退化为组合层）；拆出 12 个领域切片 + shared.ts 共 13 个模块（合计 2268 行）：
+     calendar / settings / ui / categories / ai / contacts / relations / notifications / contributions / issue-queue / tags / backup 切片 + shared 共享工具。
+   - 切片模式：slice `export const createXSlice = (set, get) => ({...})`，主文件 `(set,get)=>({...createXSlice(set,get), ...})` 组合。
+   - 验收：typecheck 0 错误 / lint 0 错误 0 警告 / test 116/116 全绿。
+   - 坑：store.ts 的相对 import 解析基址是 `lib/`（非 `lib/store/`），切片 import 用 `./store/...` 才解析得到；Python 改写文件须 `newline="\n"` 否则 Windows 下被转 CRLF 触发 383 个 linebreak-style 错误。
+2. 第二刀：`components/settings-view.tsx`（1927 行）按设置分区拆 — 待处理
+3. 动手前先跑一轮针对 components/ 的重复猎捕（多个 *-workspace.tsx 疑有相似的骨架模式，待验证）— 待处理
 
 TODO 86. （状态：待处理）
 写一份 docs/HANDOFF.md（来自 maintainability-review.md，连续性措施）：发布流程、`update-dependencies` 脚本的存在与用法、localStorage schema 迁移惯例——给未来接手者（包括未来的 LLM 代理）
