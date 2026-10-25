@@ -234,7 +234,7 @@ export function ContactsWorkspace() {
                                 <button
                                   type="button"
                                   title={t("common.copy")}
-                                  onClick={() => copyValue(c.value ?? "", label || t("contacts.methodFallback"))}
+                                  onClick={() => void copyValue(c.value ?? "", label || t("contacts.methodFallback"))}
                                   className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                                 >
                                   <Copy className="size-3.5" />

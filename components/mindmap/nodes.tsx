@@ -427,7 +427,7 @@ function NodeImageZoom({
 
   useEffect(() => {
     let alive = true
-    getImageURL(imageId).then((u) => {
+    void getImageURL(imageId).then((u) => {
       if (alive && u) setUrl(u)
     })
     return () => {

@@ -97,7 +97,7 @@ export function ImageCacheDialog({
           <span className="text-xs text-muted-foreground">
             {t("imgCache.stats", { all: all.length, used: used.length, staged: staged.length })}
           </span>
-          <Button size="sm" variant="outline" onClick={runScan}>
+          <Button size="sm" variant="outline" onClick={() => void runScan()}>
             <RefreshCw className="size-3.5" />
             {t("imgCache.scan")}
           </Button>
@@ -139,7 +139,7 @@ export function ImageCacheDialog({
                       {!inUse && (
                         <button
                           type="button"
-                          onClick={() => remove(img.id)}
+                          onClick={() => void remove(img.id)}
                           className="text-muted-foreground transition-colors hover:text-destructive"
                           title={t("imgCache.deleteTitle")}
                         >

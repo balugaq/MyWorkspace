@@ -1030,7 +1030,7 @@ export function VocabularyWorkspace() {
             <Button variant="outline" onClick={closeEditor}>
               {t("common.cancel")}
             </Button>
-            <Button onClick={commitEntry}>{editing ? t("common.save") : t("common.add")}</Button>
+            <Button onClick={() => void commitEntry()}>{editing ? t("common.save") : t("common.add")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1046,7 +1046,7 @@ export function VocabularyWorkspace() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setConfirmDelEntry(null)}>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={doDeleteEntry}>{t("common.delete")}</AlertDialogAction>
+            <AlertDialogAction onClick={() => void doDeleteEntry()}>{t("common.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1154,7 +1154,7 @@ export function VocabularyWorkspace() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setConfirmDelSource(null)}>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={doDeleteSource}>{t("common.delete")}</AlertDialogAction>
+            <AlertDialogAction onClick={() => void doDeleteSource()}>{t("common.delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

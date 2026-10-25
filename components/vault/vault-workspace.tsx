@@ -98,7 +98,7 @@ function CreateVault() {
               value={pw}
               onChange={(e) => setPw(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) submit()
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit()
               }}
               placeholder={t("vault.pwdUnlockHint")}
             />
@@ -110,13 +110,13 @@ function CreateVault() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) submit()
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit()
               }}
               placeholder={t("vault.repeatInput")}
             />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <Button onClick={submit} disabled={busy} className="mt-1 gap-1.5">
+          <Button onClick={() => void submit()} disabled={busy} className="mt-1 gap-1.5">
             <KeyRound className="size-4" />
             {busy ? t("vault.creating") : t("vault.createAndUnlock")}
           </Button>
@@ -154,14 +154,14 @@ function UnlockVault() {
               value={pw}
               onChange={(e) => setPw(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) submit()
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit()
               }}
               placeholder={t("vault.masterPwd")}
               autoFocus
             />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <Button onClick={submit} disabled={busy} className="mt-1 gap-1.5">
+          <Button onClick={() => void submit()} disabled={busy} className="mt-1 gap-1.5">
             <KeyRound className="size-4" />
             {busy ? t("vault.unlocking") : t("vault.unlock")}
           </Button>
@@ -267,7 +267,7 @@ function VaultHome() {
               onChange={(e) => setName(e.target.value)}
               placeholder={t("vault.namePlaceholder")}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) submitAdd()
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) void submitAdd()
               }}
             />
             <NativeScrollArea>
@@ -278,7 +278,7 @@ function VaultHome() {
                 className="min-h-16 max-h-64 overflow-y-auto resize-none"
               />
             </NativeScrollArea>
-            <Button onClick={submitAdd} disabled={busy} className="self-start gap-1.5">
+            <Button onClick={() => void submitAdd()} disabled={busy} className="self-start gap-1.5">
               <Plus className="size-4" />
               {t("common.add")}
             </Button>
@@ -315,7 +315,7 @@ function VaultHome() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
-                destroy()
+                void destroy()
                 setDestroyOpen(false)
               }}
             >
@@ -373,7 +373,7 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
           <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
             {t("common.cancel")}
           </Button>
-          <Button size="sm" className="gap-1.5" onClick={saveEdit} disabled={busy}>
+          <Button size="sm" className="gap-1.5" onClick={() => void saveEdit()} disabled={busy}>
             {t("common.save")}
           </Button>
         </div>
@@ -406,7 +406,7 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
           >
             {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
           </Button>
-          <Button variant="ghost" size="icon" className="size-7" title={t("vault.copyValue")} onClick={copy}>
+          <Button variant="ghost" size="icon" className="size-7" title={t("vault.copyValue")} onClick={() => void copy()}>
             <Copy className="size-3.5" />
           </Button>
           <Button
@@ -444,7 +444,7 @@ function EntryCard({ entry }: { entry: VaultEntry }) {
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => removeEntry(entry.id)}
+              onClick={() => void removeEntry(entry.id)}
             >
               {t("common.delete")}
             </AlertDialogAction>
@@ -505,11 +505,11 @@ function ChangePasswordDialog({
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) submit()
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) void submit()
               }}
             />
           </div>
-          <Button onClick={submit} disabled={busy} className="gap-1.5">
+          <Button onClick={() => void submit()} disabled={busy} className="gap-1.5">
             <KeyRound className="size-4" />
             {t("vault.confirmChange")}
           </Button>

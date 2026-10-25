@@ -428,7 +428,7 @@ t("mindmap.aiAnalyzePrompt", {
           size="sm"
           variant="outline"
           className="h-7 w-full gap-1.5 text-xs"
-          onClick={handleRelayout}
+          onClick={() => void handleRelayout()}
           disabled={relayoutBusy || family.nodes.length === 0}
         >
           <Wand2 className={cn("size-3.5", relayoutBusy && "animate-pulse")} />
@@ -700,7 +700,7 @@ function Canvas({
     const prev = prevBirdViewRef.current
     prevBirdViewRef.current = birdView
     if (prev === null || prev === birdView) return
-    fitView({ padding: 0.2, duration: 300 })
+    void fitView({ padding: 0.2, duration: 300 })
   }, [birdView, fitView])
 
   const addAtCenter = useCallback(() => {

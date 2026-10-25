@@ -487,7 +487,7 @@ function AutoBackupManager() {
     <section className="flex flex-col gap-2">
       <Label className="text-xs font-medium text-muted-foreground">{t("settings.autoBackup", { n: AUTO_BACKUP_KEEP })}</Label>
       <div className="flex items-center gap-2">
-        <Button variant="outline" className="gap-2" onClick={doBackup} disabled={busy}>
+        <Button variant="outline" className="gap-2" onClick={() => void doBackup()} disabled={busy}>
           <History className="size-4" />
           {t("settings.backupNow")}
         </Button>
@@ -523,7 +523,7 @@ function AutoBackupManager() {
                 type="button"
                 title={t("settings.deleteBackup")}
                 aria-label={t("settings.deleteBackup")}
-                onClick={() => doDelete(entry)}
+                onClick={() => void doDelete(entry)}
                 className="flex size-6 shrink-0 items-center justify-center rounded hover:bg-destructive/10"
               >
                 <Trash2 className="size-3.5 text-destructive" />
@@ -551,7 +551,7 @@ function AutoBackupManager() {
             <AlertDialogCancel onClick={() => setConfirmRestore(null)}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (confirmRestore) doRestore(confirmRestore)
+                if (confirmRestore) void doRestore(confirmRestore)
               }}
             >
               {t("settings.restore")}
@@ -604,6 +604,20 @@ export function SettingsView() {
   const [activeSectionId, setActiveSectionId] = useState<(typeof SETTINGS_SECTIONS)[number]["id"]>(
     SETTINGS_SECTIONS[0].id,
   )
+
+  // 头像选择（用户 / AI 两处共用）：压缩后写 settings；返回 Promise，
+  // 调用处包 void 以满足 no-misused-promises（TODO 84）
+  async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>, target: "user" | "ai") {
+    const f = e.target.files?.[0]
+    e.target.value = ""
+    if (!f) return
+    try {
+      const dataUrl = await compressAvatar(f)
+      updateSettings(target === "user" ? { aiUserAvatar: dataUrl } : { aiAssistantAvatar: dataUrl })
+    } catch {
+      toast.error(t("settings.avatarFail"))
+    }
+  }
 
   function addNotificationRepo() {
     const v = repoInput.trim()
@@ -1030,17 +1044,7 @@ export function SettingsView() {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0]
-                    e.target.value = ""
-                    if (!f) return
-                    try {
-                      const dataUrl = await compressAvatar(f)
-                      updateSettings({ aiUserAvatar: dataUrl })
-                    } catch {
-                      toast.error(t("settings.avatarFail"))
-                    }
-                  }}
+                  onChange={(e) => void handleAvatarFile(e, "user")}
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -1114,7 +1118,7 @@ export function SettingsView() {
                   accept=".zip,application/zip,application/json,.json"
                   className="hidden"
                   onChange={(e) => {
-                    onImportFile(e.target.files?.[0])
+                    void onImportFile(e.target.files?.[0])
                     e.target.value = ""
                   }}
                 />
@@ -1133,7 +1137,7 @@ export function SettingsView() {
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={importYamlData}
+                onClick={() => void importYamlData()}
                 disabled={importingYaml}
               >
                 <Upload className="size-4" />
@@ -1311,17 +1315,7 @@ export function SettingsView() {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={async (e) => {
-                      const f = e.target.files?.[0]
-                      e.target.value = ""
-                      if (!f) return
-                      try {
-                        const dataUrl = await compressAvatar(f)
-                        updateSettings({ aiAssistantAvatar: dataUrl })
-                      } catch {
-                        toast.error(t("settings.avatarFail"))
-                      }
-                    }}
+                    onChange={(e) => void handleAvatarFile(e, "ai")}
                   />
                 </div>
               </div>
@@ -1685,7 +1679,7 @@ export function SettingsView() {
                 ))}
               </div>
               <div className="flex gap-2">
-                <Button className="flex-1" onClick={onExport}>
+                <Button className="flex-1" onClick={() => void onExport()}>
                   <Download className="size-4" />
                   {t("settings.export")}
                 </Button>
@@ -1705,8 +1699,8 @@ export function SettingsView() {
                 </DialogDescription>
               </DialogHeader>
               <div className="flex flex-col gap-2">
-                <Button onClick={() => doImport("replace")}>{t("settings.importReplace")}</Button>
-                <Button variant="outline" onClick={() => doImport("merge")}>
+                <Button onClick={() => void doImport("replace")}>{t("settings.importReplace")}</Button>
+                <Button variant="outline" onClick={() => void doImport("merge")}>
                   {t("settings.importMerge")}
                 </Button>
                 <Button variant="ghost" onClick={() => setPendingFiles(null)}>
@@ -1753,7 +1747,7 @@ export function SettingsView() {
                         {t("settings.wipeNoName")}
                       </p>
                     )}
-                    <Button variant="outline" className="w-full gap-2" onClick={onExport}>
+                    <Button variant="outline" className="w-full gap-2" onClick={() => void onExport()}>
                       <Download className="size-4" />
                       {t("settings.wipeExportFirst")}
                     </Button>

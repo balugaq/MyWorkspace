@@ -265,7 +265,7 @@ export function GithubQueueWorkspace() {
                 value={repoInput}
                 onChange={(e) => setRepoInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading) handleAdd()
+                  if (e.key === "Enter" && !loading) void handleAdd()
                 }}
               />
             </div>
@@ -273,7 +273,7 @@ export function GithubQueueWorkspace() {
               <Button variant="ghost" onClick={() => setAddOpen(false)}>
                 {t("common.cancel")}
               </Button>
-              <Button onClick={handleAdd} disabled={loading}>
+              <Button onClick={() => void handleAdd()} disabled={loading}>
                 {loading ? t("queue.verifying") : t("common.add")}
               </Button>
             </div>
@@ -306,7 +306,7 @@ export function GithubQueueWorkspace() {
                 value={issueInput}
                 onChange={(e) => setIssueInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !singleLoading) handleAddSingle()
+                  if (e.key === "Enter" && !singleLoading) void handleAddSingle()
                 }}
               />
             </div>
@@ -314,7 +314,7 @@ export function GithubQueueWorkspace() {
               <Button variant="ghost" onClick={() => setAddSingleOpen(false)}>
                 {t("common.cancel")}
               </Button>
-              <Button onClick={handleAddSingle} disabled={singleLoading}>
+              <Button onClick={() => void handleAddSingle()} disabled={singleLoading}>
                 {singleLoading ? t("queue.fetching") : t("common.add")}
               </Button>
             </div>

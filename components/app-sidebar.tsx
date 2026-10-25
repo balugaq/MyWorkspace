@@ -117,7 +117,7 @@ function CalendarSidePanel() {
   }
   const copyLifeText = () => {
     if (!lifeText) return
-    navigator.clipboard.writeText(lifeText)
+    void navigator.clipboard.writeText(lifeText)
     toast.success(t("sidebar.copiedLifeBar"))
   }
 

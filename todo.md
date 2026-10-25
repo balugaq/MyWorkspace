@@ -635,11 +635,15 @@ TODO 82. （状态：已完成）
   ② 已随先前依赖更新完成：当前 `npm audit` 0 漏洞（review 记录的 11 条已清，next 16.4.2）。
   ③ 已消解：next 16.4.2 不在 advisory 区间（9.3.4-canary.0 – 16.4.0）内，无需升级动作。
 
-TODO 83. （状态：待处理）
+TODO 83. （状态：已完成）
 给「persist merge 迁移」配回归测试（来自 maintainability-review.md）：构造 v-1 存档 JSON，断言 `merge` 迁移结果——把 AGENTS.md 红线 #1「新增字段必须过 merge」从文字约定变成机械检查，typecheck 挡不住「忘了写 merge 兼容」
 
-TODO 84. （状态：待处理）
+- 一句话：merge 逻辑从 `lib/store.ts` 整块抽为纯模块 `lib/persist-merge.ts`（`mergePersistedState` 导出，测试不再需要 import store）；`tests/persist-merge.test.ts` 用 v-1 存档断言 6 组迁移行为（persona 升级 / 通知字段回填 / 排序 / 生日横幅 / dayStartOffset 夹取 / 关系族 schema 迁移），并验证新字段直通不被吞。
+
+TODO 84. （状态：已完成）
 补 `no-floating-promises` / `no-misused-promises` 两条 type-aware lint 规则（来自 maintainability-review.md 缺口 #3）：当前 eslint 仅 next 预设，漏 `await` 的 detached promise 在严格 TS 下仍静默
+
+- 一句话：eslint.config.mjs 对 `**/*.ts{,x}` 开 `projectService` + 两条规则（不开 recommended-type-checked 全集，避免 no-unsafe-* 家族大面积重写）；tests/ 目录 override 关 floating（node:test 的 describe/it/test 返回 Promise 属 runner 协议）；存量 187 条（159 floating + 28 misused）全部修掉——floating 补 `void` 标记，misused 的 async 处理器包一层 `() => void fn()`，settings 两处 onChange async 抽为共用 `handleAvatarFile`。
 
 TODO 85. （状态：待处理）
 大文件拆分计划（来自 maintainability-review.md，当前 17/149 文件超 500 行）：
@@ -650,8 +654,10 @@ TODO 85. （状态：待处理）
 TODO 86. （状态：待处理）
 写一份 docs/HANDOFF.md（来自 maintainability-review.md，连续性措施）：发布流程、`update-dependencies` 脚本的存在与用法、localStorage schema 迁移惯例——给未来接手者（包括未来的 LLM 代理）
 
-TODO 87. （状态：待处理）
+TODO 87. （状态：已完成）
 添加 GitHub Release workflow
+
+- 一句话：`.github/workflows/release.yml`——tag push（`v*`）或手动触发，构建本地可用版（不带 basePath）打包 zip，经 softprops/action-gh-release 创建 Release 并附产物 + 自动 release notes。
 
 TODO 88. （状态：已完成）
 通知页面里加一个，和 github contribution 一样的，折叠过多消息。
@@ -664,5 +670,7 @@ TODO 89. （状态：已完成）
 
 - 一句话：通知铃铛+未读徽标从 toolbar-panel.tsx 底部导航移除，移到 brand-header.tsx 头像左侧；点击 goNotifications 进入通知页（store 内标记已读逻辑不变）。
 
-TODO 90. （状态：待处理）
+TODO 90. （状态：已完成）
 npm run lint / test 里的问题逐一处理，同时加到现有的 ai agent workbuddy check 流程那里
+
+- 一句话：实测 lint 0 错误 / test 116/116（存量问题已在此前 todo 中清掉，TODO 84 再把 187 条 promise 类存量清零）；「check 流程」已由 AGENTS.md 第 2 节「验收（AI 侧）」+ 红线 #3 固化（每次改动必跑 typecheck+lint+test），CI 侧 ci.yml / deploy.yml 均已挂 lint+test。若主人所指为 IDE 侧其他机制，待明确后补充。

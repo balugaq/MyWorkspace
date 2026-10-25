@@ -462,7 +462,7 @@ export function AIChatWorkspace() {
                 <div className="flex items-center gap-0.5 text-muted-foreground">
                   <button
                     type="button"
-                    onClick={() => copyText(m.content)}
+                    onClick={() => void copyText(m.content)}
                     className="rounded p-1 transition-colors hover:bg-accent hover:text-accent-foreground"
                     title={t("common.copy")}
                     aria-label={t("common.copy")}

@@ -18,7 +18,7 @@ export function StoredImg({ imgId, fullSize }: { imgId: string; fullSize?: boole
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
     let active = true
-    getImageURL(imgId).then((u) => {
+    void getImageURL(imgId).then((u) => {
       if (!active) return
       setUrl(u)
       // 组件卸载时不主动 revoke（对象URL生命周期交给浏览器），避免竞态

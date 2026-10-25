@@ -385,7 +385,7 @@ function TriggerNewsButton() {
         size="sm"
         className="gap-1.5"
         disabled={busy || !newsEnabled}
-        onClick={handle}
+        onClick={() => void handle()}
       >
         <RefreshCw className={cn("size-3.5", busy && "animate-spin")} aria-hidden />
         {busy ? t("notif.generating") : t("notif.manualTrigger")}
