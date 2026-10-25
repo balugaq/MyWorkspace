@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 产物为「本地可用版」：不设 NEXT_PUBLIC_BASE_PATH（next.config.ts 默认空），
+      # 下载解压后任意静态服务器可直接托管；GitHub Pages 线走 deploy.yml（/MyWorkspace）
+      - name: Build
+        run: npm run build
+
+      - name: Package static export
+        run: |
+          cd out
+          zip -r "../myworkspace-${{ github.ref_name }}.zip" .
+          cd ..
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: myworkspace-${{ github.ref_name }}.zip
+          generate_release_notes: true
