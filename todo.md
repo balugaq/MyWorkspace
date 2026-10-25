@@ -653,7 +653,11 @@ TODO 85. （状态：第一刀已完成；第二刀 settings-view、第三刀 �
    - 切片模式：slice `export const createXSlice = (set, get) => ({...})`，主文件 `(set,get)=>({...createXSlice(set,get), ...})` 组合。
    - 验收：typecheck 0 错误 / lint 0 错误 0 警告 / test 116/116 全绿。
    - 坑：store.ts 的相对 import 解析基址是 `lib/`（非 `lib/store/`），切片 import 用 `./store/...` 才解析得到；Python 改写文件须 `newline="\n"` 否则 Windows 下被转 CRLF 触发 383 个 linebreak-style 错误。
-2. 第二刀：`components/settings-view.tsx`（1927 行）按设置分区拆 — 待处理
+2. 第二刀：`components/settings-view.tsx`（1899 行）按设置分区拆 — 已完成
+   - settings-view.tsx 1899→77 行（仅留 SETTINGS_SECTIONS 导航 + 分区条件渲染）；
+   - 拆出 `components/settings/` 11 个文件（合计 2017 行，均 <500）：general（237）/ shortcuts（116）/ account（122，含 DataSectionContent 组合）/ data（472，备份导入导出 + 清空 + 3 弹窗）/ ai（169）/ advanced（123）/ notifications（278）/ news（42）分区组件 + shared（66，Section + useAvatarUpload）/ tag-manager-block（233）/ auto-backup-manager（159）独立块。
+   - 行为保持点：wipe 弹窗「先导出」复用 data-section 内的 onExport（exportSel 状态同源）；账户/AI 头像上传共用 shared 的 useAvatarUpload；通知日志导出工具随 advanced-section 迁移。
+   - 验收：typecheck 0 错 / lint 0 错 0 警 / test 116/116 全绿。
 3. 动手前先跑一轮针对 components/ 的重复猎捕（多个 *-workspace.tsx 疑有相似的骨架模式，待验证）— 待处理
 
 TODO 86. （状态：待处理）
