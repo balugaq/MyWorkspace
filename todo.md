@@ -660,8 +660,10 @@ TODO 85. （状态：第一刀已完成；第二刀 settings-view、第三刀 �
    - 验收：typecheck 0 错 / lint 0 错 0 警 / test 116/116 全绿。
 3. 动手前先跑一轮针对 components/ 的重复猎捕（多个 *-workspace.tsx 疑有相似的骨架模式，待验证）— 待处理
 
-TODO 86. （状态：待处理）
+TODO 86. （状态：已完成）
 写一份 docs/HANDOFF.md（来自 maintainability-review.md，连续性措施）：发布流程、`update-dependencies` 脚本的存在与用法、localStorage schema 迁移惯例——给未来接手者（包括未来的 LLM 代理）
+
+- 一句话：docs/HANDOFF.md 四节——① 三条发布通道（Pages/Release zip/本地 serve）+ 门禁 + 构建特性（静态导出不兼容 next start、依赖数据构建期打包、wrangler 预留）+ 版本号/tag 约定；② update-dependencies 脚本（DEPS 清单扩展法、SKIP_DEP_UPDATE、失败非致命）；③ localStorage schema 迁移惯例（persist-merge.ts 单点迁移 + 测试回归 + persist/备份双路径 + 手测验收法）；④ 接手 checklist。全篇以文件名/方法名互链，不写行号。
 
 TODO 87. （状态：已完成）
 添加 GitHub Release workflow
