@@ -106,7 +106,7 @@ export function HealthReminderToasts() {
   if (cards.length === 0) return null
 
   return (
-    <div className="fixed right-4 bottom-28 z-[100] flex w-80 flex-col gap-2">
+    <div className="pointer-events-none fixed right-4 bottom-28 z-[100] flex w-80 flex-col gap-2">
       {cards.map((card) => {
         const meta = REMINDER_META[card.kind]
         const Icon = meta.icon
@@ -116,7 +116,8 @@ export function HealthReminderToasts() {
             key={card.id}
             className={cn(
               "flex items-start gap-2.5 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg transition-transform duration-300 ease-out",
-              visible ? "translate-x-0" : "translate-x-[calc(100%+1rem)]"
+              // 滑出中/滑出后不拦截点击，只有可见卡片可交互
+              visible ? "translate-x-0 pointer-events-auto" : "translate-x-[calc(100%+1rem)] pointer-events-none"
             )}
           >
             <Icon className="mt-0.5 size-5 shrink-0 text-primary" />
