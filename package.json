@@ -71,7 +71,7 @@
   "devDependencies": {
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "16.4.3",
     "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.0"
