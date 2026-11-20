@@ -29,7 +29,7 @@ function relativeTimeMs(at: number): string {
   if (!Number.isFinite(at)) return ""
   const diff = Date.now() - at
   const minutes = Math.floor(diff / 60_000)
-  const gt = (key: string, params?: Record<string, unknown>) => getI18n().t(key, params)
+  const gt = (key: string, params: Record<string, unknown> = {}) => getI18n().t(key, params)
   if (minutes < 1) return gt("notif.justNow") as string
   if (minutes < 60) return gt("notif.minutesAgo", { n: minutes }) as string
   const hours = Math.floor(minutes / 60)
