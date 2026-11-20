@@ -101,7 +101,7 @@ function parseComparatorToken(token: string): Comparator[] {
  * 把 OR 的一个分支（空格分隔的 AND 比较）解析成比较器列表。
  * 处理 npm range 常见空格形态：
  * - 操作符与版本之间的空格：">= 4.11" → ">=" + "4.11"
- * - hyphen range："2 - 3" → >=2.0.0 <=3.0.0
+ * - hyphen range："2 - 3" → >=2.0.0 <4.0.0（部分版本上界开区间进位，同 node-semver）
  */
 function parseAndComparators(branch: string): Comparator[] {
   const raw = branch.trim().split(/\s+/).filter(Boolean)
@@ -116,14 +116,22 @@ function parseAndComparators(branch: string): Comparator[] {
       token = token + (raw[++i] ?? "")
     }
     if (raw[i + 1] === "-") {
-      // hyphen range：lo - hi（hi 为部分版本时 npm 语义为 <=，补齐比较即可）
+      // hyphen range：lo - hi。npm 语义（node-semver）：hi 为部分版本时是开区间
+      // 进位上界（"2 - 3" → >=2.0.0 <4.0.0），只有完整三段才是 <=（"2.0.0 - 3.0.0"）
       const hi = raw[i + 2]
       if (hi === undefined || hi === "-") {
         throw new Error(`无法解析的 semver hyphen range: "${branch}"`)
       }
       parseVersion(token)
-      parseVersion(hi)
-      comps.push({ op: ">=", version: token }, { op: "<=", version: hi })
+      const hiParsed = parseVersion(hi)
+      if (hiParsed.parts.length < 3) {
+        const upper = hiParsed.parts.slice()
+        upper[upper.length - 1] += 1
+        for (let j = hiParsed.parts.length; j < 3; j++) upper[j] = 0
+        comps.push({ op: ">=", version: token }, { op: "<", version: upper.join(".") })
+      } else {
+        comps.push({ op: ">=", version: token }, { op: "<=", version: hi })
+      }
       i += 2
       continue
     }

@@ -55,11 +55,20 @@ describe("semverSatisfies", () => {
     assert.equal(semverSatisfies("19.2.4", ">= 16.8.0"), true)
     assert.equal(semverSatisfies("4.11.5", ">= 4.11"), true)
     assert.equal(semverSatisfies("4.10.0", ">= 4.11"), false)
-    // hyphen range（d3-transition 的 peer "2 - 3"）
+    // hyphen range（d3-transition 的 peer "2 - 3"）：npm 语义下部分版本上界是
+    // 开区间进位（>=2.0.0 <4.0.0），3.0.x / 3.1.0 都满足
     assert.equal(semverSatisfies("3.0.0", "2 - 3"), true)
     assert.equal(semverSatisfies("2.9.9", "2 - 3"), true)
+    assert.equal(semverSatisfies("3.0.1", "2 - 3"), true)
+    assert.equal(semverSatisfies("3.1.0", "2 - 3"), true)
     assert.equal(semverSatisfies("1.5.0", "2 - 3"), false)
-    assert.equal(semverSatisfies("3.1.0", "2 - 3"), false)
+    assert.equal(semverSatisfies("4.0.0", "2 - 3"), false)
+    // 完整三段上界才是闭区间（>=2.0.0 <=3.0.0）
+    assert.equal(semverSatisfies("3.0.0", "2.0.0 - 3.0.0"), true)
+    assert.equal(semverSatisfies("3.0.1", "2.0.0 - 3.0.0"), false)
+    // 部分版本上界进位到下一段（"2 - 3.2" → >=2.0.0 <3.3.0）
+    assert.equal(semverSatisfies("3.2.9", "2 - 3.2"), true)
+    assert.equal(semverSatisfies("3.3.0", "2 - 3.2"), false)
     // x-range（styled-jsx 的 peer "17.x.x"）
     assert.equal(semverSatisfies("17.5.2", "17.x.x"), true)
     assert.equal(semverSatisfies("18.0.0", "17.x.x"), false)
