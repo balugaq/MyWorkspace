@@ -55,3 +55,7 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    # v5 换用 @actions/artifact v6，与 deploy-pages@v5 的 v2 客户端跨代不兼容，禁止自动升级
+    ignore:
+      - dependency-name: "actions/upload-pages-artifact"
+        update-types: ["version-update:semver-major"]

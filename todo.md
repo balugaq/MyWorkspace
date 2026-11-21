@@ -685,3 +685,10 @@ TODO 90. （状态：已完成）
 npm run lint / test 里的问题逐一处理，同时加到现有的 ai agent workbuddy check 流程那里
 
 - 一句话：实测 lint 0 错误 / test 116/116（存量问题已在此前 todo 中清掉，TODO 84 再把 187 条 promise 类存量清零）；「check 流程」已由 AGENTS.md 第 2 节「验收（AI 侧）」+ 红线 #3 固化（每次改动必跑 typecheck+lint+test），CI 侧 ci.yml / deploy.yml 均已挂 lint+test。若主人所指为 IDE 侧其他机制，待明确后补充。
+
+TODO 91. （状态：已完成，待 CI 远端重跑确认）
+修复 GitHub Pages 部署失败：upload-pages-artifact@v5 与 deploy-pages@v5 的 artifact 客户端跨代不兼容，上传成功但部署查到 0 个 artifact
+
+- 一句话：根因是 upload-pages-artifact@v5 内部换用 upload-artifact@v7.0.0（依赖 @actions/artifact ^6.2.0），而 deploy-pages@v5 仍依赖 @actions/artifact ^2.1.8，其 getArtifactMetadata() 用 v2 客户端的 listArtifacts() 经 twirp ListArtifacts 查询，看不到 v6 客户端刚上传的 artifact，报 `Found 0 artifact(s)`；与 GITHUB_TOKEN 的 `actions: read` 权限无关（v5 源码已改走 twirp client，README 只要求 pages: write + id-token: write）。
+- 修法：deploy.yml 把 upload-pages-artifact@v5 回退到 v4（内部 upload-artifact v4.6.2 / artifact client v2，与 deploy-pages@v5 同代；官方 starter workflow 也是 v2 客户端一族的 upload 配 v5 deploy）；dependabot.yml 对 actions/upload-pages-artifact 加 `version-update:semver-major` ignore，防周更自动升回 v5。
+- 验收：typecheck 0 错 / lint 0 错（首次退出码 1 无输出，重跑 0，环境噪音）/ test 116/116 / 两个 YAML 经 node yaml 解析通过；CI 远端需主人 push 后重跑确认。若 v4 仍失败，进一步回退到 v3（官方 starter workflow 当前组合 v3 + deploy-pages@v5）。
